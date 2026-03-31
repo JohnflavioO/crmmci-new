@@ -1,0 +1,353 @@
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
+import AppLayout from '@/components/AppLayout';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
+import { Plus, Search, Eye, Pencil, Trash2, FileText, X } from 'lucide-react';
+
+const db = supabase as any;
+
+const statusLabels: Record<string, string> = {
+  draft: 'Rascunho', sent: 'Enviado', approved: 'Aprovado', rejected: 'Rejeitado',
+};
+const statusColors: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  draft: 'secondary', sent: 'default', approved: 'default', rejected: 'destructive',
+};
+
+interface QuoteItem {
+  id?: string;
+  item_number: number;
+  product_code: string;
+  quantity: number;
+  model: string;
+  brand: string;
+  specifications: string;
+  unit_price: number;
+  discount_percent: number;
+  unit_total: number;
+  line_total: number;
+}
+
+const emptyItem = (): QuoteItem => ({
+  item_number: 1, product_code: '', quantity: 1, model: '', brand: '',
+  specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0,
+});
+
+export default function Quotes() {
+  const { user } = useAuth();
+  const [quotes, setQuotes] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingQuote, setEditingQuote] = useState<any | null>(null);
+  const [form, setForm] = useState({ client_id: '', status: 'draft', notes: '' });
+  const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
+
+  const loadData = async () => {
+    const [q, c] = await Promise.all([
+      db.from('quotes').select('*, clients(company_name), profiles!quotes_salesperson_id_fkey(full_name)')
+        .order('created_at', { ascending: false }),
+      db.from('clients').select('id, company_name').order('company_name'),
+    ]);
+    setQuotes(q.data || []);
+    setClients(c.data || []);
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const calcItem = (item: QuoteItem): QuoteItem => {
+    const unitTotal = item.unit_price * (1 - item.discount_percent / 100);
+    const lineTotal = unitTotal * item.quantity;
+    return { ...item, unit_total: Math.round(unitTotal * 100) / 100, line_total: Math.round(lineTotal * 100) / 100 };
+  };
+
+  const updateItem = (index: number, field: string, value: any) => {
+    setItems(prev => {
+      const updated = [...prev];
+      updated[index] = calcItem({ ...updated[index], [field]: value });
+      return updated;
+    });
+  };
+
+  const addItem = () => setItems(prev => [...prev, emptyItem()]);
+  const removeItem = (i: number) => setItems(prev => prev.filter((_, idx) => idx !== i));
+
+  const totalAmount = items.reduce((sum, item) => sum + item.line_total, 0);
+
+  const formatCurrency = (v: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
+  const handleSave = async () => {
+    if (!form.client_id) { toast.error('Selecione um cliente'); return; }
+    if (items.every(i => !i.model)) { toast.error('Adicione pelo menos um item'); return; }
+
+    try {
+      let quoteId: string;
+
+      if (editingQuote) {
+        const { error } = await db.from('quotes').update({
+          client_id: form.client_id, status: form.status, notes: form.notes,
+          total_amount: totalAmount,
+        }).eq('id', editingQuote.id);
+        if (error) throw error;
+        quoteId = editingQuote.id;
+        await db.from('quote_items').delete().eq('quote_id', quoteId);
+      } else {
+        const { data: numData } = await db.rpc('generate_quote_number');
+        const { data, error } = await db.from('quotes').insert({
+          quote_number: numData || `ORC-${Date.now()}`,
+          client_id: form.client_id, status: form.status, notes: form.notes,
+          salesperson_id: user?.id, total_amount: totalAmount,
+        }).select('id').single();
+        if (error) throw error;
+        quoteId = data.id;
+      }
+
+      const validItems = items.filter(i => i.model).map((item, idx) => ({
+        quote_id: quoteId, item_number: idx + 1, product_code: item.product_code,
+        quantity: item.quantity, model: item.model, brand: item.brand,
+        specifications: item.specifications, unit_price: item.unit_price,
+        discount_percent: item.discount_percent, unit_total: item.unit_total,
+        line_total: item.line_total,
+      }));
+
+      if (validItems.length > 0) {
+        const { error } = await db.from('quote_items').insert(validItems);
+        if (error) throw error;
+      }
+
+      toast.success(editingQuote ? 'Orçamento atualizado!' : 'Orçamento criado!');
+      setDialogOpen(false);
+      resetForm();
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleEdit = async (quote: any) => {
+    const { data: qItems } = await db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number');
+    setEditingQuote(quote);
+    setForm({ client_id: quote.client_id || '', status: quote.status, notes: quote.notes || '' });
+    setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Excluir este orçamento?')) return;
+    const { error } = await db.from('quotes').delete().eq('id', id);
+    if (error) toast.error(error.message);
+    else { toast.success('Orçamento excluído'); loadData(); }
+  };
+
+  const resetForm = () => {
+    setEditingQuote(null);
+    setForm({ client_id: '', status: 'draft', notes: '' });
+    setItems([emptyItem()]);
+  };
+
+  const filtered = quotes.filter((q: any) =>
+    q.quote_number?.toLowerCase().includes(search.toLowerCase()) ||
+    q.clients?.company_name?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <AppLayout>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold font-display">Orçamentos</h1>
+          <p className="text-muted-foreground">Crie e gerencie seus orçamentos</p>
+        </div>
+        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
+          <DialogTrigger asChild>
+            <Button className="gap-2"><Plus className="h-4 w-4" /> Novo Orçamento</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="font-display">
+                {editingQuote ? `Editar ${editingQuote.quote_number}` : 'Novo Orçamento'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6 mt-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Cliente *</Label>
+                  <Select value={form.client_id} onValueChange={v => setForm(p => ({ ...p, client_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar cliente" /></SelectTrigger>
+                    <SelectContent>
+                      {clients.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>{c.company_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Rascunho</SelectItem>
+                      <SelectItem value="sent">Enviado</SelectItem>
+                      <SelectItem value="approved">Aprovado</SelectItem>
+                      <SelectItem value="rejected">Rejeitado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Observações</Label>
+                  <Input value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <Label className="text-base font-semibold">Itens do Orçamento</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addItem} className="gap-1">
+                    <Plus className="h-3 w-3" /> Item
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {items.map((item, idx) => (
+                    <div key={idx} className="p-4 rounded-lg border bg-muted/30 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Item {idx + 1}</span>
+                        {items.length > 1 && (
+                          <Button type="button" size="icon" variant="ghost" onClick={() => removeItem(idx)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-4 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Modelo *</Label>
+                          <Input value={item.model} onChange={e => updateItem(idx, 'model', e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Marca</Label>
+                          <Input value={item.brand} onChange={e => updateItem(idx, 'brand', e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Código</Label>
+                          <Input value={item.product_code} onChange={e => updateItem(idx, 'product_code', e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Qtd</Label>
+                          <Input type="number" min={1} value={item.quantity}
+                            onChange={e => updateItem(idx, 'quantity', parseInt(e.target.value) || 1)} />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Especificações</Label>
+                        <Textarea value={item.specifications} rows={2}
+                          onChange={e => updateItem(idx, 'specifications', e.target.value)} />
+                      </div>
+                      <div className="grid grid-cols-4 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Preço Unit. (R$)</Label>
+                          <Input type="number" step="0.01" value={item.unit_price}
+                            onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Desconto (%)</Label>
+                          <Input type="number" step="0.1" min={0} max={100} value={item.discount_percent}
+                            onChange={e => updateItem(idx, 'discount_percent', parseFloat(e.target.value) || 0)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Valor Unit.</Label>
+                          <Input value={formatCurrency(item.unit_total)} readOnly className="bg-muted" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Total</Label>
+                          <Input value={formatCurrency(item.line_total)} readOnly className="bg-muted font-semibold" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-end mt-4 p-3 bg-primary/5 rounded-lg">
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Total do Orçamento</p>
+                    <p className="text-2xl font-bold font-display text-primary">{formatCurrency(totalAmount)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+                <Button onClick={handleSave}>Salvar Orçamento</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card className="shadow-card">
+        <CardHeader className="pb-3">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar orçamento..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          {filtered.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="mx-auto h-12 w-12 text-muted-foreground/30" />
+              <p className="text-muted-foreground mt-3">Nenhum orçamento encontrado</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nº Orçamento</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Vendedor</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Valor</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-28">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((q: any) => (
+                  <TableRow key={q.id}>
+                    <TableCell className="font-medium">{q.quote_number}</TableCell>
+                    <TableCell>{q.clients?.company_name || '-'}</TableCell>
+                    <TableCell>{q.profiles?.full_name || '-'}</TableCell>
+                    <TableCell>{new Date(q.quote_date).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell>{formatCurrency(parseFloat(q.total_amount) || 0)}</TableCell>
+                    <TableCell>
+                      <Badge variant={statusColors[q.status] || 'secondary'}>
+                        {statusLabels[q.status] || q.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => handleEdit(q)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => handleDelete(q.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </AppLayout>
+  );
+}
