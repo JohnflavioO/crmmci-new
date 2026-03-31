@@ -4,7 +4,7 @@ import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
@@ -36,6 +36,8 @@ const emptyClient: Omit<Client, 'id'> = {
   neighborhood: '', cep: '', contact_phone: '', contrib_icms: '', notes: '',
 };
 
+const db = supabase as any;
+
 export default function Clients() {
   const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
@@ -45,7 +47,7 @@ export default function Clients() {
   const [form, setForm] = useState(emptyClient);
 
   const loadClients = async () => {
-    const { data } = await supabase.from('clients').select('*').order('company_name');
+    const { data } = await db.from('clients').select('*').order('company_name');
     setClients((data as any[]) || []);
   };
 
@@ -54,11 +56,11 @@ export default function Clients() {
   const handleSave = async () => {
     try {
       if (editingClient) {
-        const { error } = await supabase.from('clients').update(form).eq('id', editingClient.id);
+        const { error } = await db.from('clients').update(form).eq('id', editingClient.id);
         if (error) throw error;
         toast.success('Cliente atualizado!');
       } else {
-        const { error } = await supabase.from('clients').insert({ ...form, created_by: user?.id });
+        const { error } = await db.from('clients').insert({ ...form, created_by: user?.id });
         if (error) throw error;
         toast.success('Cliente criado!');
       }
@@ -79,7 +81,7 @@ export default function Clients() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir este cliente?')) return;
-    const { error } = await supabase.from('clients').delete().eq('id', id);
+    const { error } = await db.from('clients').delete().eq('id', id);
     if (error) toast.error(error.message);
     else { toast.success('Cliente excluído'); loadClients(); }
   };

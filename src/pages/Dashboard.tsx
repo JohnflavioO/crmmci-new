@@ -13,6 +13,8 @@ const statusVariants: Record<string, 'default' | 'secondary' | 'destructive' | '
   draft: 'secondary', sent: 'default', approved: 'default', rejected: 'destructive',
 };
 
+const db = supabase as any;
+
 export default function Dashboard() {
   const [stats, setStats] = useState({ quotes: 0, clients: 0, totalValue: 0, approved: 0 });
   const [recentQuotes, setRecentQuotes] = useState<any[]>([]);
@@ -20,9 +22,9 @@ export default function Dashboard() {
   useEffect(() => {
     const load = async () => {
       const [quotesRes, clientsRes, recentRes] = await Promise.all([
-        supabase.from('quotes').select('status, total_amount'),
-        supabase.from('clients').select('id', { count: 'exact', head: true }),
-        supabase.from('quotes').select('*, clients(company_name), profiles!quotes_salesperson_id_fkey(full_name)')
+        db.from('quotes').select('status, total_amount'),
+        db.from('clients').select('id', { count: 'exact', head: true }),
+        db.from('quotes').select('*, clients(company_name), profiles!quotes_salesperson_id_fkey(full_name)')
           .order('created_at', { ascending: false }).limit(5),
       ]);
 
@@ -71,7 +73,7 @@ export default function Dashboard() {
                 <div key={q.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                   <div>
                     <p className="font-medium text-sm">{q.quote_number}</p>
-                    <p className="text-xs text-muted-foreground">{(q as any).clients?.company_name || 'Sem cliente'}</p>
+                    <p className="text-xs text-muted-foreground">{q.clients?.company_name || 'Sem cliente'}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium">{formatCurrency(parseFloat(q.total_amount) || 0)}</span>

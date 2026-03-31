@@ -30,12 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserData = async (userId: string) => {
     const [approvalRes, roleRes, profileRes] = await Promise.all([
-      supabase.from('user_approvals').select('status').eq('user_id', userId).maybeSingle(),
-      supabase.from('user_roles').select('role').eq('user_id', userId),
-      supabase.from('profiles').select('full_name, phone, role').eq('user_id', userId).maybeSingle(),
+      (supabase as any).from('user_approvals').select('status').eq('user_id', userId).maybeSingle(),
+      (supabase as any).from('user_roles').select('role').eq('user_id', userId),
+      (supabase as any).from('profiles').select('full_name, phone, role').eq('user_id', userId).maybeSingle(),
     ]);
     
-    setIsApproved(approvalRes.data?.status === 'approved');
+    setIsApproved((approvalRes.data as any)?.status === 'approved');
     setIsAdmin(roleRes.data?.some((r: any) => r.role === 'admin') ?? false);
     setProfile(profileRes.data as any);
   };
