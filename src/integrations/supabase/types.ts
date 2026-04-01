@@ -177,6 +177,36 @@ export type Database = {
           },
         ]
       }
+      salespeople: {
+        Row: {
+          active: boolean | null
+          code: number | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          code?: number | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          code?: number | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
       user_approvals: {
         Row: {
           approved_by: string | null
