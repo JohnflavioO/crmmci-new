@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Building2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 interface Client {
