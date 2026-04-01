@@ -11,6 +11,7 @@ import Clients from "./pages/Clients";
 import Quotes from "./pages/Quotes";
 import Approvals from "./pages/Approvals";
 import Products from "./pages/Products";
+import EcoflowCalculator from "./pages/EcoflowCalculator";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
