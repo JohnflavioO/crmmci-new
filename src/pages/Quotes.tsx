@@ -294,13 +294,13 @@ export default function Quotes() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Observações</Label>
-                  <Input value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
+                  <Label>Validade da Proposta</Label>
+                  <Input value={form.proposal_validity} onChange={e => setForm(p => ({ ...p, proposal_validity: e.target.value }))} placeholder="Ex: 15 dias" />
                 </div>
               </div>
 
               {/* Payment & Shipping */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg border bg-muted/20">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 rounded-lg border bg-muted/20">
                 <div className="space-y-2">
                   <Label>Forma de Pagamento</Label>
                   <Input
@@ -328,6 +328,20 @@ export default function Quotes() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label>Valor do Frete (R$)</Label>
+                  <Input type="number" step="0.01" min={0}
+                    value={form.shipping_cost}
+                    onChange={e => setForm(p => ({ ...p, shipping_cost: parseFloat(e.target.value) || 0 }))}
+                    placeholder="0,00"
+                  />
+                </div>
+              </div>
+
+              {/* Observações */}
+              <div className="space-y-2">
+                <Label>Observações</Label>
+                <Textarea rows={4} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Observações gerais do orçamento..." />
               </div>
 
               {/* Items */}
