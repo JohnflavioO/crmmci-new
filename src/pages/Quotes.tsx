@@ -505,6 +505,8 @@ export default function Quotes() {
                     <TableCell>{q.salesperson || '-'}</TableCell>
                     <TableCell>{new Date(q.quote_date).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell>{formatCurrency(parseFloat(q.total_amount) || 0)}</TableCell>
+                    <TableCell>{formatCurrency(parseFloat(q.shipping_cost) || 0)}</TableCell>
+                    <TableCell className="font-medium">{formatCurrency((parseFloat(q.total_amount) || 0) + (parseFloat(q.shipping_cost) || 0))}</TableCell>
                     <TableCell>
                       <Badge variant={statusColors[q.status] || 'secondary'}>
                         {statusLabels[q.status] || q.status}
