@@ -187,10 +187,13 @@ export type Database = {
           discount: number | null
           id: string
           notes: string | null
+          payment_terms: string | null
           quote_date: string | null
           quote_number: string
           salesperson: string | null
           salesperson_id: string | null
+          shipping_deadline: string | null
+          shipping_method: string | null
           status: string | null
           total: number | null
           total_amount: number | null
@@ -204,10 +207,13 @@ export type Database = {
           discount?: number | null
           id?: string
           notes?: string | null
+          payment_terms?: string | null
           quote_date?: string | null
           quote_number?: string
           salesperson?: string | null
           salesperson_id?: string | null
+          shipping_deadline?: string | null
+          shipping_method?: string | null
           status?: string | null
           total?: number | null
           total_amount?: number | null
@@ -221,10 +227,13 @@ export type Database = {
           discount?: number | null
           id?: string
           notes?: string | null
+          payment_terms?: string | null
           quote_date?: string | null
           quote_number?: string
           salesperson?: string | null
           salesperson_id?: string | null
+          shipping_deadline?: string | null
+          shipping_method?: string | null
           status?: string | null
           total?: number | null
           total_amount?: number | null
