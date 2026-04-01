@@ -1,7 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, FileText, UserCheck, LogOut, Settings,
+  LayoutDashboard, Users, FileText, UserCheck, LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
