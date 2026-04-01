@@ -155,7 +155,7 @@ export default function Quotes() {
 
   const resetForm = () => {
     setEditingQuote(null);
-    setForm({ client_id: '', status: 'draft', notes: '' });
+    setForm({ client_id: '', salesperson: '', status: 'draft', notes: '' });
     setItems([emptyItem()]);
   };
 
