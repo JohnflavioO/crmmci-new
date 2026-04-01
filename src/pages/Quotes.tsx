@@ -99,7 +99,7 @@ export default function Quotes() {
 
       if (editingQuote) {
         const { error } = await db.from('quotes').update({
-          client_id: form.client_id, status: form.status, notes: form.notes,
+          client_id: form.client_id, salesperson: form.salesperson, status: form.status, notes: form.notes,
           total_amount: totalAmount,
         }).eq('id', editingQuote.id);
         if (error) throw error;
