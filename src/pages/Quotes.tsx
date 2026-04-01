@@ -197,6 +197,8 @@ export default function Quotes() {
       status: quote.status, notes: quote.notes || '',
       payment_terms: quote.payment_terms || '', shipping_deadline: quote.shipping_deadline || '',
       shipping_method: quote.shipping_method || '',
+      shipping_cost: parseFloat(quote.shipping_cost) || 0,
+      proposal_validity: quote.proposal_validity || '15 dias',
     });
     setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
     setDialogOpen(true);
