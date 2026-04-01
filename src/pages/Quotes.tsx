@@ -314,15 +314,41 @@ export default function Quotes() {
               </div>
 
               {/* Payment & Shipping */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 rounded-lg border bg-muted/20">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg border bg-muted/20">
                 <div className="space-y-2">
-                  <Label>Forma de Pagamento</Label>
+                  <Label>Condições de Pagamento</Label>
                   <Input
                     value={form.payment_terms}
                     onChange={e => setForm(p => ({ ...p, payment_terms: e.target.value }))}
                     placeholder="Ex: 30/60/90 dias, à vista, etc."
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>Método de Pagamento</Label>
+                  <Select value={form.payment_method} onValueChange={v => setForm(p => ({ ...p, payment_method: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar método" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pix">PIX</SelectItem>
+                      <SelectItem value="cartao">Cartão</SelectItem>
+                      <SelectItem value="boleto">Boleto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Status do Pagamento</Label>
+                  <Select value={form.payment_status} onValueChange={v => setForm(p => ({ ...p, payment_status: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar status" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pendente">Pendente</SelectItem>
+                      <SelectItem value="em_andamento">Em andamento</SelectItem>
+                      <SelectItem value="liquidado">Liquidado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Shipping */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg border bg-muted/20">
                 <div className="space-y-2">
                   <Label>Prazo de Envio</Label>
                   <Input
