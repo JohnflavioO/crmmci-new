@@ -208,7 +208,7 @@ export default function Quotes() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir este orçamento?')) return;
-    const { error } = await db.from('quotes').delete().eq('id', id);
+    const { error } = await db.rpc('delete_quote_cascade', { p_quote_id: id });
     if (error) toast.error(error.message);
     else { toast.success('Orçamento excluído'); loadData(); }
   };
@@ -350,8 +350,8 @@ export default function Quotes() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <Label className="text-base font-semibold">Itens do Orçamento</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addItem} className="gap-1">
-                    <Plus className="h-3 w-3" /> Item
+                  <Button type="button" size="sm" onClick={addItem} className="gap-1 bg-green-600 hover:bg-green-700 text-white">
+                    <Plus className="h-3 w-3" /> Adicionar Item
                   </Button>
                 </div>
                 <div className="space-y-3">
@@ -448,8 +448,11 @@ export default function Quotes() {
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                  <Button type="button" onClick={addItem} className="mt-3 w-full gap-2 bg-green-600 hover:bg-green-700 text-white">
+                    <Plus className="h-4 w-4" /> Adicionar Novo Item
+                  </Button>
 
                 <div className="flex justify-end mt-4 p-3 bg-primary/5 rounded-lg">
                   <div className="text-right space-y-1">
