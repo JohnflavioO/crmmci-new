@@ -182,7 +182,7 @@ export default function Quotes() {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-6 mt-4">
-              <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Cliente *</Label>
                   <Select value={form.client_id} onValueChange={v => setForm(p => ({ ...p, client_id: v }))}>
@@ -190,6 +190,17 @@ export default function Quotes() {
                     <SelectContent>
                       {clients.map((c: any) => (
                         <SelectItem key={c.id} value={c.id}>{c.company_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Vendedor</Label>
+                  <Select value={form.salesperson} onValueChange={v => setForm(p => ({ ...p, salesperson: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar vendedor" /></SelectTrigger>
+                    <SelectContent>
+                      {salespeople.map((s: any) => (
+                        <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
