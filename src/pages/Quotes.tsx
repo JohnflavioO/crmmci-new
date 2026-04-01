@@ -441,9 +441,10 @@ export default function Quotes() {
                 </div>
 
                 <div className="flex justify-end mt-4 p-3 bg-primary/5 rounded-lg">
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Total do Orçamento</p>
-                    <p className="text-2xl font-bold font-display text-primary">{formatCurrency(totalAmount)}</p>
+                  <div className="text-right space-y-1">
+                    <p className="text-sm text-muted-foreground">Subtotal: {formatCurrency(totalAmount)}</p>
+                    {form.shipping_cost > 0 && <p className="text-sm text-muted-foreground">Frete: {formatCurrency(form.shipping_cost)}</p>}
+                    <p className="text-2xl font-bold font-display text-primary">Total: {formatCurrency(grandTotal)}</p>
                   </div>
                 </div>
               </div>
