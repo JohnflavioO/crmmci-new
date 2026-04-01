@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, useCallback, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -28,47 +28,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string } | null>(null);
 
-  const fetchUserData = async (userId: string) => {
-    const results = await Promise.allSettled([
-      (supabase as any).from('user_approvals').select('status').eq('user_id', userId).maybeSingle(),
-      (supabase as any).from('user_roles').select('role').eq('user_id', userId),
-      (supabase as any).from('profiles').select('full_name, phone, role').eq('user_id', userId).maybeSingle(),
-    ]);
-    const approvalRes = results[0].status === 'fulfilled' ? results[0].value : { data: null };
-    const roleRes = results[1].status === 'fulfilled' ? results[1].value : { data: null };
-    const profileRes = results[2].status === 'fulfilled' ? results[2].value : { data: null };
-    setIsApproved((approvalRes.data as any)?.status === 'approved');
-    setIsAdmin(roleRes.data?.some((r: any) => r.role === 'admin') ?? false);
-    setProfile(profileRes.data as any);
-  };
-
+  // Step 1: Set up auth listener (no data fetching here)
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchUserData(session.user.id);
-        } else {
+      (_event, newSession) => {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        if (!newSession?.user) {
           setIsApproved(false);
           setIsAdmin(false);
           setProfile(null);
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchUserData(session.user.id);
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      setSession(s);
+      setUser(s?.user ?? null);
+      if (!s?.user) {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Step 2: Fetch user data separately when user changes
+  useEffect(() => {
+    if (!user) return;
+    
+    let cancelled = false;
+
+    const fetchData = async () => {
+      try {
+        const [approvedRes, adminRes, profileRes] = await Promise.all([
+          supabase.rpc('is_approved'),
+          supabase.rpc('is_admin'),
+          (supabase as any).from('profiles').select('full_name, phone, role').eq('user_id', user.id).maybeSingle(),
+        ]);
+
+        if (cancelled) return;
+
+        setIsApproved(approvedRes.data === true);
+        setIsAdmin(adminRes.data === true);
+        setProfile(profileRes.data as any);
+      } catch (e) {
+        console.error('fetchUserData error:', e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchData();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
