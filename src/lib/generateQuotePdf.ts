@@ -137,10 +137,11 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
   doc.setTextColor(30);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
+  const rowHeight = 7;
   items.forEach((item: any, i: number) => {
-    checkPage(10);
+    checkPage(rowHeight + 2);
     const bg = i % 2 === 0;
-    if (bg) { doc.setFillColor(245, 245, 245); doc.rect(margin, y - 3, cw, 5, 'F'); }
+    if (bg) { doc.setFillColor(245, 245, 245); doc.rect(margin, y - 4, cw, rowHeight, 'F'); }
     cx = margin + 1;
 
     const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
@@ -160,7 +161,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
       doc.text(val.substring(0, maxChars), cx, y);
       cx += cols[ci].w;
     });
-    y += 5;
+    y += rowHeight;
   });
 
   y += 3;

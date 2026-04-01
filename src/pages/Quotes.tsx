@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, FileText, X, Download } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle } from 'lucide-react';
 
 const db = supabase as any;
 
@@ -72,7 +72,7 @@ export default function Quotes() {
   const loadData = async () => {
     try {
       const [q, c, s, p] = await Promise.all([
-        db.from('quotes').select('*, clients(company_name)')
+        db.from('quotes').select('*, clients(company_name, phone)')
           .order('created_at', { ascending: false }),
         db.from('clients').select('id, company_name').order('company_name'),
         db.from('salespeople').select('*').eq('active', true).order('name'),
@@ -499,6 +499,17 @@ export default function Quotes() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        {q.clients?.phone && (
+                          <Button size="icon" variant="ghost" asChild title="WhatsApp">
+                            <a
+                              href={`https://wa.me/${q.clients.phone.replace(/\D/g, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <MessageCircle className="h-4 w-4 text-green-600" />
+                            </a>
+                          </Button>
+                        )}
                         <Button size="icon" variant="ghost" onClick={() => handleExportPdf(q)} title="Exportar PDF">
                           <Download className="h-4 w-4" />
                         </Button>
