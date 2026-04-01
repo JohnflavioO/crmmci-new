@@ -100,6 +100,31 @@ export default function Quotes() {
   const addItem = () => setItems(prev => [...prev, emptyItem()]);
   const removeItem = (i: number) => setItems(prev => prev.filter((_, idx) => idx !== i));
 
+  const selectProduct = (idx: number, product: any) => {
+    setItems(prev => {
+      const updated = [...prev];
+      updated[idx] = calcItem({
+        ...updated[idx],
+        model: product.name,
+        brand: product.brand || '',
+        product_code: product.code || '',
+        specifications: product.description || '',
+        unit_price: parseFloat(product.price) || 0,
+      });
+      return updated;
+    });
+    setProductSearch(prev => ({ ...prev, [idx]: '' }));
+    setShowProductDropdown(null);
+  };
+
+  const getFilteredProducts = (idx: number) => {
+    const q = (productSearch[idx] || '').toLowerCase();
+    if (!q) return [];
+    return products.filter((p: any) =>
+      p.name?.toLowerCase().includes(q) || p.brand?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q)
+    ).slice(0, 8);
+  };
+
   const totalAmount = items.reduce((sum, item) => sum + item.line_total, 0);
 
   const formatCurrency = (v: number) =>
