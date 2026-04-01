@@ -174,7 +174,7 @@ export default function Quotes() {
         quantity: item.quantity, model: item.model, brand: item.brand,
         specifications: item.specifications, unit_price: item.unit_price,
         discount_percent: item.discount_percent, unit_total: item.unit_total,
-        line_total: item.line_total,
+        line_total: item.line_total, image_url: item.image_url,
       }));
 
       if (validItems.length > 0) {
