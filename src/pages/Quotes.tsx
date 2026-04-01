@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/AppLayout';
+import QuoteHeader from '@/components/QuoteHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Eye, Pencil, Trash2, FileText, X } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, FileText, X } from 'lucide-react';
 
 const db = supabase as any;
 
@@ -43,6 +43,13 @@ const emptyItem = (): QuoteItem => ({
   specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0,
 });
 
+const shippingMethods = [
+  { value: 'correios', label: 'Correios' },
+  { value: 'mao_propria', label: 'Mão Própria' },
+  { value: 'retirada', label: 'Retirada' },
+  { value: 'transportadora', label: 'Transportadora' },
+];
+
 export default function Quotes() {
   const { user } = useAuth();
   const [quotes, setQuotes] = useState<any[]>([]);
@@ -50,7 +57,10 @@ export default function Quotes() {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<any | null>(null);
-  const [form, setForm] = useState({ client_id: '', salesperson: '', status: 'draft', notes: '' });
+  const [form, setForm] = useState({
+    client_id: '', salesperson: '', status: 'draft', notes: '',
+    payment_terms: '', shipping_deadline: '', shipping_method: '',
+  });
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
   const [salespeople, setSalespeople] = useState<any[]>([]);
 
@@ -96,21 +106,24 @@ export default function Quotes() {
 
     try {
       let quoteId: string;
+      const quoteData = {
+        client_id: form.client_id, salesperson: form.salesperson, status: form.status,
+        notes: form.notes, total_amount: totalAmount,
+        payment_terms: form.payment_terms, shipping_deadline: form.shipping_deadline,
+        shipping_method: form.shipping_method,
+      };
 
       if (editingQuote) {
-        const { error } = await db.from('quotes').update({
-          client_id: form.client_id, salesperson: form.salesperson, status: form.status, notes: form.notes,
-          total_amount: totalAmount,
-        }).eq('id', editingQuote.id);
+        const { error } = await db.from('quotes').update(quoteData).eq('id', editingQuote.id);
         if (error) throw error;
         quoteId = editingQuote.id;
         await db.from('quote_items').delete().eq('quote_id', quoteId);
       } else {
         const { data: numData } = await db.rpc('generate_quote_number');
         const { data, error } = await db.from('quotes').insert({
+          ...quoteData,
           quote_number: numData || `ORC-${Date.now()}`,
-          client_id: form.client_id, salesperson: form.salesperson, status: form.status, notes: form.notes,
-          created_by: user?.id, total_amount: totalAmount,
+          created_by: user?.id,
         }).select('id').single();
         if (error) throw error;
         quoteId = data.id;
@@ -141,7 +154,12 @@ export default function Quotes() {
   const handleEdit = async (quote: any) => {
     const { data: qItems } = await db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number');
     setEditingQuote(quote);
-    setForm({ client_id: quote.client_id || '', salesperson: quote.salesperson || '', status: quote.status, notes: quote.notes || '' });
+    setForm({
+      client_id: quote.client_id || '', salesperson: quote.salesperson || '',
+      status: quote.status, notes: quote.notes || '',
+      payment_terms: quote.payment_terms || '', shipping_deadline: quote.shipping_deadline || '',
+      shipping_method: quote.shipping_method || '',
+    });
     setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
     setDialogOpen(true);
   };
@@ -155,7 +173,7 @@ export default function Quotes() {
 
   const resetForm = () => {
     setEditingQuote(null);
-    setForm({ client_id: '', salesperson: '', status: 'draft', notes: '' });
+    setForm({ client_id: '', salesperson: '', status: 'draft', notes: '', payment_terms: '', shipping_deadline: '', shipping_method: '' });
     setItems([emptyItem()]);
   };
 
@@ -181,8 +199,13 @@ export default function Quotes() {
                 {editingQuote ? `Editar ${editingQuote.quote_number}` : 'Novo Orçamento'}
               </DialogTitle>
             </DialogHeader>
+
+            {/* MCI Header */}
+            <QuoteHeader />
+
             <div className="space-y-6 mt-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Client, Salesperson, Status */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Cliente *</Label>
                   <Select value={form.client_id} onValueChange={v => setForm(p => ({ ...p, client_id: v }))}>
@@ -223,6 +246,38 @@ export default function Quotes() {
                 </div>
               </div>
 
+              {/* Payment & Shipping */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg border bg-muted/20">
+                <div className="space-y-2">
+                  <Label>Forma de Pagamento</Label>
+                  <Input
+                    value={form.payment_terms}
+                    onChange={e => setForm(p => ({ ...p, payment_terms: e.target.value }))}
+                    placeholder="Ex: 30/60/90 dias, à vista, etc."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Prazo de Envio</Label>
+                  <Input
+                    value={form.shipping_deadline}
+                    onChange={e => setForm(p => ({ ...p, shipping_deadline: e.target.value }))}
+                    placeholder="Ex: 5 dias úteis"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Forma de Envio</Label>
+                  <Select value={form.shipping_method} onValueChange={v => setForm(p => ({ ...p, shipping_method: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                    <SelectContent>
+                      {shippingMethods.map(m => (
+                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Items */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <Label className="text-base font-semibold">Itens do Orçamento</Label>
