@@ -448,8 +448,11 @@ export default function Quotes() {
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                  <Button type="button" onClick={addItem} className="mt-3 w-full gap-2 bg-green-600 hover:bg-green-700 text-white">
+                    <Plus className="h-4 w-4" /> Adicionar Novo Item
+                  </Button>
 
                 <div className="flex justify-end mt-4 p-3 bg-primary/5 rounded-lg">
                   <div className="text-right space-y-1">
