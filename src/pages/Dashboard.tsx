@@ -24,7 +24,7 @@ export default function Dashboard() {
       const [quotesRes, clientsRes, recentRes] = await Promise.all([
         db.from('quotes').select('status, total_amount'),
         db.from('clients').select('id', { count: 'exact', head: true }),
-        db.from('quotes').select('*, clients(company_name), profiles!quotes_salesperson_id_fkey(full_name)')
+        db.from('quotes').select('*, clients(company_name)')
           .order('created_at', { ascending: false }).limit(5),
       ]);
 

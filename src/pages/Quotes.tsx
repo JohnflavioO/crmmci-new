@@ -337,7 +337,7 @@ export default function Quotes() {
                   <TableRow key={q.id}>
                     <TableCell className="font-medium">{q.quote_number}</TableCell>
                     <TableCell>{q.clients?.company_name || '-'}</TableCell>
-                    <TableCell>{q.profiles?.full_name || '-'}</TableCell>
+                    <TableCell>{q.salesperson || '-'}</TableCell>
                     <TableCell>{new Date(q.quote_date).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell>{formatCurrency(parseFloat(q.total_amount) || 0)}</TableCell>
                     <TableCell>
