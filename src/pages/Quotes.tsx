@@ -37,6 +37,7 @@ interface QuoteItem {
   discount_percent: number;
   unit_total: number;
   line_total: number;
+  image_url: string;
 }
 
 const emptyItem = (): QuoteItem => ({
