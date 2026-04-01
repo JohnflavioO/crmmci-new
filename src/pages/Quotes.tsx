@@ -489,10 +489,12 @@ export default function Quotes() {
                   <TableHead>Nº Orçamento</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Vendedor</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-28">Ações</TableHead>
+                   <TableHead>Data</TableHead>
+                    <TableHead>Subtotal</TableHead>
+                    <TableHead>Frete</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-28">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
