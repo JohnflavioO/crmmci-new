@@ -14,7 +14,211 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          company: string | null
+          created_at: string | null
+          created_by: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          full_name: string
+          id: string
+          phone: string | null
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          full_name?: string
+          id?: string
+          phone?: string | null
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          full_name?: string
+          id?: string
+          phone?: string | null
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      quote_items: {
+        Row: {
+          category: string | null
+          code: string | null
+          description: string
+          id: string
+          item_number: number | null
+          quantity: number | null
+          quote_id: string
+          total_price: number | null
+          unit_price: number | null
+        }
+        Insert: {
+          category?: string | null
+          code?: string | null
+          description?: string
+          id?: string
+          item_number?: number | null
+          quantity?: number | null
+          quote_id: string
+          total_price?: number | null
+          unit_price?: number | null
+        }
+        Update: {
+          category?: string | null
+          code?: string | null
+          description?: string
+          id?: string
+          item_number?: number | null
+          quantity?: number | null
+          quote_id?: string
+          total_price?: number | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotes: {
+        Row: {
+          client_id: string | null
+          client_name: string
+          created_at: string | null
+          created_by: string | null
+          discount: number | null
+          id: string
+          notes: string | null
+          quote_date: string | null
+          quote_number: string
+          salesperson: string | null
+          status: string | null
+          total: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          client_name?: string
+          created_at?: string | null
+          created_by?: string | null
+          discount?: number | null
+          id?: string
+          notes?: string | null
+          quote_date?: string | null
+          quote_number?: string
+          salesperson?: string | null
+          status?: string | null
+          total?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          client_name?: string
+          created_at?: string | null
+          created_by?: string | null
+          discount?: number | null
+          id?: string
+          notes?: string | null
+          quote_date?: string | null
+          quote_number?: string
+          salesperson?: string | null
+          status?: string | null
+          total?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_approvals: {
+        Row: {
+          approved_by: string | null
+          created_at: string | null
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string | null
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string | null
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
