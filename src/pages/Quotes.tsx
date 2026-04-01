@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { generateQuotePdf } from '@/lib/generateQuotePdf';
 import AppLayout from '@/components/AppLayout';
 import QuoteHeader from '@/components/QuoteHeader';
 import { Button } from '@/components/ui/button';
