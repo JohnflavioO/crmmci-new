@@ -161,6 +161,7 @@ export default function Quotes() {
         payment_terms: form.payment_terms, shipping_deadline: form.shipping_deadline,
         shipping_method: form.shipping_method, shipping_cost: form.shipping_cost,
         proposal_validity: form.proposal_validity,
+        payment_method: form.payment_method || null, payment_status: form.payment_status,
       };
 
       if (editingQuote) {
