@@ -77,7 +77,7 @@ export default function Quotes() {
           .order('created_at', { ascending: false }),
         db.from('clients').select('id, company_name').order('company_name'),
         db.from('salespeople').select('*').eq('active', true).order('name'),
-        db.from('products').select('id, name, brand, code, price, description').order('name'),
+        db.from('products').select('id, name, brand, code, price, description, image_url').order('name'),
       ]);
       setQuotes(q.data || []);
       setClients(c.data || []);
