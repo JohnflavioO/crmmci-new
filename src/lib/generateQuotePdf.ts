@@ -9,6 +9,24 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
   const fmt = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
+  // Load logo
+  try {
+    const logoImg = new Image();
+    logoImg.crossOrigin = 'anonymous';
+    await new Promise<void>((resolve, reject) => {
+      logoImg.onload = () => resolve();
+      logoImg.onerror = () => reject(new Error('logo'));
+      logoImg.src = '/mci-logo.png';
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = logoImg.naturalWidth;
+    canvas.height = logoImg.naturalHeight;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(logoImg, 0, 0);
+    const logoData = canvas.toDataURL('image/png');
+    doc.addImage(logoData, 'PNG', margin, y, 22, 16);
+  } catch { /* logo not available, skip */ }
+
   // Header bar
   doc.setFillColor(0, 150, 136);
   doc.rect(0, 0, W, 10, 'F');
@@ -18,9 +36,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
   doc.text('ORDEM DE COMPRA / ORÇAMENTO', W / 2, 7, { align: 'center' });
 
   y = 14;
-  doc.setTextColor(0);
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
+  const locStartX = margin + 28; // after logo
 
   // Company locations
   const locations = [
@@ -30,28 +46,28 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
     { title: 'MIAMI', lines: ['8123 NW 29th St Doral, FL', '+1 (786) 925-6661', 'MCI IMP & EXP CORP'] },
   ];
 
-  const colW = cw / 4;
+  const locWidth = (cw - 28) / 4;
+  doc.setFontSize(6.5);
   locations.forEach((loc, i) => {
-    const x = margin + i * colW;
+    const x = locStartX + i * locWidth;
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 128, 128);
     doc.text(loc.title, x, y + 2);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80);
     loc.lines.forEach((line, li) => {
-      doc.text(line, x, y + 5 + li * 3);
+      doc.text(line, x, y + 5 + li * 2.8);
     });
   });
 
   y += 22;
 
   // Brands bar
-  doc.setFontSize(6);
+  doc.setFontSize(5.5);
   doc.setTextColor(120);
   const brands = 'Aputure • DZOFILM • Caligri • SECCED • Accsoon • Miliboo • Godox • 7artisans • CREAM SOURCE';
   doc.text(brands, W / 2, y, { align: 'center' });
-  y += 4;
-
+  y += 3;
   doc.setDrawColor(200);
   doc.line(margin, y, W - margin, y);
   y += 5;
@@ -64,14 +80,26 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
   doc.text(`Data: ${new Date(quote.quote_date).toLocaleDateString('pt-BR')}`, W - margin, y, { align: 'right' });
   y += 5;
 
+  if (quote.proposal_validity) {
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80);
+    doc.text(`Validade da Proposta: ${quote.proposal_validity}`, W - margin, y, { align: 'right' });
+    y += 4;
+  }
+
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
+  doc.setTextColor(0);
   if (client) {
-    doc.text(`Cliente: ${client.company_name || client.name || ''}`, margin, y);
-    y += 4;
+    doc.text(`Cliente: ${client.company_name || client.name || ''}`, margin, y); y += 4;
     if (client.cpf_cnpj) { doc.text(`CPF/CNPJ: ${client.cpf_cnpj}`, margin, y); y += 4; }
     if (client.email) { doc.text(`Email: ${client.email}`, margin, y); y += 4; }
     if (client.phone) { doc.text(`Tel: ${client.phone}`, margin, y); y += 4; }
+    if (client.address) {
+      const addr = [client.address, client.address_number, client.complement, client.neighborhood, client.city, client.state].filter(Boolean).join(', ');
+      doc.text(`Endereço: ${addr}`, margin, y); y += 4;
+    }
   }
   if (quote.salesperson) { doc.text(`Vendedor: ${quote.salesperson}`, margin, y); y += 4; }
   y += 3;
@@ -79,19 +107,24 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
   // Items table header
   const cols = [
     { label: '#', w: 8 },
-    { label: 'Código', w: 20 },
-    { label: 'Modelo / Descrição', w: 60 },
-    { label: 'Marca', w: 22 },
-    { label: 'Qtd', w: 12 },
+    { label: 'Código', w: 18 },
+    { label: 'Modelo / Descrição', w: 55 },
+    { label: 'Marca', w: 20 },
+    { label: 'Qtd', w: 10 },
     { label: 'Unit.', w: 22 },
-    { label: 'Desc.', w: 14 },
+    { label: 'Desc.', w: 12 },
     { label: 'Total', w: 28 },
   ];
+
+  // Check page space
+  const checkPage = (needed: number) => {
+    if (y + needed > 275) { doc.addPage(); y = margin; }
+  };
 
   doc.setFillColor(0, 150, 136);
   doc.rect(margin, y, cw, 6, 'F');
   doc.setTextColor(255);
-  doc.setFontSize(7);
+  doc.setFontSize(6.5);
   doc.setFont('helvetica', 'bold');
   let cx = margin + 1;
   cols.forEach(col => {
@@ -103,15 +136,19 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
   // Items
   doc.setTextColor(30);
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
   items.forEach((item: any, i: number) => {
-    if (y > 265) { doc.addPage(); y = margin; }
+    checkPage(10);
     const bg = i % 2 === 0;
     if (bg) { doc.setFillColor(245, 245, 245); doc.rect(margin, y - 3, cw, 5, 'F'); }
     cx = margin + 1;
+
+    const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
+
     const row = [
       String(item.item_number || i + 1),
       item.product_code || '',
-      item.model || item.description || '',
+      desc,
       item.brand || '',
       String(item.quantity || 1),
       fmt(parseFloat(item.unit_price) || 0),
@@ -119,25 +156,42 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
       fmt(parseFloat(item.line_total || item.total_price) || 0),
     ];
     row.forEach((val, ci) => {
-      doc.text(val.substring(0, cols[ci].w / 2), cx, y);
+      const maxChars = Math.floor(cols[ci].w / 1.8);
+      doc.text(val.substring(0, maxChars), cx, y);
       cx += cols[ci].w;
     });
     y += 5;
   });
 
-  y += 5;
+  y += 3;
   doc.setDrawColor(200);
   doc.line(margin, y, W - margin, y);
-  y += 6;
+  y += 5;
 
-  // Total
+  // Subtotal, Frete, Total
+  const shippingCost = parseFloat(quote.shipping_cost) || 0;
+  const subtotal = parseFloat(quote.total_amount) || 0;
+  const grandTotal = subtotal + shippingCost;
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(60);
+
+  if (shippingCost > 0) {
+    doc.text(`Subtotal: ${fmt(subtotal)}`, W - margin, y, { align: 'right' });
+    y += 4;
+    doc.text(`Frete: ${fmt(shippingCost)}`, W - margin, y, { align: 'right' });
+    y += 5;
+  }
+
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 128, 128);
-  doc.text(`TOTAL: ${fmt(parseFloat(quote.total_amount) || 0)}`, W - margin, y, { align: 'right' });
+  doc.text(`TOTAL: ${fmt(grandTotal)}`, W - margin, y, { align: 'right' });
   y += 8;
 
   // Payment/Shipping info
+  checkPage(30);
   doc.setFontSize(8);
   doc.setTextColor(60);
   doc.setFont('helvetica', 'normal');
@@ -147,7 +201,72 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
   if (quote.payment_terms) { doc.text(`Forma de Pagamento: ${quote.payment_terms}`, margin, y); y += 4; }
   if (quote.shipping_deadline) { doc.text(`Prazo de Envio: ${quote.shipping_deadline}`, margin, y); y += 4; }
   if (quote.shipping_method) { doc.text(`Forma de Envio: ${shippingLabels[quote.shipping_method] || quote.shipping_method}`, margin, y); y += 4; }
-  if (quote.notes) { y += 2; doc.text(`Observações: ${quote.notes}`, margin, y); }
+  if (quote.proposal_validity) { doc.text(`Validade da Proposta: ${quote.proposal_validity}`, margin, y); y += 4; }
+  y += 2;
+
+  // Notes
+  if (quote.notes) {
+    checkPage(15);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    doc.text('Observações:', margin, y);
+    y += 4;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60);
+    const noteLines = doc.splitTextToSize(quote.notes, cw);
+    doc.text(noteLines, margin, y);
+    y += noteLines.length * 3.5 + 3;
+  }
+
+  // Bank details
+  checkPage(30);
+  y += 3;
+  doc.setDrawColor(200);
+  doc.line(margin, y, W - margin, y);
+  y += 5;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(0, 128, 128);
+  doc.text('DADOS BANCÁRIOS', margin, y);
+  y += 4;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(50);
+  const bankLines = [
+    'ITAÚ - Ag: 0366 | Cc: 71016-8',
+    'Multicomercial e Importadora EIRELI',
+    'Pix (CNPJ): 05.502.390/0001-11',
+  ];
+  bankLines.forEach(line => {
+    doc.text(line, margin, y);
+    y += 3.5;
+  });
+
+  // Date and Signature
+  checkPage(35);
+  y += 8;
+  const sigX = margin;
+  const sigW = 75;
+  doc.setDrawColor(100);
+  doc.line(sigX, y, sigX + sigW, y);
+  doc.setFontSize(7);
+  doc.setTextColor(60);
+  doc.text('Data:', sigX, y + 4);
+  doc.text('___/___/______', sigX + 12, y + 4);
+
+  const sigX2 = W - margin - sigW;
+  doc.line(sigX2, y, sigX2 + sigW, y);
+  doc.text('Aprovação do Cliente', sigX2 + sigW / 2, y + 4, { align: 'center' });
+
+  // Confidentiality footer
+  y += 12;
+  checkPage(10);
+  doc.setFontSize(5.5);
+  doc.setTextColor(130);
+  doc.setFont('helvetica', 'italic');
+  const confText = 'O documento é confidencial e de propriedade da empresa. Não pode ser copiado, mesmo que em parte sem permissão por escrito da mesma. Atenciosamente,';
+  const confLines = doc.splitTextToSize(confText, cw);
+  doc.text(confLines, margin, y);
 
   doc.save(`${quote.quote_number}.pdf`);
 }

@@ -218,10 +218,12 @@ export type Database = {
           id: string
           notes: string | null
           payment_terms: string | null
+          proposal_validity: string | null
           quote_date: string | null
           quote_number: string
           salesperson: string | null
           salesperson_id: string | null
+          shipping_cost: number | null
           shipping_deadline: string | null
           shipping_method: string | null
           status: string | null
@@ -238,10 +240,12 @@ export type Database = {
           id?: string
           notes?: string | null
           payment_terms?: string | null
+          proposal_validity?: string | null
           quote_date?: string | null
           quote_number?: string
           salesperson?: string | null
           salesperson_id?: string | null
+          shipping_cost?: number | null
           shipping_deadline?: string | null
           shipping_method?: string | null
           status?: string | null
@@ -258,10 +262,12 @@ export type Database = {
           id?: string
           notes?: string | null
           payment_terms?: string | null
+          proposal_validity?: string | null
           quote_date?: string | null
           quote_number?: string
           salesperson?: string | null
           salesperson_id?: string | null
+          shipping_cost?: number | null
           shipping_deadline?: string | null
           shipping_method?: string | null
           status?: string | null

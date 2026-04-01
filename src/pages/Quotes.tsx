@@ -61,6 +61,7 @@ export default function Quotes() {
   const [form, setForm] = useState({
     client_id: '', salesperson: '', status: 'draft', notes: '',
     payment_terms: '', shipping_deadline: '', shipping_method: '',
+    shipping_cost: 0, proposal_validity: '15 dias',
   });
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
   const [salespeople, setSalespeople] = useState<any[]>([]);
@@ -131,6 +132,7 @@ export default function Quotes() {
   };
 
   const totalAmount = items.reduce((sum, item) => sum + item.line_total, 0);
+  const grandTotal = totalAmount + (form.shipping_cost || 0);
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -143,9 +145,10 @@ export default function Quotes() {
       let quoteId: string;
       const quoteData = {
         client_id: form.client_id, salesperson: form.salesperson, status: form.status,
-        notes: form.notes, total_amount: totalAmount,
+        notes: form.notes, total_amount: grandTotal,
         payment_terms: form.payment_terms, shipping_deadline: form.shipping_deadline,
-        shipping_method: form.shipping_method,
+        shipping_method: form.shipping_method, shipping_cost: form.shipping_cost,
+        proposal_validity: form.proposal_validity,
       };
 
       if (editingQuote) {
@@ -194,6 +197,8 @@ export default function Quotes() {
       status: quote.status, notes: quote.notes || '',
       payment_terms: quote.payment_terms || '', shipping_deadline: quote.shipping_deadline || '',
       shipping_method: quote.shipping_method || '',
+      shipping_cost: parseFloat(quote.shipping_cost) || 0,
+      proposal_validity: quote.proposal_validity || '15 dias',
     });
     setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
     setDialogOpen(true);
@@ -221,7 +226,7 @@ export default function Quotes() {
 
   const resetForm = () => {
     setEditingQuote(null);
-    setForm({ client_id: '', salesperson: '', status: 'draft', notes: '', payment_terms: '', shipping_deadline: '', shipping_method: '' });
+    setForm({ client_id: '', salesperson: '', status: 'draft', notes: '', payment_terms: '', shipping_deadline: '', shipping_method: '', shipping_cost: 0, proposal_validity: '15 dias' });
     setItems([emptyItem()]);
   };
 
@@ -289,13 +294,13 @@ export default function Quotes() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Observações</Label>
-                  <Input value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
+                  <Label>Validade da Proposta</Label>
+                  <Input value={form.proposal_validity} onChange={e => setForm(p => ({ ...p, proposal_validity: e.target.value }))} placeholder="Ex: 15 dias" />
                 </div>
               </div>
 
               {/* Payment & Shipping */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg border bg-muted/20">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 rounded-lg border bg-muted/20">
                 <div className="space-y-2">
                   <Label>Forma de Pagamento</Label>
                   <Input
@@ -323,6 +328,20 @@ export default function Quotes() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label>Valor do Frete (R$)</Label>
+                  <Input type="number" step="0.01" min={0}
+                    value={form.shipping_cost}
+                    onChange={e => setForm(p => ({ ...p, shipping_cost: parseFloat(e.target.value) || 0 }))}
+                    placeholder="0,00"
+                  />
+                </div>
+              </div>
+
+              {/* Observações */}
+              <div className="space-y-2">
+                <Label>Observações</Label>
+                <Textarea rows={4} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Observações gerais do orçamento..." />
               </div>
 
               {/* Items */}
@@ -422,9 +441,10 @@ export default function Quotes() {
                 </div>
 
                 <div className="flex justify-end mt-4 p-3 bg-primary/5 rounded-lg">
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Total do Orçamento</p>
-                    <p className="text-2xl font-bold font-display text-primary">{formatCurrency(totalAmount)}</p>
+                  <div className="text-right space-y-1">
+                    <p className="text-sm text-muted-foreground">Subtotal: {formatCurrency(totalAmount)}</p>
+                    {form.shipping_cost > 0 && <p className="text-sm text-muted-foreground">Frete: {formatCurrency(form.shipping_cost)}</p>}
+                    <p className="text-2xl font-bold font-display text-primary">Total: {formatCurrency(grandTotal)}</p>
                   </div>
                 </div>
               </div>
