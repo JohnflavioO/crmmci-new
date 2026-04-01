@@ -1,13 +1,66 @@
 export default function QuoteHeader() {
   return (
-    <div className="flex items-center gap-4 p-4 border-b bg-muted/30 rounded-t-lg">
-      <img src="/mci-logo.png" alt="MCI Store" width={80} height={80} className="rounded" />
-      <div className="text-sm space-y-0.5">
-        <p className="font-bold text-base">MCI STORE</p>
-        <p className="text-muted-foreground">CNPJ: 41.237.429/0001-67</p>
-        <p className="text-muted-foreground">Rua Des. Lauro Nogueira, 1500 — Papicu, Fortaleza/CE</p>
-        <p className="text-muted-foreground">(85) 98734-9599 | marketing@mcistore.com.br</p>
-        <p className="text-muted-foreground">www.mcistore.com.br</p>
+    <div className="rounded-t-lg overflow-hidden border">
+      {/* Top bar */}
+      <div className="bg-gradient-to-r from-teal-500 to-teal-600 text-center py-1.5">
+        <span className="text-white font-bold text-sm tracking-wider">ORDEM DE COMPRA / ORÇAMENTO</span>
+      </div>
+
+      {/* Main content */}
+      <div className="bg-gradient-to-br from-slate-50 to-white p-4">
+        <div className="flex items-start gap-6">
+          {/* Logo */}
+          <div className="flex-shrink-0">
+            <img src="/mci-logo.png" alt="MCI Store" className="w-20 h-auto" />
+            <p className="text-[9px] text-teal-700 font-medium mt-1 text-center">Distribuidor Oficial Brasil</p>
+          </div>
+
+          {/* Locations grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 flex-1 text-[11px] leading-tight">
+            {/* Ceará */}
+            <div>
+              <p className="font-bold text-teal-700 mb-1">🇧🇷 CEARÁ</p>
+              <p className="text-muted-foreground">Rua Senador Pompeu, 1547</p>
+              <p className="text-muted-foreground">Centro - CEP: 60.025-001</p>
+              <p className="text-muted-foreground">Tel.: <span className="font-semibold text-teal-700">+55 (85) 3254-4700</span></p>
+              <p className="text-muted-foreground font-semibold">CNPJ: 05.502.390/0001-11</p>
+            </div>
+
+            {/* Santa Catarina */}
+            <div>
+              <p className="font-bold text-teal-700 mb-1">🇧🇷 SANTA CATARINA</p>
+              <p className="text-muted-foreground">Rua Odílio Garcia, 211</p>
+              <p className="text-muted-foreground">Sala B, Box 10 - Cordeiro</p>
+              <p className="text-muted-foreground">CEP: 88310-180</p>
+              <p className="text-muted-foreground font-semibold">CNPJ: 05.502.390/0002-00</p>
+            </div>
+
+            {/* São Paulo */}
+            <div>
+              <p className="font-bold text-teal-700 mb-1">🇧🇷 SÃO PAULO</p>
+              <p className="text-muted-foreground">R. Inácio Pereira da Rocha, 142</p>
+              <p className="text-muted-foreground">Sala 502, Vila Madalena</p>
+              <p className="text-muted-foreground">CEP: 05432-010</p>
+              <p className="text-muted-foreground font-semibold">CNPJ: 05.502.390/0003-83</p>
+            </div>
+
+            {/* Miami */}
+            <div>
+              <p className="font-bold text-teal-700 mb-1">🇺🇸 MIAMI</p>
+              <p className="text-muted-foreground">8123 NW 29th</p>
+              <p className="text-muted-foreground">St Doral, FL - USA</p>
+              <p className="text-muted-foreground">+1 (786) 925-6661</p>
+              <p className="text-muted-foreground font-semibold">MCI IMP & EXP CORP</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Brands bar */}
+        <div className="mt-3 pt-2 border-t border-slate-200 flex flex-wrap items-center justify-center gap-3 text-[10px] font-semibold text-slate-500 tracking-wide">
+          {['Aputure', 'DZOFILM', 'Caligri', 'SECCED', 'Accsoon', 'Miliboo', 'Godox', '7artisans', 'CREAM SOURCE'].map(b => (
+            <span key={b}>{b}</span>
+          ))}
+        </div>
       </div>
     </div>
   );
