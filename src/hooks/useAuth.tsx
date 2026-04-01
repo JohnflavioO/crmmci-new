@@ -29,22 +29,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string } | null>(null);
 
   const fetchUserData = async (userId: string) => {
-    try {
-      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
-      const fetches = Promise.all([
-        (supabase as any).from('user_approvals').select('status').eq('user_id', userId).maybeSingle(),
-        (supabase as any).from('user_roles').select('role').eq('user_id', userId),
-        (supabase as any).from('profiles').select('full_name, phone, role').eq('user_id', userId).maybeSingle(),
-      ]);
-      const [approvalRes, roleRes, profileRes] = await Promise.race([fetches, timeout]) as any[];
-      setIsApproved((approvalRes.data as any)?.status === 'approved');
-      setIsAdmin(roleRes.data?.some((r: any) => r.role === 'admin') ?? false);
-      setProfile(profileRes.data as any);
-    } catch (err) {
-      console.error('fetchUserData error/timeout:', err);
-      setIsApproved(false);
-      setIsAdmin(false);
-    }
+    const results = await Promise.allSettled([
+      (supabase as any).from('user_approvals').select('status').eq('user_id', userId).maybeSingle(),
+      (supabase as any).from('user_roles').select('role').eq('user_id', userId),
+      (supabase as any).from('profiles').select('full_name, phone, role').eq('user_id', userId).maybeSingle(),
+    ]);
+    const approvalRes = results[0].status === 'fulfilled' ? results[0].value : { data: null };
+    const roleRes = results[1].status === 'fulfilled' ? results[1].value : { data: null };
+    const profileRes = results[2].status === 'fulfilled' ? results[2].value : { data: null };
+    setIsApproved((approvalRes.data as any)?.status === 'approved');
+    setIsAdmin(roleRes.data?.some((r: any) => r.role === 'admin') ?? false);
+    setProfile(profileRes.data as any);
   };
 
   useEffect(() => {
