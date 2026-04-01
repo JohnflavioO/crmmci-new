@@ -68,17 +68,21 @@ export default function Quotes() {
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
 
   const loadData = async () => {
-    const [q, c, s, p] = await Promise.all([
-      db.from('quotes').select('*, clients(company_name)')
-        .order('created_at', { ascending: false }),
-      db.from('clients').select('id, company_name').order('company_name'),
-      db.from('salespeople').select('*').eq('active', true).order('name'),
-      db.from('products').select('*').order('name'),
-    ]);
-    setQuotes(q.data || []);
-    setClients(c.data || []);
-    setSalespeople(s.data || []);
-    setProducts(p.data || []);
+    try {
+      const [q, c, s, p] = await Promise.all([
+        db.from('quotes').select('*, clients(company_name)')
+          .order('created_at', { ascending: false }),
+        db.from('clients').select('id, company_name').order('company_name'),
+        db.from('salespeople').select('*').eq('active', true).order('name'),
+        db.from('products').select('id, name, brand, code, price, description').order('name'),
+      ]);
+      setQuotes(q.data || []);
+      setClients(c.data || []);
+      setSalespeople(s.data || []);
+      setProducts(p.data || []);
+    } catch (err) {
+      console.error('loadData error:', err);
+    }
   };
 
   useEffect(() => { loadData(); }, []);
