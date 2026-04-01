@@ -42,7 +42,7 @@ interface QuoteItem {
 
 const emptyItem = (): QuoteItem => ({
   item_number: 1, product_code: '', quantity: 1, model: '', brand: '',
-  specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0,
+  specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0, image_url: '',
 });
 
 const shippingMethods = [
