@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
@@ -63,17 +63,22 @@ export default function Quotes() {
   });
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
   const [salespeople, setSalespeople] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [productSearch, setProductSearch] = useState<Record<number, string>>({});
+  const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
 
   const loadData = async () => {
-    const [q, c, s] = await Promise.all([
+    const [q, c, s, p] = await Promise.all([
       db.from('quotes').select('*, clients(company_name)')
         .order('created_at', { ascending: false }),
       db.from('clients').select('id, company_name').order('company_name'),
       db.from('salespeople').select('*').eq('active', true).order('name'),
+      db.from('products').select('*').order('name'),
     ]);
     setQuotes(q.data || []);
     setClients(c.data || []);
     setSalespeople(s.data || []);
+    setProducts(p.data || []);
   };
 
   useEffect(() => { loadData(); }, []);
@@ -94,6 +99,31 @@ export default function Quotes() {
 
   const addItem = () => setItems(prev => [...prev, emptyItem()]);
   const removeItem = (i: number) => setItems(prev => prev.filter((_, idx) => idx !== i));
+
+  const selectProduct = (idx: number, product: any) => {
+    setItems(prev => {
+      const updated = [...prev];
+      updated[idx] = calcItem({
+        ...updated[idx],
+        model: product.name,
+        brand: product.brand || '',
+        product_code: product.code || '',
+        specifications: product.description || '',
+        unit_price: parseFloat(product.price) || 0,
+      });
+      return updated;
+    });
+    setProductSearch(prev => ({ ...prev, [idx]: '' }));
+    setShowProductDropdown(null);
+  };
+
+  const getFilteredProducts = (idx: number) => {
+    const q = (productSearch[idx] || '').toLowerCase();
+    if (!q) return [];
+    return products.filter((p: any) =>
+      p.name?.toLowerCase().includes(q) || p.brand?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q)
+    ).slice(0, 8);
+  };
 
   const totalAmount = items.reduce((sum, item) => sum + item.line_total, 0);
 
@@ -294,6 +324,35 @@ export default function Quotes() {
                           <Button type="button" size="icon" variant="ghost" onClick={() => removeItem(idx)}>
                             <X className="h-4 w-4" />
                           </Button>
+                        )}
+                      </div>
+                      {/* Product Search */}
+                      <div className="space-y-1 relative col-span-full">
+                        <Label className="text-xs">Buscar Produto (digite para pesquisar)</Label>
+                        <Input
+                          placeholder="Digite nome, marca ou código do produto..."
+                          value={productSearch[idx] || ''}
+                          onChange={e => {
+                            setProductSearch(prev => ({ ...prev, [idx]: e.target.value }));
+                            setShowProductDropdown(idx);
+                          }}
+                          onFocus={() => setShowProductDropdown(idx)}
+                          onBlur={() => setTimeout(() => setShowProductDropdown(null), 200)}
+                        />
+                        {showProductDropdown === idx && getFilteredProducts(idx).length > 0 && (
+                          <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                            {getFilteredProducts(idx).map((p: any) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                className="w-full text-left px-3 py-2 hover:bg-accent text-sm flex justify-between"
+                                onMouseDown={() => selectProduct(idx, p)}
+                              >
+                                <span className="font-medium">{p.name}</span>
+                                <span className="text-muted-foreground text-xs">{p.brand} • {formatCurrency(parseFloat(p.price) || 0)}</span>
+                              </button>
+                            ))}
+                          </div>
                         )}
                       </div>
                       <div className="grid grid-cols-4 gap-3">
