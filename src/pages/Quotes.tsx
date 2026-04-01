@@ -145,9 +145,10 @@ export default function Quotes() {
       let quoteId: string;
       const quoteData = {
         client_id: form.client_id, salesperson: form.salesperson, status: form.status,
-        notes: form.notes, total_amount: totalAmount,
+        notes: form.notes, total_amount: grandTotal,
         payment_terms: form.payment_terms, shipping_deadline: form.shipping_deadline,
-        shipping_method: form.shipping_method,
+        shipping_method: form.shipping_method, shipping_cost: form.shipping_cost,
+        proposal_validity: form.proposal_validity,
       };
 
       if (editingQuote) {
