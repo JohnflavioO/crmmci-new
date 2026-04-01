@@ -479,6 +479,9 @@ export default function Quotes() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => handleExportPdf(q)} title="Exportar PDF">
+                          <Download className="h-4 w-4" />
+                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => handleEdit(q)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
