@@ -16,10 +16,30 @@ export default function Approvals() {
   const [approvals, setApprovals] = useState<any[]>([]);
 
   const load = async () => {
-    const { data } = await db.from('user_approvals')
-      .select('*, profiles!user_approvals_user_id_fkey(full_name, phone, role)')
+    const { data: approvalsData } = await db.from('user_approvals')
+      .select('*')
       .order('created_at', { ascending: false });
-    setApprovals(data || []);
+    
+    if (!approvalsData || approvalsData.length === 0) {
+      setApprovals([]);
+      return;
+    }
+
+    const userIds = approvalsData.map((a: any) => a.user_id);
+    const { data: profilesData } = await db.from('profiles')
+      .select('user_id, full_name, phone, role')
+      .in('user_id', userIds);
+
+    const profileMap = (profilesData || []).reduce((acc: any, p: any) => {
+      acc[p.user_id] = p;
+      return acc;
+    }, {});
+
+    const merged = approvalsData.map((a: any) => ({
+      ...a,
+      profiles: profileMap[a.user_id] || null,
+    }));
+    setApprovals(merged);
   };
 
   useEffect(() => { load(); }, []);
