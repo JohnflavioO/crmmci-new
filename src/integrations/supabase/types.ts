@@ -371,6 +371,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_quote_cascade: { Args: { p_quote_id: string }; Returns: undefined }
       generate_quote_number: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_approved: { Args: never; Returns: boolean }

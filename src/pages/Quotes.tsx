@@ -350,8 +350,8 @@ export default function Quotes() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <Label className="text-base font-semibold">Itens do Orçamento</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addItem} className="gap-1">
-                    <Plus className="h-3 w-3" /> Item
+                  <Button type="button" size="sm" onClick={addItem} className="gap-1 bg-green-600 hover:bg-green-700 text-white">
+                    <Plus className="h-3 w-3" /> Adicionar Item
                   </Button>
                 </div>
                 <div className="space-y-3">
