@@ -29,22 +29,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string } | null>(null);
 
   const fetchUserData = async (userId: string) => {
-    const results = await Promise.allSettled([
-      (supabase as any).from('user_approvals').select('status').eq('user_id', userId).maybeSingle(),
-      (supabase as any).from('user_roles').select('role').eq('user_id', userId),
-      (supabase as any).from('profiles').select('full_name, phone, role').eq('user_id', userId).maybeSingle(),
-    ]);
-    const approvalRes = results[0].status === 'fulfilled' ? results[0].value : { data: null };
-    const roleRes = results[1].status === 'fulfilled' ? results[1].value : { data: null };
-    const profileRes = results[2].status === 'fulfilled' ? results[2].value : { data: null };
-    setIsApproved((approvalRes.data as any)?.status === 'approved');
-    setIsAdmin(roleRes.data?.some((r: any) => r.role === 'admin') ?? false);
-    setProfile(profileRes.data as any);
+    try {
+      const results = await Promise.allSettled([
+        (supabase as any).from('user_approvals').select('status').eq('user_id', userId).maybeSingle(),
+        (supabase as any).from('user_roles').select('role').eq('user_id', userId),
+        (supabase as any).from('profiles').select('full_name, phone, role').eq('user_id', userId).maybeSingle(),
+      ]);
+      const approvalRes = results[0].status === 'fulfilled' ? results[0].value : { data: null };
+      const roleRes = results[1].status === 'fulfilled' ? results[1].value : { data: null };
+      const profileRes = results[2].status === 'fulfilled' ? results[2].value : { data: null };
+      setIsApproved((approvalRes.data as any)?.status === 'approved');
+      setIsAdmin(roleRes.data?.some((r: any) => r.role === 'admin') ?? false);
+      setProfile(profileRes.data as any);
+    } catch (e) {
+      console.error('fetchUserData error:', e);
+      setIsApproved(false);
+      setIsAdmin(false);
+      setProfile(null);
+    }
   };
 
   useEffect(() => {
+    let mounted = true;
+
+    // First get the current session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        await fetchUserData(session.user.id);
+      }
+      if (mounted) setLoading(false);
+    }).catch(() => {
+      if (mounted) setLoading(false);
+    });
+
+    // Then listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        if (!mounted) return;
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
@@ -58,16 +82,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchUserData(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
