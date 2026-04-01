@@ -11,7 +11,7 @@ export default function QuoteHeader() {
         <div className="flex items-start gap-6">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <img src="/mci-logo.png" alt="MCI Store" className="w-20 h-auto" />
+            <img src="/mci-logo-quote.png" alt="MCI Store" className="w-20 h-auto" />
             <p className="text-[9px] text-teal-700 font-medium mt-1 text-center">Distribuidor Oficial Brasil</p>
           </div>
 

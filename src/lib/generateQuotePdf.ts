@@ -16,7 +16,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
     await new Promise<void>((resolve, reject) => {
       logoImg.onload = () => resolve();
       logoImg.onerror = () => reject(new Error('logo'));
-      logoImg.src = '/mci-logo.png';
+      logoImg.src = '/mci-logo-quote.png';
     });
     const canvas = document.createElement('canvas');
     canvas.width = logoImg.naturalWidth;
