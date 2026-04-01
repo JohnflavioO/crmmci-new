@@ -243,6 +243,7 @@ export default function Clients() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card className="shadow-card">
