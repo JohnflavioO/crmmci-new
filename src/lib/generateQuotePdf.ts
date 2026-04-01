@@ -121,28 +121,29 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
     if (y + needed > 275) { doc.addPage(); y = margin; }
   };
 
+  const headerH = 8;
   doc.setFillColor(0, 150, 136);
-  doc.rect(margin, y, cw, 6, 'F');
+  doc.rect(margin, y, cw, headerH, 'F');
   doc.setTextColor(255);
-  doc.setFontSize(6.5);
+  doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
-  let cx = margin + 1;
+  let cx = margin + 2;
   cols.forEach(col => {
-    doc.text(col.label, cx, y + 4);
+    doc.text(col.label, cx, y + 5.5);
     cx += col.w;
   });
-  y += 7;
+  y += headerH + 4;
 
   // Items
   doc.setTextColor(30);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
-  const rowHeight = 7;
+  const rowHeight = 8;
   items.forEach((item: any, i: number) => {
     checkPage(rowHeight + 2);
     const bg = i % 2 === 0;
-    if (bg) { doc.setFillColor(245, 245, 245); doc.rect(margin, y - 4, cw, rowHeight, 'F'); }
-    cx = margin + 1;
+    if (bg) { doc.setFillColor(245, 245, 245); doc.rect(margin, y - 5, cw, rowHeight, 'F'); }
+    cx = margin + 2;
 
     const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
 
