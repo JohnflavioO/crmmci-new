@@ -499,6 +499,17 @@ export default function Quotes() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        {q.clients?.phone && (
+                          <Button size="icon" variant="ghost" asChild title="WhatsApp">
+                            <a
+                              href={`https://wa.me/${q.clients.phone.replace(/\D/g, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <MessageCircle className="h-4 w-4 text-green-600" />
+                            </a>
+                          </Button>
+                        )}
                         <Button size="icon" variant="ghost" onClick={() => handleExportPdf(q)} title="Exportar PDF">
                           <Download className="h-4 w-4" />
                         </Button>
