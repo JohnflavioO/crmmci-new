@@ -132,6 +132,7 @@ export default function Quotes() {
   };
 
   const totalAmount = items.reduce((sum, item) => sum + item.line_total, 0);
+  const grandTotal = totalAmount + (form.shipping_cost || 0);
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
