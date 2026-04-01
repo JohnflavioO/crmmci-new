@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isApproved, setIsApproved] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string } | null>(null);
+  const initialized = useRef(false);
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -43,47 +44,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(profileRes.data as any);
     } catch (e) {
       console.error('fetchUserData error:', e);
-      setIsApproved(false);
-      setIsAdmin(false);
-      setProfile(null);
     }
   };
 
   useEffect(() => {
-    let mounted = true;
-
-    // First get the current session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!mounted) return;
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchUserData(session.user.id);
+    // Safety timeout - if auth takes more than 4 seconds, stop loading
+    const timeout = setTimeout(() => {
+      if (!initialized.current) {
+        initialized.current = true;
+        setLoading(false);
       }
-      if (mounted) setLoading(false);
-    }).catch(() => {
-      if (mounted) setLoading(false);
-    });
+    }, 4000);
 
-    // Then listen for changes
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (!mounted) return;
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchUserData(session.user.id);
+      async (_event, newSession) => {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        if (newSession?.user) {
+          await fetchUserData(newSession.user.id);
         } else {
           setIsApproved(false);
           setIsAdmin(false);
           setProfile(null);
         }
+        initialized.current = true;
         setLoading(false);
       }
     );
 
+    // Get initial session
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+      if (initialized.current) return;
+      setSession(s);
+      setUser(s?.user ?? null);
+      if (s?.user) {
+        await fetchUserData(s.user.id);
+      }
+      initialized.current = true;
+      setLoading(false);
+    }).catch(() => {
+      if (!initialized.current) {
+        initialized.current = true;
+        setLoading(false);
+      }
+    });
+
     return () => {
-      mounted = false;
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);
