@@ -21,8 +21,17 @@ const db = supabase as any;
 const statusLabels: Record<string, string> = {
   draft: 'Rascunho', sent: 'Enviado', approved: 'Aprovado', rejected: 'Rejeitado',
 };
-const statusColors: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  draft: 'secondary', sent: 'default', approved: 'default', rejected: 'destructive',
+
+const paymentMethodLabels: Record<string, { label: string; icon: any }> = {
+  pix: { label: 'PIX', icon: QrCode },
+  cartao: { label: 'Cartão', icon: CreditCard },
+  boleto: { label: 'Boleto', icon: FileBarChart },
+};
+
+const paymentStatusLabels: Record<string, { label: string; icon: any; className: string }> = {
+  pendente: { label: 'Pendente', icon: Clock, className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  em_andamento: { label: 'Em andamento', icon: CircleDot, className: 'bg-blue-100 text-blue-800 border-blue-200' },
+  liquidado: { label: 'Liquidado', icon: CheckCircle2, className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
 };
 
 interface QuoteItem {
