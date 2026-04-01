@@ -117,6 +117,7 @@ export default function Quotes() {
         product_code: product.code || '',
         specifications: product.description || '',
         unit_price: parseFloat(product.price) || 0,
+        image_url: product.image_url || '',
       });
       return updated;
     });
