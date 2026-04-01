@@ -84,13 +84,27 @@ export default function Products() {
     if (!scrapeUrl.trim()) return;
     setScraping(true);
     try {
-      // Try fetching OG/meta tags via a simple proxy approach
-      const url = scrapeUrl.trim();
-      // We'll set the URL as the image for now and let the user fill details
-      setForm(prev => ({ ...prev, image_url: url }));
-      toast.info('Cole o link da imagem do produto diretamente no campo "URL da Imagem"');
-    } catch {
-      toast.error('Não foi possível extrair dados do link');
+      const { data, error } = await supabase.functions.invoke('scrape-product', {
+        body: { url: scrapeUrl.trim() },
+      });
+      if (error) throw error;
+      if (data?.success && data.data) {
+        const d = data.data;
+        setForm(prev => ({
+          ...prev,
+          name: d.name || prev.name,
+          description: d.description || prev.description,
+          image_url: d.image_url || prev.image_url,
+          price: d.price || prev.price,
+          brand: d.brand || prev.brand,
+          sku: d.sku || prev.sku,
+        }));
+        toast.success('Dados importados com sucesso!');
+      } else {
+        toast.error(data?.error || 'Não foi possível extrair dados do link');
+      }
+    } catch (err: any) {
+      toast.error('Erro ao importar: ' + (err.message || 'falha na conexão'));
     } finally {
       setScraping(false);
     }
