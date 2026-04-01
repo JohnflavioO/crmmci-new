@@ -1,7 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, FileText, UserCheck, LogOut, Settings,
+  LayoutDashboard, Users, FileText, UserCheck, LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -40,9 +40,12 @@ export default function AppSidebar() {
   return (
     <aside className="w-64 h-screen fixed left-0 top-0 flex flex-col border-r border-sidebar-border"
       style={{ background: 'var(--gradient-sidebar)' }}>
-      <div className="p-6">
-        <h1 className="text-xl font-bold font-display text-sidebar-primary-foreground">MCI Store</h1>
-        <p className="text-xs text-sidebar-foreground/60 mt-1">Sistema de Orçamentos</p>
+      <div className="p-4 flex items-center gap-3">
+        <img src="/mci-logo.png" alt="MCI Store" className="h-10 w-auto" />
+        <div>
+          <h1 className="text-sm font-bold font-display text-sidebar-primary-foreground">MCI Store</h1>
+          <p className="text-[10px] text-sidebar-foreground/60">Sistema de Orçamentos</p>
+        </div>
       </div>
 
       <nav className="flex-1 px-3 space-y-1">

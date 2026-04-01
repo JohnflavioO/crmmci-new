@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { generateQuotePdf } from '@/lib/generateQuotePdf';
 import AppLayout from '@/components/AppLayout';
 import QuoteHeader from '@/components/QuoteHeader';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, FileText, X } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, FileText, X, Download } from 'lucide-react';
 
 const db = supabase as any;
 
@@ -203,6 +204,19 @@ export default function Quotes() {
     const { error } = await db.from('quotes').delete().eq('id', id);
     if (error) toast.error(error.message);
     else { toast.success('Orçamento excluído'); loadData(); }
+  };
+
+  const handleExportPdf = async (quote: any) => {
+    try {
+      const [{ data: qItems }, { data: clientData }] = await Promise.all([
+        db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number'),
+        db.from('clients').select('*').eq('id', quote.client_id).maybeSingle(),
+      ]);
+      await generateQuotePdf(quote, qItems || [], clientData);
+      toast.success('PDF gerado!');
+    } catch (err: any) {
+      toast.error('Erro ao gerar PDF: ' + err.message);
+    }
   };
 
   const resetForm = () => {
@@ -465,6 +479,9 @@ export default function Quotes() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => handleExportPdf(q)} title="Exportar PDF">
+                          <Download className="h-4 w-4" />
+                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => handleEdit(q)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
