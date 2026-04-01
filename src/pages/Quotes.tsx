@@ -206,6 +206,19 @@ export default function Quotes() {
     else { toast.success('Orçamento excluído'); loadData(); }
   };
 
+  const handleExportPdf = async (quote: any) => {
+    try {
+      const [{ data: qItems }, { data: clientData }] = await Promise.all([
+        db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number'),
+        db.from('clients').select('*').eq('id', quote.client_id).maybeSingle(),
+      ]);
+      await generateQuotePdf(quote, qItems || [], clientData);
+      toast.success('PDF gerado!');
+    } catch (err: any) {
+      toast.error('Erro ao gerar PDF: ' + err.message);
+    }
+  };
+
   const resetForm = () => {
     setEditingQuote(null);
     setForm({ client_id: '', salesperson: '', status: 'draft', notes: '', payment_terms: '', shipping_deadline: '', shipping_method: '' });
