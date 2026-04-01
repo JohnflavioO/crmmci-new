@@ -208,7 +208,7 @@ export default function Quotes() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir este orçamento?')) return;
-    const { error } = await db.from('quotes').delete().eq('id', id);
+    const { error } = await db.rpc('delete_quote_cascade', { p_quote_id: id });
     if (error) toast.error(error.message);
     else { toast.success('Orçamento excluído'); loadData(); }
   };
