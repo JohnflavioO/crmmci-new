@@ -212,6 +212,7 @@ export default function Quotes() {
       shipping_method: quote.shipping_method || '',
       shipping_cost: parseFloat(quote.shipping_cost) || 0,
       proposal_validity: quote.proposal_validity || '15 dias',
+      payment_method: quote.payment_method || '', payment_status: quote.payment_status || 'pendente',
     });
     setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
     setDialogOpen(true);
