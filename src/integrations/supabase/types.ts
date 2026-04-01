@@ -226,6 +226,8 @@ export type Database = {
           discount: number | null
           id: string
           notes: string | null
+          payment_method: string | null
+          payment_status: string | null
           payment_terms: string | null
           proposal_validity: string | null
           quote_date: string | null
@@ -248,6 +250,8 @@ export type Database = {
           discount?: number | null
           id?: string
           notes?: string | null
+          payment_method?: string | null
+          payment_status?: string | null
           payment_terms?: string | null
           proposal_validity?: string | null
           quote_date?: string | null
@@ -270,6 +274,8 @@ export type Database = {
           discount?: number | null
           id?: string
           notes?: string | null
+          payment_method?: string | null
+          payment_status?: string | null
           payment_terms?: string | null
           proposal_validity?: string | null
           quote_date?: string | null

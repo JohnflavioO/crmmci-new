@@ -8,21 +8,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot } from 'lucide-react';
 
 const db = supabase as any;
 
 const statusLabels: Record<string, string> = {
   draft: 'Rascunho', sent: 'Enviado', approved: 'Aprovado', rejected: 'Rejeitado',
 };
-const statusColors: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  draft: 'secondary', sent: 'default', approved: 'default', rejected: 'destructive',
+
+const paymentMethodLabels: Record<string, { label: string; icon: any }> = {
+  pix: { label: 'PIX', icon: QrCode },
+  cartao: { label: 'Cartão', icon: CreditCard },
+  boleto: { label: 'Boleto', icon: FileBarChart },
+};
+
+const paymentStatusLabels: Record<string, { label: string; icon: any; className: string }> = {
+  pendente: { label: 'Pendente', icon: Clock, className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  em_andamento: { label: 'Em andamento', icon: CircleDot, className: 'bg-blue-100 text-blue-800 border-blue-200' },
+  liquidado: { label: 'Liquidado', icon: CheckCircle2, className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
 };
 
 interface QuoteItem {
@@ -63,6 +72,7 @@ export default function Quotes() {
     client_id: '', salesperson: '', status: 'draft', notes: '',
     payment_terms: '', shipping_deadline: '', shipping_method: '',
     shipping_cost: 0, proposal_validity: '15 dias',
+    payment_method: '', payment_status: 'pendente',
   });
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
   const [salespeople, setSalespeople] = useState<any[]>([]);
@@ -151,6 +161,7 @@ export default function Quotes() {
         payment_terms: form.payment_terms, shipping_deadline: form.shipping_deadline,
         shipping_method: form.shipping_method, shipping_cost: form.shipping_cost,
         proposal_validity: form.proposal_validity,
+        payment_method: form.payment_method || null, payment_status: form.payment_status,
       };
 
       if (editingQuote) {
@@ -201,6 +212,7 @@ export default function Quotes() {
       shipping_method: quote.shipping_method || '',
       shipping_cost: parseFloat(quote.shipping_cost) || 0,
       proposal_validity: quote.proposal_validity || '15 dias',
+      payment_method: quote.payment_method || '', payment_status: quote.payment_status || 'pendente',
     });
     setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
     setDialogOpen(true);
@@ -228,7 +240,7 @@ export default function Quotes() {
 
   const resetForm = () => {
     setEditingQuote(null);
-    setForm({ client_id: '', salesperson: '', status: 'draft', notes: '', payment_terms: '', shipping_deadline: '', shipping_method: '', shipping_cost: 0, proposal_validity: '15 dias' });
+    setForm({ client_id: '', salesperson: '', status: 'draft', notes: '', payment_terms: '', shipping_deadline: '', shipping_method: '', shipping_cost: 0, proposal_validity: '15 dias', payment_method: '', payment_status: 'pendente' });
     setItems([emptyItem()]);
   };
 
@@ -302,15 +314,41 @@ export default function Quotes() {
               </div>
 
               {/* Payment & Shipping */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 rounded-lg border bg-muted/20">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg border bg-muted/20">
                 <div className="space-y-2">
-                  <Label>Forma de Pagamento</Label>
+                  <Label>Condições de Pagamento</Label>
                   <Input
                     value={form.payment_terms}
                     onChange={e => setForm(p => ({ ...p, payment_terms: e.target.value }))}
                     placeholder="Ex: 30/60/90 dias, à vista, etc."
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>Método de Pagamento</Label>
+                  <Select value={form.payment_method} onValueChange={v => setForm(p => ({ ...p, payment_method: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar método" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pix">PIX</SelectItem>
+                      <SelectItem value="cartao">Cartão</SelectItem>
+                      <SelectItem value="boleto">Boleto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Status do Pagamento</Label>
+                  <Select value={form.payment_status} onValueChange={v => setForm(p => ({ ...p, payment_status: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar status" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pendente">Pendente</SelectItem>
+                      <SelectItem value="em_andamento">Em andamento</SelectItem>
+                      <SelectItem value="liquidado">Liquidado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Shipping */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg border bg-muted/20">
                 <div className="space-y-2">
                   <Label>Prazo de Envio</Label>
                   <Input
@@ -491,29 +529,48 @@ export default function Quotes() {
                 <TableRow>
                   <TableHead>Nº Orçamento</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Vendedor</TableHead>
-                   <TableHead>Data</TableHead>
-                    <TableHead>Subtotal</TableHead>
-                    <TableHead>Frete</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-28">Ações</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Pagamento</TableHead>
+                  <TableHead>Financeiro</TableHead>
+                  <TableHead className="w-28">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((q: any) => (
+                {filtered.map((q: any) => {
+                  const pm = paymentMethodLabels[q.payment_method];
+                  const ps = paymentStatusLabels[q.payment_status] || paymentStatusLabels.pendente;
+                  const PmIcon = pm?.icon;
+                  const PsIcon = ps.icon;
+                  return (
                   <TableRow key={q.id}>
                     <TableCell className="font-medium">{q.quote_number}</TableCell>
                     <TableCell>{q.clients?.company_name || '-'}</TableCell>
-                    <TableCell>{q.salesperson || '-'}</TableCell>
                     <TableCell>{new Date(q.quote_date).toLocaleDateString('pt-BR')}</TableCell>
-                    <TableCell>{formatCurrency(parseFloat(q.total_amount) || 0)}</TableCell>
-                    <TableCell>{formatCurrency(parseFloat(q.shipping_cost) || 0)}</TableCell>
-                    <TableCell className="font-medium">{formatCurrency((parseFloat(q.total_amount) || 0) + (parseFloat(q.shipping_cost) || 0))}</TableCell>
+                    <TableCell className="font-semibold">{formatCurrency((parseFloat(q.total_amount) || 0))}</TableCell>
                     <TableCell>
-                      <Badge variant={statusColors[q.status] || 'secondary'}>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+                        q.status === 'approved' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                        q.status === 'rejected' ? 'bg-red-100 text-red-800 border-red-200' :
+                        q.status === 'sent' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                        'bg-gray-100 text-gray-700 border-gray-200'
+                      }`}>
+                        {q.status === 'approved' && <CheckCircle2 className="h-3 w-3" />}
                         {statusLabels[q.status] || q.status}
-                      </Badge>
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {pm ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-muted border border-border">
+                          <PmIcon className="h-3 w-3" /> {pm.label}
+                        </span>
+                      ) : <span className="text-muted-foreground text-xs">—</span>}
+                    </TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${ps.className}`}>
+                        <PsIcon className="h-3 w-3" /> {ps.label}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -540,7 +597,8 @@ export default function Quotes() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           )}
