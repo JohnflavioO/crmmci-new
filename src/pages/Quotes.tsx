@@ -358,7 +358,16 @@ export default function Quotes() {
                   {items.map((item, idx) => (
                     <div key={idx} className="p-4 rounded-lg border bg-muted/30 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Item {idx + 1}</span>
+                        <div className="flex items-center gap-3">
+                          {item.image_url ? (
+                            <img src={item.image_url} alt={item.model} className="w-12 h-12 object-contain rounded border" onError={e => (e.currentTarget.style.display = 'none')} />
+                          ) : (
+                            <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center">
+                              <FileText className="h-4 w-4 text-muted-foreground/40" />
+                            </div>
+                          )}
+                          <span className="text-sm font-medium">Item {idx + 1}{item.model ? ` — ${item.model}` : ''}</span>
+                        </div>
                         {items.length > 1 && (
                           <Button type="button" size="icon" variant="ghost" onClick={() => removeItem(idx)}>
                             <X className="h-4 w-4" />
