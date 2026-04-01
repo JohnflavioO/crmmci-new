@@ -94,6 +94,42 @@ export default function Clients() {
 
   const updateForm = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
+  const [importOpen, setImportOpen] = useState(false);
+  const [sheetUrl, setSheetUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+
+  const handleImportSheet = async () => {
+    if (!sheetUrl.trim()) return;
+    setImporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('import-clients-sheet', {
+        body: { url: sheetUrl.trim() },
+      });
+      if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao importar');
+      
+      const clientsToInsert = data.clients.map((c: any) => ({
+        ...c,
+        name: c.company_name || c.name || '',
+        created_by: user?.id,
+      }));
+
+      let inserted = 0;
+      for (const client of clientsToInsert) {
+        const { error: insertErr } = await db.from('clients').insert(client);
+        if (!insertErr) inserted++;
+      }
+
+      toast.success(`${inserted} clientes importados com sucesso!`);
+      setImportOpen(false);
+      setSheetUrl('');
+      loadClients();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <AppLayout>
       <div className="flex items-center justify-between mb-6">
@@ -101,10 +137,40 @@ export default function Clients() {
           <h1 className="text-2xl font-bold font-display">Clientes</h1>
           <p className="text-muted-foreground">Gerencie sua base de clientes</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingClient(null); setForm(emptyClient); } }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="h-4 w-4" /> Novo Cliente</Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Dialog open={importOpen} onOpenChange={setImportOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2"><Upload className="h-4 w-4" /> Importar Planilha</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Importar Clientes da Planilha Google</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 mt-4">
+                <p className="text-sm text-muted-foreground">
+                  Cole o link da sua planilha Google. A planilha precisa estar compartilhada como "Qualquer pessoa com o link pode ver".
+                </p>
+                <div className="space-y-2">
+                  <Label>Link da Planilha</Label>
+                  <Input
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    value={sheetUrl}
+                    onChange={e => setSheetUrl(e.target.value)}
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setImportOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleImportSheet} disabled={importing || !sheetUrl.trim()}>
+                    {importing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Importando...</> : 'Importar'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingClient(null); setForm(emptyClient); } }}>
+            <DialogTrigger asChild>
+              <Button className="gap-2"><Plus className="h-4 w-4" /> Novo Cliente</Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-display">{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
