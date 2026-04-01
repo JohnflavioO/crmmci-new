@@ -34,6 +34,7 @@ function AppRoutes() {
       <Route path="/" element={<Dashboard />} />
       <Route path="/clients" element={<Clients />} />
       <Route path="/quotes" element={<Quotes />} />
+      <Route path="/products" element={<Products />} />
       {isAdmin && <Route path="/approvals" element={<Approvals />} />}
       <Route path="*" element={<NotFound />} />
     </Routes>
