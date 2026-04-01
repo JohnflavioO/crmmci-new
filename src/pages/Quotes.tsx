@@ -141,7 +141,7 @@ export default function Quotes() {
   const handleEdit = async (quote: any) => {
     const { data: qItems } = await db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number');
     setEditingQuote(quote);
-    setForm({ client_id: quote.client_id || '', status: quote.status, notes: quote.notes || '' });
+    setForm({ client_id: quote.client_id || '', salesperson: quote.salesperson || '', status: quote.status, notes: quote.notes || '' });
     setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
     setDialogOpen(true);
   };
