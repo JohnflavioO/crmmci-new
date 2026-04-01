@@ -109,8 +109,8 @@ export default function Quotes() {
         const { data: numData } = await db.rpc('generate_quote_number');
         const { data, error } = await db.from('quotes').insert({
           quote_number: numData || `ORC-${Date.now()}`,
-          client_id: form.client_id, status: form.status, notes: form.notes,
-          salesperson_id: user?.id, total_amount: totalAmount,
+          client_id: form.client_id, salesperson: form.salesperson, status: form.status, notes: form.notes,
+          created_by: user?.id, total_amount: totalAmount,
         }).select('id').single();
         if (error) throw error;
         quoteId = data.id;
