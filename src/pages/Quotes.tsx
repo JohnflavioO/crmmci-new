@@ -72,7 +72,7 @@ export default function Quotes() {
   const loadData = async () => {
     try {
       const [q, c, s, p] = await Promise.all([
-        db.from('quotes').select('*, clients(company_name)')
+        db.from('quotes').select('*, clients(company_name, phone)')
           .order('created_at', { ascending: false }),
         db.from('clients').select('id, company_name').order('company_name'),
         db.from('salespeople').select('*').eq('active', true).order('name'),
