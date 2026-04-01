@@ -37,11 +37,12 @@ interface QuoteItem {
   discount_percent: number;
   unit_total: number;
   line_total: number;
+  image_url: string;
 }
 
 const emptyItem = (): QuoteItem => ({
   item_number: 1, product_code: '', quantity: 1, model: '', brand: '',
-  specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0,
+  specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0, image_url: '',
 });
 
 const shippingMethods = [
@@ -76,7 +77,7 @@ export default function Quotes() {
           .order('created_at', { ascending: false }),
         db.from('clients').select('id, company_name').order('company_name'),
         db.from('salespeople').select('*').eq('active', true).order('name'),
-        db.from('products').select('id, name, brand, code, price, description').order('name'),
+        db.from('products').select('id, name, brand, code, price, description, image_url').order('name'),
       ]);
       setQuotes(q.data || []);
       setClients(c.data || []);
@@ -116,6 +117,7 @@ export default function Quotes() {
         product_code: product.code || '',
         specifications: product.description || '',
         unit_price: parseFloat(product.price) || 0,
+        image_url: product.image_url || '',
       });
       return updated;
     });
@@ -172,7 +174,7 @@ export default function Quotes() {
         quantity: item.quantity, model: item.model, brand: item.brand,
         specifications: item.specifications, unit_price: item.unit_price,
         discount_percent: item.discount_percent, unit_total: item.unit_total,
-        line_total: item.line_total,
+        line_total: item.line_total, image_url: item.image_url,
       }));
 
       if (validItems.length > 0) {
@@ -356,7 +358,16 @@ export default function Quotes() {
                   {items.map((item, idx) => (
                     <div key={idx} className="p-4 rounded-lg border bg-muted/30 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Item {idx + 1}</span>
+                        <div className="flex items-center gap-3">
+                          {item.image_url ? (
+                            <img src={item.image_url} alt={item.model} className="w-12 h-12 object-contain rounded border" onError={e => (e.currentTarget.style.display = 'none')} />
+                          ) : (
+                            <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center">
+                              <FileText className="h-4 w-4 text-muted-foreground/40" />
+                            </div>
+                          )}
+                          <span className="text-sm font-medium">Item {idx + 1}{item.model ? ` — ${item.model}` : ''}</span>
+                        </div>
                         {items.length > 1 && (
                           <Button type="button" size="icon" variant="ghost" onClick={() => removeItem(idx)}>
                             <X className="h-4 w-4" />
@@ -478,10 +489,12 @@ export default function Quotes() {
                   <TableHead>Nº Orçamento</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Vendedor</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-28">Ações</TableHead>
+                   <TableHead>Data</TableHead>
+                    <TableHead>Subtotal</TableHead>
+                    <TableHead>Frete</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-28">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -492,6 +505,8 @@ export default function Quotes() {
                     <TableCell>{q.salesperson || '-'}</TableCell>
                     <TableCell>{new Date(q.quote_date).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell>{formatCurrency(parseFloat(q.total_amount) || 0)}</TableCell>
+                    <TableCell>{formatCurrency(parseFloat(q.shipping_cost) || 0)}</TableCell>
+                    <TableCell className="font-medium">{formatCurrency((parseFloat(q.total_amount) || 0) + (parseFloat(q.shipping_cost) || 0))}</TableCell>
                     <TableCell>
                       <Badge variant={statusColors[q.status] || 'secondary'}>
                         {statusLabels[q.status] || q.status}

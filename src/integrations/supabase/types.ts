@@ -157,6 +157,7 @@ export type Database = {
           description: string
           discount_percent: number | null
           id: string
+          image_url: string | null
           item_number: number | null
           line_total: number | null
           model: string | null
@@ -175,6 +176,7 @@ export type Database = {
           description?: string
           discount_percent?: number | null
           id?: string
+          image_url?: string | null
           item_number?: number | null
           line_total?: number | null
           model?: string | null
@@ -193,6 +195,7 @@ export type Database = {
           description?: string
           discount_percent?: number | null
           id?: string
+          image_url?: string | null
           item_number?: number | null
           line_total?: number | null
           model?: string | null

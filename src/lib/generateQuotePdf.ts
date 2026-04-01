@@ -107,13 +107,14 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
   // Items table header
   const cols = [
     { label: '#', w: 8 },
-    { label: 'Código', w: 18 },
-    { label: 'Modelo / Descrição', w: 55 },
-    { label: 'Marca', w: 20 },
+    { label: 'Foto', w: 14 },
+    { label: 'Código', w: 16 },
+    { label: 'Modelo / Descrição', w: 48 },
+    { label: 'Marca', w: 18 },
     { label: 'Qtd', w: 10 },
-    { label: 'Unit.', w: 22 },
+    { label: 'Unit.', w: 20 },
     { label: 'Desc.', w: 12 },
-    { label: 'Total', w: 28 },
+    { label: 'Total', w: 26 },
   ];
 
   // Check page space
@@ -134,21 +135,55 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
   });
   y += headerH + 4;
 
+  // Preload item images
+  const itemImages: Record<number, string> = {};
+  await Promise.all(
+    items.map(async (item: any, i: number) => {
+      if (!item.image_url) return;
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject();
+          img.src = item.image_url;
+        });
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth;
+        c.height = img.naturalHeight;
+        const ctx2 = c.getContext('2d')!;
+        ctx2.drawImage(img, 0, 0);
+        itemImages[i] = c.toDataURL('image/jpeg', 0.7);
+      } catch { /* skip */ }
+    })
+  );
+
   // Items
   doc.setTextColor(30);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
-  const rowHeight = 8;
+  const rowHeight = 12;
   items.forEach((item: any, i: number) => {
     checkPage(rowHeight + 2);
     const bg = i % 2 === 0;
     if (bg) { doc.setFillColor(245, 245, 245); doc.rect(margin, y - 5, cw, rowHeight, 'F'); }
     cx = margin + 2;
 
-    const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
+    // Item number
+    doc.text(String(item.item_number || i + 1), cx, y);
+    cx += cols[0].w;
 
-    const row = [
-      String(item.item_number || i + 1),
+    // Photo
+    if (itemImages[i]) {
+      try {
+        doc.addImage(itemImages[i], 'JPEG', cx, y - 4, 10, 10);
+      } catch { /* skip */ }
+    }
+    cx += cols[1].w;
+
+    // Remaining columns
+    const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
+    const remaining = [
       item.product_code || '',
       desc,
       item.brand || '',
@@ -157,10 +192,11 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
       `${item.discount_percent || 0}%`,
       fmt(parseFloat(item.line_total || item.total_price) || 0),
     ];
-    row.forEach((val, ci) => {
-      const maxChars = Math.floor(cols[ci].w / 1.8);
+    remaining.forEach((val, ci) => {
+      const colIdx = ci + 2; // offset by # and Foto columns
+      const maxChars = Math.floor(cols[colIdx].w / 1.8);
       doc.text(val.substring(0, maxChars), cx, y);
-      cx += cols[ci].w;
+      cx += cols[colIdx].w;
     });
     y += rowHeight;
   });
