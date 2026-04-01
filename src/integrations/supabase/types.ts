@@ -16,36 +16,72 @@ export type Database = {
     Tables: {
       clients: {
         Row: {
+          address: string | null
+          address_number: string | null
+          cep: string | null
+          city: string | null
           company: string | null
+          company_name: string | null
+          complement: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          contrib_icms: string | null
+          cpf_cnpj: string | null
           created_at: string | null
           created_by: string | null
           email: string | null
           id: string
           name: string
+          neighborhood: string | null
           notes: string | null
           phone: string | null
+          state: string | null
           updated_at: string | null
         }
         Insert: {
+          address?: string | null
+          address_number?: string | null
+          cep?: string | null
+          city?: string | null
           company?: string | null
+          company_name?: string | null
+          complement?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contrib_icms?: string | null
+          cpf_cnpj?: string | null
           created_at?: string | null
           created_by?: string | null
           email?: string | null
           id?: string
           name: string
+          neighborhood?: string | null
           notes?: string | null
           phone?: string | null
+          state?: string | null
           updated_at?: string | null
         }
         Update: {
+          address?: string | null
+          address_number?: string | null
+          cep?: string | null
+          city?: string | null
           company?: string | null
+          company_name?: string | null
+          complement?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contrib_icms?: string | null
+          cpf_cnpj?: string | null
           created_at?: string | null
           created_by?: string | null
           email?: string | null
           id?: string
           name?: string
+          neighborhood?: string | null
           notes?: string | null
           phone?: string | null
+          state?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -79,37 +115,58 @@ export type Database = {
       }
       quote_items: {
         Row: {
+          brand: string | null
           category: string | null
           code: string | null
           description: string
+          discount_percent: number | null
           id: string
           item_number: number | null
+          line_total: number | null
+          model: string | null
+          product_code: string | null
           quantity: number | null
           quote_id: string
+          specifications: string | null
           total_price: number | null
           unit_price: number | null
+          unit_total: number | null
         }
         Insert: {
+          brand?: string | null
           category?: string | null
           code?: string | null
           description?: string
+          discount_percent?: number | null
           id?: string
           item_number?: number | null
+          line_total?: number | null
+          model?: string | null
+          product_code?: string | null
           quantity?: number | null
           quote_id: string
+          specifications?: string | null
           total_price?: number | null
           unit_price?: number | null
+          unit_total?: number | null
         }
         Update: {
+          brand?: string | null
           category?: string | null
           code?: string | null
           description?: string
+          discount_percent?: number | null
           id?: string
           item_number?: number | null
+          line_total?: number | null
+          model?: string | null
+          product_code?: string | null
           quantity?: number | null
           quote_id?: string
+          specifications?: string | null
           total_price?: number | null
           unit_price?: number | null
+          unit_total?: number | null
         }
         Relationships: [
           {
@@ -133,8 +190,10 @@ export type Database = {
           quote_date: string | null
           quote_number: string
           salesperson: string | null
+          salesperson_id: string | null
           status: string | null
           total: number | null
+          total_amount: number | null
           updated_at: string | null
         }
         Insert: {
@@ -148,8 +207,10 @@ export type Database = {
           quote_date?: string | null
           quote_number?: string
           salesperson?: string | null
+          salesperson_id?: string | null
           status?: string | null
           total?: number | null
+          total_amount?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -163,8 +224,10 @@ export type Database = {
           quote_date?: string | null
           quote_number?: string
           salesperson?: string | null
+          salesperson_id?: string | null
           status?: string | null
           total?: number | null
+          total_amount?: number | null
           updated_at?: string | null
         }
         Relationships: [
