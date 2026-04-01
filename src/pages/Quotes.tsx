@@ -50,17 +50,20 @@ export default function Quotes() {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<any | null>(null);
-  const [form, setForm] = useState({ client_id: '', status: 'draft', notes: '' });
+  const [form, setForm] = useState({ client_id: '', salesperson: '', status: 'draft', notes: '' });
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
+  const [salespeople, setSalespeople] = useState<any[]>([]);
 
   const loadData = async () => {
-    const [q, c] = await Promise.all([
-      db.from('quotes').select('*, clients(company_name), profiles!quotes_salesperson_id_fkey(full_name)')
+    const [q, c, s] = await Promise.all([
+      db.from('quotes').select('*, clients(company_name)')
         .order('created_at', { ascending: false }),
       db.from('clients').select('id, company_name').order('company_name'),
+      db.from('salespeople').select('*').eq('active', true).order('name'),
     ]);
     setQuotes(q.data || []);
     setClients(c.data || []);
+    setSalespeople(s.data || []);
   };
 
   useEffect(() => { loadData(); }, []);
@@ -96,7 +99,7 @@ export default function Quotes() {
 
       if (editingQuote) {
         const { error } = await db.from('quotes').update({
-          client_id: form.client_id, status: form.status, notes: form.notes,
+          client_id: form.client_id, salesperson: form.salesperson, status: form.status, notes: form.notes,
           total_amount: totalAmount,
         }).eq('id', editingQuote.id);
         if (error) throw error;
@@ -106,8 +109,8 @@ export default function Quotes() {
         const { data: numData } = await db.rpc('generate_quote_number');
         const { data, error } = await db.from('quotes').insert({
           quote_number: numData || `ORC-${Date.now()}`,
-          client_id: form.client_id, status: form.status, notes: form.notes,
-          salesperson_id: user?.id, total_amount: totalAmount,
+          client_id: form.client_id, salesperson: form.salesperson, status: form.status, notes: form.notes,
+          created_by: user?.id, total_amount: totalAmount,
         }).select('id').single();
         if (error) throw error;
         quoteId = data.id;
@@ -138,7 +141,7 @@ export default function Quotes() {
   const handleEdit = async (quote: any) => {
     const { data: qItems } = await db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number');
     setEditingQuote(quote);
-    setForm({ client_id: quote.client_id || '', status: quote.status, notes: quote.notes || '' });
+    setForm({ client_id: quote.client_id || '', salesperson: quote.salesperson || '', status: quote.status, notes: quote.notes || '' });
     setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
     setDialogOpen(true);
   };
@@ -152,7 +155,7 @@ export default function Quotes() {
 
   const resetForm = () => {
     setEditingQuote(null);
-    setForm({ client_id: '', status: 'draft', notes: '' });
+    setForm({ client_id: '', salesperson: '', status: 'draft', notes: '' });
     setItems([emptyItem()]);
   };
 
@@ -179,7 +182,7 @@ export default function Quotes() {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-6 mt-4">
-              <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Cliente *</Label>
                   <Select value={form.client_id} onValueChange={v => setForm(p => ({ ...p, client_id: v }))}>
@@ -187,6 +190,17 @@ export default function Quotes() {
                     <SelectContent>
                       {clients.map((c: any) => (
                         <SelectItem key={c.id} value={c.id}>{c.company_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Vendedor</Label>
+                  <Select value={form.salesperson} onValueChange={v => setForm(p => ({ ...p, salesperson: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar vendedor" /></SelectTrigger>
+                    <SelectContent>
+                      {salespeople.map((s: any) => (
+                        <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -323,7 +337,7 @@ export default function Quotes() {
                   <TableRow key={q.id}>
                     <TableCell className="font-medium">{q.quote_number}</TableCell>
                     <TableCell>{q.clients?.company_name || '-'}</TableCell>
-                    <TableCell>{q.profiles?.full_name || '-'}</TableCell>
+                    <TableCell>{q.salesperson || '-'}</TableCell>
                     <TableCell>{new Date(q.quote_date).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell>{formatCurrency(parseFloat(q.total_amount) || 0)}</TableCell>
                     <TableCell>
