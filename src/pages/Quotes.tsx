@@ -63,17 +63,22 @@ export default function Quotes() {
   });
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
   const [salespeople, setSalespeople] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [productSearch, setProductSearch] = useState<Record<number, string>>({});
+  const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
 
   const loadData = async () => {
-    const [q, c, s] = await Promise.all([
+    const [q, c, s, p] = await Promise.all([
       db.from('quotes').select('*, clients(company_name)')
         .order('created_at', { ascending: false }),
       db.from('clients').select('id, company_name').order('company_name'),
       db.from('salespeople').select('*').eq('active', true).order('name'),
+      db.from('products').select('*').order('name'),
     ]);
     setQuotes(q.data || []);
     setClients(c.data || []);
     setSalespeople(s.data || []);
+    setProducts(p.data || []);
   };
 
   useEffect(() => { loadData(); }, []);
