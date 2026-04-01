@@ -326,6 +326,35 @@ export default function Quotes() {
                           </Button>
                         )}
                       </div>
+                      {/* Product Search */}
+                      <div className="space-y-1 relative col-span-full">
+                        <Label className="text-xs">Buscar Produto (digite para pesquisar)</Label>
+                        <Input
+                          placeholder="Digite nome, marca ou código do produto..."
+                          value={productSearch[idx] || ''}
+                          onChange={e => {
+                            setProductSearch(prev => ({ ...prev, [idx]: e.target.value }));
+                            setShowProductDropdown(idx);
+                          }}
+                          onFocus={() => setShowProductDropdown(idx)}
+                          onBlur={() => setTimeout(() => setShowProductDropdown(null), 200)}
+                        />
+                        {showProductDropdown === idx && getFilteredProducts(idx).length > 0 && (
+                          <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                            {getFilteredProducts(idx).map((p: any) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                className="w-full text-left px-3 py-2 hover:bg-accent text-sm flex justify-between"
+                                onMouseDown={() => selectProduct(idx, p)}
+                              >
+                                <span className="font-medium">{p.name}</span>
+                                <span className="text-muted-foreground text-xs">{p.brand} • {formatCurrency(parseFloat(p.price) || 0)}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <div className="grid grid-cols-4 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs">Modelo *</Label>
