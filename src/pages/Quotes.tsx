@@ -50,17 +50,20 @@ export default function Quotes() {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<any | null>(null);
-  const [form, setForm] = useState({ client_id: '', status: 'draft', notes: '' });
+  const [form, setForm] = useState({ client_id: '', salesperson: '', status: 'draft', notes: '' });
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
+  const [salespeople, setSalespeople] = useState<any[]>([]);
 
   const loadData = async () => {
-    const [q, c] = await Promise.all([
-      db.from('quotes').select('*, clients(company_name), profiles!quotes_salesperson_id_fkey(full_name)')
+    const [q, c, s] = await Promise.all([
+      db.from('quotes').select('*, clients(company_name)')
         .order('created_at', { ascending: false }),
       db.from('clients').select('id, company_name').order('company_name'),
+      db.from('salespeople').select('*').eq('active', true).order('name'),
     ]);
     setQuotes(q.data || []);
     setClients(c.data || []);
+    setSalespeople(s.data || []);
   };
 
   useEffect(() => { loadData(); }, []);
