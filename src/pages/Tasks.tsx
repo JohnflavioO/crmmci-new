@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import {
   Plus, Search, Pencil, Trash2, CheckCircle2, Clock, AlertTriangle,
   Phone, CreditCard, Truck, MessageCircle, MoreHorizontal, CalendarDays,
-  CircleDot, ListChecks, Filter
+  CircleDot, ListChecks, Filter, Copy, Sparkles, Send
 } from 'lucide-react';
 
 const db = supabase as any;
@@ -40,6 +40,79 @@ const priorityConfig: Record<string, { label: string; color: string }> = {
   média: { label: 'Média', color: 'bg-yellow-100 text-yellow-700' },
   alta: { label: 'Alta', color: 'bg-red-100 text-red-700' },
 };
+
+// Scripts prontos para retomada de negociação e acompanhamento
+const messageScripts = [
+  {
+    category: '🔄 Retomada de Negociação',
+    scripts: [
+      {
+        title: 'Retomada após inatividade',
+        body: 'Olá {cliente}! Tudo bem? Passando para saber se ainda há interesse no orçamento #{orcamento} que enviamos. Estamos à disposição para qualquer ajuste ou negociação. Abraço!',
+      },
+      {
+        title: 'Oferta especial / urgência',
+        body: 'Olá {cliente}! Temos uma condição especial válida até o fim da semana para o orçamento #{orcamento}. Gostaria de aproveitar? Fico no aguardo!',
+      },
+      {
+        title: 'Verificação de necessidade',
+        body: 'Oi {cliente}! Sei que faz um tempo que conversamos sobre o orçamento #{orcamento}. Houve alguma mudança nos seus planos? Podemos revisar o projeto juntos!',
+      },
+    ],
+  },
+  {
+    category: '📦 Produto em Estoque',
+    scripts: [
+      {
+        title: 'Produto disponível no estoque',
+        body: 'Ótima notícia, {cliente}! O produto que você estava aguardando já está disponível em nosso estoque. Quer que eu reserve para você? Referente ao orçamento #{orcamento}.',
+      },
+      {
+        title: 'Lançamento / novidade',
+        body: 'Olá {cliente}! Temos uma novidade que combina perfeitamente com seu projeto: acabamos de receber novos modelos! Posso atualizar o orçamento #{orcamento} com as opções?',
+      },
+    ],
+  },
+  {
+    category: '💳 Cobrança / Pagamento',
+    scripts: [
+      {
+        title: 'Lembrete de pagamento',
+        body: 'Olá {cliente}! Passando para lembrar sobre o pagamento referente ao orçamento #{orcamento}. Caso já tenha sido efetuado, por favor desconsidere. Qualquer dúvida estamos à disposição!',
+      },
+      {
+        title: 'Confirmação de entrada',
+        body: 'Oi {cliente}! Poderia confirmar se a entrada referente ao orçamento #{orcamento} já foi realizada? Precisamos dessa confirmação para dar andamento ao pedido.',
+      },
+    ],
+  },
+  {
+    category: '🚚 Entrega / Logística',
+    scripts: [
+      {
+        title: 'Atualização de entrega',
+        body: 'Olá {cliente}! Informamos que o pedido referente ao orçamento #{orcamento} está em processo de separação/envio. Em breve enviaremos o código de rastreio!',
+      },
+      {
+        title: 'Pós-entrega / feedback',
+        body: 'Oi {cliente}! Tudo certo com a entrega do orçamento #{orcamento}? Gostaríamos de saber se ficou tudo ok e se podemos ajudar em algo mais!',
+      },
+    ],
+  },
+  {
+    category: '⭐ Pós-venda / Relacionamento',
+    scripts: [
+      {
+        title: 'Agradecimento pós-compra',
+        body: 'Olá {cliente}! Agradecemos pela confiança na MCI! Se precisar de suporte técnico ou novos produtos, conte conosco. Foi um prazer atender você!',
+      },
+      {
+        title: 'Cross-sell / up-sell',
+        body: 'Oi {cliente}! Pensando no seu projeto, temos produtos complementares que podem agregar valor à sua instalação. Posso enviar algumas sugestões?',
+      },
+    ],
+  },
+];
 
 interface Task {
   id: string;
@@ -67,7 +140,9 @@ export default function Tasks() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [scriptsOpen, setScriptsOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [form, setForm] = useState({
     title: '', description: '', task_type: 'contato', status: 'pendente',
     priority: 'média', due_date: '', quote_id: '', client_id: '',
@@ -93,7 +168,6 @@ export default function Tasks() {
     }
 
     const enriched = data.map((t: any) => {
-      // Auto-mark overdue
       if (t.due_date && new Date(t.due_date) < new Date() && t.status === 'pendente') {
         t.status = 'atrasada';
       }
@@ -173,6 +247,23 @@ export default function Tasks() {
     load();
   };
 
+  const openScripts = (t: Task) => {
+    setActiveTask(t);
+    setScriptsOpen(true);
+  };
+
+  const applyScript = (scriptBody: string) => {
+    if (!activeTask) return;
+    const clientName = activeTask.quote?.client_name || activeTask.client?.name || 'Cliente';
+    const quoteNum = activeTask.quote?.quote_number || '---';
+    const filled = scriptBody
+      .replace(/\{cliente\}/g, clientName)
+      .replace(/\{orcamento\}/g, quoteNum);
+    navigator.clipboard.writeText(filled);
+    toast.success('Mensagem copiada para a área de transferência!');
+    setScriptsOpen(false);
+  };
+
   const filtered = tasks.filter(t => {
     if (filterStatus !== 'all' && t.status !== filterStatus) return false;
     if (filterType !== 'all' && t.task_type !== filterType) return false;
@@ -185,7 +276,6 @@ export default function Tasks() {
     return true;
   });
 
-  // Stats
   const pendentes = tasks.filter(t => t.status === 'pendente' || t.status === 'atrasada').length;
   const emAndamento = tasks.filter(t => t.status === 'em_andamento').length;
   const concluidas = tasks.filter(t => t.status === 'concluida').length;
@@ -250,7 +340,7 @@ export default function Tasks() {
         </Select>
       </div>
 
-      {/* Summary accordion */}
+      {/* Table */}
       <Card className="shadow-card mb-4">
         <CardContent className="pt-6">
           {filtered.length === 0 ? (
@@ -271,7 +361,7 @@ export default function Tasks() {
                     <TableHead>Data/Hora</TableHead>
                     <TableHead>Negociação</TableHead>
                     <TableHead>Valor</TableHead>
-                    <TableHead className="w-20">Ações</TableHead>
+                    <TableHead className="w-28">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -323,6 +413,9 @@ export default function Tasks() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
+                            <Button size="icon" variant="ghost" onClick={() => openScripts(t)} title="Scripts de mensagem">
+                              <Sparkles className="h-4 w-4 text-purple-500" />
+                            </Button>
                             <Button size="icon" variant="ghost" onClick={() => openEdit(t)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -341,7 +434,7 @@ export default function Tasks() {
         </CardContent>
       </Card>
 
-      {/* Dialog */}
+      {/* Dialog Nova/Editar Tarefa */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -392,17 +485,21 @@ export default function Tasks() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Vincular orçamento</Label>
-                <Select value={form.quote_id} onValueChange={v => setForm({ ...form, quote_id: v })}>
+                <Select value={form.quote_id || 'none'} onValueChange={v => setForm({ ...form, quote_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Nenhum</SelectItem>
-                    {quotes.map((q: any) => <SelectItem key={q.id} value={q.id}>#{q.quote_number} - {q.client_name}</SelectItem>)}
+                    {quotes.map((q: any) => (
+                      <SelectItem key={q.id} value={q.id}>
+                        {q.client_name} — #{q.quote_number}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
                 <Label>Vincular cliente</Label>
-                <Select value={form.client_id} onValueChange={v => setForm({ ...form, client_id: v })}>
+                <Select value={form.client_id || 'none'} onValueChange={v => setForm({ ...form, client_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Nenhum</SelectItem>
@@ -417,6 +514,55 @@ export default function Tasks() {
                 {editing ? 'Salvar' : 'Criar tarefa'}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Scripts de Mensagem */}
+      <Dialog open={scriptsOpen} onOpenChange={setScriptsOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              Scripts de Mensagem
+            </DialogTitle>
+          </DialogHeader>
+          {activeTask && (
+            <p className="text-sm text-muted-foreground mb-4">
+              Para: <strong>{activeTask.quote?.client_name || activeTask.client?.name || 'Cliente'}</strong>
+              {activeTask.quote && <> — Orçamento <strong>#{activeTask.quote.quote_number}</strong></>}
+            </p>
+          )}
+          <div className="space-y-6">
+            {messageScripts.map((cat) => (
+              <div key={cat.category}>
+                <h3 className="font-semibold text-sm mb-3">{cat.category}</h3>
+                <div className="space-y-2">
+                  {cat.scripts.map((script) => {
+                    const clientName = activeTask?.quote?.client_name || activeTask?.client?.name || 'Cliente';
+                    const quoteNum = activeTask?.quote?.quote_number || '---';
+                    const preview = script.body
+                      .replace(/\{cliente\}/g, clientName)
+                      .replace(/\{orcamento\}/g, quoteNum);
+                    return (
+                      <Card key={script.title} className="border hover:border-purple-300 transition-colors cursor-pointer group" onClick={() => applyScript(script.body)}>
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium mb-1">{script.title}</p>
+                              <p className="text-xs text-muted-foreground leading-relaxed">{preview}</p>
+                            </div>
+                            <Button size="icon" variant="ghost" className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </DialogContent>
       </Dialog>

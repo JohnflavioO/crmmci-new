@@ -326,7 +326,7 @@ export default function Clients() {
                 <Input value={form.cep} onChange={e => handleCepChange(e.target.value)} placeholder="00000-000" />
               </div>
               <div className="space-y-2">
-                <Label>Telefone</Label>
+                <Label>Celular</Label>
                 <Input value={form.phone} onChange={e => {
                   updateForm('phone', e.target.value);
                   // Auto-detecta WhatsApp
