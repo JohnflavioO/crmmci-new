@@ -8,6 +8,7 @@ interface AuthContextType {
   loading: boolean;
   isApproved: boolean;
   isAdmin: boolean;
+  isGestor: boolean;
   profile: { full_name: string; phone: string; role: string } | null;
   signOut: () => Promise<void>;
 }
