@@ -1,7 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks,
+  LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -10,6 +10,7 @@ const navItems = [
   { to: '/clients', icon: Users, label: 'Clientes' },
   { to: '/quotes', icon: FileText, label: 'Orçamentos' },
   { to: '/tasks', icon: ListChecks, label: 'Tarefas' },
+  { to: '/metrics', icon: BarChart3, label: 'Métricas' },
   { to: '/products', icon: Package, label: 'Produtos' },
 ];
 
