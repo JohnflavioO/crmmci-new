@@ -65,9 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const fetchData = async () => {
       try {
-        const [approvedRes, adminRes, profileRes] = await Promise.all([
+        const [approvedRes, adminRes, gestorRes, profileRes] = await Promise.all([
           supabase.rpc('is_approved'),
           supabase.rpc('is_admin'),
+          supabase.rpc('is_gestor'),
           (supabase as any).from('profiles').select('full_name, phone, role').eq('user_id', user.id).maybeSingle(),
         ]);
 
@@ -75,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setIsApproved(approvedRes.data === true);
         setIsAdmin(adminRes.data === true);
+        setIsGestor(gestorRes.data === true);
         setProfile(profileRes.data as any);
       } catch (e) {
         console.error('fetchUserData error:', e);
