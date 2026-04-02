@@ -83,6 +83,47 @@ export default function Products() {
     setScrapeUrl('');
   };
 
+  const handleFetchImages = async () => {
+    const { data: allProducts } = await db.from('products')
+      .select('id, name, code, sku, brand')
+      .is('image_url', null)
+      .order('name');
+
+    if (!allProducts || allProducts.length === 0) {
+      toast.info('Todos os produtos já possuem imagem!');
+      return;
+    }
+
+    setFetchingImages(true);
+    setImageProgress({ current: 0, total: allProducts.length, found: 0 });
+    let found = 0;
+
+    for (let i = 0; i < allProducts.length; i += 10) {
+      const batch = allProducts.slice(i, i + 10);
+      try {
+        const { data, error } = await supabase.functions.invoke('fetch-mci-image', {
+          body: { products: batch },
+        });
+        if (error) throw error;
+        if (data?.success && data.results) {
+          for (const result of data.results) {
+            if (result.image_url) {
+              await db.from('products').update({ image_url: result.image_url }).eq('id', result.id);
+              found++;
+            }
+          }
+        }
+      } catch (err: any) {
+        console.error('Batch error:', err);
+      }
+      setImageProgress({ current: Math.min(i + 10, allProducts.length), total: allProducts.length, found });
+    }
+
+    setFetchingImages(false);
+    toast.success(`Imagens encontradas: ${found} de ${allProducts.length} produtos`);
+    loadProducts();
+  };
+
   const handleScrape = async () => {
     if (!scrapeUrl.trim()) return;
     setScraping(true);
