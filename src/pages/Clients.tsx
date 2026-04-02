@@ -131,6 +131,30 @@ export default function Clients() {
 
   const updateForm = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
+  const handleCepChange = async (value: string) => {
+    const cleanCep = value.replace(/\D/g, '');
+    updateForm('cep', value);
+    if (cleanCep.length === 8) {
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          setForm(prev => ({
+            ...prev,
+            address: data.logradouro || prev.address,
+            neighborhood: data.bairro || prev.neighborhood,
+            city: data.localidade || prev.city,
+            state: data.uf || prev.state,
+            complement: data.complemento || prev.complement,
+          }));
+          toast.success('Endereço preenchido automaticamente!');
+        }
+      } catch {
+        // silently fail
+      }
+    }
+  };
+
   const [importOpen, setImportOpen] = useState(false);
   const [sheetUrl, setSheetUrl] = useState('');
   const [importing, setImporting] = useState(false);
