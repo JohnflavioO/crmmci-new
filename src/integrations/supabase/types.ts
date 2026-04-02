@@ -31,6 +31,7 @@ export type Database = {
           created_by: string | null
           email: string | null
           id: string
+          is_whatsapp: boolean | null
           name: string
           neighborhood: string | null
           notes: string | null
@@ -54,6 +55,7 @@ export type Database = {
           created_by?: string | null
           email?: string | null
           id?: string
+          is_whatsapp?: boolean | null
           name: string
           neighborhood?: string | null
           notes?: string | null
@@ -77,6 +79,7 @@ export type Database = {
           created_by?: string | null
           email?: string | null
           id?: string
+          is_whatsapp?: boolean | null
           name?: string
           neighborhood?: string | null
           notes?: string | null
