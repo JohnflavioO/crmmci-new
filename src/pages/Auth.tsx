@@ -3,14 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
-import { Loader2, Mail, Lock, User, Phone } from 'lucide-react';
+import { Loader2, Mail, Lock, User, Phone, Eye, EyeOff } from 'lucide-react';
+import loginBg from '@/assets/mci-login-bg.jpg';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -45,83 +45,147 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-md"
-      >
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold font-display text-gradient-primary">MCI Store</h1>
-          <p className="text-muted-foreground mt-2">Sistema de Orçamentos</p>
+    <div className="min-h-screen flex">
+      {/* Left side - Hero image */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+        <img
+          src={loginBg}
+          alt="MCI Proposta CRM"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+      </div>
+
+      {/* Right side - Login form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center bg-[hsl(170,30%,8%)] relative overflow-hidden">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-[hsl(var(--accent))] blur-[120px]" />
+          <div className="absolute bottom-0 left-0 w-72 h-72 rounded-full bg-[hsl(var(--accent))] blur-[100px]" />
         </div>
 
-        <Card className="shadow-float border-border/50">
-          <CardHeader className="text-center">
-            <CardTitle className="font-display">{isLogin ? 'Entrar' : 'Criar Conta'}</CardTitle>
-            <CardDescription>
-              {isLogin
-                ? 'Acesse o sistema com suas credenciais'
-                : 'Preencha os dados para solicitar acesso'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Nome Completo</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input id="fullName" placeholder="Seu nome completo" value={fullName}
-                        onChange={e => setFullName(e.target.value)} className="pl-10" required />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Telefone</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input id="phone" placeholder="(85) 99999-9999" value={phone}
-                        onChange={e => setPhone(e.target.value)} className="pl-10" />
-                    </div>
-                  </div>
-                </>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="email">E-mail</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="email" type="email" placeholder="seu@email.com" value={email}
-                    onChange={e => setEmail(e.target.value)} className="pl-10" required />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="password" type="password" placeholder="••••••••" value={password}
-                    onChange={e => setPassword(e.target.value)} className="pl-10" required minLength={6} />
-                </div>
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLogin ? 'Entrar' : 'Solicitar Acesso'}
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <button
-                type="button"
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-sm text-primary hover:underline"
-              >
-                {isLogin ? 'Não tem conta? Solicite acesso' : 'Já tem conta? Faça login'}
-              </button>
+        <div className="relative z-10 w-full max-w-md px-8 py-12">
+          {/* MCI Logo */}
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 mb-3">
+              <svg width="48" height="48" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M40 160V60L80 120L120 60V160" stroke="hsl(168, 80%, 45%)" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M140 60V160" stroke="white" strokeWidth="16" strokeLinecap="round"/>
+                <circle cx="140" cy="40" r="10" fill="hsl(168, 80%, 45%)"/>
+              </svg>
             </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+            <h1 className="text-2xl font-bold text-white font-display">
+              {isLogin ? 'Bem-vindo de volta' : 'Criar Conta'}
+            </h1>
+            <p className="text-gray-400 mt-2 text-sm">
+              {isLogin
+                ? 'Acesse o Proposta CRM — Continue sua jornada'
+                : 'Preencha os dados para solicitar acesso ao sistema'}
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {!isLogin && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName" className="text-gray-300 text-sm">Nome Completo</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                    <Input
+                      id="fullName"
+                      placeholder="Seu nome completo"
+                      value={fullName}
+                      onChange={e => setFullName(e.target.value)}
+                      className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus-visible:ring-[hsl(168,80%,45%)] focus-visible:border-[hsl(168,80%,45%)]"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-gray-300 text-sm">Telefone</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                    <Input
+                      id="phone"
+                      placeholder="(85) 99999-9999"
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus-visible:ring-[hsl(168,80%,45%)] focus-visible:border-[hsl(168,80%,45%)]"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-gray-300 text-sm">E-mail</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus-visible:ring-[hsl(168,80%,45%)] focus-visible:border-[hsl(168,80%,45%)]"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-gray-300 text-sm">Senha</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="pl-10 pr-10 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus-visible:ring-[hsl(168,80%,45%)] focus-visible:border-[hsl(168,80%,45%)]"
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full bg-[hsl(168,80%,45%)] hover:bg-[hsl(168,80%,38%)] text-white font-semibold h-11 text-sm"
+              disabled={loading}
+            >
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isLogin ? 'Entrar' : 'Solicitar Acesso'}
+            </Button>
+          </form>
+
+          {/* Toggle */}
+          <div className="mt-8 text-center">
+            <span className="text-gray-500 text-sm">
+              {isLogin ? 'Não tem conta?' : 'Já tem conta?'}
+            </span>{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setShowPassword(false);
+              }}
+              className="text-sm text-[hsl(168,80%,45%)] hover:text-[hsl(168,80%,55%)] font-medium transition-colors"
+            >
+              {isLogin ? 'Solicite acesso' : 'Faça login'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
