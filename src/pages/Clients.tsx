@@ -172,11 +172,21 @@ export default function Clients() {
       console.log('Colunas encontradas:', data.matched_columns);
       console.log('Headers da planilha:', data.headers);
       
-      const clientsToInsert = data.clients.map((c: any) => ({
-        ...c,
-        name: c.company_name || c.name || '',
-        created_by: user?.id,
-      }));
+      const validFields = [
+        'company_name', 'cpf_cnpj', 'city', 'state', 'phone', 'email',
+        'contact_name', 'address', 'address_number', 'complement',
+        'neighborhood', 'cep', 'contact_phone', 'contrib_icms', 'notes'
+      ];
+      
+      const clientsToInsert = data.clients.map((c: any) => {
+        const clean: Record<string, string> = {};
+        for (const field of validFields) {
+          if (c[field]) clean[field] = c[field];
+        }
+        clean.name = c.company_name || c.name || '';
+        clean.created_by = user?.id || '';
+        return clean;
+      });
 
       let inserted = 0;
       let errors = 0;
