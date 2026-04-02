@@ -22,7 +22,7 @@ export default function AppSidebar() {
   const { profile, isAdmin, isGestor, signOut } = useAuth();
   const location = useLocation();
 
-  const LinkItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => {
+  const LinkItem = ({ to, icon: Icon, label, color }: { to: string; icon: any; label: string; color?: string }) => {
     const isActive = location.pathname === to;
     return (
       <NavLink
@@ -33,6 +33,7 @@ export default function AppSidebar() {
             ? 'bg-sidebar-accent text-sidebar-accent-foreground'
             : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
         )}
+        style={color && !isActive ? { color } : undefined}
       >
         <Icon className="h-5 w-5" />
         {label}
