@@ -9,6 +9,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/clients', icon: Users, label: 'Clientes' },
   { to: '/quotes', icon: FileText, label: 'Orçamentos' },
+  { to: '/tasks', icon: ListChecks, label: 'Tarefas' },
   { to: '/products', icon: Package, label: 'Produtos' },
 ];
 
