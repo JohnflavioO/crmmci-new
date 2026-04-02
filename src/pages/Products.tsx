@@ -256,6 +256,7 @@ export default function Products() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         )}
       </div>
 
