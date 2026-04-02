@@ -408,7 +408,7 @@ export default function Clients() {
                       <div className="flex items-center gap-1">
                         {c.phone}
                         {(c as any).is_whatsapp && (
-                          <MessageCircle className="h-4 w-4 text-green-500" title="WhatsApp" />
+                          <span title="WhatsApp"><MessageCircle className="h-4 w-4 text-emerald-500" /></span>
                         )}
                       </div>
                     </TableCell>
