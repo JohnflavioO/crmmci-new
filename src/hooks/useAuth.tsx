@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!newSession?.user) {
           setIsApproved(false);
           setIsAdmin(false);
+          setIsGestor(false);
           setProfile(null);
           setLoading(false);
         }
