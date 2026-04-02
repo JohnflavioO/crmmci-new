@@ -225,6 +225,39 @@ export default function Quotes() {
     else { toast.success('Orçamento excluído'); loadData(); }
   };
 
+  const handleDuplicate = async (quote: any) => {
+    try {
+      const { data: qItems } = await db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number');
+      const { data: numData } = await db.rpc('generate_quote_number');
+      const { data: newQuote, error } = await db.from('quotes').insert({
+        client_id: quote.client_id, client_name: quote.client_name,
+        salesperson: quote.salesperson, salesperson_id: quote.salesperson_id,
+        status: 'draft', notes: quote.notes,
+        payment_terms: quote.payment_terms, shipping_deadline: quote.shipping_deadline,
+        shipping_method: quote.shipping_method, shipping_cost: quote.shipping_cost,
+        proposal_validity: quote.proposal_validity, payment_method: quote.payment_method,
+        payment_status: 'pendente', total_amount: quote.total_amount, total: quote.total,
+        discount: quote.discount, quote_number: numData || `ORC-${Date.now()}`,
+        created_by: user?.id,
+      }).select('id').single();
+      if (error) throw error;
+      if (qItems?.length > 0) {
+        const dupItems = qItems.map((item: any, idx: number) => ({
+          quote_id: newQuote.id, item_number: idx + 1, product_code: item.product_code,
+          quantity: item.quantity, model: item.model, brand: item.brand, description: item.description || '',
+          specifications: item.specifications, unit_price: item.unit_price,
+          discount_percent: item.discount_percent, unit_total: item.unit_total,
+          line_total: item.line_total, image_url: item.image_url,
+        }));
+        await db.from('quote_items').insert(dupItems);
+      }
+      toast.success('Orçamento duplicado com sucesso!');
+      loadData();
+    } catch (err: any) {
+      toast.error('Erro ao duplicar: ' + err.message);
+    }
+  };
+
   const handleExportPdf = async (quote: any) => {
     try {
       const [{ data: qItems }, { data: clientData }] = await Promise.all([
