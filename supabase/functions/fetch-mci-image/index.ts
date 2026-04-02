@@ -24,7 +24,16 @@ async function searchMCI(query: string): Promise<{ imageUrl: string; matchedName
     if (!response.ok) return null;
     const html = await response.text();
 
-    console.log(`Search query: "${query}", HTML length: ${html.length}`);
+    // Debug: check if listagem-item exists
+    const hasListagem = html.includes('listagem-item');
+    const hasNomeProduto = html.includes('nome-produto');
+    const hasImagemPrincipal = html.includes('imagem-principal');
+    console.log(`Has listagem-item: ${hasListagem}, nome-produto: ${hasNomeProduto}, imagem-principal: ${hasImagemPrincipal}`);
+    // Log a small excerpt around nome-produto if found
+    const npIdx = html.indexOf('nome-produto');
+    if (npIdx > -1) console.log('Excerpt:', html.substring(npIdx - 50, npIdx + 150));
+    const ipIdx = html.indexOf('imagem-principal');
+    if (ipIdx > -1) console.log('Img excerpt:', html.substring(ipIdx - 50, ipIdx + 150));
 
     // Extract all products from search results
     const products: { name: string; image: string; sku: string }[] = [];
