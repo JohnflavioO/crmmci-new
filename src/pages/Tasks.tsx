@@ -137,7 +137,8 @@ export default function Tasks() {
       title: form.title, description: form.description || null,
       task_type: form.task_type, status: form.status, priority: form.priority,
       due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
-      quote_id: form.quote_id || null, client_id: form.client_id || null,
+      quote_id: (form.quote_id && form.quote_id !== 'none') ? form.quote_id : null,
+      client_id: (form.client_id && form.client_id !== 'none') ? form.client_id : null,
       completed_at: form.status === 'concluida' ? new Date().toISOString() : null,
     };
 
