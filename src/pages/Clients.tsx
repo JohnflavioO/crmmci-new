@@ -239,7 +239,7 @@ export default function Clients() {
         </div>
         <div className="flex gap-2">
           {selectedIds.size > 0 && (
-            <Button variant="destructive" className="gap-2" onClick={handleBulkDelete} disabled={deleting}>
+            <Button variant="destructive" className="gap-2" onClick={() => { setBulkDeleteOpen(true); setBulkDeleteConfirm(''); }} disabled={deleting}>
               {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               Excluir {selectedIds.size} selecionado(s)
             </Button>
