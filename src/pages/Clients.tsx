@@ -404,7 +404,14 @@ export default function Clients() {
                     <TableCell>{c.cpf_cnpj}</TableCell>
                     <TableCell>{[c.city, c.state].filter(Boolean).join('/')}</TableCell>
                     <TableCell>{c.contact_name}</TableCell>
-                    <TableCell>{c.phone}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        {c.phone}
+                        {(c as any).is_whatsapp && (
+                          <MessageCircle className="h-4 w-4 text-green-500" title="WhatsApp" />
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button size="icon" variant="ghost" onClick={() => handleEdit(c)}>
