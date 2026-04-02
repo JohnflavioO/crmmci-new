@@ -394,7 +394,7 @@ export default function Tasks() {
                 <Select value={form.quote_id} onValueChange={v => setForm({ ...form, quote_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     {quotes.map((q: any) => <SelectItem key={q.id} value={q.id}>#{q.quote_number} - {q.client_name}</SelectItem>)}
                   </SelectContent>
                 </Select>
