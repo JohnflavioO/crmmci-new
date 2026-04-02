@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2, Mail, Lock, User, Phone, Eye, EyeOff } from 'lucide-react';
 import loginBg from '@/assets/mci-login-bg.jpg';
+import mciLogo from '@/assets/mci-logo.png';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
