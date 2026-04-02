@@ -10,7 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
 const db = supabase as any;
 
@@ -25,6 +26,8 @@ export default function Products() {
   const [scraping, setScraping] = useState(false);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
+  const [fetchingImages, setFetchingImages] = useState(false);
+  const [imageProgress, setImageProgress] = useState({ current: 0, total: 0, found: 0 });
 
   const loadProducts = async () => {
     const { data } = await db.from('products')
