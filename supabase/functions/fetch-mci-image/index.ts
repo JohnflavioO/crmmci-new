@@ -24,41 +24,40 @@ async function searchMCI(query: string): Promise<{ imageUrl: string; matchedName
     if (!response.ok) return null;
     const html = await response.text();
 
-    // Debug: check if listagem-item exists
-    const hasListagem = html.includes('listagem-item');
-    const hasNomeProduto = html.includes('nome-produto');
-    const hasImagemPrincipal = html.includes('imagem-principal');
-    console.log(`Has listagem-item: ${hasListagem}, nome-produto: ${hasNomeProduto}, imagem-principal: ${hasImagemPrincipal}`);
-    // Log a small excerpt around nome-produto if found
-    const npIdx = html.indexOf('nome-produto');
-    if (npIdx > -1) console.log('Excerpt:', html.substring(npIdx - 50, npIdx + 150));
-    const ipIdx = html.indexOf('imagem-principal');
-    if (ipIdx > -1) console.log('Img excerpt:', html.substring(ipIdx - 50, ipIdx + 150));
+    console.log(`Search query: "${query}", HTML length: ${html.length}`);
 
     // Extract all products from search results
     const products: { name: string; image: string; sku: string }[] = [];
 
-    // More flexible regexes
-    const nameRegex = /class="nome-produto"[^>]*>([^<]+)</gi;
-    const imgRegex = /class="imagem-principal"[^>]*\ssrc="([^"]+)"/gi;
-    const skuRegex = /class="produto-sku[^"]*"[^>]*>([^<]*)</gi;
+    // Find product blocks - look for listagem-item divs
+    // Names: <a href="..." class="nome-produto">Product Name</a>  (in HTML, not in JS)
+    // Images: class="imagem-principal" with src or data-imagem-caminho
+    // SKUs: class="produto-sku hide">SKU</div>
 
-    const names: string[] = [];
-    const images: string[] = [];
-    const skus: string[] = [];
+    // Use a more targeted approach - find product listing blocks
+    const blockRegex = /<div class="listagem-item[^"]*"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>\s*<\/li>/gi;
+    const blocks = html.match(blockRegex) || [];
+    
+    console.log(`Found ${blocks.length} product blocks`);
 
-    let m;
-    while ((m = nameRegex.exec(html)) !== null) names.push(m[1].trim());
-    while ((m = imgRegex.exec(html)) !== null) images.push(m[1]);
-    while ((m = skuRegex.exec(html)) !== null) skus.push(m[1].trim());
-
-    console.log(`Found: ${names.length} names, ${images.length} images, ${skus.length} skus`);
-    if (names.length > 0) console.log(`First product: "${names[0]}"`);
-
-    for (let i = 0; i < names.length && i < images.length; i++) {
-      products.push({ name: names[i], image: images[i], sku: skus[i] || '' });
+    for (const block of blocks) {
+      const nameMatch = block.match(/<a[^>]*class="[^"]*nome-produto[^"]*"[^>]*>([^<]+)<\/a>/i);
+      // Try src first, then data-imagem-caminho
+      const imgMatch = block.match(/class="[^"]*imagem-principal[^"]*"[^>]*\ssrc="([^"]+)"/i)
+        || block.match(/class="[^"]*imagem-principal[^"]*"[^>]*data-imagem-caminho="([^"]+)"/i)
+        || block.match(/src="(https:\/\/cdn\.awsli\.com\.br\/[^"]+)"/i);
+      const skuMatch = block.match(/class="[^"]*produto-sku[^"]*"[^>]*>([^<]*)</i);
+      
+      if (nameMatch && imgMatch) {
+        products.push({
+          name: nameMatch[1].trim(),
+          image: imgMatch[1],
+          sku: skuMatch ? skuMatch[1].trim() : '',
+        });
+      }
     }
 
+    console.log(`Parsed ${products.length} products`);
     if (products.length === 0) return null;
 
     // Return the first (most relevant) result - upgrade image to higher resolution
