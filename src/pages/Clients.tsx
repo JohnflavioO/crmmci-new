@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -45,6 +46,8 @@ export default function Clients() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [form, setForm] = useState(emptyClient);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   const loadClients = async () => {
     const { data } = await db.from('clients').select('*').order('company_name');
@@ -60,7 +63,7 @@ export default function Clients() {
         if (error) throw error;
         toast.success('Cliente atualizado!');
       } else {
-        const { error } = await db.from('clients').insert({ ...form, created_by: user?.id });
+        const { error } = await db.from('clients').insert({ ...form, name: form.company_name || '', created_by: user?.id });
         if (error) throw error;
         toast.success('Cliente criado!');
       }
@@ -86,6 +89,40 @@ export default function Clients() {
     else { toast.success('Cliente excluído'); loadClients(); }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Excluir ${selectedIds.size} cliente(s) selecionado(s)?`)) return;
+    setDeleting(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const { error } = await db.from('clients').delete().in('id', ids);
+      if (error) throw error;
+      toast.success(`${ids.length} cliente(s) excluído(s)`);
+      setSelectedIds(new Set());
+      loadClients();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filtered.map(c => c.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   const filtered = clients.filter(c =>
     c.company_name?.toLowerCase().includes(search.toLowerCase()) ||
     c.cpf_cnpj?.includes(search) ||
@@ -106,6 +143,10 @@ export default function Clients() {
         body: { url: sheetUrl.trim() },
       });
       if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao importar');
+
+      // Log matched columns for debugging
+      console.log('Colunas encontradas:', data.matched_columns);
+      console.log('Headers da planilha:', data.headers);
       
       const clientsToInsert = data.clients.map((c: any) => ({
         ...c,
@@ -114,12 +155,20 @@ export default function Clients() {
       }));
 
       let inserted = 0;
+      let errors = 0;
       for (const client of clientsToInsert) {
         const { error: insertErr } = await db.from('clients').insert(client);
         if (!insertErr) inserted++;
+        else {
+          errors++;
+          console.error('Erro ao inserir cliente:', client.company_name, insertErr);
+        }
       }
 
-      toast.success(`${inserted} clientes importados com sucesso!`);
+      const matchedFields = Object.keys(data.matched_columns || {});
+      toast.success(`${inserted} clientes importados! Campos mapeados: ${matchedFields.join(', ')}`, { duration: 6000 });
+      if (errors > 0) toast.warning(`${errors} clientes não puderam ser importados`);
+      
       setImportOpen(false);
       setSheetUrl('');
       loadClients();
@@ -138,6 +187,12 @@ export default function Clients() {
           <p className="text-muted-foreground">Gerencie sua base de clientes</p>
         </div>
         <div className="flex gap-2">
+          {selectedIds.size > 0 && (
+            <Button variant="destructive" className="gap-2" onClick={handleBulkDelete} disabled={deleting}>
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Excluir {selectedIds.size} selecionado(s)
+            </Button>
+          )}
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2"><Upload className="h-4 w-4" /> Importar Planilha</Button>
@@ -149,6 +204,9 @@ export default function Clients() {
               <div className="space-y-4 mt-4">
                 <p className="text-sm text-muted-foreground">
                   Cole o link da sua planilha Google. A planilha precisa estar compartilhada como "Qualquer pessoa com o link pode ver".
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Campos reconhecidos: Razão Social, CPF/CNPJ, Endereço, Número, Bairro, Cidade, UF, CEP, Telefone, E-mail, Contato, Contrib. ICMS, Observações
                 </p>
                 <div className="space-y-2">
                   <Label>Link da Planilha</Label>
@@ -248,9 +306,14 @@ export default function Clients() {
 
       <Card className="shadow-card">
         <CardHeader className="pb-3">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar cliente..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+          <div className="flex items-center justify-between">
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Buscar cliente..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+            </div>
+            {clients.length > 0 && (
+              <p className="text-sm text-muted-foreground">{filtered.length} cliente(s)</p>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -263,6 +326,12 @@ export default function Clients() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                      onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                    />
+                  </TableHead>
                   <TableHead>Empresa</TableHead>
                   <TableHead>CPF/CNPJ</TableHead>
                   <TableHead>Cidade/UF</TableHead>
@@ -273,7 +342,13 @@ export default function Clients() {
               </TableHeader>
               <TableBody>
                 {filtered.map(c => (
-                  <TableRow key={c.id}>
+                  <TableRow key={c.id} data-state={selectedIds.has(c.id) ? 'selected' : undefined}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(c.id)}
+                        onCheckedChange={() => toggleSelect(c.id)}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">{c.company_name}</TableCell>
                     <TableCell>{c.cpf_cnpj}</TableCell>
                     <TableCell>{[c.city, c.state].filter(Boolean).join('/')}</TableCell>
