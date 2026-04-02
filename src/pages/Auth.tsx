@@ -52,9 +52,8 @@ export default function Auth() {
         <img
           src={loginBg}
           alt="MCI Proposta CRM"
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-contain bg-[hsl(170,30%,8%)]"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
       </div>
 
       {/* Right side - Login form */}
