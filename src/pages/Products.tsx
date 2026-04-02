@@ -10,7 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
 const db = supabase as any;
 
@@ -25,6 +26,8 @@ export default function Products() {
   const [scraping, setScraping] = useState(false);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
+  const [fetchingImages, setFetchingImages] = useState(false);
+  const [imageProgress, setImageProgress] = useState({ current: 0, total: 0, found: 0 });
 
   const loadProducts = async () => {
     const { data } = await db.from('products')
@@ -80,6 +83,47 @@ export default function Products() {
     setScrapeUrl('');
   };
 
+  const handleFetchImages = async () => {
+    const { data: allProducts } = await db.from('products')
+      .select('id, name, code, sku, brand')
+      .is('image_url', null)
+      .order('name');
+
+    if (!allProducts || allProducts.length === 0) {
+      toast.info('Todos os produtos já possuem imagem!');
+      return;
+    }
+
+    setFetchingImages(true);
+    setImageProgress({ current: 0, total: allProducts.length, found: 0 });
+    let found = 0;
+
+    for (let i = 0; i < allProducts.length; i += 10) {
+      const batch = allProducts.slice(i, i + 10);
+      try {
+        const { data, error } = await supabase.functions.invoke('fetch-mci-image', {
+          body: { products: batch },
+        });
+        if (error) throw error;
+        if (data?.success && data.results) {
+          for (const result of data.results) {
+            if (result.image_url) {
+              await db.from('products').update({ image_url: result.image_url }).eq('id', result.id);
+              found++;
+            }
+          }
+        }
+      } catch (err: any) {
+        console.error('Batch error:', err);
+      }
+      setImageProgress({ current: Math.min(i + 10, allProducts.length), total: allProducts.length, found });
+    }
+
+    setFetchingImages(false);
+    toast.success(`Imagens encontradas: ${found} de ${allProducts.length} produtos`);
+    loadProducts();
+  };
+
   const handleScrape = async () => {
     if (!scrapeUrl.trim()) return;
     setScraping(true);
@@ -128,10 +172,15 @@ export default function Products() {
           <p className="text-muted-foreground">Gerencie o catálogo de produtos</p>
         </div>
         {isAdmin && (
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button className="gap-2"><Plus className="h-4 w-4" /> Novo Produto</Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Button variant="outline" className="gap-2" onClick={handleFetchImages} disabled={fetchingImages}>
+              <ImageDown className="h-4 w-4" />
+              {fetchingImages ? 'Buscando...' : 'Buscar Imagens MCI'}
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
+              <DialogTrigger asChild>
+                <Button className="gap-2"><Plus className="h-4 w-4" /> Novo Produto</Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="font-display">
@@ -207,8 +256,19 @@ export default function Products() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         )}
       </div>
+
+      {fetchingImages && (
+        <div className="mb-4 p-4 rounded-lg border bg-muted/20 space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Buscando imagens no site MCI...</span>
+            <span>{imageProgress.current}/{imageProgress.total} processados • {imageProgress.found} encontradas</span>
+          </div>
+          <Progress value={(imageProgress.current / imageProgress.total) * 100} />
+        </div>
+      )}
 
       <Card className="shadow-card">
         <CardHeader className="pb-3">
