@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -319,14 +320,22 @@ export default function Clients() {
               </div>
               <div className="space-y-2">
                 <Label>UF</Label>
-                <Input value={form.state} onChange={e => updateForm('state', e.target.value)} maxLength={2} />
+                <Select value={form.state || 'none'} onValueChange={v => updateForm('state', v === 'none' ? '' : v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Selecione</SelectItem>
+                    {['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(uf => (
+                      <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>CEP</Label>
                 <Input value={form.cep} onChange={e => handleCepChange(e.target.value)} placeholder="00000-000" />
               </div>
               <div className="space-y-2">
-                <Label>Telefone</Label>
+                <Label>Celular</Label>
                 <Input value={form.phone} onChange={e => {
                   updateForm('phone', e.target.value);
                   // Auto-detecta WhatsApp
@@ -347,11 +356,11 @@ export default function Clients() {
                 <Input type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Contato</Label>
+                <Label>Nome do Responsável</Label>
                 <Input value={form.contact_name} onChange={e => updateForm('contact_name', e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Tel. Contato</Label>
+                <Label>Telefone</Label>
                 <Input value={form.contact_phone} onChange={e => updateForm('contact_phone', e.target.value)} />
               </div>
               <div className="col-span-2 space-y-2">
