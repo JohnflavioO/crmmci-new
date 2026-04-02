@@ -17,7 +17,7 @@ const adminItems = [
 ];
 
 export default function AppSidebar() {
-  const { profile, isAdmin, signOut } = useAuth();
+  const { profile, isAdmin, isGestor, signOut } = useAuth();
   const location = useLocation();
 
   const LinkItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => {
