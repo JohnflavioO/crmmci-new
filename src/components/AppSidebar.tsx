@@ -53,7 +53,9 @@ export default function AppSidebar() {
       </div>
 
       <nav className="flex-1 px-3 space-y-1">
-        {navItems.map(item => <LinkItem key={item.to} {...item} />)}
+        {navItems.map(item => (
+          <LinkItem key={item.to} {...item} color={item.to === '/quotes' ? '#15AFA1' : undefined} />
+        ))}
 
         {/* Calculadora Ecoflow - internal route */}
         <LinkItem to="/ecoflow" icon={Calculator} label="Calculadora Ecoflow" />
