@@ -12,6 +12,7 @@ import Quotes from "./pages/Quotes";
 import Approvals from "./pages/Approvals";
 import Products from "./pages/Products";
 import EcoflowCalculator from "./pages/EcoflowCalculator";
+import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ function AppRoutes() {
       <Route path="/quotes" element={<Quotes />} />
       <Route path="/products" element={<Products />} />
       <Route path="/ecoflow" element={<EcoflowCalculator />} />
+      <Route path="/tasks" element={<Tasks />} />
       {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
       <Route path="*" element={<NotFound />} />
     </Routes>
