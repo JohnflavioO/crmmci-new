@@ -429,6 +429,38 @@ export default function Clients() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog de confirmação de exclusão em massa */}
+      <Dialog open={bulkDeleteOpen} onOpenChange={(o) => { setBulkDeleteOpen(o); if (!o) setBulkDeleteConfirm(''); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Confirmar Exclusão em Massa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <p className="text-sm text-muted-foreground">
+              Você está prestes a excluir <strong>{selectedIds.size}</strong> cliente(s). Esta ação não pode ser desfeita.
+            </p>
+            <p className="text-sm font-medium">
+              Para confirmar, digite <strong>EXCLUIR</strong> no campo abaixo:
+            </p>
+            <Input
+              value={bulkDeleteConfirm}
+              onChange={e => setBulkDeleteConfirm(e.target.value)}
+              placeholder="Digite EXCLUIR para confirmar"
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setBulkDeleteOpen(false)}>Cancelar</Button>
+              <Button
+                variant="destructive"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteConfirm !== 'EXCLUIR' || deleting}
+              >
+                {deleting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Excluindo...</> : 'Confirmar Exclusão'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
