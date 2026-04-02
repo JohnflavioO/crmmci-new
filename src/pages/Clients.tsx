@@ -161,6 +161,16 @@ export default function Clients() {
     }
   };
 
+  // Detecta se um número de telefone é WhatsApp (formato brasileiro com 9 dígitos no celular)
+  const detectWhatsApp = (phone: string): boolean => {
+    if (!phone) return false;
+    const digits = phone.replace(/\D/g, '');
+    // Celular brasileiro: 11 dígitos (DDD + 9 + 8 dígitos) ou com 55 na frente
+    const withoutCountry = digits.startsWith('55') ? digits.substring(2) : digits;
+    // Celular tem 11 dígitos e o terceiro dígito é 9
+    return withoutCountry.length === 11 && withoutCountry[2] === '9';
+  };
+
   const [importOpen, setImportOpen] = useState(false);
   const [sheetUrl, setSheetUrl] = useState('');
   const [importing, setImporting] = useState(false);
@@ -174,7 +184,6 @@ export default function Clients() {
       });
       if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao importar');
 
-      // Log matched columns for debugging
       console.log('Colunas encontradas:', data.matched_columns);
       console.log('Headers da planilha:', data.headers);
       
@@ -185,12 +194,14 @@ export default function Clients() {
       ];
       
       const clientsToInsert = data.clients.map((c: any) => {
-        const clean: Record<string, string> = {};
+        const clean: Record<string, any> = {};
         for (const field of validFields) {
           if (c[field]) clean[field] = c[field];
         }
         clean.name = c.company_name || c.name || '';
         clean.created_by = user?.id || '';
+        // Detecta WhatsApp pelo telefone
+        clean.is_whatsapp = detectWhatsApp(c.phone || '') || detectWhatsApp(c.contact_phone || '');
         return clean;
       });
 
