@@ -5,29 +5,35 @@ import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { format, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek, isWithinInterval, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, differenceInDays, eachDayOfInterval, eachWeekOfInterval, endOfWeek, isWithinInterval, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, Legend, AreaChart, Area,
+  PieChart, Pie, Cell, Legend, AreaChart, Area, LineChart, Line,
 } from 'recharts';
 import {
-  BarChart3, TrendingUp, TrendingDown, DollarSign, FileText,
-  CalendarDays, Target, ArrowUpRight, ArrowDownRight, Users,
+  BarChart3, TrendingUp, DollarSign, FileText,
+  CalendarDays, Target, Users, Info, Grid3X3, BarChart2,
 } from 'lucide-react';
 
 const db = supabase as any;
 
-const COLORS = ['hsl(160,60%,45%)', 'hsl(220,70%,50%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(280,60%,50%)'];
+const COLORS = ['#15AFA1', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 const formatCurrency = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(v);
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
+const formatCompact = (v: number) => {
+  if (v >= 1000) return `R$ ${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k`;
+  return `R$ ${v.toFixed(0)}`;
+};
 
 type Period = 'month' | '3months' | '6months' | 'custom';
+type ChartView = 'bar' | 'table';
+type ChartMetric = 'quantity' | 'value';
 
 export default function Metrics() {
   const { user, isGestor, profile } = useAuth();
@@ -37,6 +43,8 @@ export default function Metrics() {
   const [customTo, setCustomTo] = useState<Date | undefined>(new Date());
   const [salespeople, setSalespeople] = useState<any[]>([]);
   const [selectedSeller, setSelectedSeller] = useState('me');
+  const [chartView, setChartView] = useState<ChartView>('bar');
+  const [chartMetric, setChartMetric] = useState<ChartMetric>('quantity');
 
   const dateRange = useMemo(() => {
     const now = new Date();
@@ -49,7 +57,7 @@ export default function Metrics() {
   useEffect(() => {
     const load = async () => {
       let query = db.from('quotes')
-        .select('id, quote_number, client_name, total, total_amount, status, payment_status, payment_method, quote_date, created_by, salesperson')
+        .select('id, quote_number, client_name, total, total_amount, status, payment_status, payment_method, quote_date, created_at, created_by, salesperson')
         .gte('quote_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('quote_date', format(dateRange.to, 'yyyy-MM-dd'));
 
@@ -79,29 +87,77 @@ export default function Metrics() {
   // KPIs
   const totalQuotes = quotes.length;
   const approved = quotes.filter(q => q.status === 'approved');
+  const rejected = quotes.filter(q => q.status === 'rejected');
   const totalRevenue = approved.reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0);
-  const totalAll = quotes.reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0);
+  const totalLost = rejected.reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0);
   const avgTicket = approved.length > 0 ? totalRevenue / approved.length : 0;
   const conversionRate = totalQuotes > 0 ? (approved.length / totalQuotes) * 100 : 0;
-  const liquidados = quotes.filter(q => q.payment_status === 'liquidado');
-  const totalLiquidado = liquidados.reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0);
-  const pendentes = quotes.filter(q => q.status === 'approved' && q.payment_status !== 'liquidado');
+  const totalUnits = approved.reduce((s: number, _: any) => s + 1, 0);
 
-  // Chart: revenue over time
-  const revenueByDay = useMemo(() => {
+  // Tempo médio até a venda (days between created_at and quote_date for approved)
+  const avgDaysToSale = useMemo(() => {
+    if (approved.length === 0) return 0;
+    const totalDays = approved.reduce((sum: number, q: any) => {
+      const created = parseISO(q.created_at);
+      const quoteDate = parseISO(q.quote_date);
+      return sum + Math.max(0, differenceInDays(quoteDate, created));
+    }, 0);
+    return Math.round(totalDays / approved.length);
+  }, [approved]);
+
+  // Tempo médio até a perda
+  const avgDaysToLoss = useMemo(() => {
+    if (rejected.length === 0) return 0;
+    const totalDays = rejected.reduce((sum: number, q: any) => {
+      const created = parseISO(q.created_at);
+      const quoteDate = parseISO(q.quote_date);
+      return sum + Math.max(0, differenceInDays(quoteDate, created));
+    }, 0);
+    return Math.round(totalDays / rejected.length);
+  }, [rejected]);
+
+  // Chart data: by period
+  const periodChartData = useMemo(() => {
     const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
+    // Group by week if period > 30 days
+    const groupByWeek = days.length > 45;
+
+    if (groupByWeek) {
+      try {
+        const weeks = eachWeekOfInterval({ start: dateRange.from, end: dateRange.to }, { weekStartsOn: 1 });
+        return weeks.map(weekStart => {
+          const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+          const weekQuotes = quotes.filter(q => {
+            const d = parseISO(q.quote_date);
+            return isWithinInterval(d, { start: weekStart, end: weekEnd });
+          });
+          return {
+            label: format(weekStart, 'dd/MM'),
+            criados: weekQuotes.length,
+            vendidos: weekQuotes.filter(q => q.status === 'approved').length,
+            perdidos: weekQuotes.filter(q => q.status === 'rejected').length,
+            valorVendido: weekQuotes.filter(q => q.status === 'approved').reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0),
+            valorPerdido: weekQuotes.filter(q => q.status === 'rejected').reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0),
+          };
+        });
+      } catch { return []; }
+    }
+
     return days.map(day => {
       const dayStr = format(day, 'yyyy-MM-dd');
-      const dayQuotes = quotes.filter(q => q.quote_date === dayStr && q.status === 'approved');
+      const dayQuotes = quotes.filter(q => q.quote_date === dayStr);
       return {
-        date: format(day, 'dd/MM', { locale: ptBR }),
-        valor: dayQuotes.reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0),
-        qtd: dayQuotes.length,
+        label: format(day, 'dd/MM'),
+        criados: dayQuotes.length,
+        vendidos: dayQuotes.filter(q => q.status === 'approved').length,
+        perdidos: dayQuotes.filter(q => q.status === 'rejected').length,
+        valorVendido: dayQuotes.filter(q => q.status === 'approved').reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0),
+        valorPerdido: dayQuotes.filter(q => q.status === 'rejected').reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0),
       };
-    }).filter(d => d.valor > 0 || d.qtd > 0);
+    }).filter(d => d.criados > 0 || d.vendidos > 0 || d.perdidos > 0);
   }, [quotes, dateRange]);
 
-  // Chart: status distribution
+  // Status pie
   const statusData = useMemo(() => {
     const map: Record<string, number> = {};
     quotes.forEach(q => {
@@ -111,7 +167,7 @@ export default function Metrics() {
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [quotes]);
 
-  // Chart: payment methods
+  // Payment methods
   const paymentData = useMemo(() => {
     const map: Record<string, number> = {};
     approved.forEach(q => {
@@ -120,38 +176,6 @@ export default function Metrics() {
     });
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [approved]);
-
-  // Chart: weekly trend
-  const weeklyTrend = useMemo(() => {
-    try {
-      const weeks = eachWeekOfInterval({ start: dateRange.from, end: dateRange.to }, { weekStartsOn: 1 });
-      return weeks.map(weekStart => {
-        const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
-        const weekQuotes = quotes.filter(q => {
-          const d = parseISO(q.quote_date);
-          return isWithinInterval(d, { start: weekStart, end: weekEnd });
-        });
-        const approvedWeek = weekQuotes.filter(q => q.status === 'approved');
-        return {
-          semana: `${format(weekStart, 'dd/MM')}`,
-          orcamentos: weekQuotes.length,
-          aprovados: approvedWeek.length,
-          receita: approvedWeek.reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0),
-        };
-      });
-    } catch { return []; }
-  }, [quotes, dateRange]);
-
-  // Insights
-  const insights = useMemo(() => {
-    const list: { text: string; type: 'positive' | 'negative' | 'neutral'; icon: any }[] = [];
-    if (conversionRate >= 50) list.push({ text: `Taxa de conversão excelente: ${conversionRate.toFixed(0)}%`, type: 'positive', icon: TrendingUp });
-    else if (conversionRate > 0) list.push({ text: `Taxa de conversão: ${conversionRate.toFixed(0)}% — busque mais follow-ups`, type: 'negative', icon: TrendingDown });
-    if (pendentes.length > 0) list.push({ text: `${pendentes.length} orçamento(s) aprovado(s) aguardando pagamento`, type: 'neutral', icon: Target });
-    if (avgTicket > 0) list.push({ text: `Ticket médio: ${formatCurrency(avgTicket)}`, type: 'positive', icon: DollarSign });
-    if (totalQuotes === 0) list.push({ text: 'Nenhum orçamento neste período. Hora de prospectar!', type: 'negative', icon: FileText });
-    return list;
-  }, [conversionRate, pendentes, avgTicket, totalQuotes]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
@@ -167,21 +191,31 @@ export default function Metrics() {
     );
   };
 
+  const sellerLabel = useMemo(() => {
+    if (selectedSeller === 'me') return profile?.full_name || 'Meus números';
+    if (selectedSeller === 'all') return 'Todos';
+    return salespeople.find(s => s.user_id === selectedSeller)?.full_name || '';
+  }, [selectedSeller, salespeople, profile]);
+
   return (
     <AppLayout>
-      <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold font-display flex items-center gap-2">
-            <BarChart3 className="h-7 w-7 text-accent" /> Métricas
-          </h1>
-          <p className="text-muted-foreground">Acompanhe seu desempenho de vendas</p>
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
+          <h1 className="text-2xl font-bold font-display">Negociações concluídas</h1>
+          <Button variant="outline" size="sm">Exportar</Button>
         </div>
+
+        {/* Filters bar - RD Station style */}
         <div className="flex items-center gap-3 flex-wrap">
           {isGestor && (
             <Select value={selectedSeller} onValueChange={setSelectedSeller}>
-              <SelectTrigger className="w-[180px]"><Users className="h-4 w-4 mr-1" /><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-[200px] bg-background">
+                <Users className="h-4 w-4 mr-2 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="me">Meus números</SelectItem>
+                <SelectItem value="me">{profile?.full_name || 'Meus números'}</SelectItem>
                 <SelectItem value="all">Todos</SelectItem>
                 {salespeople.filter(s => s.user_id !== user?.id).map(s => (
                   <SelectItem key={s.user_id} value={s.user_id}>{s.full_name}</SelectItem>
@@ -190,7 +224,10 @@ export default function Metrics() {
             </Select>
           )}
           <Select value={period} onValueChange={v => setPeriod(v as Period)}>
-            <SelectTrigger className="w-[160px]"><CalendarDays className="h-4 w-4 mr-1" /><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[220px] bg-background">
+              <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="month">Este mês</SelectItem>
               <SelectItem value="3months">Últimos 3 meses</SelectItem>
@@ -207,7 +244,7 @@ export default function Metrics() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={customFrom} onSelect={setCustomFrom} className={cn("p-3 pointer-events-auto")} />
+                  <Calendar mode="single" selected={customFrom} onSelect={setCustomFrom} className="p-3 pointer-events-auto" />
                 </PopoverContent>
               </Popover>
               <Popover>
@@ -217,7 +254,7 @@ export default function Metrics() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={customTo} onSelect={setCustomTo} className={cn("p-3 pointer-events-auto")} />
+                  <Calendar mode="single" selected={customTo} onSelect={setCustomTo} className="p-3 pointer-events-auto" />
                 </PopoverContent>
               </Popover>
             </div>
@@ -225,110 +262,218 @@ export default function Metrics() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <Card className="shadow-card border-l-4 border-l-primary">
+      {/* Summary Cards Row 1 - RD Station style (green/pink) */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+        <Card className="bg-emerald-50 border-emerald-100">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Orçamentos</p>
-            <p className="text-2xl font-bold">{totalQuotes}</p>
-            <p className="text-xs text-muted-foreground">{approved.length} aprovados</p>
+            <p className="text-sm text-emerald-700 mb-1">Negociações criadas</p>
+            <p className="text-3xl font-bold text-emerald-900">{totalQuotes}</p>
           </CardContent>
         </Card>
-        <Card className="shadow-card border-l-4 border-l-accent">
+        <Card className="bg-emerald-50 border-emerald-100">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Receita Aprovada</p>
-            <p className="text-2xl font-bold text-accent">{formatCurrency(totalRevenue)}</p>
-            <p className="text-xs text-muted-foreground">{formatCurrency(totalLiquidado)} liquidado</p>
+            <p className="text-sm text-emerald-700 mb-1">Negociações vendidas</p>
+            <p className="text-3xl font-bold text-emerald-900">{approved.length}</p>
           </CardContent>
         </Card>
-        <Card className="shadow-card border-l-4 border-l-primary">
+        <Card className="bg-red-50 border-red-100">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Ticket Médio</p>
-            <p className="text-2xl font-bold">{formatCurrency(avgTicket)}</p>
+            <p className="text-sm text-red-700 mb-1">Negociações perdidas</p>
+            <p className="text-3xl font-bold text-red-900">{rejected.length}</p>
           </CardContent>
         </Card>
-        <Card className="shadow-card border-l-4" style={{ borderLeftColor: conversionRate >= 50 ? 'hsl(160,60%,45%)' : 'hsl(38,92%,50%)' }}>
+        <Card className="bg-background border">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Taxa Conversão</p>
-            <p className="text-2xl font-bold">{conversionRate.toFixed(1)}%</p>
-            <p className="text-xs text-muted-foreground">{approved.length}/{totalQuotes}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground mb-1">Tempo médio até a venda</p>
+              <Info className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <p className="text-3xl font-bold">{avgDaysToSale} <span className="text-base font-normal text-muted-foreground">dias</span></p>
+          </CardContent>
+        </Card>
+        <Card className="bg-background border">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground mb-1">Tempo médio até a perda</p>
+              <Info className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <p className="text-3xl font-bold">{avgDaysToLoss} <span className="text-base font-normal text-muted-foreground">dias</span></p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Insights */}
-      {insights.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-          {insights.map((ins, i) => (
-            <Card key={i} className={cn('shadow-card', ins.type === 'positive' ? 'border-l-4 border-l-accent' : ins.type === 'negative' ? 'border-l-4 border-l-destructive' : 'border-l-4 border-l-primary')}>
-              <CardContent className="p-4 flex items-center gap-3">
-                <ins.icon className={cn('h-5 w-5', ins.type === 'positive' ? 'text-accent' : ins.type === 'negative' ? 'text-destructive' : 'text-primary')} />
-                <p className="text-sm">{ins.text}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      {/* Summary Cards Row 2 - Financial */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <Card className="bg-background border">
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground mb-1">Valor vendido</p>
+            <p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-background border">
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground mb-1">Ticket médio</p>
+            <p className="text-2xl font-bold">{formatCurrency(avgTicket)}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-background border">
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground mb-1">Unidades vendidas</p>
+            <p className="text-2xl font-bold">{totalUnits}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-background border">
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground mb-1">Valor perdido</p>
+            <p className="text-2xl font-bold">{formatCurrency(totalLost)}</p>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Charts */}
+      {/* Main chart - RD Station style */}
+      <Card className="mb-6 shadow-card">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <CardTitle className="text-base">Negociações criadas, vendidas e perdidas</CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Atualizado em {format(new Date(), "dd/MM/yyyy, HH:mm:ss")}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">Mostrar</span>
+              <Select value={chartMetric} onValueChange={v => setChartMetric(v as ChartMetric)}>
+                <SelectTrigger className="w-[200px] h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="quantity">Quantidade por período</SelectItem>
+                  <SelectItem value="value">Valor por período</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="flex border rounded-md overflow-hidden">
+                <button
+                  onClick={() => setChartView('bar')}
+                  className={cn("p-1.5 transition-colors", chartView === 'bar' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted')}
+                >
+                  <BarChart2 className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setChartView('table')}
+                  className={cn("p-1.5 transition-colors", chartView === 'table' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted')}
+                >
+                  <Grid3X3 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {chartView === 'bar' ? (
+            periodChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={320}>
+                {chartMetric === 'quantity' ? (
+                  <BarChart data={periodChartData} barGap={2}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,15%,90%)" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Bar dataKey="criados" name="Criados" fill="#15AFA1" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="vendidos" name="Vendidos" fill="#3B82F6" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="perdidos" name="Perdidos" fill="#EF4444" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                ) : (
+                  <BarChart data={periodChartData} barGap={2}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,15%,90%)" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis tickFormatter={v => formatCompact(v)} tick={{ fontSize: 11 }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Bar dataKey="valorVendido" name="Valor Vendido" fill="#15AFA1" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="valorPerdido" name="Valor Perdido" fill="#EF4444" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                )}
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[320px] flex items-center justify-center text-muted-foreground">Sem dados no período</div>
+            )
+          ) : (
+            /* Table view */
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Período</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Criados</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Vendidos</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Perdidos</th>
+                    {chartMetric === 'value' && (
+                      <>
+                        <th className="text-right py-2 px-3 font-medium text-muted-foreground">Valor Vendido</th>
+                        <th className="text-right py-2 px-3 font-medium text-muted-foreground">Valor Perdido</th>
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {periodChartData.map((row, i) => (
+                    <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                      <td className="py-2 px-3">{row.label}</td>
+                      <td className="text-right py-2 px-3">{row.criados}</td>
+                      <td className="text-right py-2 px-3 text-blue-600">{row.vendidos}</td>
+                      <td className="text-right py-2 px-3 text-red-500">{row.perdidos}</td>
+                      {chartMetric === 'value' && (
+                        <>
+                          <td className="text-right py-2 px-3">{formatCurrency(row.valorVendido)}</td>
+                          <td className="text-right py-2 px-3">{formatCurrency(row.valorPerdido)}</td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                  {periodChartData.length === 0 && (
+                    <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">Sem dados no período</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Bottom charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Revenue over time */}
         <Card className="shadow-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-accent" /> Receita ao longo do tempo
+              <TrendingUp className="h-5 w-5" style={{ color: '#15AFA1' }} /> Receita ao longo do tempo
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {revenueByDay.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={revenueByDay}>
+            {periodChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <AreaChart data={periodChartData}>
                   <defs>
                     <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(160,60%,45%)" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(160,60%,45%)" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#15AFA1" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#15AFA1" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,15%,90%)" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                  <YAxis tickFormatter={v => formatCompact(v)} tick={{ fontSize: 11 }} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="valor" name="Receita" stroke="hsl(160,60%,45%)" fill="url(#colorValor)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="valorVendido" name="Receita" stroke="#15AFA1" fill="url(#colorValor)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[280px] flex items-center justify-center text-muted-foreground">Sem dados no período</div>
+              <div className="h-[260px] flex items-center justify-center text-muted-foreground">Sem dados no período</div>
             )}
           </CardContent>
         </Card>
 
-        {/* Weekly trend */}
-        <Card className="shadow-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" /> Evolução Semanal
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {weeklyTrend.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={weeklyTrend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,15%,90%)" />
-                  <XAxis dataKey="semana" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend />
-                  <Bar dataKey="orcamentos" name="Orçamentos" fill="hsl(220,70%,50%)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="aprovados" name="Aprovados" fill="hsl(160,60%,45%)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[280px] flex items-center justify-center text-muted-foreground">Sem dados no período</div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Status pie */}
+        {/* Status distribution */}
         <Card className="shadow-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -337,16 +482,45 @@ export default function Metrics() {
           </CardHeader>
           <CardContent>
             {statusData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
-                  <Pie data={statusData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={4} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
+                  <Pie data={statusData} cx="50%" cy="50%" innerRadius={55} outerRadius={95} paddingAngle={4} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
                     {statusData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Pie>
                   <Tooltip />
+                  <Legend />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[280px] flex items-center justify-center text-muted-foreground">Sem dados</div>
+              <div className="h-[260px] flex items-center justify-center text-muted-foreground">Sem dados</div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Conversion rate trend */}
+        <Card className="shadow-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" /> Taxa de Conversão
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center mb-4">
+              <p className="text-4xl font-bold" style={{ color: conversionRate >= 50 ? '#15AFA1' : '#F59E0B' }}>
+                {conversionRate.toFixed(1)}%
+              </p>
+              <p className="text-sm text-muted-foreground">{approved.length} aprovados de {totalQuotes} orçamentos</p>
+            </div>
+            {paymentData.length > 0 && (
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={paymentData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,15%,90%)" />
+                  <XAxis type="number" tickFormatter={v => formatCompact(v)} tick={{ fontSize: 11 }} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={60} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="value" name="Receita" fill="#15AFA1" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
@@ -355,22 +529,33 @@ export default function Metrics() {
         <Card className="shadow-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-accent" /> Receita por Forma de Pagamento
+              <DollarSign className="h-5 w-5" style={{ color: '#15AFA1' }} /> Receita por Forma de Pagamento
             </CardTitle>
           </CardHeader>
           <CardContent>
             {paymentData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={paymentData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,15%,90%)" />
-                  <XAxis type="number" tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={60} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="value" name="Receita" fill="hsl(160,60%,45%)" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="space-y-4">
+                {paymentData.map((item, i) => {
+                  const maxVal = Math.max(...paymentData.map(d => d.value));
+                  const pct = maxVal > 0 ? (item.value / maxVal) * 100 : 0;
+                  return (
+                    <div key={i}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="font-medium">{item.name}</span>
+                        <span>{formatCurrency(item.value)}</span>
+                      </div>
+                      <div className="h-3 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
-              <div className="h-[280px] flex items-center justify-center text-muted-foreground">Sem dados</div>
+              <div className="h-[260px] flex items-center justify-center text-muted-foreground">Sem dados</div>
             )}
           </CardContent>
         </Card>
