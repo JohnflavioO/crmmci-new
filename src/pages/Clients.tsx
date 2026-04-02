@@ -296,7 +296,7 @@ export default function Clients() {
               </div>
               <div className="space-y-2">
                 <Label>CEP</Label>
-                <Input value={form.cep} onChange={e => updateForm('cep', e.target.value)} />
+                <Input value={form.cep} onChange={e => handleCepChange(e.target.value)} placeholder="00000-000" />
               </div>
               <div className="space-y-2">
                 <Label>Telefone</Label>
