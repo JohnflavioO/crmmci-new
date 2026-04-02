@@ -9,13 +9,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { format, startOfMonth, endOfMonth, subMonths, differenceInDays, eachDayOfInterval, eachWeekOfInterval, endOfWeek, isWithinInterval, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, AreaChart, Area, LineChart, Line,
+  PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from 'recharts';
 import {
-  BarChart3, TrendingUp, DollarSign, FileText,
+  BarChart3, TrendingUp, DollarSign,
   CalendarDays, Target, Users, Info, Grid3X3, BarChart2,
 } from 'lucide-react';
 
