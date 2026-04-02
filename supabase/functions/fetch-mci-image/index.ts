@@ -26,43 +26,38 @@ async function searchMCI(query: string): Promise<{ imageUrl: string; matchedName
 
     console.log(`Search query: "${query}", HTML length: ${html.length}`);
 
-    // Extract all products from search results
-    const products: { name: string; image: string; sku: string }[] = [];
+    // Strategy: split HTML by listagem-item divs, then extract from each
+    const parts = html.split(/class="listagem-item/);
+    console.log(`Found ${parts.length - 1} listagem-item sections`);
 
-    // Find product blocks - look for listagem-item divs
-    // Names: <a href="..." class="nome-produto">Product Name</a>  (in HTML, not in JS)
-    // Images: class="imagem-principal" with src or data-imagem-caminho
-    // SKUs: class="produto-sku hide">SKU</div>
+    if (parts.length <= 1) return null;
 
-    // Use a more targeted approach - find product listing blocks
-    const blockRegex = /<div class="listagem-item[^"]*"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>\s*<\/li>/gi;
-    const blocks = html.match(blockRegex) || [];
-    
-    console.log(`Found ${blocks.length} product blocks`);
+    for (let i = 1; i < parts.length; i++) {
+      const section = parts[i].substring(0, 3000); // Limit section size
 
-    for (const block of blocks) {
-      const nameMatch = block.match(/<a[^>]*class="[^"]*nome-produto[^"]*"[^>]*>([^<]+)<\/a>/i);
-      // Try src first, then data-imagem-caminho
-      const imgMatch = block.match(/class="[^"]*imagem-principal[^"]*"[^>]*\ssrc="([^"]+)"/i)
-        || block.match(/class="[^"]*imagem-principal[^"]*"[^>]*data-imagem-caminho="([^"]+)"/i)
-        || block.match(/src="(https:\/\/cdn\.awsli\.com\.br\/[^"]+)"/i);
-      const skuMatch = block.match(/class="[^"]*produto-sku[^"]*"[^>]*>([^<]*)</i);
+      // Extract name
+      const nameMatch = section.match(/class="[^"]*nome-produto[^"]*"[^>]*>([^<]+)/);
+      if (!nameMatch) continue;
+      const name = nameMatch[1].trim();
+
+      // Extract image - try src first, then data-imagem-caminho, then any cdn.awsli image
+      let imgUrl = '';
+      const srcMatch = section.match(/imagem-principal[^>]*\ssrc="(https:\/\/cdn\.awsli[^"]+)"/);
+      const dataMatch = section.match(/data-imagem-caminho="(https:\/\/cdn\.awsli[^"]+)"/);
+      const anySrc = section.match(/src="(https:\/\/cdn\.awsli\.com\.br\/\d+x\d+\/[^"]+)"/);
       
-      if (nameMatch && imgMatch) {
-        products.push({
-          name: nameMatch[1].trim(),
-          image: imgMatch[1],
-          sku: skuMatch ? skuMatch[1].trim() : '',
-        });
-      }
+      imgUrl = srcMatch?.[1] || dataMatch?.[1] || anySrc?.[1] || '';
+
+      if (!imgUrl) continue;
+
+      // Upgrade to higher res
+      imgUrl = imgUrl.replace(/\/\d+x\d+\//, '/600x600/');
+      
+      console.log(`Match found: "${name}" -> ${imgUrl}`);
+      return { imageUrl: imgUrl, matchedName: name };
     }
 
-    console.log(`Parsed ${products.length} products`);
-    if (products.length === 0) return null;
-
-    // Return the first (most relevant) result - upgrade image to higher resolution
-    const img = products[0].image.replace('/300x300/', '/600x600/');
-    return { imageUrl: img, matchedName: products[0].name };
+    return null;
   } catch (error) {
     console.error('Search error for query:', query, error);
     return null;
@@ -83,38 +78,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Process max 10 products per request to avoid timeouts
     const batch = products.slice(0, 10);
     const results: { id: string; image_url: string | null; matched_name: string }[] = [];
 
     for (const product of batch) {
-      // Try searching by code first (most specific), then by name keywords
       let result: { imageUrl: string; matchedName: string } | null = null;
 
-      // 1. Try by code if available
-      if (product.code && product.code !== '-') {
+      // 1. Try by code
+      if (product.code && product.code !== '-' && product.code.length > 1) {
         result = await searchMCI(product.code);
       }
 
-      // 2. Try by SKU
-      if (!result && product.sku) {
-        result = await searchMCI(product.sku);
-      }
-
-      // 3. Try by product name (use key words - first 5 words)
+      // 2. Try by product name (first 5-6 meaningful words)
       if (!result) {
-        // Clean up name: remove parentheses content and take key part
         const cleanName = product.name
           .replace(/\([^)]*\)/g, '')
-          .replace(/[^\w\sáàãâéèêíìóòõôúùüçÁÀÃÂÉÈÊÍÌÓÒÕÔÚÙÜÇ.-]/g, ' ')
           .trim()
           .split(/\s+/)
-          .slice(0, 6)
+          .slice(0, 5)
           .join(' ');
         result = await searchMCI(cleanName);
       }
 
-      // 4. Try with brand + partial name
+      // 3. Try brand + short name
       if (!result && product.brand) {
         const shortName = product.name.split(/\s+/).slice(0, 3).join(' ');
         result = await searchMCI(`${product.brand} ${shortName}`);
@@ -126,9 +112,9 @@ Deno.serve(async (req) => {
         matched_name: result?.matchedName || '',
       });
 
-      // Small delay between requests to be nice to the server
+      // Small delay
       if (batch.indexOf(product) < batch.length - 1) {
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 300));
       }
     }
 
