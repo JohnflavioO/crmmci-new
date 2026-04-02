@@ -327,7 +327,20 @@ export default function Clients() {
               </div>
               <div className="space-y-2">
                 <Label>Telefone</Label>
-                <Input value={form.phone} onChange={e => updateForm('phone', e.target.value)} />
+                <Input value={form.phone} onChange={e => {
+                  updateForm('phone', e.target.value);
+                  // Auto-detecta WhatsApp
+                  setForm(prev => ({ ...prev, phone: e.target.value, is_whatsapp: detectWhatsApp(e.target.value) }));
+                }} />
+                <div className="flex items-center gap-2 mt-1">
+                  <Checkbox
+                    checked={form.is_whatsapp}
+                    onCheckedChange={(checked) => setForm(prev => ({ ...prev, is_whatsapp: !!checked }))}
+                  />
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <MessageCircle className="h-3 w-3" /> WhatsApp
+                  </Label>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>E-mail</Label>
