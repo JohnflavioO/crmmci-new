@@ -8,13 +8,14 @@ interface AuthContextType {
   loading: boolean;
   isApproved: boolean;
   isAdmin: boolean;
+  isGestor: boolean;
   profile: { full_name: string; phone: string; role: string } | null;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null, session: null, loading: true,
-  isApproved: false, isAdmin: false, profile: null,
+  isApproved: false, isAdmin: false, isGestor: false, profile: null,
   signOut: async () => {},
 });
 
@@ -26,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isApproved, setIsApproved] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isGestor, setIsGestor] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string } | null>(null);
 
   // Step 1: Set up auth listener (no data fetching here)
@@ -37,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!newSession?.user) {
           setIsApproved(false);
           setIsAdmin(false);
+          setIsGestor(false);
           setProfile(null);
           setLoading(false);
         }
@@ -62,9 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const fetchData = async () => {
       try {
-        const [approvedRes, adminRes, profileRes] = await Promise.all([
+        const [approvedRes, adminRes, gestorRes, profileRes] = await Promise.all([
           supabase.rpc('is_approved'),
           supabase.rpc('is_admin'),
+          supabase.rpc('is_gestor'),
           (supabase as any).from('profiles').select('full_name, phone, role').eq('user_id', user.id).maybeSingle(),
         ]);
 
@@ -72,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setIsApproved(approvedRes.data === true);
         setIsAdmin(adminRes.data === true);
+        setIsGestor(gestorRes.data === true);
         setProfile(profileRes.data as any);
       } catch (e) {
         console.error('fetchUserData error:', e);
@@ -89,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isApproved, isAdmin, profile, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isApproved, isAdmin, isGestor, profile, signOut }}>
       {children}
     </AuthContext.Provider>
   );

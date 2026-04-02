@@ -17,7 +17,7 @@ const adminItems = [
 ];
 
 export default function AppSidebar() {
-  const { profile, isAdmin, signOut } = useAuth();
+  const { profile, isAdmin, isGestor, signOut } = useAuth();
   const location = useLocation();
 
   const LinkItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => {
@@ -55,7 +55,7 @@ export default function AppSidebar() {
         {/* Calculadora Ecoflow - internal route */}
         <LinkItem to="/ecoflow" icon={Calculator} label="Calculadora Ecoflow" />
 
-        {isAdmin && (
+        {(isAdmin || isGestor) && (
           <>
             <div className="pt-4 pb-2 px-3">
               <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Admin</p>

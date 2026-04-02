@@ -17,7 +17,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { user, loading, isApproved, isAdmin } = useAuth();
+  const { user, loading, isApproved, isAdmin, isGestor } = useAuth();
 
   if (loading) {
     return (
@@ -37,7 +37,7 @@ function AppRoutes() {
       <Route path="/quotes" element={<Quotes />} />
       <Route path="/products" element={<Products />} />
       <Route path="/ecoflow" element={<EcoflowCalculator />} />
-      {isAdmin && <Route path="/approvals" element={<Approvals />} />}
+      {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

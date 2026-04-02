@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Users, DollarSign, TrendingUp, Clock, CheckCircle, XCircle, BarChart3 } from 'lucide-react';
+import { FileText, Users, DollarSign, TrendingUp, Clock, CheckCircle, XCircle, BarChart3, CreditCard, QrCode, FileBarChart, CircleDot, CheckCircle2 } from 'lucide-react';
 
 const statusLabels: Record<string, string> = {
   draft: 'Rascunho', sent: 'Enviado', approved: 'Aprovado', rejected: 'Rejeitado',
@@ -15,7 +16,20 @@ const statusVariants: Record<string, 'default' | 'secondary' | 'destructive' | '
 
 const db = supabase as any;
 
+const paymentMethodIcons: Record<string, { label: string; icon: any }> = {
+  pix: { label: 'PIX', icon: QrCode },
+  cartao: { label: 'Cartão', icon: CreditCard },
+  boleto: { label: 'Boleto', icon: FileBarChart },
+};
+
+const paymentStatusConfig: Record<string, { label: string; icon: any; className: string }> = {
+  pendente: { label: 'Pendente', icon: Clock, className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  em_andamento: { label: 'Em andamento', icon: CircleDot, className: 'bg-blue-100 text-blue-800 border-blue-200' },
+  liquidado: { label: 'Liquidado', icon: CheckCircle2, className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+};
+
 export default function Dashboard() {
+  const { isGestor } = useAuth();
   const [stats, setStats] = useState({ quotes: 0, clients: 0, totalValue: 0, approved: 0, pending: 0, rejected: 0, avgTicket: 0, products: 0 });
   const [recentQuotes, setRecentQuotes] = useState<any[]>([]);
   const [topClients, setTopClients] = useState<any[]>([]);
@@ -97,20 +111,34 @@ export default function Dashboard() {
               <p className="text-muted-foreground text-sm py-8 text-center">Nenhum orçamento criado ainda</p>
             ) : (
               <div className="space-y-2">
-                {recentQuotes.map((q: any) => (
-                  <div key={q.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="font-medium text-sm">{q.quote_number}</p>
-                      <p className="text-xs text-muted-foreground">{q.clients?.company_name || 'Sem cliente'}</p>
+                {recentQuotes.map((q: any) => {
+                  const pmConfig = paymentMethodIcons[q.payment_method];
+                  const psConfig = paymentStatusConfig[q.payment_status] || paymentStatusConfig.pendente;
+                  const PsIcon = psConfig.icon;
+                  return (
+                    <div key={q.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div>
+                        <p className="font-medium text-sm">{q.quote_number}</p>
+                        <p className="text-xs text-muted-foreground">{q.clients?.company_name || 'Sem cliente'}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {pmConfig && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <pmConfig.icon className="h-3 w-3" /> {pmConfig.label}
+                          </span>
+                        )}
+                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${psConfig.className}`}>
+                          <PsIcon className="h-3 w-3" /> {psConfig.label}
+                        </span>
+                        <span className="text-sm font-medium">{formatCurrency(parseFloat(q.total_amount) || 0)}</span>
+                        <Badge variant={statusVariants[q.status] || 'secondary'}
+                          className={q.status === 'approved' ? 'bg-[hsl(168,80%,45%)] text-white border-[hsl(168,80%,45%)]' : ''}>
+                          {statusLabels[q.status] || q.status}
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium">{formatCurrency(parseFloat(q.total_amount) || 0)}</span>
-                      <Badge variant={statusVariants[q.status] || 'secondary'}>
-                        {statusLabels[q.status] || q.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
