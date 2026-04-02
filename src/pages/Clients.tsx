@@ -347,11 +347,11 @@ export default function Clients() {
                 <Input type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Contato</Label>
+                <Label>Nome do Responsável</Label>
                 <Input value={form.contact_name} onChange={e => updateForm('contact_name', e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Tel. Contato</Label>
+                <Label>Telefone</Label>
                 <Input value={form.contact_phone} onChange={e => updateForm('contact_phone', e.target.value)} />
               </div>
               <div className="col-span-2 space-y-2">
