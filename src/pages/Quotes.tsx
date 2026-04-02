@@ -627,6 +627,9 @@ export default function Quotes() {
                             </a>
                           </Button>
                         )}
+                        <Button size="icon" variant="ghost" onClick={() => handleDuplicate(q)} title="Duplicar Orçamento">
+                          <Copy className="h-4 w-4 text-blue-600" />
+                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => handleExportPdf(q)} title="Exportar PDF">
                           <Download className="h-4 w-4" />
                         </Button>
