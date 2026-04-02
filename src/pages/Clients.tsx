@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 interface Client {
@@ -29,12 +29,14 @@ interface Client {
   contact_phone: string;
   contrib_icms: string;
   notes: string;
+  is_whatsapp: boolean;
 }
 
 const emptyClient: Omit<Client, 'id'> = {
   company_name: '', cpf_cnpj: '', city: '', state: '', phone: '', email: '',
   contact_name: '', address: '', address_number: '', complement: '',
   neighborhood: '', cep: '', contact_phone: '', contrib_icms: '', notes: '',
+  is_whatsapp: false,
 };
 
 const db = supabase as any;
@@ -89,9 +91,11 @@ export default function Clients() {
     else { toast.success('Cliente excluído'); loadClients(); }
   };
 
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState('');
+
   const handleBulkDelete = async () => {
-    if (selectedIds.size === 0) return;
-    if (!confirm(`Excluir ${selectedIds.size} cliente(s) selecionado(s)?`)) return;
+    if (selectedIds.size === 0 || bulkDeleteConfirm !== 'EXCLUIR') return;
     setDeleting(true);
     try {
       const ids = Array.from(selectedIds);
@@ -99,6 +103,8 @@ export default function Clients() {
       if (error) throw error;
       toast.success(`${ids.length} cliente(s) excluído(s)`);
       setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+      setBulkDeleteConfirm('');
       loadClients();
     } catch (err: any) {
       toast.error(err.message);
@@ -155,6 +161,16 @@ export default function Clients() {
     }
   };
 
+  // Detecta se um número de telefone é WhatsApp (formato brasileiro com 9 dígitos no celular)
+  const detectWhatsApp = (phone: string): boolean => {
+    if (!phone) return false;
+    const digits = phone.replace(/\D/g, '');
+    // Celular brasileiro: 11 dígitos (DDD + 9 + 8 dígitos) ou com 55 na frente
+    const withoutCountry = digits.startsWith('55') ? digits.substring(2) : digits;
+    // Celular tem 11 dígitos e o terceiro dígito é 9
+    return withoutCountry.length === 11 && withoutCountry[2] === '9';
+  };
+
   const [importOpen, setImportOpen] = useState(false);
   const [sheetUrl, setSheetUrl] = useState('');
   const [importing, setImporting] = useState(false);
@@ -168,7 +184,6 @@ export default function Clients() {
       });
       if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao importar');
 
-      // Log matched columns for debugging
       console.log('Colunas encontradas:', data.matched_columns);
       console.log('Headers da planilha:', data.headers);
       
@@ -179,12 +194,14 @@ export default function Clients() {
       ];
       
       const clientsToInsert = data.clients.map((c: any) => {
-        const clean: Record<string, string> = {};
+        const clean: Record<string, any> = {};
         for (const field of validFields) {
           if (c[field]) clean[field] = c[field];
         }
         clean.name = c.company_name || c.name || '';
         clean.created_by = user?.id || '';
+        // Detecta WhatsApp pelo telefone
+        clean.is_whatsapp = detectWhatsApp(c.phone || '') || detectWhatsApp(c.contact_phone || '');
         return clean;
       });
 
@@ -222,7 +239,7 @@ export default function Clients() {
         </div>
         <div className="flex gap-2">
           {selectedIds.size > 0 && (
-            <Button variant="destructive" className="gap-2" onClick={handleBulkDelete} disabled={deleting}>
+            <Button variant="destructive" className="gap-2" onClick={() => { setBulkDeleteOpen(true); setBulkDeleteConfirm(''); }} disabled={deleting}>
               {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               Excluir {selectedIds.size} selecionado(s)
             </Button>
@@ -310,7 +327,20 @@ export default function Clients() {
               </div>
               <div className="space-y-2">
                 <Label>Telefone</Label>
-                <Input value={form.phone} onChange={e => updateForm('phone', e.target.value)} />
+                <Input value={form.phone} onChange={e => {
+                  updateForm('phone', e.target.value);
+                  // Auto-detecta WhatsApp
+                  setForm(prev => ({ ...prev, phone: e.target.value, is_whatsapp: detectWhatsApp(e.target.value) }));
+                }} />
+                <div className="flex items-center gap-2 mt-1">
+                  <Checkbox
+                    checked={form.is_whatsapp}
+                    onCheckedChange={(checked) => setForm(prev => ({ ...prev, is_whatsapp: !!checked }))}
+                  />
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <MessageCircle className="h-3 w-3" /> WhatsApp
+                  </Label>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>E-mail</Label>
@@ -387,7 +417,14 @@ export default function Clients() {
                     <TableCell>{c.cpf_cnpj}</TableCell>
                     <TableCell>{[c.city, c.state].filter(Boolean).join('/')}</TableCell>
                     <TableCell>{c.contact_name}</TableCell>
-                    <TableCell>{c.phone}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        {c.phone}
+                        {(c as any).is_whatsapp && (
+                          <span title="WhatsApp"><MessageCircle className="h-4 w-4 text-emerald-500" /></span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button size="icon" variant="ghost" onClick={() => handleEdit(c)}>
@@ -405,6 +442,38 @@ export default function Clients() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog de confirmação de exclusão em massa */}
+      <Dialog open={bulkDeleteOpen} onOpenChange={(o) => { setBulkDeleteOpen(o); if (!o) setBulkDeleteConfirm(''); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Confirmar Exclusão em Massa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <p className="text-sm text-muted-foreground">
+              Você está prestes a excluir <strong>{selectedIds.size}</strong> cliente(s). Esta ação não pode ser desfeita.
+            </p>
+            <p className="text-sm font-medium">
+              Para confirmar, digite <strong>EXCLUIR</strong> no campo abaixo:
+            </p>
+            <Input
+              value={bulkDeleteConfirm}
+              onChange={e => setBulkDeleteConfirm(e.target.value)}
+              placeholder="Digite EXCLUIR para confirmar"
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setBulkDeleteOpen(false)}>Cancelar</Button>
+              <Button
+                variant="destructive"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteConfirm !== 'EXCLUIR' || deleting}
+              >
+                {deleting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Excluindo...</> : 'Confirmar Exclusão'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
