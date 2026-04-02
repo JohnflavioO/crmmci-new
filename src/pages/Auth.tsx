@@ -52,7 +52,7 @@ export default function Auth() {
         <img
           src={loginBg}
           alt="MCI Proposta CRM"
-          className="absolute inset-0 w-full h-full object-contain bg-[hsl(170,30%,8%)]"
+          className="absolute inset-0 w-full h-full object-cover bg-[hsl(170,30%,8%)]"
         />
       </div>
 
