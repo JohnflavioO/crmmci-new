@@ -381,6 +381,7 @@ export type Database = {
       generate_quote_number: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_approved: { Args: never; Returns: boolean }
+      is_gestor: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
