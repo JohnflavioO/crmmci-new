@@ -29,12 +29,14 @@ interface Client {
   contact_phone: string;
   contrib_icms: string;
   notes: string;
+  is_whatsapp: boolean;
 }
 
 const emptyClient: Omit<Client, 'id'> = {
   company_name: '', cpf_cnpj: '', city: '', state: '', phone: '', email: '',
   contact_name: '', address: '', address_number: '', complement: '',
   neighborhood: '', cep: '', contact_phone: '', contrib_icms: '', notes: '',
+  is_whatsapp: false,
 };
 
 const db = supabase as any;
