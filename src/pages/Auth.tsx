@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2, Mail, Lock, User, Phone, Eye, EyeOff } from 'lucide-react';
 import loginBg from '@/assets/mci-login-bg.jpg';
+import mciLogo from '@/assets/mci-logo.png';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -68,11 +69,7 @@ export default function Auth() {
           {/* MCI Logo */}
           <div className="text-center mb-10">
             <div className="inline-flex items-center gap-2 mb-3">
-              <svg width="48" height="48" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M40 160V60L80 120L120 60V160" stroke="hsl(168, 80%, 45%)" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M140 60V160" stroke="white" strokeWidth="16" strokeLinecap="round"/>
-                <circle cx="140" cy="40" r="10" fill="hsl(168, 80%, 45%)"/>
-              </svg>
+              <img src={mciLogo} alt="MCI Logo" className="h-16 w-auto" />
             </div>
             <h1 className="text-2xl font-bold text-white font-display">
               {isLogin ? 'Bem-vindo de volta' : 'Criar Conta'}
