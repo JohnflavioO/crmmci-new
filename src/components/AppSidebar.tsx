@@ -10,6 +10,7 @@ const navItems = [
   { to: '/clients', icon: Users, label: 'Clientes' },
   { to: '/quotes', icon: FileText, label: 'Orçamentos' },
   { to: '/tasks', icon: ListChecks, label: 'Tarefas' },
+  { to: '/metrics', icon: BarChart3, label: 'Métricas' },
   { to: '/products', icon: Package, label: 'Produtos' },
 ];
 

@@ -40,6 +40,7 @@ function AppRoutes() {
       <Route path="/products" element={<Products />} />
       <Route path="/ecoflow" element={<EcoflowCalculator />} />
       <Route path="/tasks" element={<Tasks />} />
+      <Route path="/metrics" element={<Metrics />} />
       {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
       <Route path="*" element={<NotFound />} />
     </Routes>
