@@ -431,11 +431,21 @@ export default function Quotes() {
                               <button
                                 key={p.id}
                                 type="button"
-                                className="w-full text-left px-3 py-2 hover:bg-accent text-sm flex justify-between"
+                                className="w-full text-left px-3 py-2 hover:bg-accent text-sm flex items-center gap-3"
                                 onMouseDown={() => selectProduct(idx, p)}
                               >
-                                <span className="font-medium">{p.name}</span>
-                                <span className="text-muted-foreground text-xs">{p.brand} • {formatCurrency(parseFloat(p.price) || 0)}</span>
+                                {p.image_url ? (
+                                  <img src={p.image_url} alt={p.name} className="w-8 h-8 object-contain rounded border shrink-0" />
+                                ) : (
+                                  <div className="w-8 h-8 bg-muted rounded border flex items-center justify-center shrink-0">
+                                    <FileText className="h-3 w-3 text-muted-foreground/40" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <span className="font-medium block truncate">{p.name}</span>
+                                  <span className="text-muted-foreground text-xs">{p.brand} • {formatCurrency(parseFloat(p.price) || 0)}</span>
+                                </div>
+                              </button>
                               </button>
                             ))}
                           </div>
