@@ -24,15 +24,15 @@ async function searchMCI(query: string): Promise<{ imageUrl: string; matchedName
     if (!response.ok) return null;
     const html = await response.text();
 
+    console.log(`Search query: "${query}", HTML length: ${html.length}`);
+
     // Extract all products from search results
     const products: { name: string; image: string; sku: string }[] = [];
-    const itemRegex = /<div class="listagem-item[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/li>/gi;
-    const items = html.match(itemRegex) || [];
 
-    // Simpler approach: find all product blocks
-    const nameRegex = /<a[^>]*class="nome-produto"[^>]*>([^<]+)<\/a>/gi;
-    const imgRegex = /<img[^>]*class="imagem-principal"[^>]*src="([^"]+)"/gi;
-    const skuRegex = /<div class="produto-sku hide">([^<]*)<\/div>/gi;
+    // More flexible regexes
+    const nameRegex = /class="nome-produto"[^>]*>([^<]+)</gi;
+    const imgRegex = /class="imagem-principal"[^>]*\ssrc="([^"]+)"/gi;
+    const skuRegex = /class="produto-sku[^"]*"[^>]*>([^<]*)</gi;
 
     const names: string[] = [];
     const images: string[] = [];
@@ -42,6 +42,9 @@ async function searchMCI(query: string): Promise<{ imageUrl: string; matchedName
     while ((m = nameRegex.exec(html)) !== null) names.push(m[1].trim());
     while ((m = imgRegex.exec(html)) !== null) images.push(m[1]);
     while ((m = skuRegex.exec(html)) !== null) skus.push(m[1].trim());
+
+    console.log(`Found: ${names.length} names, ${images.length} images, ${skus.length} skus`);
+    if (names.length > 0) console.log(`First product: "${names[0]}"`);
 
     for (let i = 0; i < names.length && i < images.length; i++) {
       products.push({ name: names[i], image: images[i], sku: skus[i] || '' });
