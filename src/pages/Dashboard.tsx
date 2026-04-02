@@ -111,20 +111,34 @@ export default function Dashboard() {
               <p className="text-muted-foreground text-sm py-8 text-center">Nenhum orçamento criado ainda</p>
             ) : (
               <div className="space-y-2">
-                {recentQuotes.map((q: any) => (
-                  <div key={q.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="font-medium text-sm">{q.quote_number}</p>
-                      <p className="text-xs text-muted-foreground">{q.clients?.company_name || 'Sem cliente'}</p>
+                {recentQuotes.map((q: any) => {
+                  const pmConfig = paymentMethodIcons[q.payment_method];
+                  const psConfig = paymentStatusConfig[q.payment_status] || paymentStatusConfig.pendente;
+                  const PsIcon = psConfig.icon;
+                  return (
+                    <div key={q.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div>
+                        <p className="font-medium text-sm">{q.quote_number}</p>
+                        <p className="text-xs text-muted-foreground">{q.clients?.company_name || 'Sem cliente'}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {pmConfig && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <pmConfig.icon className="h-3 w-3" /> {pmConfig.label}
+                          </span>
+                        )}
+                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${psConfig.className}`}>
+                          <PsIcon className="h-3 w-3" /> {psConfig.label}
+                        </span>
+                        <span className="text-sm font-medium">{formatCurrency(parseFloat(q.total_amount) || 0)}</span>
+                        <Badge variant={statusVariants[q.status] || 'secondary'}
+                          className={q.status === 'approved' ? 'bg-[hsl(168,80%,45%)] text-white border-[hsl(168,80%,45%)]' : ''}>
+                          {statusLabels[q.status] || q.status}
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium">{formatCurrency(parseFloat(q.total_amount) || 0)}</span>
-                      <Badge variant={statusVariants[q.status] || 'secondary'}>
-                        {statusLabels[q.status] || q.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
