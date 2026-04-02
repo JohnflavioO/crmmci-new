@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isApproved, setIsApproved] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isGestor, setIsGestor] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string } | null>(null);
 
   // Step 1: Set up auth listener (no data fetching here)
