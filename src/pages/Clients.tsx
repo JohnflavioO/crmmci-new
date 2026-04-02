@@ -91,9 +91,11 @@ export default function Clients() {
     else { toast.success('Cliente excluído'); loadClients(); }
   };
 
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState('');
+
   const handleBulkDelete = async () => {
-    if (selectedIds.size === 0) return;
-    if (!confirm(`Excluir ${selectedIds.size} cliente(s) selecionado(s)?`)) return;
+    if (selectedIds.size === 0 || bulkDeleteConfirm !== 'EXCLUIR') return;
     setDeleting(true);
     try {
       const ids = Array.from(selectedIds);
@@ -101,6 +103,8 @@ export default function Clients() {
       if (error) throw error;
       toast.success(`${ids.length} cliente(s) excluído(s)`);
       setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+      setBulkDeleteConfirm('');
       loadClients();
     } catch (err: any) {
       toast.error(err.message);
