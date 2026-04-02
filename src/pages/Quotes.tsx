@@ -446,7 +446,6 @@ export default function Quotes() {
                                   <span className="text-muted-foreground text-xs">{p.brand} • {formatCurrency(parseFloat(p.price) || 0)}</span>
                                 </div>
                               </button>
-                              </button>
                             ))}
                           </div>
                         )}
