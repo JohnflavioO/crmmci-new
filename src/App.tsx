@@ -13,6 +13,7 @@ import Approvals from "./pages/Approvals";
 import Products from "./pages/Products";
 import EcoflowCalculator from "./pages/EcoflowCalculator";
 import Tasks from "./pages/Tasks";
+import Metrics from "./pages/Metrics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
