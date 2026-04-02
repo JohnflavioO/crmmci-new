@@ -260,6 +260,16 @@ export default function Products() {
         )}
       </div>
 
+      {fetchingImages && (
+        <div className="mb-4 p-4 rounded-lg border bg-muted/20 space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Buscando imagens no site MCI...</span>
+            <span>{imageProgress.current}/{imageProgress.total} processados • {imageProgress.found} encontradas</span>
+          </div>
+          <Progress value={(imageProgress.current / imageProgress.total) * 100} />
+        </div>
+      )}
+
       <Card className="shadow-card">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-4">
