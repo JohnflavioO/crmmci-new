@@ -208,8 +208,10 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
 
   // Subtotal, Frete, Total
   const shippingCost = parseFloat(quote.shipping_cost) || 0;
-  const subtotal = parseFloat(quote.total_amount) || 0;
-  const grandTotal = subtotal + shippingCost;
+  const totalWithShipping = parseFloat(quote.total_amount) || 0;
+  // total_amount already includes shipping, so subtotal = total - shipping
+  const subtotal = totalWithShipping - shippingCost;
+  const grandTotal = totalWithShipping;
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');

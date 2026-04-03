@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Users, DollarSign, TrendingUp, Clock, CheckCircle, XCircle, BarChart3, CreditCard, QrCode, FileBarChart, CircleDot, CheckCircle2 } from 'lucide-react';
+import { FileText, Users, DollarSign, TrendingUp, Clock, CheckCircle, XCircle, BarChart3, CreditCard, QrCode, FileBarChart, CircleDot, CheckCircle2, Plus } from 'lucide-react';
 
 const statusLabels: Record<string, string> = {
   draft: 'Rascunho', sent: 'Enviado', approved: 'Aprovado', rejected: 'Rejeitado',
@@ -60,6 +62,7 @@ function computeTopClients(quotes: any[]) {
 
 export default function Dashboard() {
   const { user, isGestor, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const canSeeTeam = isGestor;
 
   const [allQuotes, setAllQuotes] = useState<any[]>([]);
@@ -169,9 +172,14 @@ export default function Dashboard() {
   if (!canSeeTeam) {
     return (
       <AppLayout>
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold font-display">Dashboard</h1>
-          <p className="text-muted-foreground">Visão geral do sistema</p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold font-display">Dashboard</h1>
+            <p className="text-muted-foreground">Visão geral do sistema</p>
+          </div>
+          <Button onClick={() => navigate('/quotes')} className="gap-2">
+            <Plus className="h-4 w-4" /> Criar Proposta
+          </Button>
         </div>
         {renderStatsBlock(myStats, 'Meus')}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -219,16 +227,21 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold font-display">Dashboard do Time</h1>
           <p className="text-muted-foreground">Visão geral de toda a equipe</p>
         </div>
-        <div className="w-56">
-          <Select value={teamFilter} onValueChange={setTeamFilter}>
-            <SelectTrigger><SelectValue placeholder="Filtrar" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os Vendedores</SelectItem>
-              {sellers.map(s => (
-                <SelectItem key={s.user_id} value={s.user_id}>{s.full_name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-3">
+          <Button onClick={() => navigate('/quotes')} className="gap-2">
+            <Plus className="h-4 w-4" /> Criar Proposta
+          </Button>
+          <div className="w-56">
+            <Select value={teamFilter} onValueChange={setTeamFilter}>
+              <SelectTrigger><SelectValue placeholder="Filtrar" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Vendedores</SelectItem>
+                {sellers.map(s => (
+                  <SelectItem key={s.user_id} value={s.user_id}>{s.full_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
