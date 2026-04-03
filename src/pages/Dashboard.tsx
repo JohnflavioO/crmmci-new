@@ -227,16 +227,21 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold font-display">Dashboard do Time</h1>
           <p className="text-muted-foreground">Visão geral de toda a equipe</p>
         </div>
-        <div className="w-56">
-          <Select value={teamFilter} onValueChange={setTeamFilter}>
-            <SelectTrigger><SelectValue placeholder="Filtrar" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os Vendedores</SelectItem>
-              {sellers.map(s => (
-                <SelectItem key={s.user_id} value={s.user_id}>{s.full_name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-3">
+          <Button onClick={() => navigate('/quotes')} className="gap-2">
+            <Plus className="h-4 w-4" /> Criar Proposta
+          </Button>
+          <div className="w-56">
+            <Select value={teamFilter} onValueChange={setTeamFilter}>
+              <SelectTrigger><SelectValue placeholder="Filtrar" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Vendedores</SelectItem>
+                {sellers.map(s => (
+                  <SelectItem key={s.user_id} value={s.user_id}>{s.full_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
