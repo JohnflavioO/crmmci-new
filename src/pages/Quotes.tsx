@@ -591,6 +591,11 @@ export default function Quotes() {
                     <TableCell className="font-medium">{q.quote_number}</TableCell>
                     <TableCell>{q.clients?.company_name || '-'}</TableCell>
                     <TableCell>{new Date(q.quote_date).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell>
+                      {parseFloat(q.shipping_cost) > 0 ? (
+                        <span className="text-xs font-medium text-muted-foreground">{formatCurrency(parseFloat(q.shipping_cost))}</span>
+                      ) : <span className="text-xs text-muted-foreground">—</span>}
+                    </TableCell>
                     <TableCell className="font-semibold">{formatCurrency((parseFloat(q.total_amount) || 0))}</TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
