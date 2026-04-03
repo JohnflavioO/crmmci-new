@@ -572,7 +572,8 @@ export default function Quotes() {
                   <TableHead>Nº Orçamento</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Data</TableHead>
-                  <TableHead>Total</TableHead>
+                   <TableHead>Frete</TableHead>
+                   <TableHead>Total</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Pagamento</TableHead>
                   <TableHead>Financeiro</TableHead>
