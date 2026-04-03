@@ -60,7 +60,7 @@ function computeTopClients(quotes: any[]) {
 
 export default function Dashboard() {
   const { user, isGestor, isAdmin } = useAuth();
-  const canSeeTeam = isGestor || isAdmin;
+  const canSeeTeam = isGestor;
 
   const [allQuotes, setAllQuotes] = useState<any[]>([]);
   const [clientsCount, setClientsCount] = useState(0);

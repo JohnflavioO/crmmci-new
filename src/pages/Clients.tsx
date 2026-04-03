@@ -62,7 +62,7 @@ export default function Clients() {
   const [activeTab, setActiveTab] = useState<string>('mine');
   const [sellers, setSellers] = useState<SellerInfo[]>([]);
 
-  const canSeeTeam = isGestor || isAdmin;
+  const canSeeTeam = isGestor;
 
   useEffect(() => {
     if (canSeeTeam) {
