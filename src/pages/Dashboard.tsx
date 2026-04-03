@@ -172,9 +172,14 @@ export default function Dashboard() {
   if (!canSeeTeam) {
     return (
       <AppLayout>
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold font-display">Dashboard</h1>
-          <p className="text-muted-foreground">Visão geral do sistema</p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold font-display">Dashboard</h1>
+            <p className="text-muted-foreground">Visão geral do sistema</p>
+          </div>
+          <Button onClick={() => navigate('/quotes')} className="gap-2">
+            <Plus className="h-4 w-4" /> Criar Proposta
+          </Button>
         </div>
         {renderStatsBlock(myStats, 'Meus')}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
