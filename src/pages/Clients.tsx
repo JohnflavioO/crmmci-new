@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2, MessageCircle } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2, MessageCircle, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 interface Client {
@@ -31,6 +31,7 @@ interface Client {
   contrib_icms: string;
   notes: string;
   is_whatsapp: boolean;
+  created_by?: string;
 }
 
 const emptyClient: Omit<Client, 'id'> = {
@@ -42,9 +43,14 @@ const emptyClient: Omit<Client, 'id'> = {
 
 const db = supabase as any;
 
+interface SellerInfo {
+  user_id: string;
+  full_name: string;
+}
+
 export default function Clients() {
-  const { user } = useAuth();
-  const [clients, setClients] = useState<Client[]>([]);
+  const { user, isGestor, isAdmin } = useAuth();
+  const [allClients, setAllClients] = useState<Client[]>([]);
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -52,12 +58,39 @@ export default function Clients() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
 
+  // Gestor tabs
+  const [activeTab, setActiveTab] = useState<string>('mine');
+  const [sellers, setSellers] = useState<SellerInfo[]>([]);
+
+  const canSeeTeam = isGestor || isAdmin;
+
+  useEffect(() => {
+    if (canSeeTeam) {
+      db.from('profiles').select('user_id, full_name').then(({ data }: any) => {
+        const list = (data || []).filter((p: any) => p.user_id !== user?.id);
+        setSellers(list);
+      });
+    }
+  }, [canSeeTeam, user?.id]);
+
   const loadClients = async () => {
     const { data } = await db.from('clients').select('*').order('company_name');
-    setClients((data as any[]) || []);
+    setAllClients((data as any[]) || []);
   };
 
   useEffect(() => { loadClients(); }, []);
+
+  // Filter clients by active tab
+  const clientsByTab = (() => {
+    if (!canSeeTeam || activeTab === 'mine') {
+      return allClients.filter(c => c.created_by === user?.id);
+    }
+    if (activeTab === 'all') {
+      return allClients;
+    }
+    // specific seller
+    return allClients.filter(c => c.created_by === activeTab);
+  })();
 
   const handleSave = async () => {
     try {
@@ -114,6 +147,12 @@ export default function Clients() {
     }
   };
 
+  const filtered = clientsByTab.filter(c =>
+    c.company_name?.toLowerCase().includes(search.toLowerCase()) ||
+    c.cpf_cnpj?.includes(search) ||
+    c.contact_name?.toLowerCase().includes(search.toLowerCase())
+  );
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedIds(new Set(filtered.map(c => c.id)));
@@ -129,12 +168,6 @@ export default function Clients() {
       return next;
     });
   };
-
-  const filtered = clients.filter(c =>
-    c.company_name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.cpf_cnpj?.includes(search) ||
-    c.contact_name?.toLowerCase().includes(search.toLowerCase())
-  );
 
   const updateForm = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -162,13 +195,10 @@ export default function Clients() {
     }
   };
 
-  // Detecta se um número de telefone é WhatsApp (formato brasileiro com 9 dígitos no celular)
   const detectWhatsApp = (phone: string): boolean => {
     if (!phone) return false;
     const digits = phone.replace(/\D/g, '');
-    // Celular brasileiro: 11 dígitos (DDD + 9 + 8 dígitos) ou com 55 na frente
     const withoutCountry = digits.startsWith('55') ? digits.substring(2) : digits;
-    // Celular tem 11 dígitos e o terceiro dígito é 9
     return withoutCountry.length === 11 && withoutCountry[2] === '9';
   };
 
@@ -185,9 +215,6 @@ export default function Clients() {
       });
       if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao importar');
 
-      console.log('Colunas encontradas:', data.matched_columns);
-      console.log('Headers da planilha:', data.headers);
-      
       const validFields = [
         'company_name', 'cpf_cnpj', 'city', 'state', 'phone', 'email',
         'contact_name', 'address', 'address_number', 'complement',
@@ -201,7 +228,6 @@ export default function Clients() {
         }
         clean.name = c.company_name || c.name || '';
         clean.created_by = user?.id || '';
-        // Detecta WhatsApp pelo telefone
         clean.is_whatsapp = detectWhatsApp(c.phone || '') || detectWhatsApp(c.contact_phone || '');
         return clean;
       });
@@ -229,6 +255,18 @@ export default function Clients() {
     } finally {
       setImporting(false);
     }
+  };
+
+  // Reset selection when switching tabs
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [activeTab]);
+
+  // Get seller name for display
+  const getSellerName = (userId: string) => {
+    if (userId === user?.id) return 'Você';
+    const seller = sellers.find(s => s.user_id === userId);
+    return seller?.full_name || 'Desconhecido';
   };
 
   return (
@@ -338,7 +376,6 @@ export default function Clients() {
                 <Label>Celular</Label>
                 <Input value={form.phone} onChange={e => {
                   updateForm('phone', e.target.value);
-                  // Auto-detecta WhatsApp
                   setForm(prev => ({ ...prev, phone: e.target.value, is_whatsapp: detectWhatsApp(e.target.value) }));
                 }} />
                 <div className="flex items-center gap-2 mt-1">
@@ -377,6 +414,45 @@ export default function Clients() {
         </div>
       </div>
 
+      {/* Tabs for Gestor/Admin */}
+      {canSeeTeam && (
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <button
+            onClick={() => setActiveTab('mine')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'mine'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            Meus Clientes
+          </button>
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
+              activeTab === 'all'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            <Users className="h-4 w-4" /> Todos
+          </button>
+          {sellers.map(s => (
+            <button
+              key={s.user_id}
+              onClick={() => setActiveTab(s.user_id)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === s.user_id
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {s.full_name}
+            </button>
+          ))}
+        </div>
+      )}
+
       <Card className="shadow-card">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -384,7 +460,7 @@ export default function Clients() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Buscar cliente..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
             </div>
-            {clients.length > 0 && (
+            {filtered.length > 0 && (
               <p className="text-sm text-muted-foreground">{filtered.length} cliente(s)</p>
             )}
           </div>
@@ -410,6 +486,7 @@ export default function Clients() {
                   <TableHead>Cidade/UF</TableHead>
                   <TableHead>Contato</TableHead>
                   <TableHead>Telefone</TableHead>
+                  {canSeeTeam && activeTab !== 'mine' && <TableHead>Vendedor</TableHead>}
                   <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -434,6 +511,9 @@ export default function Clients() {
                         )}
                       </div>
                     </TableCell>
+                    {canSeeTeam && activeTab !== 'mine' && (
+                      <TableCell className="text-xs text-muted-foreground">{getSellerName(c.created_by || '')}</TableCell>
+                    )}
                     <TableCell>
                       <div className="flex gap-1">
                         <Button size="icon" variant="ghost" onClick={() => handleEdit(c)}>
@@ -477,7 +557,8 @@ export default function Clients() {
                 onClick={handleBulkDelete}
                 disabled={bulkDeleteConfirm !== 'EXCLUIR' || deleting}
               >
-                {deleting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Excluindo...</> : 'Confirmar Exclusão'}
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Excluir Definitivamente
               </Button>
             </div>
           </div>
