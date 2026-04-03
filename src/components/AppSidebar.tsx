@@ -15,7 +15,7 @@ const navItems = [
 ];
 
 const adminItems = [
-  { to: '/approvals', icon: UserCheck, label: 'Aprovações' },
+  { to: '/approvals', icon: UserCheck, label: 'Usuários' },
 ];
 
 export default function AppSidebar() {
