@@ -499,7 +499,7 @@ export default function Tasks() {
               <Label>Descrição</Label>
               <Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <Label>Tipo</Label>
                 <Select value={form.task_type} onValueChange={v => setForm({ ...form, task_type: v })}>
