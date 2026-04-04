@@ -346,7 +346,7 @@ export default function Quotes() {
 
             <div className="space-y-6 mt-4">
               {/* Client, Salesperson, Status */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Cliente *</Label>
                   <Select value={form.client_id} onValueChange={v => setForm(p => ({ ...p, client_id: v }))}>
