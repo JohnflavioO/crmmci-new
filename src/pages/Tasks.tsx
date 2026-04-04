@@ -344,13 +344,59 @@ export default function Tasks() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Task List */}
       <Card className="shadow-card mb-4">
-        <CardContent className="pt-6">
+        <CardContent className="pt-4 md:pt-6">
           {filtered.length === 0 ? (
             <div className="text-center py-12">
               <ListChecks className="mx-auto h-12 w-12 text-muted-foreground/30" />
               <p className="text-muted-foreground mt-3">Nenhuma tarefa encontrada</p>
+            </div>
+          ) : isMobile ? (
+            <div className="space-y-3">
+              {filtered.map(t => {
+                const st = statusConfig[t.status] || statusConfig.pendente;
+                const tt = taskTypes[t.task_type] || taskTypes.outro;
+                const pr = priorityConfig[t.priority] || priorityConfig.média;
+                const TtIcon = tt.icon;
+                return (
+                  <div key={t.id} className={`p-3 rounded-lg border bg-muted/30 space-y-2 ${t.status === 'concluida' ? 'opacity-60' : ''}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => toggleComplete(t)}
+                          className={`w-6 h-6 rounded border-2 flex items-center justify-center shrink-0 ${t.status === 'concluida' ? 'bg-accent border-accent text-accent-foreground' : 'border-muted-foreground/30'}`}>
+                          {t.status === 'concluida' && <CheckCircle2 className="h-3 w-3" />}
+                        </button>
+                        <div>
+                          <p className={`font-medium text-sm ${t.status === 'concluida' ? 'line-through' : ''}`}>{t.title}</p>
+                          {t.client?.name && <p className="text-xs text-muted-foreground">{t.client.name}</p>}
+                        </div>
+                      </div>
+                      <TtIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className={tt.color}>{tt.label}</Badge>
+                      <Badge variant="outline" className={st.color}>{st.label}</Badge>
+                      <Badge variant="outline" className={pr.color}>{pr.label}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{formatDate(t.due_date)}</span>
+                      {t.quote && <span className="text-primary">{t.quote.client_name} #{t.quote.quote_number}</span>}
+                    </div>
+                    <div className="flex gap-1 pt-1 border-t">
+                      <Button size="sm" variant="ghost" onClick={() => openScripts(t)} className="min-h-[44px] flex-1">
+                        <Sparkles className="h-4 w-4 text-purple-500" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(t)} className="min-h-[44px] flex-1">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => remove(t.id)} className="min-h-[44px] flex-1">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="overflow-x-auto">
