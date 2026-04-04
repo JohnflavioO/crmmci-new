@@ -325,14 +325,14 @@ export default function Quotes() {
 
   return (
     <AppLayout>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 md:mb-6">
         <div>
-          <h1 className="text-2xl font-bold font-display">Orçamentos</h1>
-          <p className="text-muted-foreground">Crie e gerencie seus orçamentos</p>
+          <h1 className="text-xl md:text-2xl font-bold font-display">Orçamentos</h1>
+          <p className="text-muted-foreground text-sm">Crie e gerencie seus orçamentos</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="h-4 w-4" /> Novo Orçamento</Button>
+            <Button className="gap-2 w-full sm:w-auto min-h-[44px]"><Plus className="h-4 w-4" /> Novo Orçamento</Button>
           </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
