@@ -42,6 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsGestor(false);
           setProfile(null);
           setLoading(false);
+        } else {
+          // Keep loading true until profile fetch completes
+          setLoading(true);
         }
       }
     );
