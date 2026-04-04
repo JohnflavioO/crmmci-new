@@ -1,4 +1,4 @@
-export async function generateQuotePdf(quote: any, items: any[], client: any) {
+export async function generateQuotePdf(quote: any, items: any[], client: any, options?: { returnBlob?: boolean }): Promise<Blob | void> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF('p', 'mm', 'a4');
   const W = 210;
@@ -36,9 +36,8 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
   doc.text('ORDEM DE COMPRA / ORÇAMENTO', W / 2, 7, { align: 'center' });
 
   y = 14;
-  const locStartX = margin + 28; // after logo
+  const locStartX = margin + 28;
 
-  // Company locations
   const locations = [
     { title: 'CEARÁ', lines: ['Rua Senador Pompeu, 1547', 'Centro - CEP: 60.025-001', 'Tel.: +55 (85) 3254-4700', 'CNPJ: 05.502.390/0001-11'] },
     { title: 'SANTA CATARINA', lines: ['Rua Odílio Garcia, 211', 'Sala B, Box 10 - Cordeiro', 'CEP: 88310-180', 'CNPJ: 05.502.390/0002-00'] },
@@ -117,7 +116,6 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
     { label: 'Total', w: 26 },
   ];
 
-  // Check page space
   const checkPage = (needed: number) => {
     if (y + needed > 275) { doc.addPage(); y = margin; }
   };
@@ -135,7 +133,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
   });
   y += headerH + 4;
 
-  // Preload item images
+  // Preload item images - compress heavily for smaller file size
   const itemImages: Record<number, string> = {};
   await Promise.all(
     items.map(async (item: any, i: number) => {
@@ -148,12 +146,21 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
           img.onerror = () => reject();
           img.src = item.image_url;
         });
+        // Resize to small thumbnail for PDF (max 80px)
+        const maxSize = 80;
+        let w = img.naturalWidth;
+        let h = img.naturalHeight;
+        if (w > maxSize || h > maxSize) {
+          const ratio = Math.min(maxSize / w, maxSize / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
         const c = document.createElement('canvas');
-        c.width = img.naturalWidth;
-        c.height = img.naturalHeight;
+        c.width = w;
+        c.height = h;
         const ctx2 = c.getContext('2d')!;
-        ctx2.drawImage(img, 0, 0);
-        itemImages[i] = c.toDataURL('image/jpeg', 0.7);
+        ctx2.drawImage(img, 0, 0, w, h);
+        itemImages[i] = c.toDataURL('image/jpeg', 0.4);
       } catch { /* skip */ }
     })
   );
@@ -169,11 +176,9 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
     if (bg) { doc.setFillColor(245, 245, 245); doc.rect(margin, y - 5, cw, rowHeight, 'F'); }
     cx = margin + 2;
 
-    // Item number
     doc.text(String(item.item_number || i + 1), cx, y);
     cx += cols[0].w;
 
-    // Photo
     if (itemImages[i]) {
       try {
         doc.addImage(itemImages[i], 'JPEG', cx, y - 4, 10, 10);
@@ -181,7 +186,6 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
     }
     cx += cols[1].w;
 
-    // Remaining columns
     const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
     const remaining = [
       item.product_code || '',
@@ -193,7 +197,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
       fmt(parseFloat(item.line_total || item.total_price) || 0),
     ];
     remaining.forEach((val, ci) => {
-      const colIdx = ci + 2; // offset by # and Foto columns
+      const colIdx = ci + 2;
       const maxChars = Math.floor(cols[colIdx].w / 1.8);
       doc.text(val.substring(0, maxChars), cx, y);
       cx += cols[colIdx].w;
@@ -209,7 +213,6 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
   // Subtotal, Frete, Total
   const shippingCost = parseFloat(quote.shipping_cost) || 0;
   const totalWithShipping = parseFloat(quote.total_amount) || 0;
-  // total_amount already includes shipping, so subtotal = total - shipping
   const subtotal = totalWithShipping - shippingCost;
   const grandTotal = totalWithShipping;
 
@@ -307,6 +310,10 @@ export async function generateQuotePdf(quote: any, items: any[], client: any) {
   const confText = 'O documento é confidencial e de propriedade da empresa. Não pode ser copiado, mesmo que em parte sem permissão por escrito da mesma. Atenciosamente,';
   const confLines = doc.splitTextToSize(confText, cw);
   doc.text(confLines, margin, y);
+
+  if (options?.returnBlob) {
+    return doc.output('blob');
+  }
 
   doc.save(`${quote.quote_number}.pdf`);
 }

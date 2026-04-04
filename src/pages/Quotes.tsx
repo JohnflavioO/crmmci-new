@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2 } from 'lucide-react';
 
 const db = supabase as any;
 
@@ -268,6 +268,45 @@ export default function Quotes() {
       toast.success('PDF gerado!');
     } catch (err: any) {
       toast.error('Erro ao gerar PDF: ' + err.message);
+    }
+  };
+
+  const [whatsappLoading, setWhatsappLoading] = useState<string | null>(null);
+
+  const handleWhatsAppWithPdf = async (quote: any) => {
+    if (!quote.clients?.phone) return;
+    setWhatsappLoading(quote.id);
+    try {
+      const [{ data: qItems }, { data: clientData }] = await Promise.all([
+        db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number'),
+        db.from('clients').select('*').eq('id', quote.client_id).maybeSingle(),
+      ]);
+
+      const blob = await generateQuotePdf(quote, qItems || [], clientData, { returnBlob: true }) as Blob;
+
+      // Upload PDF to storage
+      const fileName = `${quote.quote_number.replace(/\//g, '-')}-${Date.now()}.pdf`;
+      const { error: uploadErr } = await supabase.storage
+        .from('quote-pdfs')
+        .upload(fileName, blob, { contentType: 'application/pdf', upsert: true });
+
+      if (uploadErr) throw uploadErr;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('quote-pdfs')
+        .getPublicUrl(fileName);
+
+      const phone = quote.clients.phone.replace(/\D/g, '');
+      const clientName = clientData?.company_name || clientData?.name || 'Cliente';
+      const total = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(quote.total_amount) || 0);
+
+      const message = `Olá ${clientName}! 👋\n\nSegue o orçamento *${quote.quote_number}* no valor de *${total}*.\n\n📄 Acesse o PDF: ${publicUrl}\n\nQualquer dúvida estamos à disposição! 🙂`;
+
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    } catch (err: any) {
+      toast.error('Erro ao preparar WhatsApp: ' + err.message);
+    } finally {
+      setWhatsappLoading(null);
     }
   };
 
@@ -623,14 +662,18 @@ export default function Quotes() {
                     <TableCell>
                       <div className="flex gap-1">
                         {q.clients?.phone && (
-                          <Button size="icon" variant="ghost" asChild title="WhatsApp">
-                            <a
-                              href={`https://wa.me/${q.clients.phone.replace(/\D/g, '')}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="WhatsApp com PDF"
+                            disabled={whatsappLoading === q.id}
+                            onClick={() => handleWhatsAppWithPdf(q)}
+                          >
+                            {whatsappLoading === q.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-green-600" />
+                            ) : (
                               <MessageCircle className="h-4 w-4 text-green-600" />
-                            </a>
+                            )}
                           </Button>
                         )}
                         <Button size="icon" variant="ghost" onClick={() => handleDuplicate(q)} title="Duplicar Orçamento">

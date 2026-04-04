@@ -9,7 +9,7 @@ interface AuthContextType {
   isApproved: boolean;
   isAdmin: boolean;
   isGestor: boolean;
-  profile: { full_name: string; phone: string; role: string } | null;
+  profile: { full_name: string; phone: string; role: string; avatar_url?: string } | null;
   signOut: () => Promise<void>;
 }
 
@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           supabase.rpc('is_approved'),
           supabase.rpc('is_admin'),
           supabase.rpc('is_gestor'),
-          (supabase as any).from('profiles').select('full_name, phone, role').eq('user_id', user.id).maybeSingle(),
+          (supabase as any).from('profiles').select('full_name, phone, role, avatar_url').eq('user_id', user.id).maybeSingle(),
         ]);
 
         if (cancelled) return;
