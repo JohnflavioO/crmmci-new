@@ -72,14 +72,8 @@ export default function AppSidebar() {
       </nav>
 
       <div className="p-4 border-t border-sidebar-border">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-8 h-8 rounded-full bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground text-sm font-bold">
-            {profile?.full_name?.charAt(0)?.toUpperCase() || '?'}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">{profile?.full_name || 'Usuário'}</p>
-            <p className="text-xs text-sidebar-foreground/50">{profile?.role || 'comercial'}</p>
-          </div>
+        <div className="mb-3">
+          <UserProfileEditor />
         </div>
         <button
           onClick={signOut}
