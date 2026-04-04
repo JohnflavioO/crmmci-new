@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import UserProfileEditor from './UserProfileEditor';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
