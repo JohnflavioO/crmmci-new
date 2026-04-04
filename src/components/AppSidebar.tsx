@@ -19,7 +19,11 @@ const adminItems = [
   { to: '/approvals', icon: UserCheck, label: 'Usuários' },
 ];
 
-export default function AppSidebar() {
+interface Props {
+  onNavigate?: () => void;
+}
+
+export default function AppSidebar({ onNavigate }: Props) {
   const { profile, isAdmin, isGestor, signOut } = useAuth();
   const location = useLocation();
 
@@ -28,8 +32,9 @@ export default function AppSidebar() {
     return (
       <NavLink
         to={to}
+        onClick={onNavigate}
         className={cn(
-          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]',
           isActive
             ? 'bg-sidebar-accent text-sidebar-accent-foreground'
             : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
@@ -43,7 +48,7 @@ export default function AppSidebar() {
   };
 
   return (
-    <aside className="w-64 h-screen fixed left-0 top-0 flex flex-col border-r border-sidebar-border"
+    <aside className="w-full md:w-64 h-full md:h-screen md:fixed md:left-0 md:top-0 flex flex-col border-r border-sidebar-border"
       style={{ background: 'var(--gradient-sidebar)' }}>
       <div className="p-4 flex items-center gap-3">
         <img src="/mci-logo.png" alt="MCI Store" className="h-10 w-auto" />
@@ -53,12 +58,11 @@ export default function AppSidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 px-3 space-y-1">
+      <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
         {navItems.map(item => (
           <LinkItem key={item.to} {...item} color={item.to === '/quotes' ? '#15AFA1' : undefined} />
         ))}
 
-        {/* Calculadora Ecoflow - internal route */}
         <LinkItem to="/ecoflow" icon={Calculator} label="Calculadora Ecoflow" />
 
         {(isAdmin || isGestor) && (
@@ -76,8 +80,8 @@ export default function AppSidebar() {
           <UserProfileEditor />
         </div>
         <button
-          onClick={signOut}
-          className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors w-full"
+          onClick={() => { signOut(); onNavigate?.(); }}
+          className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors w-full min-h-[44px]"
         >
           <LogOut className="h-4 w-4" /> Sair
         </button>

@@ -83,7 +83,6 @@ export default function Metrics() {
     loadSellers();
   }, [isGestor]);
 
-  // KPIs
   const totalQuotes = quotes.length;
   const approved = quotes.filter(q => q.status === 'approved');
   const rejected = quotes.filter(q => q.status === 'rejected');
@@ -91,9 +90,8 @@ export default function Metrics() {
   const totalLost = rejected.reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0);
   const avgTicket = approved.length > 0 ? totalRevenue / approved.length : 0;
   const conversionRate = totalQuotes > 0 ? (approved.length / totalQuotes) * 100 : 0;
-  const totalUnits = approved.reduce((s: number, _: any) => s + 1, 0);
+  const totalUnits = approved.length;
 
-  // Tempo médio até a venda (days between created_at and quote_date for approved)
   const avgDaysToSale = useMemo(() => {
     if (approved.length === 0) return 0;
     const totalDays = approved.reduce((sum: number, q: any) => {
@@ -104,7 +102,6 @@ export default function Metrics() {
     return Math.round(totalDays / approved.length);
   }, [approved]);
 
-  // Tempo médio até a perda
   const avgDaysToLoss = useMemo(() => {
     if (rejected.length === 0) return 0;
     const totalDays = rejected.reduce((sum: number, q: any) => {
@@ -115,10 +112,8 @@ export default function Metrics() {
     return Math.round(totalDays / rejected.length);
   }, [rejected]);
 
-  // Chart data: by period
   const periodChartData = useMemo(() => {
     const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
-    // Group by week if period > 30 days
     const groupByWeek = days.length > 45;
 
     if (groupByWeek) {
@@ -156,7 +151,6 @@ export default function Metrics() {
     }).filter(d => d.criados > 0 || d.vendidos > 0 || d.perdidos > 0);
   }, [quotes, dateRange]);
 
-  // Status pie
   const statusData = useMemo(() => {
     const map: Record<string, number> = {};
     quotes.forEach(q => {
@@ -166,7 +160,6 @@ export default function Metrics() {
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [quotes]);
 
-  // Payment methods
   const paymentData = useMemo(() => {
     const map: Record<string, number> = {};
     approved.forEach(q => {
@@ -198,18 +191,16 @@ export default function Metrics() {
 
   return (
     <AppLayout>
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
-          <h1 className="text-2xl font-bold font-display">Negociações concluídas</h1>
-          <Button variant="outline" size="sm">Exportar</Button>
+      <div className="mb-4 md:mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <h1 className="text-xl md:text-2xl font-bold font-display">Negociações concluídas</h1>
+          <Button variant="outline" size="sm" className="min-h-[44px] sm:min-h-0">Exportar</Button>
         </div>
 
-        {/* Filters bar - RD Station style */}
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
           {isGestor && (
             <Select value={selectedSeller} onValueChange={setSelectedSeller}>
-              <SelectTrigger className="w-[200px] bg-background">
+              <SelectTrigger className="w-full sm:w-[200px] bg-background min-h-[44px]">
                 <Users className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue />
               </SelectTrigger>
@@ -223,7 +214,7 @@ export default function Metrics() {
             </Select>
           )}
           <Select value={period} onValueChange={v => setPeriod(v as Period)}>
-            <SelectTrigger className="w-[220px] bg-background">
+            <SelectTrigger className="w-full sm:w-[220px] bg-background min-h-[44px]">
               <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>
@@ -238,7 +229,7 @@ export default function Metrics() {
             <div className="flex gap-2">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn(!customFrom && 'text-muted-foreground')}>
+                  <Button variant="outline" size="sm" className={cn("min-h-[44px]", !customFrom && 'text-muted-foreground')}>
                     {customFrom ? format(customFrom, 'dd/MM/yyyy') : 'De'}
                   </Button>
                 </PopoverTrigger>
@@ -248,7 +239,7 @@ export default function Metrics() {
               </Popover>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn(!customTo && 'text-muted-foreground')}>
+                  <Button variant="outline" size="sm" className={cn("min-h-[44px]", !customTo && 'text-muted-foreground')}>
                     {customTo ? format(customTo, 'dd/MM/yyyy') : 'Até'}
                   </Button>
                 </PopoverTrigger>
@@ -261,93 +252,86 @@ export default function Metrics() {
         </div>
       </div>
 
-      {/* Summary Cards Row 1 - RD Station style (green/pink) */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+      {/* Summary Cards Row 1 */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-3 md:mb-4">
         <Card className="bg-emerald-50 border-emerald-100">
-          <CardContent className="p-4">
-            <p className="text-sm text-emerald-700 mb-1">Negociações criadas</p>
-            <p className="text-3xl font-bold text-emerald-900">{totalQuotes}</p>
+          <CardContent className="p-3 md:p-4">
+            <p className="text-xs md:text-sm text-emerald-700 mb-1">Negociações criadas</p>
+            <p className="text-2xl md:text-3xl font-bold text-emerald-900">{totalQuotes}</p>
           </CardContent>
         </Card>
         <Card className="bg-emerald-50 border-emerald-100">
-          <CardContent className="p-4">
-            <p className="text-sm text-emerald-700 mb-1">Negociações vendidas</p>
-            <p className="text-3xl font-bold text-emerald-900">{approved.length}</p>
+          <CardContent className="p-3 md:p-4">
+            <p className="text-xs md:text-sm text-emerald-700 mb-1">Negociações vendidas</p>
+            <p className="text-2xl md:text-3xl font-bold text-emerald-900">{approved.length}</p>
           </CardContent>
         </Card>
         <Card className="bg-red-50 border-red-100">
-          <CardContent className="p-4">
-            <p className="text-sm text-red-700 mb-1">Negociações perdidas</p>
-            <p className="text-3xl font-bold text-red-900">{rejected.length}</p>
+          <CardContent className="p-3 md:p-4">
+            <p className="text-xs md:text-sm text-red-700 mb-1">Negociações perdidas</p>
+            <p className="text-2xl md:text-3xl font-bold text-red-900">{rejected.length}</p>
           </CardContent>
         </Card>
         <Card className="bg-background border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground mb-1">Tempo médio até a venda</p>
-              <Info className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <p className="text-3xl font-bold">{avgDaysToSale} <span className="text-base font-normal text-muted-foreground">dias</span></p>
+          <CardContent className="p-3 md:p-4">
+            <p className="text-xs md:text-sm text-muted-foreground mb-1">Tempo médio venda</p>
+            <p className="text-2xl md:text-3xl font-bold">{avgDaysToSale} <span className="text-sm font-normal text-muted-foreground">dias</span></p>
           </CardContent>
         </Card>
-        <Card className="bg-background border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground mb-1">Tempo médio até a perda</p>
-              <Info className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <p className="text-3xl font-bold">{avgDaysToLoss} <span className="text-base font-normal text-muted-foreground">dias</span></p>
+        <Card className="bg-background border col-span-2 lg:col-span-1">
+          <CardContent className="p-3 md:p-4">
+            <p className="text-xs md:text-sm text-muted-foreground mb-1">Tempo médio perda</p>
+            <p className="text-2xl md:text-3xl font-bold">{avgDaysToLoss} <span className="text-sm font-normal text-muted-foreground">dias</span></p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Summary Cards Row 2 - Financial */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      {/* Summary Cards Row 2 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
         <Card className="bg-background border">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground mb-1">Valor vendido</p>
-            <p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
+          <CardContent className="p-3 md:p-4">
+            <p className="text-xs md:text-sm text-muted-foreground mb-1">Valor vendido</p>
+            <p className="text-lg md:text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
           </CardContent>
         </Card>
         <Card className="bg-background border">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground mb-1">Ticket médio</p>
-            <p className="text-2xl font-bold">{formatCurrency(avgTicket)}</p>
+          <CardContent className="p-3 md:p-4">
+            <p className="text-xs md:text-sm text-muted-foreground mb-1">Ticket médio</p>
+            <p className="text-lg md:text-2xl font-bold">{formatCurrency(avgTicket)}</p>
           </CardContent>
         </Card>
         <Card className="bg-background border">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground mb-1">Unidades vendidas</p>
-            <p className="text-2xl font-bold">{totalUnits}</p>
+          <CardContent className="p-3 md:p-4">
+            <p className="text-xs md:text-sm text-muted-foreground mb-1">Unidades vendidas</p>
+            <p className="text-lg md:text-2xl font-bold">{totalUnits}</p>
           </CardContent>
         </Card>
         <Card className="bg-background border">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground mb-1">Valor perdido</p>
-            <p className="text-2xl font-bold">{formatCurrency(totalLost)}</p>
+          <CardContent className="p-3 md:p-4">
+            <p className="text-xs md:text-sm text-muted-foreground mb-1">Valor perdido</p>
+            <p className="text-lg md:text-2xl font-bold">{formatCurrency(totalLost)}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main chart - RD Station style */}
-      <Card className="mb-6 shadow-card">
+      {/* Main chart */}
+      <Card className="mb-4 md:mb-6 shadow-card">
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-base">Negociações criadas, vendidas e perdidas</CardTitle>
+              <CardTitle className="text-sm md:text-base">Negociações criadas, vendidas e perdidas</CardTitle>
               <p className="text-xs text-muted-foreground mt-1">
                 Atualizado em {format(new Date(), "dd/MM/yyyy, HH:mm:ss")}
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">Mostrar</span>
+            <div className="flex items-center gap-2 flex-wrap">
               <Select value={chartMetric} onValueChange={v => setChartMetric(v as ChartMetric)}>
-                <SelectTrigger className="w-[200px] h-8 text-sm">
+                <SelectTrigger className="w-[160px] sm:w-[200px] h-8 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="quantity">Quantidade por período</SelectItem>
-                  <SelectItem value="value">Valor por período</SelectItem>
+                  <SelectItem value="quantity">Quantidade</SelectItem>
+                  <SelectItem value="value">Valor</SelectItem>
                 </SelectContent>
               </Select>
               <div className="flex border rounded-md overflow-hidden">
@@ -370,14 +354,14 @@ export default function Metrics() {
         <CardContent>
           {chartView === 'bar' ? (
             periodChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={320}>
+              <ResponsiveContainer width="100%" height={280}>
                 {chartMetric === 'quantity' ? (
                   <BarChart data={periodChartData} barGap={2}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,15%,90%)" />
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
                     <Bar dataKey="criados" name="Criados" fill="#15AFA1" radius={[3, 3, 0, 0]} />
                     <Bar dataKey="vendidos" name="Vendidos" fill="#3B82F6" radius={[3, 3, 0, 0]} />
                     <Bar dataKey="perdidos" name="Perdidos" fill="#EF4444" radius={[3, 3, 0, 0]} />
@@ -385,20 +369,19 @@ export default function Metrics() {
                 ) : (
                   <BarChart data={periodChartData} barGap={2}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,15%,90%)" />
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={v => formatCompact(v)} tick={{ fontSize: 11 }} />
+                    <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                    <YAxis tickFormatter={v => formatCompact(v)} tick={{ fontSize: 10 }} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
                     <Bar dataKey="valorVendido" name="Valor Vendido" fill="#15AFA1" radius={[3, 3, 0, 0]} />
                     <Bar dataKey="valorPerdido" name="Valor Perdido" fill="#EF4444" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 )}
               </ResponsiveContainer>
             ) : (
-              <div className="h-[320px] flex items-center justify-center text-muted-foreground">Sem dados no período</div>
+              <div className="h-[280px] flex items-center justify-center text-muted-foreground">Sem dados no período</div>
             )
           ) : (
-            /* Table view */
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -409,8 +392,8 @@ export default function Metrics() {
                     <th className="text-right py-2 px-3 font-medium text-muted-foreground">Perdidos</th>
                     {chartMetric === 'value' && (
                       <>
-                        <th className="text-right py-2 px-3 font-medium text-muted-foreground">Valor Vendido</th>
-                        <th className="text-right py-2 px-3 font-medium text-muted-foreground">Valor Perdido</th>
+                        <th className="text-right py-2 px-3 font-medium text-muted-foreground">V. Vendido</th>
+                        <th className="text-right py-2 px-3 font-medium text-muted-foreground">V. Perdido</th>
                       </>
                     )}
                   </tr>
@@ -441,17 +424,16 @@ export default function Metrics() {
       </Card>
 
       {/* Bottom charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Revenue over time */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6">
         <Card className="shadow-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="text-sm md:text-base flex items-center gap-2">
               <TrendingUp className="h-5 w-5" style={{ color: '#15AFA1' }} /> Receita ao longo do tempo
             </CardTitle>
           </CardHeader>
           <CardContent>
             {periodChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={260}>
+              <ResponsiveContainer width="100%" height={220}>
                 <AreaChart data={periodChartData}>
                   <defs>
                     <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
@@ -460,62 +442,60 @@ export default function Metrics() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,15%,90%)" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={v => formatCompact(v)} tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                  <YAxis tickFormatter={v => formatCompact(v)} tick={{ fontSize: 10 }} />
                   <Tooltip content={<CustomTooltip />} />
                   <Area type="monotone" dataKey="valorVendido" name="Receita" stroke="#15AFA1" fill="url(#colorValor)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[260px] flex items-center justify-center text-muted-foreground">Sem dados no período</div>
+              <div className="h-[220px] flex items-center justify-center text-muted-foreground">Sem dados no período</div>
             )}
           </CardContent>
         </Card>
 
-        {/* Status distribution */}
         <Card className="shadow-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="text-sm md:text-base flex items-center gap-2">
               <Target className="h-5 w-5 text-primary" /> Distribuição por Status
             </CardTitle>
           </CardHeader>
           <CardContent>
             {statusData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={260}>
+              <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
-                  <Pie data={statusData} cx="50%" cy="50%" innerRadius={55} outerRadius={95} paddingAngle={4} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
+                  <Pie data={statusData} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={4} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
                     {statusData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Pie>
                   <Tooltip />
-                  <Legend />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[260px] flex items-center justify-center text-muted-foreground">Sem dados</div>
+              <div className="h-[220px] flex items-center justify-center text-muted-foreground">Sem dados</div>
             )}
           </CardContent>
         </Card>
 
-        {/* Conversion rate trend */}
         <Card className="shadow-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="text-sm md:text-base flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-primary" /> Taxa de Conversão
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-center mb-4">
-              <p className="text-4xl font-bold" style={{ color: conversionRate >= 50 ? '#15AFA1' : '#F59E0B' }}>
+              <p className="text-3xl md:text-4xl font-bold" style={{ color: conversionRate >= 50 ? '#15AFA1' : '#F59E0B' }}>
                 {conversionRate.toFixed(1)}%
               </p>
               <p className="text-sm text-muted-foreground">{approved.length} aprovados de {totalQuotes} orçamentos</p>
             </div>
             {paymentData.length > 0 && (
-              <ResponsiveContainer width="100%" height={160}>
+              <ResponsiveContainer width="100%" height={140}>
                 <BarChart data={paymentData} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,15%,90%)" />
-                  <XAxis type="number" tickFormatter={v => formatCompact(v)} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={60} />
+                  <XAxis type="number" tickFormatter={v => formatCompact(v)} tick={{ fontSize: 10 }} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={50} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="value" name="Receita" fill="#15AFA1" radius={[0, 4, 4, 0]} />
                 </BarChart>
@@ -524,11 +504,10 @@ export default function Metrics() {
           </CardContent>
         </Card>
 
-        {/* Payment methods */}
         <Card className="shadow-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <DollarSign className="h-5 w-5" style={{ color: '#15AFA1' }} /> Receita por Forma de Pagamento
+            <CardTitle className="text-sm md:text-base flex items-center gap-2">
+              <DollarSign className="h-5 w-5" style={{ color: '#15AFA1' }} /> Receita por Pagamento
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -554,7 +533,7 @@ export default function Metrics() {
                 })}
               </div>
             ) : (
-              <div className="h-[260px] flex items-center justify-center text-muted-foreground">Sem dados</div>
+              <div className="h-[220px] flex items-center justify-center text-muted-foreground">Sem dados</div>
             )}
           </CardContent>
         </Card>

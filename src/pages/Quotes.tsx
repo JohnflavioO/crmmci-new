@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const db = supabase as any;
 
@@ -63,6 +64,7 @@ const shippingMethods = [
 
 export default function Quotes() {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [quotes, setQuotes] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -323,14 +325,14 @@ export default function Quotes() {
 
   return (
     <AppLayout>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 md:mb-6">
         <div>
-          <h1 className="text-2xl font-bold font-display">Orçamentos</h1>
-          <p className="text-muted-foreground">Crie e gerencie seus orçamentos</p>
+          <h1 className="text-xl md:text-2xl font-bold font-display">Orçamentos</h1>
+          <p className="text-muted-foreground text-sm">Crie e gerencie seus orçamentos</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="h-4 w-4" /> Novo Orçamento</Button>
+            <Button className="gap-2 w-full sm:w-auto min-h-[44px]"><Plus className="h-4 w-4" /> Novo Orçamento</Button>
           </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -344,7 +346,7 @@ export default function Quotes() {
 
             <div className="space-y-6 mt-4">
               {/* Client, Salesperson, Status */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Cliente *</Label>
                   <Select value={form.client_id} onValueChange={v => setForm(p => ({ ...p, client_id: v }))}>
@@ -522,7 +524,7 @@ export default function Quotes() {
                           </div>
                         )}
                       </div>
-                      <div className="grid grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs">Modelo *</Label>
                           <Input value={item.model} onChange={e => updateItem(idx, 'model', e.target.value)} />
@@ -546,7 +548,7 @@ export default function Quotes() {
                         <Textarea value={item.specifications} rows={2}
                           onChange={e => updateItem(idx, 'specifications', e.target.value)} />
                       </div>
-                      <div className="grid grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs">Preço Unit. (R$)</Label>
                           <Input type="number" step="0.01" value={item.unit_price}
@@ -593,7 +595,7 @@ export default function Quotes() {
 
       <Card className="shadow-card">
         <CardHeader className="pb-3">
-          <div className="relative max-w-sm">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Buscar orçamento..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
           </div>
@@ -603,6 +605,68 @@ export default function Quotes() {
             <div className="text-center py-12">
               <FileText className="mx-auto h-12 w-12 text-muted-foreground/30" />
               <p className="text-muted-foreground mt-3">Nenhum orçamento encontrado</p>
+            </div>
+          ) : isMobile ? (
+            <div className="space-y-3">
+              {filtered.map((q: any) => {
+                const pm = paymentMethodLabels[q.payment_method];
+                const ps = paymentStatusLabels[q.payment_status] || paymentStatusLabels.pendente;
+                const PsIcon = ps.icon;
+                return (
+                  <div key={q.id} className="p-3 rounded-lg border bg-muted/30 space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-medium text-sm">{q.quote_number}</p>
+                        <p className="text-xs text-muted-foreground">{q.clients?.company_name || '-'}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(q.quote_date).toLocaleDateString('pt-BR')}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-sm">{formatCurrency((parseFloat(q.total_amount) || 0))}</p>
+                        {parseFloat(q.shipping_cost) > 0 && (
+                          <p className="text-xs text-muted-foreground">Frete: {formatCurrency(parseFloat(q.shipping_cost))}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
+                        q.status === 'approved' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                        q.status === 'rejected' ? 'bg-red-100 text-red-800 border-red-200' :
+                        q.status === 'sent' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                        'bg-gray-100 text-gray-700 border-gray-200'
+                      }`}>
+                        {statusLabels[q.status] || q.status}
+                      </span>
+                      {pm && (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <pm.icon className="h-3 w-3" /> {pm.label}
+                        </span>
+                      )}
+                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${ps.className}`}>
+                        <PsIcon className="h-3 w-3" /> {ps.label}
+                      </span>
+                    </div>
+                    <div className="flex gap-1 pt-1 border-t">
+                      {q.clients?.phone && (
+                        <Button size="sm" variant="ghost" disabled={whatsappLoading === q.id} onClick={() => handleWhatsAppWithPdf(q)} className="min-h-[44px] flex-1">
+                          {whatsappLoading === q.id ? <Loader2 className="h-4 w-4 animate-spin text-green-600" /> : <MessageCircle className="h-4 w-4 text-green-600" />}
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => handleDuplicate(q)} className="min-h-[44px] flex-1">
+                        <Copy className="h-4 w-4 text-blue-600" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleExportPdf(q)} className="min-h-[44px] flex-1">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleEdit(q)} className="min-h-[44px] flex-1">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleDelete(q.id)} className="min-h-[44px] flex-1">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <Table>

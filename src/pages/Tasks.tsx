@@ -14,9 +14,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
   Plus, Search, Pencil, Trash2, CheckCircle2, Clock, AlertTriangle,
-  Phone, CreditCard, Truck, MessageCircle, MoreHorizontal, CalendarDays,
-  CircleDot, ListChecks, Filter, Copy, Sparkles, Send
+  Phone, CreditCard, Truck, MessageCircle, MoreHorizontal,
+  CircleDot, ListChecks, Filter, Copy, Sparkles,
 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const db = supabase as any;
 
@@ -132,7 +133,8 @@ interface Task {
 }
 
 export default function Tasks() {
-  const { user, isGestor } = useAuth();
+  const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [quotes, setQuotes] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -286,20 +288,20 @@ export default function Tasks() {
 
   return (
     <AppLayout>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold font-display flex items-center gap-2">
-            <ListChecks className="h-7 w-7 text-accent" /> Tarefas
+          <h1 className="text-xl md:text-2xl font-bold font-display flex items-center gap-2">
+            <ListChecks className="h-6 md:h-7 w-6 md:w-7 text-accent" /> Tarefas
           </h1>
-          <p className="text-muted-foreground">Gerencie suas atividades e acompanhamentos</p>
+          <p className="text-muted-foreground text-sm">Gerencie suas atividades e acompanhamentos</p>
         </div>
-        <Button onClick={openNew} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+        <Button onClick={openNew} className="bg-accent hover:bg-accent/90 text-accent-foreground min-h-[44px] w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" /> Criar tarefa
         </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
         {[
           { label: 'Pendentes', value: pendentes, icon: Clock, color: 'text-yellow-600' },
           { label: 'Em andamento', value: emAndamento, icon: CircleDot, color: 'text-blue-600' },
@@ -307,10 +309,10 @@ export default function Tasks() {
           { label: 'Atrasadas', value: atrasadas, icon: AlertTriangle, color: 'text-red-600' },
         ].map(s => (
           <Card key={s.label} className="shadow-card">
-            <CardContent className="p-4 flex items-center gap-3">
-              <s.icon className={`h-8 w-8 ${s.color}`} />
+            <CardContent className="p-3 md:p-4 flex items-center gap-3">
+              <s.icon className={`h-6 md:h-8 w-6 md:w-8 ${s.color}`} />
               <div>
-                <p className="text-2xl font-bold">{s.value}</p>
+                <p className="text-xl md:text-2xl font-bold">{s.value}</p>
                 <p className="text-xs text-muted-foreground">{s.label}</p>
               </div>
             </CardContent>
@@ -319,34 +321,82 @@ export default function Tasks() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-4">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Buscar tarefas..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[160px]"><Filter className="h-4 w-4 mr-1" /><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos status</SelectItem>
-            {Object.entries(statusConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os tipos</SelectItem>
-            {Object.entries(taskTypes).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-full sm:w-[160px] min-h-[44px]"><Filter className="h-4 w-4 mr-1" /><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos status</SelectItem>
+              {Object.entries(statusConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-full sm:w-[160px] min-h-[44px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os tipos</SelectItem>
+              {Object.entries(taskTypes).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Table */}
+      {/* Task List */}
       <Card className="shadow-card mb-4">
-        <CardContent className="pt-6">
+        <CardContent className="pt-4 md:pt-6">
           {filtered.length === 0 ? (
             <div className="text-center py-12">
               <ListChecks className="mx-auto h-12 w-12 text-muted-foreground/30" />
               <p className="text-muted-foreground mt-3">Nenhuma tarefa encontrada</p>
+            </div>
+          ) : isMobile ? (
+            <div className="space-y-3">
+              {filtered.map(t => {
+                const st = statusConfig[t.status] || statusConfig.pendente;
+                const tt = taskTypes[t.task_type] || taskTypes.outro;
+                const pr = priorityConfig[t.priority] || priorityConfig.média;
+                const TtIcon = tt.icon;
+                return (
+                  <div key={t.id} className={`p-3 rounded-lg border bg-muted/30 space-y-2 ${t.status === 'concluida' ? 'opacity-60' : ''}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => toggleComplete(t)}
+                          className={`w-6 h-6 rounded border-2 flex items-center justify-center shrink-0 ${t.status === 'concluida' ? 'bg-accent border-accent text-accent-foreground' : 'border-muted-foreground/30'}`}>
+                          {t.status === 'concluida' && <CheckCircle2 className="h-3 w-3" />}
+                        </button>
+                        <div>
+                          <p className={`font-medium text-sm ${t.status === 'concluida' ? 'line-through' : ''}`}>{t.title}</p>
+                          {t.client?.name && <p className="text-xs text-muted-foreground">{t.client.name}</p>}
+                        </div>
+                      </div>
+                      <TtIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className={tt.color}>{tt.label}</Badge>
+                      <Badge variant="outline" className={st.color}>{st.label}</Badge>
+                      <Badge variant="outline" className={pr.color}>{pr.label}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{formatDate(t.due_date)}</span>
+                      {t.quote && <span className="text-primary">{t.quote.client_name} #{t.quote.quote_number}</span>}
+                    </div>
+                    <div className="flex gap-1 pt-1 border-t">
+                      <Button size="sm" variant="ghost" onClick={() => openScripts(t)} className="min-h-[44px] flex-1">
+                        <Sparkles className="h-4 w-4 text-purple-500" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(t)} className="min-h-[44px] flex-1">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => remove(t.id)} className="min-h-[44px] flex-1">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -449,7 +499,7 @@ export default function Tasks() {
               <Label>Descrição</Label>
               <Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <Label>Tipo</Label>
                 <Select value={form.task_type} onValueChange={v => setForm({ ...form, task_type: v })}>
@@ -482,7 +532,7 @@ export default function Tasks() {
               <Label>Data e hora</Label>
               <Input type="datetime-local" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Vincular orçamento</Label>
                 <Select value={form.quote_id || 'none'} onValueChange={v => setForm({ ...form, quote_id: v })}>

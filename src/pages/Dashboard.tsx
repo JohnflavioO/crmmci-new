@@ -94,8 +94,6 @@ export default function Dashboard() {
   }, [canSeeTeam]);
 
   const myQuotes = allQuotes.filter(q => q.created_by === user?.id);
-
-  // Team quotes (filtered by teamFilter)
   const teamQuotes = (() => {
     if (teamFilter === 'all') return allQuotes;
     return allQuotes.filter(q => q.created_by === teamFilter);
@@ -121,7 +119,7 @@ export default function Dashboard() {
     const psConfig = paymentStatusConfig[q.payment_status] || paymentStatusConfig.pendente;
     const PsIcon = psConfig.icon;
     return (
-      <div key={q.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+      <div key={q.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-muted/50 gap-2">
         <div>
           <p className="font-medium text-sm">{q.quote_number}</p>
           <p className="text-xs text-muted-foreground">
@@ -129,7 +127,7 @@ export default function Dashboard() {
             {showSeller && <span className="ml-2 text-xs opacity-60">• {getSellerName(q.created_by)}</span>}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {pmConfig && (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <pmConfig.icon className="h-3 w-3" /> {pmConfig.label}
@@ -153,13 +151,13 @@ export default function Dashboard() {
 
   const renderStatsBlock = (stats: any, label: string) => (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-3 md:mb-4">
         <StatCard title="Total Orçamentos" value={stats.quotes} icon={FileText} />
         <StatCard title="Clientes" value={clientsCount} icon={Users} />
         <StatCard title="Valor Total" value={formatCurrency(stats.totalValue)} icon={DollarSign} />
         <StatCard title="Ticket Médio" value={formatCurrency(stats.avgTicket)} icon={BarChart3} />
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
         <StatCard title="Aprovados" value={stats.approved} icon={CheckCircle} className="border-l-4 border-l-green-500" />
         <StatCard title="Pendentes" value={stats.pending} icon={Clock} className="border-l-4 border-l-yellow-500" />
         <StatCard title="Rejeitados" value={stats.rejected} icon={XCircle} className="border-l-4 border-l-red-500" />
@@ -168,21 +166,20 @@ export default function Dashboard() {
     </>
   );
 
-  // Simple dashboard for non-gestor
   if (!canSeeTeam) {
     return (
       <AppLayout>
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold font-display">Dashboard</h1>
-            <p className="text-muted-foreground">Visão geral do sistema</p>
+            <h1 className="text-xl md:text-2xl font-bold font-display">Dashboard</h1>
+            <p className="text-muted-foreground text-sm">Visão geral do sistema</p>
           </div>
-          <Button onClick={() => navigate('/quotes')} className="gap-2">
+          <Button onClick={() => navigate('/quotes')} className="gap-2 w-full sm:w-auto min-h-[44px]">
             <Plus className="h-4 w-4" /> Criar Proposta
           </Button>
         </div>
         {renderStatsBlock(myStats, 'Meus')}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           <Card className="shadow-card lg:col-span-2">
             <CardHeader><CardTitle className="font-display text-lg">Últimos Orçamentos</CardTitle></CardHeader>
             <CardContent>
@@ -218,22 +215,20 @@ export default function Dashboard() {
     );
   }
 
-  // GESTOR / ADMIN: Master Dashboard
   return (
     <AppLayout>
-      {/* ===== TEAM SECTION ===== */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold font-display">Dashboard do Time</h1>
-          <p className="text-muted-foreground">Visão geral de toda a equipe</p>
+          <h1 className="text-xl md:text-2xl font-bold font-display">Dashboard do Time</h1>
+          <p className="text-muted-foreground text-sm">Visão geral de toda a equipe</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button onClick={() => navigate('/quotes')} className="gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <Button onClick={() => navigate('/quotes')} className="gap-2 min-h-[44px]">
             <Plus className="h-4 w-4" /> Criar Proposta
           </Button>
-          <div className="w-56">
+          <div className="w-full sm:w-56">
             <Select value={teamFilter} onValueChange={setTeamFilter}>
-              <SelectTrigger><SelectValue placeholder="Filtrar" /></SelectTrigger>
+              <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Filtrar" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os Vendedores</SelectItem>
                 {sellers.map(s => (
@@ -247,7 +242,7 @@ export default function Dashboard() {
 
       {renderStatsBlock(teamStats, 'Time')}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-10">
         <Card className="shadow-card lg:col-span-2">
           <CardHeader><CardTitle className="font-display text-lg">Últimos Orçamentos — Time</CardTitle></CardHeader>
           <CardContent>
@@ -280,16 +275,15 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* ===== MY SECTION ===== */}
-      <div className="border-t pt-8">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold font-display">Meus Resultados</h2>
+      <div className="border-t pt-6 md:pt-8">
+        <div className="mb-4 md:mb-6">
+          <h2 className="text-lg md:text-xl font-bold font-display">Meus Resultados</h2>
           <p className="text-muted-foreground text-sm">Seus números pessoais</p>
         </div>
 
         {renderStatsBlock(myStats, 'Meus')}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           <Card className="shadow-card lg:col-span-2">
             <CardHeader><CardTitle className="font-display text-lg">Meus Últimos Orçamentos</CardTitle></CardHeader>
             <CardContent>
