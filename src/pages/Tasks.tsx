@@ -532,7 +532,7 @@ export default function Tasks() {
               <Label>Data e hora</Label>
               <Input type="datetime-local" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Vincular orçamento</Label>
                 <Select value={form.quote_id || 'none'} onValueChange={v => setForm({ ...form, quote_id: v })}>
