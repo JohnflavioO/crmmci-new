@@ -9,7 +9,7 @@ interface AuthContextType {
   isApproved: boolean;
   isAdmin: boolean;
   isGestor: boolean;
-  profile: { full_name: string; phone: string; role: string } | null;
+  profile: { full_name: string; phone: string; role: string; avatar_url?: string } | null;
   signOut: () => Promise<void>;
 }
 
