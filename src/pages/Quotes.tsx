@@ -64,6 +64,7 @@ const shippingMethods = [
 
 export default function Quotes() {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [quotes, setQuotes] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [search, setSearch] = useState('');
