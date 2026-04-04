@@ -271,6 +271,45 @@ export default function Quotes() {
     }
   };
 
+  const [whatsappLoading, setWhatsappLoading] = useState<string | null>(null);
+
+  const handleWhatsAppWithPdf = async (quote: any) => {
+    if (!quote.clients?.phone) return;
+    setWhatsappLoading(quote.id);
+    try {
+      const [{ data: qItems }, { data: clientData }] = await Promise.all([
+        db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number'),
+        db.from('clients').select('*').eq('id', quote.client_id).maybeSingle(),
+      ]);
+
+      const blob = await generateQuotePdf(quote, qItems || [], clientData, { returnBlob: true }) as Blob;
+
+      // Upload PDF to storage
+      const fileName = `${quote.quote_number.replace(/\//g, '-')}-${Date.now()}.pdf`;
+      const { error: uploadErr } = await supabase.storage
+        .from('quote-pdfs')
+        .upload(fileName, blob, { contentType: 'application/pdf', upsert: true });
+
+      if (uploadErr) throw uploadErr;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('quote-pdfs')
+        .getPublicUrl(fileName);
+
+      const phone = quote.clients.phone.replace(/\D/g, '');
+      const clientName = clientData?.company_name || clientData?.name || 'Cliente';
+      const total = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(quote.total_amount) || 0);
+
+      const message = `Olá ${clientName}! 👋\n\nSegue o orçamento *${quote.quote_number}* no valor de *${total}*.\n\n📄 Acesse o PDF: ${publicUrl}\n\nQualquer dúvida estamos à disposição! 🙂`;
+
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    } catch (err: any) {
+      toast.error('Erro ao preparar WhatsApp: ' + err.message);
+    } finally {
+      setWhatsappLoading(null);
+    }
+  };
+
   const resetForm = () => {
     setEditingQuote(null);
     setForm({ client_id: '', salesperson: '', status: 'draft', notes: '', payment_terms: '', shipping_deadline: '', shipping_method: '', shipping_cost: 0, proposal_validity: '15 dias', payment_method: '', payment_status: 'pendente' });
