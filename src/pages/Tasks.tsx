@@ -14,9 +14,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
   Plus, Search, Pencil, Trash2, CheckCircle2, Clock, AlertTriangle,
-  Phone, CreditCard, Truck, MessageCircle, MoreHorizontal, CalendarDays,
-  CircleDot, ListChecks, Filter, Copy, Sparkles, Send
+  Phone, CreditCard, Truck, MessageCircle, MoreHorizontal,
+  CircleDot, ListChecks, Filter, Copy, Sparkles,
 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const db = supabase as any;
 
