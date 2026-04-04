@@ -51,6 +51,7 @@ interface SellerInfo {
 
 export default function Clients() {
   const { user, isGestor, isAdmin } = useAuth();
+  const isMobile = useIsMobile();
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
