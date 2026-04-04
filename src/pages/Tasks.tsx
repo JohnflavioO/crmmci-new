@@ -286,20 +286,20 @@ export default function Tasks() {
 
   return (
     <AppLayout>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold font-display flex items-center gap-2">
-            <ListChecks className="h-7 w-7 text-accent" /> Tarefas
+          <h1 className="text-xl md:text-2xl font-bold font-display flex items-center gap-2">
+            <ListChecks className="h-6 md:h-7 w-6 md:w-7 text-accent" /> Tarefas
           </h1>
-          <p className="text-muted-foreground">Gerencie suas atividades e acompanhamentos</p>
+          <p className="text-muted-foreground text-sm">Gerencie suas atividades e acompanhamentos</p>
         </div>
-        <Button onClick={openNew} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+        <Button onClick={openNew} className="bg-accent hover:bg-accent/90 text-accent-foreground min-h-[44px] w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" /> Criar tarefa
         </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
         {[
           { label: 'Pendentes', value: pendentes, icon: Clock, color: 'text-yellow-600' },
           { label: 'Em andamento', value: emAndamento, icon: CircleDot, color: 'text-blue-600' },
@@ -307,10 +307,10 @@ export default function Tasks() {
           { label: 'Atrasadas', value: atrasadas, icon: AlertTriangle, color: 'text-red-600' },
         ].map(s => (
           <Card key={s.label} className="shadow-card">
-            <CardContent className="p-4 flex items-center gap-3">
-              <s.icon className={`h-8 w-8 ${s.color}`} />
+            <CardContent className="p-3 md:p-4 flex items-center gap-3">
+              <s.icon className={`h-6 md:h-8 w-6 md:w-8 ${s.color}`} />
               <div>
-                <p className="text-2xl font-bold">{s.value}</p>
+                <p className="text-xl md:text-2xl font-bold">{s.value}</p>
                 <p className="text-xs text-muted-foreground">{s.label}</p>
               </div>
             </CardContent>
@@ -319,25 +319,27 @@ export default function Tasks() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-4">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Buscar tarefas..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[160px]"><Filter className="h-4 w-4 mr-1" /><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos status</SelectItem>
-            {Object.entries(statusConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os tipos</SelectItem>
-            {Object.entries(taskTypes).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-full sm:w-[160px] min-h-[44px]"><Filter className="h-4 w-4 mr-1" /><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos status</SelectItem>
+              {Object.entries(statusConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-full sm:w-[160px] min-h-[44px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os tipos</SelectItem>
+              {Object.entries(taskTypes).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Table */}
