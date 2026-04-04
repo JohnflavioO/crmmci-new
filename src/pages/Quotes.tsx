@@ -662,14 +662,18 @@ export default function Quotes() {
                     <TableCell>
                       <div className="flex gap-1">
                         {q.clients?.phone && (
-                          <Button size="icon" variant="ghost" asChild title="WhatsApp">
-                            <a
-                              href={`https://wa.me/${q.clients.phone.replace(/\D/g, '')}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="WhatsApp com PDF"
+                            disabled={whatsappLoading === q.id}
+                            onClick={() => handleWhatsAppWithPdf(q)}
+                          >
+                            {whatsappLoading === q.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-green-600" />
+                            ) : (
                               <MessageCircle className="h-4 w-4 text-green-600" />
-                            </a>
+                            )}
                           </Button>
                         )}
                         <Button size="icon" variant="ghost" onClick={() => handleDuplicate(q)} title="Duplicar Orçamento">
