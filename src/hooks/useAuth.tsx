@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           supabase.rpc('is_approved'),
           supabase.rpc('is_admin'),
           supabase.rpc('is_gestor'),
-          (supabase as any).from('profiles').select('full_name, phone, role').eq('user_id', user.id).maybeSingle(),
+          (supabase as any).from('profiles').select('full_name, phone, role, avatar_url').eq('user_id', user.id).maybeSingle(),
         ]);
 
         if (cancelled) return;
