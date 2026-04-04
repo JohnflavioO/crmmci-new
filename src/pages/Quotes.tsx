@@ -524,7 +524,7 @@ export default function Quotes() {
                           </div>
                         )}
                       </div>
-                      <div className="grid grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs">Modelo *</Label>
                           <Input value={item.model} onChange={e => updateItem(idx, 'model', e.target.value)} />
