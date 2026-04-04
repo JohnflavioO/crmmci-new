@@ -133,7 +133,8 @@ interface Task {
 }
 
 export default function Tasks() {
-  const { user, isGestor } = useAuth();
+  const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [quotes, setQuotes] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
