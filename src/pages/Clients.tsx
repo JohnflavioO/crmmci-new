@@ -455,8 +455,8 @@ export default function Clients() {
 
       <Card className="shadow-card">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="relative max-w-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Buscar cliente..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
             </div>
@@ -470,6 +470,42 @@ export default function Clients() {
             <div className="text-center py-12">
               <Building2 className="mx-auto h-12 w-12 text-muted-foreground/30" />
               <p className="text-muted-foreground mt-3">Nenhum cliente encontrado</p>
+            </div>
+          ) : isMobile ? (
+            <div className="space-y-3">
+              {filtered.map(c => (
+                <div key={c.id} className="p-3 rounded-lg border bg-muted/30 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={selectedIds.has(c.id)}
+                        onCheckedChange={() => toggleSelect(c.id)}
+                      />
+                      <div>
+                        <p className="font-medium text-sm">{c.company_name}</p>
+                        <p className="text-xs text-muted-foreground">{c.cpf_cnpj || '-'}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => handleEdit(c)} className="h-10 w-10">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => handleDelete(c.id)} className="h-10 w-10">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+                    <span>{[c.city, c.state].filter(Boolean).join('/') || '-'}</span>
+                    <span className="flex items-center gap-1">
+                      {c.phone || '-'}
+                      {(c as any).is_whatsapp && <MessageCircle className="h-3 w-3 text-emerald-500" />}
+                    </span>
+                    {c.contact_name && <span>{c.contact_name}</span>}
+                    {canSeeTeam && activeTab !== 'mine' && <span>{getSellerName(c.created_by || '')}</span>}
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <Table>
