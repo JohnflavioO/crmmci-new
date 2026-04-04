@@ -273,32 +273,29 @@ export default function Clients() {
 
   return (
     <AppLayout>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 md:mb-6">
         <div>
-          <h1 className="text-2xl font-bold font-display">Clientes</h1>
-          <p className="text-muted-foreground">Gerencie sua base de clientes</p>
+          <h1 className="text-xl md:text-2xl font-bold font-display">Clientes</h1>
+          <p className="text-muted-foreground text-sm">Gerencie sua base de clientes</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {selectedIds.size > 0 && (
-            <Button variant="destructive" className="gap-2" onClick={() => { setBulkDeleteOpen(true); setBulkDeleteConfirm(''); }} disabled={deleting}>
+            <Button variant="destructive" className="gap-2 min-h-[44px]" onClick={() => { setBulkDeleteOpen(true); setBulkDeleteConfirm(''); }} disabled={deleting}>
               {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              Excluir {selectedIds.size} selecionado(s)
+              Excluir {selectedIds.size}
             </Button>
           )}
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2"><Upload className="h-4 w-4" /> Importar Planilha</Button>
+              <Button variant="outline" className="gap-2 min-h-[44px]"><Upload className="h-4 w-4" /> Importar</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Importar Clientes da Planilha Google</DialogTitle>
+                <DialogTitle>Importar Clientes</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 mt-4">
                 <p className="text-sm text-muted-foreground">
-                  Cole o link da sua planilha Google. A planilha precisa estar compartilhada como "Qualquer pessoa com o link pode ver".
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Campos reconhecidos: Razão Social, CPF/CNPJ, Endereço, Número, Bairro, Cidade, UF, CEP, Telefone, E-mail, Contato, Contrib. ICMS, Observações
+                  Cole o link da sua planilha Google compartilhada.
                 </p>
                 <div className="space-y-2">
                   <Label>Link da Planilha</Label>
@@ -306,11 +303,12 @@ export default function Clients() {
                     placeholder="https://docs.google.com/spreadsheets/d/..."
                     value={sheetUrl}
                     onChange={e => setSheetUrl(e.target.value)}
+                    inputMode="url"
                   />
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setImportOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleImportSheet} disabled={importing || !sheetUrl.trim()}>
+                  <Button variant="outline" onClick={() => setImportOpen(false)} className="min-h-[44px]">Cancelar</Button>
+                  <Button onClick={handleImportSheet} disabled={importing || !sheetUrl.trim()} className="min-h-[44px]">
                     {importing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Importando...</> : 'Importar'}
                   </Button>
                 </div>
@@ -319,32 +317,32 @@ export default function Clients() {
           </Dialog>
           <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingClient(null); setForm(emptyClient); } }}>
             <DialogTrigger asChild>
-              <Button className="gap-2"><Plus className="h-4 w-4" /> Novo Cliente</Button>
+              <Button className="gap-2 min-h-[44px]"><Plus className="h-4 w-4" /> Novo Cliente</Button>
             </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-display">{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div className="col-span-2 space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+              <div className="sm:col-span-2 space-y-2">
                 <Label>Razão Social / Nome *</Label>
                 <Input value={form.company_name} onChange={e => updateForm('company_name', e.target.value)} required />
               </div>
               <div className="space-y-2">
                 <Label>CPF/CNPJ</Label>
-                <Input value={form.cpf_cnpj} onChange={e => updateForm('cpf_cnpj', e.target.value)} />
+                <Input value={form.cpf_cnpj} onChange={e => updateForm('cpf_cnpj', e.target.value)} inputMode="numeric" />
               </div>
               <div className="space-y-2">
                 <Label>Contrib. ICMS</Label>
                 <Input value={form.contrib_icms} onChange={e => updateForm('contrib_icms', e.target.value)} />
               </div>
-              <div className="col-span-2 space-y-2">
+              <div className="sm:col-span-2 space-y-2">
                 <Label>Endereço</Label>
                 <Input value={form.address} onChange={e => updateForm('address', e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Número</Label>
-                <Input value={form.address_number} onChange={e => updateForm('address_number', e.target.value)} />
+                <Input value={form.address_number} onChange={e => updateForm('address_number', e.target.value)} inputMode="numeric" />
               </div>
               <div className="space-y-2">
                 <Label>Complemento</Label>
@@ -361,7 +359,7 @@ export default function Clients() {
               <div className="space-y-2">
                 <Label>UF</Label>
                 <Select value={form.state || 'none'} onValueChange={v => updateForm('state', v === 'none' ? '' : v)}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Selecione</SelectItem>
                     {['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(uf => (
@@ -372,11 +370,11 @@ export default function Clients() {
               </div>
               <div className="space-y-2">
                 <Label>CEP</Label>
-                <Input value={form.cep} onChange={e => handleCepChange(e.target.value)} placeholder="00000-000" />
+                <Input value={form.cep} onChange={e => handleCepChange(e.target.value)} placeholder="00000-000" inputMode="numeric" />
               </div>
               <div className="space-y-2">
                 <Label>Celular</Label>
-                <Input value={form.phone} onChange={e => {
+                <Input value={form.phone} inputMode="tel" onChange={e => {
                   updateForm('phone', e.target.value);
                   setForm(prev => ({ ...prev, phone: e.target.value, is_whatsapp: detectWhatsApp(e.target.value) }));
                 }} />
@@ -392,7 +390,7 @@ export default function Clients() {
               </div>
               <div className="space-y-2">
                 <Label>E-mail</Label>
-                <Input type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} />
+                <Input type="email" inputMode="email" value={form.email} onChange={e => updateForm('email', e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Nome do Responsável</Label>
@@ -400,16 +398,16 @@ export default function Clients() {
               </div>
               <div className="space-y-2">
                 <Label>Telefone</Label>
-                <Input value={form.contact_phone} onChange={e => updateForm('contact_phone', e.target.value)} />
+                <Input value={form.contact_phone} inputMode="tel" onChange={e => updateForm('contact_phone', e.target.value)} />
               </div>
-              <div className="col-span-2 space-y-2">
+              <div className="sm:col-span-2 space-y-2">
                 <Label>Observações</Label>
                 <Input value={form.notes} onChange={e => updateForm('notes', e.target.value)} />
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-              <Button onClick={handleSave} disabled={!form.company_name}>Salvar</Button>
+              <Button variant="outline" onClick={() => setDialogOpen(false)} className="min-h-[44px]">Cancelar</Button>
+              <Button onClick={handleSave} disabled={!form.company_name} className="min-h-[44px]">Salvar</Button>
             </div>
           </DialogContent>
         </Dialog>
