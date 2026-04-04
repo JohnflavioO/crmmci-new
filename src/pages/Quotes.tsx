@@ -548,7 +548,7 @@ export default function Quotes() {
                         <Textarea value={item.specifications} rows={2}
                           onChange={e => updateItem(idx, 'specifications', e.target.value)} />
                       </div>
-                      <div className="grid grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs">Preço Unit. (R$)</Label>
                           <Input type="number" step="0.01" value={item.unit_price}
