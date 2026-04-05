@@ -32,28 +32,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Step 1: Set up auth listener (no data fetching here)
   useEffect(() => {
+    let currentUserId: string | null = null;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
+        const newUserId = newSession?.user?.id ?? null;
         setSession(newSession);
         setUser(newSession?.user ?? null);
-        if (!newSession?.user) {
+        if (!newUserId) {
+          currentUserId = null;
           setIsApproved(false);
           setIsAdmin(false);
           setIsGestor(false);
           setProfile(null);
           setLoading(false);
-        } else {
-          // Keep loading true until profile fetch completes
+        } else if (newUserId !== currentUserId) {
+          // Only set loading true for a NEW user login
+          currentUserId = newUserId;
           setLoading(true);
         }
+        // If same user, don't touch loading - data is already loaded
       }
     );
 
     supabase.auth.getSession().then(({ data: { session: s } }) => {
+      const uid = s?.user?.id ?? null;
       setSession(s);
       setUser(s?.user ?? null);
-      if (!s?.user) {
+      if (!uid) {
         setLoading(false);
+      } else if (uid !== currentUserId) {
+        currentUserId = uid;
+        // loading stays true, useEffect on user?.id will handle it
       }
     });
 
