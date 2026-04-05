@@ -259,8 +259,14 @@ export default function Quotes() {
       toast.error('Erro ao duplicar: ' + err.message);
     }
   };
+  const handleCopyPublicLink = (quote: any) => {
+    const baseUrl = window.location.origin;
+    const link = `${baseUrl}/quote/${quote.public_token}`;
+    navigator.clipboard.writeText(link);
+    toast.success('Link público copiado!');
+  };
 
-  const handleExportPdf = async (quote: any) => {
+
     try {
       const [{ data: qItems }, { data: clientData }] = await Promise.all([
         db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number'),
