@@ -657,7 +657,9 @@ export default function Quotes() {
                           {whatsappLoading === q.id ? <Loader2 className="h-4 w-4 animate-spin text-green-600" /> : <MessageCircle className="h-4 w-4 text-green-600" />}
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" onClick={() => handleDuplicate(q)} className="min-h-[44px] flex-1">
+                      <Button size="sm" variant="ghost" onClick={() => handleCopyPublicLink(q)} className="min-h-[44px] flex-1" title="Link público">
+                        <Link2 className="h-4 w-4 text-primary" />
+                      </Button>
                         <Copy className="h-4 w-4 text-blue-600" />
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => handleExportPdf(q)} className="min-h-[44px] flex-1">
