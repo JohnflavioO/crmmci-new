@@ -39,9 +39,14 @@ export default function Pipeline() {
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    const { data } = await db.from('quotes').select('id, quote_number, client_name, status, total_amount, shipping_cost, created_at');
-    // Filter out drafts and rejected
-    setQuotes((data || []).filter((q: any) => q.status && q.status !== 'draft' && q.status !== 'rejected'));
+    const { data } = await db.from('quotes').select('id, quote_number, client_name, status, total_amount, shipping_cost, created_at, clients(name, company_name)');
+    const mapped = (data || [])
+      .filter((q: any) => q.status && q.status !== 'draft' && q.status !== 'rejected')
+      .map((q: any) => ({
+        ...q,
+        client_name: q.clients?.company_name || q.clients?.name || q.client_name || '',
+      }));
+    setQuotes(mapped);
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
