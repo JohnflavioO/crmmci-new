@@ -4,6 +4,44 @@ import { DollarSign, TrendingUp, Send, Handshake, CalendarDays } from 'lucide-re
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
+type QuoteForecast = {
+  approved_at?: string | null;
+  created_at?: string | null;
+  payment_status?: string | null;
+  quote_date?: string | null;
+  status?: string | null;
+  total_amount?: number | string | null;
+  updated_at?: string | null;
+};
+
+const toTimestamp = (value?: string | null) => {
+  if (!value) return null;
+  const ts = new Date(value).getTime();
+  return Number.isNaN(ts) ? null : ts;
+};
+
+const isClosedQuote = (quote: QuoteForecast) =>
+  quote.status === 'approved' || quote.payment_status === 'liquidado';
+
+const getQuoteCycleTimestamp = (quote: QuoteForecast) => {
+  if (isClosedQuote(quote)) {
+    return (
+      toTimestamp(quote.approved_at) ??
+      toTimestamp(quote.updated_at) ??
+      toTimestamp(quote.quote_date) ??
+      toTimestamp(quote.created_at)
+    );
+  }
+
+  return (
+    toTimestamp(quote.quote_date) ??
+    toTimestamp(quote.created_at) ??
+    toTimestamp(quote.updated_at)
+  );
+};
+
+const getQuoteValue = (quote: QuoteForecast) => Number(quote.total_amount) || 0;
+
 /** Returns the current billing cycle: day 20 of current/previous month to day 20 of next month */
 function getBillingCycle(): { start: Date; end: Date; label: string } {
   const now = new Date();
@@ -24,36 +62,36 @@ function getBillingCycle(): { start: Date; end: Date; label: string } {
 }
 
 interface Props {
-  quotes: any[];
+  quotes: QuoteForecast[];
 }
 
 export default function RevenueForecasting({ quotes }: Props) {
   const cycle = getBillingCycle();
+  const cycleStart = cycle.start.getTime();
+  const cycleEnd = cycle.end.getTime();
 
   // Filter quotes within the billing cycle
-  const cycleQuotes = quotes.filter(q => {
-    const raw = q.created_at || q.quote_date;
-    if (!raw) return false;
-    const ts = new Date(raw).getTime();
-    return ts >= cycle.start.getTime() && ts <= cycle.end.getTime();
+  const cycleQuotes = quotes.filter(quote => {
+    const ts = getQuoteCycleTimestamp(quote);
+    return ts !== null && ts >= cycleStart && ts <= cycleEnd;
   });
 
   const sent = cycleQuotes.filter(q => q.status === 'sent');
   const negotiation = cycleQuotes.filter(q => q.status === 'negociacao');
-  const approved = cycleQuotes.filter(q => q.status === 'approved');
+  const closed = cycleQuotes.filter(isClosedQuote);
   const preVenda = cycleQuotes.filter(q => q.status === 'pre_venda' || q.status === 'contato_feito');
 
-  const sentValue = sent.reduce((s, q) => s + (parseFloat(q.total_amount) || 0), 0);
-  const negotiationValue = negotiation.reduce((s, q) => s + (parseFloat(q.total_amount) || 0), 0);
-  const approvedValue = approved.reduce((s, q) => s + (parseFloat(q.total_amount) || 0), 0);
-  const preVendaValue = preVenda.reduce((s, q) => s + (parseFloat(q.total_amount) || 0), 0);
-  const forecastValue = sentValue + negotiationValue + preVendaValue + approvedValue;
+  const sentValue = sent.reduce((s, q) => s + getQuoteValue(q), 0);
+  const negotiationValue = negotiation.reduce((s, q) => s + getQuoteValue(q), 0);
+  const closedValue = closed.reduce((s, q) => s + getQuoteValue(q), 0);
+  const preVendaValue = preVenda.reduce((s, q) => s + getQuoteValue(q), 0);
+  const forecastValue = closedValue;
 
   const items = [
     { label: 'Em Negociação', value: negotiationValue, count: negotiation.length, icon: Handshake, color: 'text-amber-600', bg: 'bg-amber-100' },
     { label: 'Propostas Enviadas', value: sentValue, count: sent.length, icon: Send, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { label: 'Faturado no Ciclo', value: approvedValue, count: approved.length, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { label: 'Previsão Faturamento', value: forecastValue, count: cycleQuotes.length, icon: TrendingUp, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'Fechados no Ciclo', value: closedValue, count: closed.length, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+    { label: 'Estimativa Final', value: forecastValue, count: closed.length, icon: TrendingUp, color: 'text-primary', bg: 'bg-primary/10' },
   ];
 
   return (
