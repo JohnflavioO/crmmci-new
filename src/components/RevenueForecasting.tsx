@@ -32,8 +32,10 @@ export default function RevenueForecasting({ quotes }: Props) {
 
   // Filter quotes within the billing cycle
   const cycleQuotes = quotes.filter(q => {
-    const d = new Date(q.created_at || q.quote_date);
-    return d >= cycle.start && d <= cycle.end;
+    const raw = q.created_at || q.quote_date;
+    if (!raw) return false;
+    const ts = new Date(raw).getTime();
+    return ts >= cycle.start.getTime() && ts <= cycle.end.getTime();
   });
 
   const sent = cycleQuotes.filter(q => q.status === 'sent');
@@ -45,13 +47,13 @@ export default function RevenueForecasting({ quotes }: Props) {
   const negotiationValue = negotiation.reduce((s, q) => s + (parseFloat(q.total_amount) || 0), 0);
   const approvedValue = approved.reduce((s, q) => s + (parseFloat(q.total_amount) || 0), 0);
   const preVendaValue = preVenda.reduce((s, q) => s + (parseFloat(q.total_amount) || 0), 0);
-  const forecastValue = sentValue + negotiationValue + preVendaValue;
+  const forecastValue = sentValue + negotiationValue + preVendaValue + approvedValue;
 
   const items = [
     { label: 'Em Negociação', value: negotiationValue, count: negotiation.length, icon: Handshake, color: 'text-amber-600', bg: 'bg-amber-100' },
     { label: 'Propostas Enviadas', value: sentValue, count: sent.length, icon: Send, color: 'text-blue-600', bg: 'bg-blue-100' },
     { label: 'Faturado no Ciclo', value: approvedValue, count: approved.length, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { label: 'Previsão Faturamento', value: forecastValue, count: sent.length + negotiation.length + preVenda.length, icon: TrendingUp, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'Previsão Faturamento', value: forecastValue, count: cycleQuotes.length, icon: TrendingUp, color: 'text-primary', bg: 'bg-primary/10' },
   ];
 
   return (
