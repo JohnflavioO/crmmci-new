@@ -60,15 +60,18 @@ export default function Pipeline() {
 
     setClients((clientsData || []).map((c: any) => {
       const qInfo = quotesByClient[c.id];
-      // Auto-determine stage from quote status
-      let stage = c.pipeline_stage || 'contato_feito';
-      if (stage === 'lead') stage = 'contato_feito';
+      // Only show clients that have at least one quote
+      let stage = c.pipeline_stage || 'pre_venda';
+      if (stage === 'lead' || stage === 'contato_feito') stage = 'pre_venda';
       if (qInfo?.bestStatus) stage = qInfo.bestStatus;
+      // If client has quotes but no special status, move to contato_feito
+      if (qInfo && qInfo.count > 0 && !qInfo.bestStatus) stage = 'contato_feito';
       return {
         ...c,
         pipeline_stage: stage,
         totalQuotes: qInfo?.count || 0,
         totalValue: qInfo?.total || 0,
+        hasQuotes: (qInfo?.count || 0) > 0,
       };
     }));
   }, []);
