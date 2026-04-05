@@ -11,6 +11,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const db = supabase as any;
 
 const STAGES = [
+  { key: 'pre_venda', label: 'Pré-venda', color: 'bg-sky-500' },
   { key: 'contato_feito', label: 'Contato Feito', color: 'bg-blue-500' },
   { key: 'proposta_enviada', label: 'Proposta Enviada', color: 'bg-amber-500' },
   { key: 'negociacao', label: 'Negociação', color: 'bg-purple-500' },
@@ -31,6 +32,7 @@ interface PipelineClient {
   created_by: string;
   totalQuotes: number;
   totalValue: number;
+  hasQuotes: boolean;
 }
 
 export default function Pipeline() {
@@ -59,15 +61,18 @@ export default function Pipeline() {
 
     setClients((clientsData || []).map((c: any) => {
       const qInfo = quotesByClient[c.id];
-      // Auto-determine stage from quote status
-      let stage = c.pipeline_stage || 'contato_feito';
-      if (stage === 'lead') stage = 'contato_feito';
+      // Only show clients that have at least one quote
+      let stage = c.pipeline_stage || 'pre_venda';
+      if (stage === 'lead' || stage === 'contato_feito') stage = 'pre_venda';
       if (qInfo?.bestStatus) stage = qInfo.bestStatus;
+      // If client has quotes but no special status, move to contato_feito
+      if (qInfo && qInfo.count > 0 && !qInfo.bestStatus) stage = 'contato_feito';
       return {
         ...c,
         pipeline_stage: stage,
         totalQuotes: qInfo?.count || 0,
         totalValue: qInfo?.total || 0,
+        hasQuotes: (qInfo?.count || 0) > 0,
       };
     }));
   }, []);
@@ -93,7 +98,14 @@ export default function Pipeline() {
     if (draggedClient) { moveClient(draggedClient, stage); setDraggedClient(null); }
   };
 
-  const getStageClients = (stage: string) => clients.filter(c => (c.pipeline_stage || 'contato_feito') === stage);
+  const getStageClients = (stage: string) => {
+    if (stage === 'pre_venda') {
+      // Pre-venda: clients without any quotes
+      return clients.filter(c => (c.pipeline_stage || 'pre_venda') === 'pre_venda' && !c.hasQuotes);
+    }
+    // Other stages: only clients with quotes
+    return clients.filter(c => (c.pipeline_stage || 'pre_venda') === stage && c.hasQuotes);
+  };
   const getStageValue = (stage: string) => getStageClients(stage).reduce((s, c) => s + c.totalValue, 0);
 
   const renderClientCard = (client: PipelineClient, stageIdx: number) => (
@@ -166,7 +178,7 @@ export default function Pipeline() {
       </div>
 
       {/* Kanban Board */}
-      <div className={isMobile ? 'space-y-4' : 'flex gap-3 overflow-x-auto pb-4'}>
+      <div className={isMobile ? 'space-y-4' : 'flex gap-3 overflow-x-auto pb-4 scrollbar-always-visible'}>
         {STAGES.map((stage, stageIdx) => {
           const stageClients = getStageClients(stage.key);
           return (

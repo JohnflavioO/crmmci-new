@@ -86,3 +86,25 @@
     background-clip: text;
   }
 }
+
+@layer utilities {
+  .scrollbar-always-visible {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .scrollbar-always-visible::-webkit-scrollbar {
+    height: 8px;
+    display: block;
+  }
+  .scrollbar-always-visible::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 4px;
+  }
+  .scrollbar-always-visible::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 4px;
+  }
+  .scrollbar-always-visible::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+}
