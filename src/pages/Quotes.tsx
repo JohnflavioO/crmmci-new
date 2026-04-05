@@ -20,7 +20,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const db = supabase as any;
 
 const statusLabels: Record<string, string> = {
-  draft: 'Rascunho', sent: 'Enviado', approved: 'Aprovado', rejected: 'Rejeitado',
+  draft: 'Rascunho', pre_venda: 'Pré-venda', contato_feito: 'Contato Feito',
+  sent: 'Proposta Enviada', negociacao: 'Negociação', approved: 'Aprovado', rejected: 'Rejeitado',
 };
 
 const paymentMethodLabels: Record<string, { label: string; icon: any }> = {
@@ -381,7 +382,10 @@ export default function Quotes() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="draft">Rascunho</SelectItem>
-                      <SelectItem value="sent">Enviado</SelectItem>
+                      <SelectItem value="pre_venda">Pré-venda</SelectItem>
+                      <SelectItem value="contato_feito">Contato Feito</SelectItem>
+                      <SelectItem value="sent">Proposta Enviada</SelectItem>
+                      <SelectItem value="negociacao">Negociação</SelectItem>
                       <SelectItem value="approved">Aprovado</SelectItem>
                       <SelectItem value="rejected">Rejeitado</SelectItem>
                     </SelectContent>
