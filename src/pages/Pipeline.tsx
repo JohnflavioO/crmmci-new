@@ -32,6 +32,7 @@ interface PipelineClient {
   created_by: string;
   totalQuotes: number;
   totalValue: number;
+  hasQuotes: boolean;
 }
 
 export default function Pipeline() {
