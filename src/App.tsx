@@ -50,6 +50,8 @@ function AppRoutes() {
       <Route path="/ecoflow" element={<EcoflowCalculator />} />
       <Route path="/tasks" element={<Tasks />} />
       <Route path="/metrics" element={<Metrics />} />
+      <Route path="/pipeline" element={<Pipeline />} />
+      <Route path="/quote/:token" element={<PublicQuote />} />
       {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
       <Route path="*" element={<NotFound />} />
     </Routes>
