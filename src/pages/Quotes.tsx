@@ -382,7 +382,10 @@ export default function Quotes() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="draft">Rascunho</SelectItem>
-                      <SelectItem value="sent">Enviado</SelectItem>
+                      <SelectItem value="pre_venda">Pré-venda</SelectItem>
+                      <SelectItem value="contato_feito">Contato Feito</SelectItem>
+                      <SelectItem value="sent">Proposta Enviada</SelectItem>
+                      <SelectItem value="negociacao">Negociação</SelectItem>
                       <SelectItem value="approved">Aprovado</SelectItem>
                       <SelectItem value="rejected">Rejeitado</SelectItem>
                     </SelectContent>
