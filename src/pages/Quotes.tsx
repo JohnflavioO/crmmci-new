@@ -20,7 +20,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const db = supabase as any;
 
 const statusLabels: Record<string, string> = {
-  draft: 'Rascunho', sent: 'Enviado', approved: 'Aprovado', rejected: 'Rejeitado',
+  draft: 'Rascunho', pre_venda: 'Pré-venda', contato_feito: 'Contato Feito',
+  sent: 'Proposta Enviada', negociacao: 'Negociação', approved: 'Aprovado', rejected: 'Rejeitado',
 };
 
 const paymentMethodLabels: Record<string, { label: string; icon: any }> = {
