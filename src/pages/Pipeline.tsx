@@ -93,7 +93,7 @@ export default function Pipeline() {
     if (draggedClient) { moveClient(draggedClient, stage); setDraggedClient(null); }
   };
 
-  const getStageClients = (stage: string) => clients.filter(c => (c.pipeline_stage || 'lead') === stage);
+  const getStageClients = (stage: string) => clients.filter(c => (c.pipeline_stage || 'contato_feito') === stage);
   const getStageValue = (stage: string) => getStageClients(stage).reduce((s, c) => s + c.totalValue, 0);
 
   const renderClientCard = (client: PipelineClient, stageIdx: number) => (
