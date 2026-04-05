@@ -748,6 +748,9 @@ export default function Quotes() {
                             )}
                           </Button>
                         )}
+                        <Button size="icon" variant="ghost" onClick={() => handleCopyPublicLink(q)} title="Link Público de Aprovação">
+                          <Link2 className="h-4 w-4 text-primary" />
+                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => handleDuplicate(q)} title="Duplicar Orçamento">
                           <Copy className="h-4 w-4 text-blue-600" />
                         </Button>
