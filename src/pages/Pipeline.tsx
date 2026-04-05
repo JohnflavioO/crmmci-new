@@ -11,6 +11,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const db = supabase as any;
 
 const STAGES = [
+  { key: 'pre_venda', label: 'Pré-venda', color: 'bg-sky-500' },
   { key: 'contato_feito', label: 'Contato Feito', color: 'bg-blue-500' },
   { key: 'proposta_enviada', label: 'Proposta Enviada', color: 'bg-amber-500' },
   { key: 'negociacao', label: 'Negociação', color: 'bg-purple-500' },
