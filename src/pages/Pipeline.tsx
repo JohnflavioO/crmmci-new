@@ -11,7 +11,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const db = supabase as any;
 
 const STAGES = [
-  { key: 'lead', label: 'Lead', color: 'bg-slate-500' },
   { key: 'contato_feito', label: 'Contato Feito', color: 'bg-blue-500' },
   { key: 'proposta_enviada', label: 'Proposta Enviada', color: 'bg-amber-500' },
   { key: 'negociacao', label: 'Negociação', color: 'bg-purple-500' },
@@ -45,19 +44,32 @@ export default function Pipeline() {
     const { data: clientsData } = await db.from('clients').select('id, company_name, contact_name, phone, email, pipeline_stage, last_interaction_at, created_by');
     const { data: quotesData } = await db.from('quotes').select('client_id, total_amount, status');
 
-    const quotesByClient: Record<string, { count: number; total: number }> = {};
+    const quotesByClient: Record<string, { count: number; total: number; bestStatus: string }> = {};
     (quotesData || []).forEach((q: any) => {
       if (!q.client_id) return;
-      if (!quotesByClient[q.client_id]) quotesByClient[q.client_id] = { count: 0, total: 0 };
+      if (!quotesByClient[q.client_id]) quotesByClient[q.client_id] = { count: 0, total: 0, bestStatus: '' };
       quotesByClient[q.client_id].count++;
       quotesByClient[q.client_id].total += parseFloat(q.total_amount) || 0;
+      // Determine best status: aprovado > negociacao > enviado > default
+      const s = (q.status || '').toLowerCase();
+      if (s === 'aprovado' || s === 'approved') quotesByClient[q.client_id].bestStatus = 'fechado';
+      else if ((s === 'negociacao' || s === 'negociação') && quotesByClient[q.client_id].bestStatus !== 'fechado') quotesByClient[q.client_id].bestStatus = 'negociacao';
+      else if ((s === 'enviado' || s === 'sent' || s === 'pending') && !['fechado','negociacao'].includes(quotesByClient[q.client_id].bestStatus)) quotesByClient[q.client_id].bestStatus = 'proposta_enviada';
     });
 
-    setClients((clientsData || []).map((c: any) => ({
-      ...c,
-      totalQuotes: quotesByClient[c.id]?.count || 0,
-      totalValue: quotesByClient[c.id]?.total || 0,
-    })));
+    setClients((clientsData || []).map((c: any) => {
+      const qInfo = quotesByClient[c.id];
+      // Auto-determine stage from quote status
+      let stage = c.pipeline_stage || 'contato_feito';
+      if (stage === 'lead') stage = 'contato_feito';
+      if (qInfo?.bestStatus) stage = qInfo.bestStatus;
+      return {
+        ...c,
+        pipeline_stage: stage,
+        totalQuotes: qInfo?.count || 0,
+        totalValue: qInfo?.total || 0,
+      };
+    }));
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -81,7 +93,7 @@ export default function Pipeline() {
     if (draggedClient) { moveClient(draggedClient, stage); setDraggedClient(null); }
   };
 
-  const getStageClients = (stage: string) => clients.filter(c => (c.pipeline_stage || 'lead') === stage);
+  const getStageClients = (stage: string) => clients.filter(c => (c.pipeline_stage || 'contato_feito') === stage);
   const getStageValue = (stage: string) => getStageClients(stage).reduce((s, c) => s + c.totalValue, 0);
 
   const renderClientCard = (client: PipelineClient, stageIdx: number) => (
