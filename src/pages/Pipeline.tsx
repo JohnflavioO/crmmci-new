@@ -111,21 +111,30 @@ export default function Pipeline() {
         <p className="text-muted-foreground text-sm">Arraste orçamentos entre as etapas do funil</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
+      {/* Summary cards - aligned with columns below */}
+      <div className={isMobile ? 'grid grid-cols-2 gap-2 mb-4' : 'flex gap-3 mb-4 overflow-x-auto pb-1 scrollbar-always-visible'}>
         {STAGES.map(stage => {
           const stageQuotes = getStageQuotes(stage.key);
           return (
-            <div key={stage.key} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
-              <div className={`w-2 h-2 rounded-full ${stage.color}`} />
-              <div className="min-w-0">
-                <p className="text-xs font-medium truncate">{stage.label}</p>
-                <p className="text-[10px] text-muted-foreground">{stageQuotes.length} · {formatCurrency(getStageValue(stage.key))}</p>
+            <div
+              key={stage.key}
+              className={`${isMobile ? '' : 'min-w-[240px] w-[240px]'} flex-shrink-0 rounded-xl border bg-card p-3 shadow-sm`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <div className={`w-2.5 h-2.5 rounded-full ${stage.color}`} />
+                <p className="text-sm font-semibold truncate">{stage.label}</p>
               </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-lg font-bold">{stageQuotes.length}</span>
+                <span className="text-xs text-muted-foreground">orçamentos</span>
+              </div>
+              <p className="text-xs font-medium text-primary mt-0.5">{formatCurrency(getStageValue(stage.key))}</p>
             </div>
           );
         })}
       </div>
 
+      {/* Kanban columns - same width as summary cards */}
       <div className={isMobile ? 'space-y-4' : 'flex gap-3 overflow-x-auto pb-4 scrollbar-always-visible'}>
         {STAGES.map((stage, stageIdx) => {
           const stageQuotes = getStageQuotes(stage.key);
@@ -137,16 +146,19 @@ export default function Pipeline() {
               onDragLeave={handleDragLeave}
               onDrop={e => handleDrop(e, stage.key)}
             >
-              <div className={`rounded-xl border ${dragOverStage === stage.key ? 'border-primary bg-primary/5' : 'bg-muted/30'} p-3 min-h-[200px]`}>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className={`w-3 h-3 rounded-full ${stage.color}`} />
-                  <h3 className="text-sm font-semibold">{stage.label}</h3>
-                  <Badge variant="secondary" className="ml-auto text-[10px]">{stageQuotes.length}</Badge>
+              <div className={`rounded-xl border-2 transition-colors ${dragOverStage === stage.key ? 'border-primary bg-primary/5' : 'border-border/50 bg-muted/20'} p-3 min-h-[300px]`}>
+                <div className="flex items-center gap-2 mb-3 pb-2 border-b border-border/50">
+                  <div className={`w-3 h-3 rounded-full ${stage.color} shadow-sm`} />
+                  <h3 className="text-sm font-semibold flex-1">{stage.label}</h3>
+                  <Badge variant="secondary" className="text-[10px] font-bold">{stageQuotes.length}</Badge>
                 </div>
                 <div className="space-y-2">
                   {stageQuotes.map(q => renderQuoteCard(q, stageIdx))}
                   {stageQuotes.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-6">Nenhum orçamento</p>
+                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground/60">
+                      <FileText className="h-8 w-8 mb-2" />
+                      <p className="text-xs">Nenhum orçamento</p>
+                    </div>
                   )}
                 </div>
               </div>
