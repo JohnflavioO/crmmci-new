@@ -1,7 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3,
+  LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserProfileEditor from './UserProfileEditor';
@@ -9,6 +9,7 @@ import UserProfileEditor from './UserProfileEditor';
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/clients', icon: Users, label: 'Clientes' },
+  { to: '/pipeline', icon: Filter, label: 'Funil' },
   { to: '/quotes', icon: FileText, label: 'Orçamentos' },
   { to: '/tasks', icon: ListChecks, label: 'Tarefas' },
   { to: '/metrics', icon: BarChart3, label: 'Métricas' },

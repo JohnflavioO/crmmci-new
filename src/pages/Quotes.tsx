@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const db = supabase as any;
@@ -258,6 +258,12 @@ export default function Quotes() {
     } catch (err: any) {
       toast.error('Erro ao duplicar: ' + err.message);
     }
+  };
+  const handleCopyPublicLink = (quote: any) => {
+    const baseUrl = window.location.origin;
+    const link = `${baseUrl}/quote/${quote.public_token}`;
+    navigator.clipboard.writeText(link);
+    toast.success('Link público copiado!');
   };
 
   const handleExportPdf = async (quote: any) => {
@@ -651,6 +657,9 @@ export default function Quotes() {
                           {whatsappLoading === q.id ? <Loader2 className="h-4 w-4 animate-spin text-green-600" /> : <MessageCircle className="h-4 w-4 text-green-600" />}
                         </Button>
                       )}
+                      <Button size="sm" variant="ghost" onClick={() => handleCopyPublicLink(q)} className="min-h-[44px] flex-1" title="Link público">
+                        <Link2 className="h-4 w-4 text-primary" />
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={() => handleDuplicate(q)} className="min-h-[44px] flex-1">
                         <Copy className="h-4 w-4 text-blue-600" />
                       </Button>
@@ -740,6 +749,9 @@ export default function Quotes() {
                             )}
                           </Button>
                         )}
+                        <Button size="icon" variant="ghost" onClick={() => handleCopyPublicLink(q)} title="Link Público de Aprovação">
+                          <Link2 className="h-4 w-4 text-primary" />
+                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => handleDuplicate(q)} title="Duplicar Orçamento">
                           <Copy className="h-4 w-4 text-blue-600" />
                         </Button>

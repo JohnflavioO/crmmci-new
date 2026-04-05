@@ -14,6 +14,8 @@ import Products from "./pages/Products";
 import EcoflowCalculator from "./pages/EcoflowCalculator";
 import Tasks from "./pages/Tasks";
 import Metrics from "./pages/Metrics";
+import Pipeline from "./pages/Pipeline";
+import PublicQuote from "./pages/PublicQuote";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,7 +31,14 @@ function AppRoutes() {
     );
   }
 
-  if (!user) return <Auth />;
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/quote/:token" element={<PublicQuote />} />
+        <Route path="*" element={<Auth />} />
+      </Routes>
+    );
+  }
   if (!isApproved) return <PendingApproval />;
 
   return (
@@ -41,6 +50,8 @@ function AppRoutes() {
       <Route path="/ecoflow" element={<EcoflowCalculator />} />
       <Route path="/tasks" element={<Tasks />} />
       <Route path="/metrics" element={<Metrics />} />
+      <Route path="/pipeline" element={<Pipeline />} />
+      <Route path="/quote/:token" element={<PublicQuote />} />
       {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
       <Route path="*" element={<NotFound />} />
     </Routes>

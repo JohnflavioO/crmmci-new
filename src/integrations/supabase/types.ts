@@ -32,10 +32,12 @@ export type Database = {
           email: string | null
           id: string
           is_whatsapp: boolean | null
+          last_interaction_at: string | null
           name: string
           neighborhood: string | null
           notes: string | null
           phone: string | null
+          pipeline_stage: string
           state: string | null
           updated_at: string | null
         }
@@ -56,10 +58,12 @@ export type Database = {
           email?: string | null
           id?: string
           is_whatsapp?: boolean | null
+          last_interaction_at?: string | null
           name: string
           neighborhood?: string | null
           notes?: string | null
           phone?: string | null
+          pipeline_stage?: string
           state?: string | null
           updated_at?: string | null
         }
@@ -80,10 +84,12 @@ export type Database = {
           email?: string | null
           id?: string
           is_whatsapp?: boolean | null
+          last_interaction_at?: string | null
           name?: string
           neighborhood?: string | null
           notes?: string | null
           phone?: string | null
+          pipeline_stage?: string
           state?: string | null
           updated_at?: string | null
         }
@@ -231,6 +237,7 @@ export type Database = {
       }
       quotes: {
         Row: {
+          approved_at: string | null
           client_id: string | null
           client_name: string
           created_at: string | null
@@ -242,8 +249,10 @@ export type Database = {
           payment_status: string | null
           payment_terms: string | null
           proposal_validity: string | null
+          public_token: string | null
           quote_date: string | null
           quote_number: string
+          rejected_at: string | null
           salesperson: string | null
           salesperson_id: string | null
           shipping_cost: number | null
@@ -255,6 +264,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          approved_at?: string | null
           client_id?: string | null
           client_name?: string
           created_at?: string | null
@@ -266,8 +276,10 @@ export type Database = {
           payment_status?: string | null
           payment_terms?: string | null
           proposal_validity?: string | null
+          public_token?: string | null
           quote_date?: string | null
           quote_number?: string
+          rejected_at?: string | null
           salesperson?: string | null
           salesperson_id?: string | null
           shipping_cost?: number | null
@@ -279,6 +291,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          approved_at?: string | null
           client_id?: string | null
           client_name?: string
           created_at?: string | null
@@ -290,8 +303,10 @@ export type Database = {
           payment_status?: string | null
           payment_terms?: string | null
           proposal_validity?: string | null
+          public_token?: string | null
           quote_date?: string | null
           quote_number?: string
+          rejected_at?: string | null
           salesperson?: string | null
           salesperson_id?: string | null
           shipping_cost?: number | null

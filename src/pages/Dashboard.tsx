@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
+import FollowUpAlerts from '@/components/FollowUpAlerts';
+import RevenueForecasting from '@/components/RevenueForecasting';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -179,6 +181,17 @@ export default function Dashboard() {
           </Button>
         </div>
         {renderStatsBlock(myStats, 'Meus')}
+        {/* Revenue Forecasting */}
+        <div className="mb-4 md:mb-6">
+          <h2 className="text-lg font-bold font-display mb-3">Previsão de Faturamento</h2>
+          <RevenueForecasting quotes={myQuotes} />
+        </div>
+
+        {/* Follow-up Alerts */}
+        <div className="mb-4 md:mb-6">
+          <FollowUpAlerts />
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           <Card className="shadow-card lg:col-span-2">
             <CardHeader><CardTitle className="font-display text-lg">Últimos Orçamentos</CardTitle></CardHeader>
@@ -241,6 +254,17 @@ export default function Dashboard() {
       </div>
 
       {renderStatsBlock(teamStats, 'Time')}
+
+      {/* Revenue Forecasting */}
+      <div className="mb-4 md:mb-6">
+        <h2 className="text-lg font-bold font-display mb-3">Previsão de Faturamento</h2>
+        <RevenueForecasting quotes={teamQuotes} />
+      </div>
+
+      {/* Follow-up Alerts */}
+      <div className="mb-4 md:mb-6">
+        <FollowUpAlerts />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-10">
         <Card className="shadow-card lg:col-span-2">
