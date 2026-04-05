@@ -286,30 +286,23 @@ export default function Quotes() {
     if (!quote.clients?.phone) return;
     setWhatsappLoading(quote.id);
     try {
-      const [{ data: qItems }, { data: clientData }] = await Promise.all([
-        db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number'),
-        db.from('clients').select('*').eq('id', quote.client_id).maybeSingle(),
-      ]);
-
-      const blob = await generateQuotePdf(quote, qItems || [], clientData, { returnBlob: true }) as Blob;
-
-      // Upload PDF to storage
-      const fileName = `${quote.quote_number.replace(/\//g, '-')}-${Date.now()}.pdf`;
-      const { error: uploadErr } = await supabase.storage
-        .from('quote-pdfs')
-        .upload(fileName, blob, { contentType: 'application/pdf', upsert: true });
-
-      if (uploadErr) throw uploadErr;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('quote-pdfs')
-        .getPublicUrl(fileName);
+      const { data: clientData } = await db.from('clients').select('*').eq('id', quote.client_id).maybeSingle();
 
       const phone = quote.clients.phone.replace(/\D/g, '');
       const clientName = clientData?.company_name || clientData?.name || 'Cliente';
       const total = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(quote.total_amount) || 0);
 
-      const message = `Olá ${clientName}! 👋\n\nSegue o orçamento *${quote.quote_number}* no valor de *${total}*.\n\n📄 Acesse o PDF: ${publicUrl}\n\nQualquer dúvida estamos à disposição! 🙂`;
+      // Link público limpo usando a rota /quote/:token
+      const publicLink = `${window.location.origin}/quote/${quote.public_token}`;
+
+      // Nome do vendedor logado
+      const sellerName = profile?.full_name || '';
+
+      let message = `Olá ${clientName}! 👋\n\nPreparei seu orçamento:\n\n📋 *${quote.quote_number}*\n💰 Valor: *${total}*\n\n📄 Ver proposta: ${publicLink}\n\nSe precisar de ajustes ou tiver dúvidas, estou à disposição 🙂`;
+
+      if (sellerName) {
+        message += `\n\nAtenciosamente,\n*${sellerName}*`;
+      }
 
       window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
     } catch (err: any) {
