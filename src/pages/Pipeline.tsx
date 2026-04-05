@@ -35,7 +35,7 @@ interface PipelineClient {
 }
 
 export default function Pipeline() {
-  const { user, isGestor } = useAuth();
+  const { } = useAuth();
   const isMobile = useIsMobile();
   const [clients, setClients] = useState<PipelineClient[]>([]);
   const [draggedClient, setDraggedClient] = useState<string | null>(null);
