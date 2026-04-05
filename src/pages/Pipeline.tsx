@@ -97,7 +97,14 @@ export default function Pipeline() {
     if (draggedClient) { moveClient(draggedClient, stage); setDraggedClient(null); }
   };
 
-  const getStageClients = (stage: string) => clients.filter(c => (c.pipeline_stage || 'contato_feito') === stage);
+  const getStageClients = (stage: string) => {
+    if (stage === 'pre_venda') {
+      // Pre-venda: clients without any quotes
+      return clients.filter(c => (c.pipeline_stage || 'pre_venda') === 'pre_venda' && !c.hasQuotes);
+    }
+    // Other stages: only clients with quotes
+    return clients.filter(c => (c.pipeline_stage || 'pre_venda') === stage && c.hasQuotes);
+  };
   const getStageValue = (stage: string) => getStageClients(stage).reduce((s, c) => s + c.totalValue, 0);
 
   const renderClientCard = (client: PipelineClient, stageIdx: number) => (
