@@ -266,7 +266,7 @@ export default function Quotes() {
     toast.success('Link público copiado!');
   };
 
-
+  const handleExportPdf = async (quote: any) => {
     try {
       const [{ data: qItems }, { data: clientData }] = await Promise.all([
         db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number'),
