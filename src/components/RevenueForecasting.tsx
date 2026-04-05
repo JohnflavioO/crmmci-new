@@ -32,8 +32,10 @@ export default function RevenueForecasting({ quotes }: Props) {
 
   // Filter quotes within the billing cycle
   const cycleQuotes = quotes.filter(q => {
-    const d = new Date(q.created_at || q.quote_date);
-    return d >= cycle.start && d <= cycle.end;
+    const raw = q.created_at || q.quote_date;
+    if (!raw) return false;
+    const ts = new Date(raw).getTime();
+    return ts >= cycle.start.getTime() && ts <= cycle.end.getTime();
   });
 
   const sent = cycleQuotes.filter(q => q.status === 'sent');
