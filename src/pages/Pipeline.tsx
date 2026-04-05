@@ -178,7 +178,7 @@ export default function Pipeline() {
       </div>
 
       {/* Kanban Board */}
-      <div className={isMobile ? 'space-y-4' : 'flex gap-3 overflow-x-auto pb-4'}>
+      <div className={isMobile ? 'space-y-4' : 'flex gap-3 overflow-x-auto pb-4 scrollbar-always-visible'}>
         {STAGES.map((stage, stageIdx) => {
           const stageClients = getStageClients(stage.key);
           return (
