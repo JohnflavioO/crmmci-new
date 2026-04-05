@@ -31,7 +31,14 @@ function AppRoutes() {
     );
   }
 
-  if (!user) return <Auth />;
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/quote/:token" element={<PublicQuote />} />
+        <Route path="*" element={<Auth />} />
+      </Routes>
+    );
+  }
   if (!isApproved) return <PendingApproval />;
 
   return (
