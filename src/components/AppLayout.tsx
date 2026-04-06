@@ -1,5 +1,6 @@
 import { ReactNode, useState } from 'react';
 import AppSidebar from './AppSidebar';
+import NotificationBell from './NotificationBell';
 import { Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -23,7 +24,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </SheetContent>
           </Sheet>
           <img src="/mci-logo.png" alt="MCI Store" className="h-8 w-auto" />
-          <span className="text-sm font-bold font-display">MCI Store</span>
+          <span className="text-sm font-bold font-display flex-1">MCI Store</span>
+          <NotificationBell />
         </header>
         <main className="p-4 pb-20 animate-fade-in">
           {children}
@@ -35,9 +37,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <AppSidebar />
-      <main className="ml-64 p-6 animate-fade-in">
-        {children}
-      </main>
+      <div className="ml-64">
+        <header className="sticky top-0 z-40 flex items-center justify-end px-6 py-2 bg-background/80 backdrop-blur border-b border-border">
+          <NotificationBell />
+        </header>
+        <main className="p-6 animate-fade-in">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
