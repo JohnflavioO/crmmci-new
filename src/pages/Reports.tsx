@@ -395,130 +395,7 @@ export default function Reports() {
         </Card>
       </div>
 
-      {/* Chart 1: Products */}
-      <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <div>
-              <h2 className="text-lg font-bold font-display">Produtos e serviços</h2>
-              <p className="text-xs text-muted-foreground">Atualizado em {updatedAt}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground hidden sm:block">Mostrar</span>
-              <Select value={productsFilter} onValueChange={setProductsFilter}>
-                <SelectTrigger className="w-full sm:w-64 min-h-[40px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="qty_sold">Quantidade de produtos vendidos</SelectItem>
-                  <SelectItem value="qty_by_seller">Qtd. total por responsável</SelectItem>
-                </SelectContent>
-              </Select>
-              <ViewToggle view={productsView} setView={setProductsView} />
-            </div>
-          </div>
-
-          {productsData.length === 0 ? (
-            <p className="text-muted-foreground text-sm text-center py-8">Sem dados no período</p>
-          ) : productsView === 'chart' ? (
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={productsData} layout="vertical" margin={{ left: 10, right: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: number) => productsFilter === 'qty_sold' ? v : formatCurrency(v)} />
-                  <Bar dataKey="qty" fill="hsl(152, 60%, 52%)" radius={[0, 4, 4, 0]} name="Quantidade" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left">
-                    <th className="pb-2 font-medium text-muted-foreground">Produto</th>
-                    <th className="pb-2 font-medium text-muted-foreground text-right">Quantidade</th>
-                    <th className="pb-2 font-medium text-muted-foreground text-right">Valor total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {productsData.map(p => (
-                    <tr key={p.name} className="border-b last:border-0">
-                      <td className="py-2">{p.name}</td>
-                      <td className="py-2 text-right">{p.qty}</td>
-                      <td className="py-2 text-right font-medium">{formatCurrency(p.value)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Chart 2: Values */}
-      <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <div>
-              <h2 className="text-lg font-bold font-display">Valores das negociações</h2>
-              <p className="text-xs text-muted-foreground">Atualizado em {updatedAt}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground hidden sm:block">Mostrar</span>
-              <Select value={valuesFilter} onValueChange={setValuesFilter}>
-                <SelectTrigger className="w-full sm:w-56 min-h-[40px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="by_period">Valores vendidos por período</SelectItem>
-                  <SelectItem value="by_seller">Valores por responsável</SelectItem>
-                  <SelectItem value="by_product">Valores por produto</SelectItem>
-                </SelectContent>
-              </Select>
-              <ViewToggle view={valuesView} setView={setValuesView} />
-            </div>
-          </div>
-
-          {valuesData.length === 0 ? (
-            <p className="text-muted-foreground text-sm text-center py-8">Sem dados no período</p>
-          ) : valuesView === 'chart' ? (
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={valuesData} margin={{ left: 10, right: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={(v: number) => `R$ ${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                  <Bar dataKey="value" fill="hsl(152, 60%, 52%)" radius={[4, 4, 0, 0]} name="Valor" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left">
-                    <th className="pb-2 font-medium text-muted-foreground">{valuesFilter === 'by_period' ? 'Data' : valuesFilter === 'by_seller' ? 'Responsável' : 'Produto'}</th>
-                    <th className="pb-2 font-medium text-muted-foreground text-right">Valor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {valuesData.map((d, i) => (
-                    <tr key={i} className="border-b last:border-0">
-                      <td className="py-2">{d.date}</td>
-                      <td className="py-2 text-right font-medium">{formatCurrency(d.value)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Chart 3: Deals created/won/lost */}
+      {/* Chart 1: Negociações criadas, vendidas e perdidas */}
       <Card className="mb-6">
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
@@ -589,6 +466,129 @@ export default function Reports() {
                       <td className="py-2 text-right">{d.created}</td>
                       <td className="py-2 text-right text-emerald-600 font-medium">{d.won}</td>
                       <td className="py-2 text-right text-rose-600 font-medium">{d.lost}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Chart 2: Products */}
+      <Card className="mb-6">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-lg font-bold font-display">Produtos e serviços</h2>
+              <p className="text-xs text-muted-foreground">Atualizado em {updatedAt}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground hidden sm:block">Mostrar</span>
+              <Select value={productsFilter} onValueChange={setProductsFilter}>
+                <SelectTrigger className="w-full sm:w-64 min-h-[40px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="qty_sold">Quantidade de produtos vendidos</SelectItem>
+                  <SelectItem value="qty_by_seller">Qtd. total por responsável</SelectItem>
+                </SelectContent>
+              </Select>
+              <ViewToggle view={productsView} setView={setProductsView} />
+            </div>
+          </div>
+
+          {productsData.length === 0 ? (
+            <p className="text-muted-foreground text-sm text-center py-8">Sem dados no período</p>
+          ) : productsView === 'chart' ? (
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={productsData} layout="vertical" margin={{ left: 10, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" />
+                  <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => productsFilter === 'qty_sold' ? v : formatCurrency(v)} />
+                  <Bar dataKey="qty" fill="hsl(152, 60%, 52%)" radius={[0, 4, 4, 0]} name="Quantidade" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="pb-2 font-medium text-muted-foreground">Produto</th>
+                    <th className="pb-2 font-medium text-muted-foreground text-right">Quantidade</th>
+                    <th className="pb-2 font-medium text-muted-foreground text-right">Valor total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productsData.map(p => (
+                    <tr key={p.name} className="border-b last:border-0">
+                      <td className="py-2">{p.name}</td>
+                      <td className="py-2 text-right">{p.qty}</td>
+                      <td className="py-2 text-right font-medium">{formatCurrency(p.value)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Chart 3: Values */}
+      <Card className="mb-6">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-lg font-bold font-display">Valores das negociações</h2>
+              <p className="text-xs text-muted-foreground">Atualizado em {updatedAt}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground hidden sm:block">Mostrar</span>
+              <Select value={valuesFilter} onValueChange={setValuesFilter}>
+                <SelectTrigger className="w-full sm:w-56 min-h-[40px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="by_period">Valores vendidos por período</SelectItem>
+                  <SelectItem value="by_seller">Valores por responsável</SelectItem>
+                  <SelectItem value="by_product">Valores por produto</SelectItem>
+                </SelectContent>
+              </Select>
+              <ViewToggle view={valuesView} setView={setValuesView} />
+            </div>
+          </div>
+
+          {valuesData.length === 0 ? (
+            <p className="text-muted-foreground text-sm text-center py-8">Sem dados no período</p>
+          ) : valuesView === 'chart' ? (
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={valuesData} margin={{ left: 10, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <YAxis tickFormatter={(v: number) => `R$ ${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                  <Bar dataKey="value" fill="hsl(152, 60%, 52%)" radius={[4, 4, 0, 0]} name="Valor" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="pb-2 font-medium text-muted-foreground">{valuesFilter === 'by_period' ? 'Data' : valuesFilter === 'by_seller' ? 'Responsável' : 'Produto'}</th>
+                    <th className="pb-2 font-medium text-muted-foreground text-right">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {valuesData.map((d, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="py-2">{d.date}</td>
+                      <td className="py-2 text-right font-medium">{formatCurrency(d.value)}</td>
                     </tr>
                   ))}
                 </tbody>
