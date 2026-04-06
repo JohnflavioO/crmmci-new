@@ -81,8 +81,10 @@ export default function Reports() {
     const created = filteredQuotes.length;
     const won = filteredQuotes.filter((q: any) => q.status === 'approved');
     const lost = filteredQuotes.filter((q: any) => q.status === 'rejected');
+    const negotiation = filteredQuotes.filter((q: any) => q.status === 'negociacao');
     const wonValue = won.reduce((s: number, q: any) => s + (parseFloat(q.total_amount) || 0), 0);
     const lostValue = lost.reduce((s: number, q: any) => s + (parseFloat(q.total_amount) || 0), 0);
+    const negotiationValue = negotiation.reduce((s: number, q: any) => s + (parseFloat(q.total_amount) || 0), 0);
     const avgTicket = won.length > 0 ? wonValue / won.length : 0;
     const totalUnits = won.reduce((s: number, q: any) => {
       return s + (q.quote_items || []).reduce((us: number, i: any) => us + (i.quantity || 0), 0);
@@ -101,7 +103,7 @@ export default function Reports() {
           return s + Math.max(differenceInDays(r, c), 0);
         }, 0) / lost.length
       : 0;
-    return { created, won: won.length, lost: lost.length, wonValue, lostValue, avgTicket, totalUnits, avgDaysToWin: Math.round(avgDaysToWin), avgDaysToLose: Math.round(avgDaysToLose) };
+    return { created, won: won.length, lost: lost.length, negotiation: negotiation.length, wonValue, lostValue, negotiationValue, avgTicket, totalUnits, avgDaysToWin: Math.round(avgDaysToWin), avgDaysToLose: Math.round(avgDaysToLose) };
   }, [filteredQuotes]);
 
   // Products data
@@ -220,6 +222,7 @@ export default function Reports() {
     };
 
     addStat('Negociações criadas', String(stats.created));
+    addStat('Em Negociação', `${stats.negotiation} — ${formatCurrency(stats.negotiationValue)}`);
     addStat('Negociações vendidas', String(stats.won));
     addStat('Negociações perdidas', String(stats.lost));
     addStat('Valor vendido', formatCurrency(stats.wonValue));
@@ -368,7 +371,14 @@ export default function Reports() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+        <Card className="border-l-4 border-l-amber-400 bg-amber-50/60">
+          <CardContent className="p-4">
+            <p className="text-xs font-medium text-amber-700">Em Negociação</p>
+            <p className="text-xl font-bold text-amber-900">{stats.negotiation}</p>
+            <p className="text-sm font-semibold text-amber-800 mt-1">{formatCurrency(stats.negotiationValue)}</p>
+          </CardContent>
+        </Card>
         <Card className="bg-sky-50/40">
           <CardContent className="p-4">
             <p className="text-xs font-medium text-sky-700">Valor vendido</p>
