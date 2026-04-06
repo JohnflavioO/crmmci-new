@@ -26,7 +26,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <AppSidebar onNavigate={() => setOpen(false)} />
             </SheetContent>
           </Sheet>
-          <img src="/mci-logo.png" alt="MCI Store" className="h-8 w-auto" />
+          <img src={mciLogoMobile} alt="MCI Store" className="h-8 w-auto" />
           <span className="text-sm font-bold font-display flex-1">MCI Store</span>
           <NotificationBell />
         </header>
