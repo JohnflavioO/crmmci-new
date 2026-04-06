@@ -17,6 +17,7 @@ import Metrics from "./pages/Metrics";
 import Pipeline from "./pages/Pipeline";
 import Reports from "./pages/Reports";
 import PublicQuote from "./pages/PublicQuote";
+import Negociacoes from "./pages/Negociacoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,6 +54,7 @@ function AppRoutes() {
       <Route path="/metrics" element={<Metrics />} />
       <Route path="/pipeline" element={<Pipeline />} />
       <Route path="/quote/:token" element={<PublicQuote />} />
+      <Route path="/negociacoes" element={<Negociacoes />} />
       <Route path="/reports" element={<Reports />} />
       {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
       <Route path="*" element={<NotFound />} />

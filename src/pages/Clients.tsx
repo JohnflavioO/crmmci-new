@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2, MessageCircle, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -52,6 +53,7 @@ interface SellerInfo {
 export default function Clients() {
   const { user, isGestor, isAdmin } = useAuth();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -285,6 +287,9 @@ export default function Clients() {
               Excluir {selectedIds.size}
             </Button>
           )}
+          <Button variant="outline" className="gap-2 min-h-[44px] border-primary text-primary hover:bg-primary/5" onClick={() => navigate('/quotes')}>
+            <Plus className="h-4 w-4" /> Criar Orçamento
+          </Button>
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2 min-h-[44px]"><Upload className="h-4 w-4" /> Importar</Button>
