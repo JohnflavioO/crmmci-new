@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { CalendarIcon, Clock, FileDown, BarChart3, Table2 } from 'lucide-react';
-import { format, differenceInDays, startOfMonth, parseISO } from 'date-fns';
+import { format, differenceInDays, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import {
