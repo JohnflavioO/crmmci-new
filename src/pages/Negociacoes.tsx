@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import {
-  FileText, Search, ArrowLeft, Calendar, DollarSign, User, Building2,
-  ChevronDown, ChevronUp, ExternalLink, Phone, Mail, MapPin
+  FileText, Search, ArrowLeft, Calendar, User, Building2,
+  Phone, Mail, MapPin
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
