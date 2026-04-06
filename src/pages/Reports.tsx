@@ -30,7 +30,7 @@ const formatCurrency = (v: number) =>
 export default function Reports() {
   const { user, isGestor, isAdmin } = useAuth();
   const canSeeAll = isGestor || isAdmin;
-  const reportRef = useRef<HTMLDivElement>(null);
+
 
   const [sellers, setSellers] = useState<SellerInfo[]>([]);
   const [selectedSeller, setSelectedSeller] = useState<string>('mine');
