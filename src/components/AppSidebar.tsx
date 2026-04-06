@@ -10,6 +10,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/clients', icon: Users, label: 'Clientes' },
   { to: '/pipeline', icon: Filter, label: 'Funil' },
+  { to: '/negociacoes', icon: Handshake, label: 'Negociações' },
   { to: '/quotes', icon: FileText, label: 'Orçamentos' },
   { to: '/tasks', icon: ListChecks, label: 'Tarefas' },
   { to: '/metrics', icon: BarChart3, label: 'Métricas' },
