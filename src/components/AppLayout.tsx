@@ -1,6 +1,8 @@
 import { ReactNode, useState } from 'react';
 import AppSidebar from './AppSidebar';
 import NotificationBell from './NotificationBell';
+import MobileBottomNav from './MobileBottomNav';
+import PWAInstallPrompt from './PWAInstallPrompt';
 import { Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -27,9 +29,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <span className="text-sm font-bold font-display flex-1">MCI Store</span>
           <NotificationBell />
         </header>
-        <main className="p-4 pb-20 animate-fade-in">
+        <main className="p-4 pb-24 animate-fade-in">
           {children}
         </main>
+        <MobileBottomNav />
+        <PWAInstallPrompt />
       </div>
     );
   }
@@ -45,6 +49,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
+      <PWAInstallPrompt />
     </div>
   );
 }
