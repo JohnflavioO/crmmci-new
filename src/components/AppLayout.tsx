@@ -24,7 +24,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </SheetContent>
           </Sheet>
           <img src="/mci-logo.png" alt="MCI Store" className="h-8 w-auto" />
-          <span className="text-sm font-bold font-display">MCI Store</span>
+          <span className="text-sm font-bold font-display flex-1">MCI Store</span>
+          <NotificationBell />
         </header>
         <main className="p-4 pb-20 animate-fade-in">
           {children}
