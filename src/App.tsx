@@ -17,6 +17,7 @@ import Metrics from "./pages/Metrics";
 import Pipeline from "./pages/Pipeline";
 import Reports from "./pages/Reports";
 import PublicQuote from "./pages/PublicQuote";
+import Negociacoes from "./pages/Negociacoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
