@@ -125,7 +125,7 @@ export default function RevenueForecasting({ quotes }: Props) {
   const negotiationValue = negotiation.reduce((s, q) => s + getQuoteValue(q), 0);
   const closedValue = closed.reduce((s, q) => s + getQuoteValue(q), 0);
 
-  const forecastValue = closedValue + (negotiationValue * 0.5) + (sentValue * 0.3);
+  const forecastValue = closedValue;
 
   const items = [
     { label: 'Em Negociação', value: negotiationValue, count: negotiation.length, icon: Handshake, color: 'text-amber-600', bg: 'bg-amber-100' },
