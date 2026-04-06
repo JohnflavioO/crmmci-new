@@ -370,7 +370,14 @@ export default function Reports() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+        <Card className="border-l-4 border-l-amber-400 bg-amber-50/60">
+          <CardContent className="p-4">
+            <p className="text-xs font-medium text-amber-700">Em Negociação</p>
+            <p className="text-xl font-bold text-amber-900">{stats.negotiation}</p>
+            <p className="text-sm font-semibold text-amber-800 mt-1">{formatCurrency(stats.negotiationValue)}</p>
+          </CardContent>
+        </Card>
         <Card className="bg-sky-50/40">
           <CardContent className="p-4">
             <p className="text-xs font-medium text-sky-700">Valor vendido</p>
