@@ -176,9 +176,14 @@ export default function Dashboard() {
             <h1 className="text-xl md:text-2xl font-bold font-display">Dashboard</h1>
             <p className="text-muted-foreground text-sm">Visão geral do sistema</p>
           </div>
-          <Button onClick={() => navigate('/quotes')} className="gap-2 w-full sm:w-auto min-h-[44px]">
-            <Plus className="h-4 w-4" /> Criar Proposta
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button variant="outline" onClick={() => navigate('/reports')} className="gap-2 min-h-[44px] flex-1 sm:flex-initial border-primary text-primary hover:bg-primary/5">
+              <ClipboardList className="h-4 w-4" /> Relatórios
+            </Button>
+            <Button onClick={() => navigate('/quotes')} className="gap-2 min-h-[44px] flex-1 sm:flex-initial">
+              <Plus className="h-4 w-4" /> Criar Proposta
+            </Button>
+          </div>
         </div>
         {renderStatsBlock(myStats, 'Meus')}
         {/* Revenue Forecasting */}
