@@ -315,5 +315,8 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     return doc.output('blob');
   }
 
-  doc.save(`${quote.quote_number}.pdf`);
+  const clientName = client?.company_name || client?.name || '';
+  const sanitized = clientName.replace(/[\/\\?%*:|"<>]/g, '').trim().substring(0, 30);
+  const fileName = sanitized ? `${quote.quote_number} ${sanitized}.pdf` : `${quote.quote_number}.pdf`;
+  doc.save(fileName);
 }
