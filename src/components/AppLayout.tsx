@@ -1,5 +1,6 @@
 import { ReactNode, useState } from 'react';
 import AppSidebar from './AppSidebar';
+import mciLogoMobile from '@/assets/mci-logo-mobile.png';
 import NotificationBell from './NotificationBell';
 import MobileBottomNav from './MobileBottomNav';
 import PWAInstallPrompt from './PWAInstallPrompt';
