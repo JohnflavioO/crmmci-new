@@ -85,13 +85,15 @@ export default function RevenueForecasting({ quotes }: Props) {
   const negotiationValue = negotiation.reduce((s, q) => s + getQuoteValue(q), 0);
   const closedValue = closed.reduce((s, q) => s + getQuoteValue(q), 0);
   const preVendaValue = preVenda.reduce((s, q) => s + getQuoteValue(q), 0);
-  const forecastValue = closedValue;
+
+  // Previsão final: fechados + ponderação do pipeline (negociação 50%, enviadas 30%)
+  const forecastValue = closedValue + (negotiationValue * 0.5) + (sentValue * 0.3);
 
   const items = [
     { label: 'Em Negociação', value: negotiationValue, count: negotiation.length, icon: Handshake, color: 'text-amber-600', bg: 'bg-amber-100' },
     { label: 'Propostas Enviadas', value: sentValue, count: sent.length, icon: Send, color: 'text-blue-600', bg: 'bg-blue-100' },
     { label: 'Fechados no Ciclo', value: closedValue, count: closed.length, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { label: 'Estimativa Final', value: forecastValue, count: closed.length, icon: TrendingUp, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'Previsão Final', value: forecastValue, count: closed.length + negotiation.length + sent.length, icon: TrendingUp, color: 'text-primary', bg: 'bg-primary/10' },
   ];
 
   return (
