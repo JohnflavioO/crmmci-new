@@ -53,6 +53,7 @@ function AppRoutes() {
       <Route path="/metrics" element={<Metrics />} />
       <Route path="/pipeline" element={<Pipeline />} />
       <Route path="/quote/:token" element={<PublicQuote />} />
+      <Route path="/reports" element={<Reports />} />
       {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
       <Route path="*" element={<NotFound />} />
     </Routes>

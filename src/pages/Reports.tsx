@@ -8,8 +8,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
-import { CalendarIcon, TrendingUp, TrendingDown, DollarSign, ShoppingCart, Clock, XCircle, CheckCircle, BarChart3, FileText } from 'lucide-react';
-import { format, differenceInDays, startOfMonth, endOfMonth } from 'date-fns';
+import { CalendarIcon, Clock } from 'lucide-react';
+import { format, differenceInDays, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 
