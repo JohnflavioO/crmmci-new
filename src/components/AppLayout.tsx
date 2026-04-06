@@ -1,5 +1,6 @@
 import { ReactNode, useState } from 'react';
 import AppSidebar from './AppSidebar';
+import NotificationBell from './NotificationBell';
 import { Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
