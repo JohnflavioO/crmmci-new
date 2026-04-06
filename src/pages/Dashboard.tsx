@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Users, DollarSign, TrendingUp, Clock, CheckCircle, XCircle, BarChart3, CreditCard, QrCode, FileBarChart, CircleDot, CheckCircle2, Plus } from 'lucide-react';
+import { FileText, Users, DollarSign, TrendingUp, Clock, CheckCircle, XCircle, BarChart3, CreditCard, QrCode, FileBarChart, CircleDot, CheckCircle2, Plus, ClipboardList } from 'lucide-react';
 
 const statusLabels: Record<string, string> = {
   draft: 'Rascunho', sent: 'Enviado', approved: 'Aprovado', rejected: 'Rejeitado',
@@ -176,9 +176,14 @@ export default function Dashboard() {
             <h1 className="text-xl md:text-2xl font-bold font-display">Dashboard</h1>
             <p className="text-muted-foreground text-sm">Visão geral do sistema</p>
           </div>
-          <Button onClick={() => navigate('/quotes')} className="gap-2 w-full sm:w-auto min-h-[44px]">
-            <Plus className="h-4 w-4" /> Criar Proposta
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button variant="outline" onClick={() => navigate('/reports')} className="gap-2 min-h-[44px] flex-1 sm:flex-initial border-primary text-primary hover:bg-primary/5">
+              <ClipboardList className="h-4 w-4" /> Relatórios
+            </Button>
+            <Button onClick={() => navigate('/quotes')} className="gap-2 min-h-[44px] flex-1 sm:flex-initial">
+              <Plus className="h-4 w-4" /> Criar Proposta
+            </Button>
+          </div>
         </div>
         {renderStatsBlock(myStats, 'Meus')}
         {/* Revenue Forecasting */}
@@ -236,6 +241,9 @@ export default function Dashboard() {
           <p className="text-muted-foreground text-sm">Visão geral de toda a equipe</p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <Button variant="outline" onClick={() => navigate('/reports')} className="gap-2 min-h-[44px] border-primary text-primary hover:bg-primary/5">
+              <ClipboardList className="h-4 w-4" /> Relatórios
+            </Button>
           <Button onClick={() => navigate('/quotes')} className="gap-2 min-h-[44px]">
             <Plus className="h-4 w-4" /> Criar Proposta
           </Button>

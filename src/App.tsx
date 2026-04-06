@@ -15,6 +15,7 @@ import EcoflowCalculator from "./pages/EcoflowCalculator";
 import Tasks from "./pages/Tasks";
 import Metrics from "./pages/Metrics";
 import Pipeline from "./pages/Pipeline";
+import Reports from "./pages/Reports";
 import PublicQuote from "./pages/PublicQuote";
 import NotFound from "./pages/NotFound";
 
@@ -52,6 +53,7 @@ function AppRoutes() {
       <Route path="/metrics" element={<Metrics />} />
       <Route path="/pipeline" element={<Pipeline />} />
       <Route path="/quote/:token" element={<PublicQuote />} />
+      <Route path="/reports" element={<Reports />} />
       {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
       <Route path="*" element={<NotFound />} />
     </Routes>
