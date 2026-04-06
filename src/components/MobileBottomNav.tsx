@@ -1,0 +1,38 @@
+import { useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, FileText, Users, Kanban } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const items = [
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/quotes', icon: FileText, label: 'Orçamentos' },
+  { to: '/clients', icon: Users, label: 'Clientes' },
+  { to: '/pipeline', icon: Kanban, label: 'Funil' },
+];
+
+export default function MobileBottomNav() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border md:hidden safe-area-bottom">
+      <div className="flex items-stretch">
+        {items.map(({ to, icon: Icon, label }) => {
+          const active = location.pathname === to;
+          return (
+            <button
+              key={to}
+              onClick={() => navigate(to)}
+              className={cn(
+                'flex-1 flex flex-col items-center gap-0.5 py-2 pt-2.5 transition-colors',
+                active ? 'text-primary' : 'text-muted-foreground'
+              )}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="text-[10px] font-medium">{label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
