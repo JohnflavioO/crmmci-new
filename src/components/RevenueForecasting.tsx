@@ -14,8 +14,17 @@ type QuoteForecast = {
   updated_at?: string | null;
 };
 
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 const toTimestamp = (value?: string | null) => {
   if (!value) return null;
+
+  if (DATE_ONLY_PATTERN.test(value)) {
+    const [year, month, day] = value.split('-').map(Number);
+    const ts = new Date(year, month - 1, day, 12, 0, 0).getTime();
+    return Number.isNaN(ts) ? null : ts;
+  }
+
   const ts = new Date(value).getTime();
   return Number.isNaN(ts) ? null : ts;
 };
@@ -23,22 +32,11 @@ const toTimestamp = (value?: string | null) => {
 const isClosedQuote = (quote: QuoteForecast) =>
   quote.status === 'approved' || quote.payment_status === 'liquidado';
 
-const getQuoteCycleTimestamp = (quote: QuoteForecast) => {
-  if (isClosedQuote(quote)) {
-    return (
-      toTimestamp(quote.approved_at) ??
-      toTimestamp(quote.updated_at) ??
-      toTimestamp(quote.quote_date) ??
-      toTimestamp(quote.created_at)
-    );
-  }
-
-  return (
-    toTimestamp(quote.quote_date) ??
-    toTimestamp(quote.created_at) ??
-    toTimestamp(quote.updated_at)
-  );
-};
+const getQuoteCycleTimestamp = (quote: QuoteForecast) =>
+  toTimestamp(quote.quote_date) ??
+  toTimestamp(quote.created_at) ??
+  toTimestamp(quote.approved_at) ??
+  toTimestamp(quote.updated_at);
 
 const getQuoteValue = (quote: QuoteForecast) => Number(quote.total_amount) || 0;
 
