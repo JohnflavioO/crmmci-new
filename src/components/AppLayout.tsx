@@ -37,9 +37,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <AppSidebar />
-      <main className="ml-64 p-6 animate-fade-in">
-        {children}
-      </main>
+      <div className="ml-64">
+        <header className="sticky top-0 z-40 flex items-center justify-end px-6 py-2 bg-background/80 backdrop-blur border-b border-border">
+          <NotificationBell />
+        </header>
+        <main className="p-6 animate-fade-in">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
