@@ -15,6 +15,7 @@ import EcoflowCalculator from "./pages/EcoflowCalculator";
 import Tasks from "./pages/Tasks";
 import Metrics from "./pages/Metrics";
 import Pipeline from "./pages/Pipeline";
+import Reports from "./pages/Reports";
 import PublicQuote from "./pages/PublicQuote";
 import NotFound from "./pages/NotFound";
 
