@@ -222,6 +222,7 @@ export default function Reports() {
     };
 
     addStat('Negociações criadas', String(stats.created));
+    addStat('Em Negociação', `${stats.negotiation} — ${formatCurrency(stats.negotiationValue)}`);
     addStat('Negociações vendidas', String(stats.won));
     addStat('Negociações perdidas', String(stats.lost));
     addStat('Valor vendido', formatCurrency(stats.wonValue));
