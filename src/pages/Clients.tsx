@@ -109,7 +109,7 @@ export default function Clients() {
   });
 
   // Apply text search on top of advanced filters
-  const filtered = filteredByAdvanced.filter(c =>
+  const filtered = (filteredByAdvanced as Client[]).filter(c =>
     c.company_name?.toLowerCase().includes(search.toLowerCase()) ||
     c.cpf_cnpj?.includes(search) ||
     c.contact_name?.toLowerCase().includes(search.toLowerCase())
