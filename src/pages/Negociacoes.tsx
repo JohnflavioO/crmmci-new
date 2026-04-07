@@ -83,7 +83,8 @@ interface SellerProfile {
 }
 
 export default function Negociacoes() {
-  const { user, isGestor } = useAuth();
+  const { user, isGestor, isAdmin } = useAuth();
+  const canSeeAll = isGestor || isAdmin;
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [quotes, setQuotes] = useState<NegociacaoQuote[]>([]);
@@ -111,12 +112,12 @@ export default function Negociacoes() {
       }));
     setQuotes(mapped);
 
-    if (isGestor) {
+    if (canSeeAll) {
       const { data: profiles } = await db.from('profiles').select('user_id, full_name').eq('active', true);
       setSellers((profiles || []).filter((p: any) => p.full_name));
     }
     setLoading(false);
-  }, [isGestor]);
+  }, [canSeeAll]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -144,7 +145,7 @@ export default function Negociacoes() {
 
   const filteredQuotes = quotes.filter(q => {
     if (statusFilter !== 'all' && q.status !== statusFilter) return false;
-    if (!isGestor || sellerFilter === 'mine') {
+    if (!canSeeAll || sellerFilter === 'mine') {
       if (q.created_by !== user?.id) return false;
     } else if (sellerFilter !== 'all') {
       if (q.created_by !== sellerFilter) return false;
@@ -350,7 +351,7 @@ export default function Negociacoes() {
             {STAGES.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
           </SelectContent>
         </Select>
-        {isGestor && (
+        {canSeeAll && (
           <Select value={sellerFilter} onValueChange={setSellerFilter}>
             <SelectTrigger className="w-[180px] min-h-[44px]">
               <SelectValue placeholder="Vendedor" />
@@ -418,7 +419,7 @@ export default function Negociacoes() {
                     <p className="text-sm text-muted-foreground truncate">{q.client_name || 'Sem cliente'}</p>
                     <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground flex-wrap">
                       <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {q.created_at ? format(new Date(q.created_at), 'dd/MM/yyyy', { locale: ptBR }) : '-'}</span>
-                      {isGestor && q.created_by && (
+                      {canSeeAll && q.created_by && (
                         <span className="flex items-center gap-1"><User className="h-3 w-3" /> {getSellerName(q.created_by)}</span>
                       )}
                     </div>
