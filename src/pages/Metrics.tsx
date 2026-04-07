@@ -86,8 +86,10 @@ export default function Metrics() {
   const totalQuotes = quotes.length;
   const approved = quotes.filter(q => q.status === 'approved');
   const rejected = quotes.filter(q => q.status === 'rejected');
+  const inNegotiation = quotes.filter(q => !['approved', 'rejected'].includes(q.status));
   const totalRevenue = approved.reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0);
   const totalLost = rejected.reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0);
+  const totalInNegotiation = inNegotiation.reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0);
   const avgTicket = approved.length > 0 ? totalRevenue / approved.length : 0;
   const conversionRate = totalQuotes > 0 ? (approved.length / totalQuotes) * 100 : 0;
   const totalUnits = approved.length;
