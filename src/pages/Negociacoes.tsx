@@ -83,7 +83,8 @@ interface SellerProfile {
 }
 
 export default function Negociacoes() {
-  const { user, isGestor } = useAuth();
+  const { user, isGestor, isAdmin } = useAuth();
+  const canSeeAll = isGestor || isAdmin;
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [quotes, setQuotes] = useState<NegociacaoQuote[]>([]);
