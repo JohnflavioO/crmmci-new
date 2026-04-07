@@ -10,10 +10,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2, MessageCircle, Users } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
+import ClientFilterBar from '@/components/clients/ClientFilterBar';
+import ClientFilterDrawer, { emptyFilters } from '@/components/clients/ClientFilterDrawer';
+import { useClientFilters } from '@/components/clients/useClientFilters';
 
 interface Client {
   id: string;
@@ -34,6 +37,8 @@ interface Client {
   notes: string;
   is_whatsapp: boolean;
   created_by?: string;
+  created_at?: string;
+  last_interaction_at?: string;
 }
 
 const emptyClient: Omit<Client, 'id'> = {
@@ -55,46 +60,60 @@ export default function Clients() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [allClients, setAllClients] = useState<Client[]>([]);
+  const [allQuotes, setAllQuotes] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [form, setForm] = useState(emptyClient);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
-
-  // Gestor tabs
-  const [activeTab, setActiveTab] = useState<string>('mine');
   const [sellers, setSellers] = useState<SellerInfo[]>([]);
 
-  const canSeeTeam = isGestor;
+  const canSeeAll = isGestor || isAdmin;
 
   useEffect(() => {
-    if (canSeeTeam) {
+    if (canSeeAll) {
       db.from('profiles').select('user_id, full_name').then(({ data }: any) => {
         const list = (data || []).filter((p: any) => p.user_id !== user?.id);
         setSellers(list);
       });
     }
-  }, [canSeeTeam, user?.id]);
+  }, [canSeeAll, user?.id]);
 
   const loadClients = async () => {
     const { data } = await db.from('clients').select('*').order('company_name');
     setAllClients((data as any[]) || []);
   };
 
-  useEffect(() => { loadClients(); }, []);
+  const loadQuotes = async () => {
+    const { data } = await db.from('quotes').select('id, client_id, status, created_at');
+    setAllQuotes((data as any[]) || []);
+  };
 
-  // Filter clients by active tab
-  const clientsByTab = (() => {
-    if (!canSeeTeam || activeTab === 'mine') {
-      return allClients.filter(c => c.created_by === user?.id);
-    }
-    if (activeTab === 'all') {
-      return allClients;
-    }
-    // specific seller
-    return allClients.filter(c => c.created_by === activeTab);
-  })();
+  useEffect(() => { loadClients(); loadQuotes(); }, []);
+
+  // Advanced filters hook
+  const {
+    filters, setFilters,
+    ownerFilter, setOwnerFilter,
+    activePreset, applyPreset,
+    activeFilterCount,
+    drawerOpen, setDrawerOpen,
+    clearAll,
+    filtered: filteredByAdvanced,
+  } = useClientFilters({
+    clients: allClients,
+    quotes: allQuotes,
+    currentUserId: user?.id || '',
+    canSeeAll,
+  });
+
+  // Apply text search on top of advanced filters
+  const filtered = (filteredByAdvanced as Client[]).filter(c =>
+    c.company_name?.toLowerCase().includes(search.toLowerCase()) ||
+    c.cpf_cnpj?.includes(search) ||
+    c.contact_name?.toLowerCase().includes(search.toLowerCase())
+  );
 
   const handleSave = async () => {
     try {
@@ -150,12 +169,6 @@ export default function Clients() {
       setDeleting(false);
     }
   };
-
-  const filtered = clientsByTab.filter(c =>
-    c.company_name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.cpf_cnpj?.includes(search) ||
-    c.contact_name?.toLowerCase().includes(search.toLowerCase())
-  );
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -261,17 +274,17 @@ export default function Clients() {
     }
   };
 
-  // Reset selection when switching tabs
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [activeTab]);
+  }, [ownerFilter]);
 
-  // Get seller name for display
   const getSellerName = (userId: string) => {
     if (userId === user?.id) return 'Você';
     const seller = sellers.find(s => s.user_id === userId);
     return seller?.full_name || 'Desconhecido';
   };
+
+  const showSellerColumn = canSeeAll && ownerFilter !== 'mine';
 
   return (
     <AppLayout>
@@ -419,44 +432,29 @@ export default function Clients() {
         </div>
       </div>
 
-      {/* Tabs for Gestor/Admin */}
-      {canSeeTeam && (
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <button
-            onClick={() => setActiveTab('mine')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'mine'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            Meus Clientes
-          </button>
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
-              activeTab === 'all'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            <Users className="h-4 w-4" /> Todos
-          </button>
-          {sellers.map(s => (
-            <button
-              key={s.user_id}
-              onClick={() => setActiveTab(s.user_id)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === s.user_id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              {s.full_name}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Filter bar */}
+      <ClientFilterBar
+        canSeeAll={canSeeAll}
+        sellers={sellers}
+        currentUserId={user?.id || ''}
+        ownerFilter={ownerFilter}
+        onOwnerFilterChange={setOwnerFilter}
+        activeFilterCount={activeFilterCount}
+        onOpenDrawer={() => setDrawerOpen(true)}
+        onApplyPreset={applyPreset}
+        activePreset={activePreset}
+        onClearAll={clearAll}
+      />
+
+      {/* Filter drawer */}
+      <ClientFilterDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        filters={filters}
+        onChange={setFilters}
+        onApply={() => {}}
+        onClear={() => setFilters(emptyFilters)}
+      />
 
       <Card className="shadow-card">
         <CardHeader className="pb-3">
@@ -475,6 +473,9 @@ export default function Clients() {
             <div className="text-center py-12">
               <Building2 className="mx-auto h-12 w-12 text-muted-foreground/30" />
               <p className="text-muted-foreground mt-3">Nenhum cliente encontrado</p>
+              {(activeFilterCount > 0 || activePreset) && (
+                <Button variant="link" className="mt-2" onClick={clearAll}>Limpar filtros</Button>
+              )}
             </div>
           ) : isMobile ? (
             <div className="space-y-3">
@@ -507,7 +508,7 @@ export default function Clients() {
                       {(c as any).is_whatsapp && <MessageCircle className="h-3 w-3 text-emerald-500" />}
                     </span>
                     {c.contact_name && <span>{c.contact_name}</span>}
-                    {canSeeTeam && activeTab !== 'mine' && <span>{getSellerName(c.created_by || '')}</span>}
+                    {showSellerColumn && <span>{getSellerName(c.created_by || '')}</span>}
                   </div>
                 </div>
               ))}
@@ -527,7 +528,7 @@ export default function Clients() {
                   <TableHead>Cidade/UF</TableHead>
                   <TableHead>Contato</TableHead>
                   <TableHead>Telefone</TableHead>
-                  {canSeeTeam && activeTab !== 'mine' && <TableHead>Vendedor</TableHead>}
+                  {showSellerColumn && <TableHead>Vendedor</TableHead>}
                   <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -552,7 +553,7 @@ export default function Clients() {
                         )}
                       </div>
                     </TableCell>
-                    {canSeeTeam && activeTab !== 'mine' && (
+                    {showSellerColumn && (
                       <TableCell className="text-xs text-muted-foreground">{getSellerName(c.created_by || '')}</TableCell>
                     )}
                     <TableCell>
