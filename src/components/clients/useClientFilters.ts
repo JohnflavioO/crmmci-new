@@ -13,6 +13,8 @@ interface ClientRow {
   [key: string]: any;
 }
 
+export type { ClientRow };
+
 interface QuoteRow {
   client_id: string;
   status: string;
