@@ -86,8 +86,10 @@ export default function Metrics() {
   const totalQuotes = quotes.length;
   const approved = quotes.filter(q => q.status === 'approved');
   const rejected = quotes.filter(q => q.status === 'rejected');
+  const inNegotiation = quotes.filter(q => !['approved', 'rejected'].includes(q.status));
   const totalRevenue = approved.reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0);
   const totalLost = rejected.reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0);
+  const totalInNegotiation = inNegotiation.reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0);
   const avgTicket = approved.length > 0 ? totalRevenue / approved.length : 0;
   const conversionRate = totalQuotes > 0 ? (approved.length / totalQuotes) * 100 : 0;
   const totalUnits = approved.length;
@@ -253,11 +255,18 @@ export default function Metrics() {
       </div>
 
       {/* Summary Cards Row 1 */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-3 md:mb-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4 mb-3 md:mb-4">
         <Card className="bg-emerald-50 border-emerald-100">
           <CardContent className="p-3 md:p-4">
             <p className="text-xs md:text-sm text-emerald-700 mb-1">Negociações criadas</p>
             <p className="text-2xl md:text-3xl font-bold text-emerald-900">{totalQuotes}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-amber-50 border-amber-100">
+          <CardContent className="p-3 md:p-4">
+            <p className="text-xs md:text-sm text-amber-700 mb-1">Em Negociação</p>
+            <p className="text-lg md:text-2xl font-bold text-amber-900">{formatCurrency(totalInNegotiation)}</p>
+            <p className="text-[10px] md:text-xs text-amber-600 mt-0.5">{inNegotiation.length} negociação(ões)</p>
           </CardContent>
         </Card>
         <Card className="bg-emerald-50 border-emerald-100">
