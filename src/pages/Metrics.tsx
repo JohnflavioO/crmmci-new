@@ -552,7 +552,7 @@ export default function Metrics() {
       {/* Seller Comparison - Gestor only */}
       {isGestor && (
         <div className="mb-6">
-          <SellerComparison dateRange={dateRange} />
+          <SellerComparison />
         </div>
       )}
     </AppLayout>
