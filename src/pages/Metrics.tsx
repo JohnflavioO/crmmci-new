@@ -548,6 +548,13 @@ export default function Metrics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Seller Comparison - Gestor only */}
+      {isGestor && (
+        <div className="mb-6">
+          <SellerComparison dateRange={dateRange} />
+        </div>
+      )}
     </AppLayout>
   );
 }
