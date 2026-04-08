@@ -18,21 +18,19 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       logoImg.onerror = () => reject(new Error('logo'));
       logoImg.src = '/mci-logo-quote.png';
     });
-    const canvas = document.createElement('canvas');
     const lw = logoImg.naturalWidth;
     const lh = logoImg.naturalHeight;
+    // Use PNG format to preserve transparency (no black background)
+    const canvas = document.createElement('canvas');
     canvas.width = lw;
     canvas.height = lh;
     const ctx = canvas.getContext('2d')!;
-    // White background to avoid transparency issues in PDF
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, lw, lh);
     ctx.drawImage(logoImg, 0, 0, lw, lh);
-    const logoData = canvas.toDataURL('image/jpeg', 0.85);
+    const logoData = canvas.toDataURL('image/png');
     // Maintain aspect ratio: 28mm wide
     const logoW = 28;
     const logoH = logoW * (lh / lw);
-    doc.addImage(logoData, 'JPEG', margin, y, logoW, logoH);
+    doc.addImage(logoData, 'PNG', margin, y, logoW, logoH);
   } catch { /* logo not available, skip */ }
 
   // Header bar
