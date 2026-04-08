@@ -44,7 +44,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   doc.text('ORDEM DE COMPRA / ORÇAMENTO', W / 2, 7, { align: 'center' });
 
   y = 14;
-  const locStartX = margin + 28;
+  const locStartX = margin + 32;
 
   const locations = [
     { title: 'CEARÁ', lines: ['Rua Senador Pompeu, 1547', 'Centro - CEP: 60.025-001', 'Tel.: +55 (85) 3254-4700', 'CNPJ: 05.502.390/0001-11'] },
