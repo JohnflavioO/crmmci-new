@@ -17,6 +17,7 @@ import {
   BarChart3, TrendingUp, DollarSign,
   CalendarDays, Target, Users, Info, Grid3X3, BarChart2,
 } from 'lucide-react';
+import SellerComparison from '@/components/SellerComparison';
 
 const db = supabase as any;
 
