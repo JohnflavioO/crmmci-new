@@ -520,6 +520,7 @@ export type Database = {
     Functions: {
       delete_quote_cascade: { Args: { p_quote_id: string }; Returns: undefined }
       generate_quote_number: { Args: never; Returns: string }
+      get_public_quote_token: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_approved: { Args: never; Returns: boolean }
       is_gestor: { Args: never; Returns: boolean }
