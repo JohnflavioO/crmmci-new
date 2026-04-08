@@ -96,12 +96,18 @@ export default function Quotes() {
       setClients(c.data || []);
       setSalespeople(s.data || []);
       setProducts(p.data || []);
+
+      // Load seller profiles for gestor filter
+      if (isGestor && !isAdmin) {
+        const { data: profiles } = await db.from('profiles').select('user_id, full_name').eq('active', true);
+        setSellerProfiles((profiles || []).filter((p: any) => p.full_name));
+      }
     } catch (err) {
       console.error('loadData error:', err);
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [isGestor, isAdmin]);
 
   const calcItem = (item: QuoteItem): QuoteItem => {
     const unitTotal = item.unit_price * (1 - item.discount_percent / 100);
@@ -318,10 +324,19 @@ export default function Quotes() {
     setItems([emptyItem()]);
   };
 
-  const filtered = quotes.filter((q: any) =>
-    q.quote_number?.toLowerCase().includes(search.toLowerCase()) ||
-    q.clients?.company_name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = quotes.filter((q: any) => {
+    // Gestor responsible filter (not admin - admin sees all)
+    if (isGestor && !isAdmin) {
+      if (responsibleFilter === 'me') {
+        if (q.created_by !== user?.id) return false;
+      } else if (responsibleFilter !== 'all') {
+        if (q.created_by !== responsibleFilter) return false;
+      }
+    }
+    // Search filter
+    return q.quote_number?.toLowerCase().includes(search.toLowerCase()) ||
+      q.clients?.company_name?.toLowerCase().includes(search.toLowerCase());
+  });
 
   return (
     <AppLayout>
