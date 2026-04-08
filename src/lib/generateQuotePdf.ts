@@ -9,7 +9,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   const fmt = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-  // Load logo (compressed JPEG for smaller file size)
+  // Load logo (optimized PNG, pre-resized to 400px)
   try {
     const logoImg = new Image();
     logoImg.crossOrigin = 'anonymous';
@@ -19,21 +19,20 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       logoImg.src = '/mci-logo-quote.png';
     });
     const canvas = document.createElement('canvas');
-    // Resize logo to max 120px for smaller PDF
-    const logoMax = 120;
-    let lw = logoImg.naturalWidth;
-    let lh = logoImg.naturalHeight;
-    if (lw > logoMax || lh > logoMax) {
-      const r = Math.min(logoMax / lw, logoMax / lh);
-      lw = Math.round(lw * r);
-      lh = Math.round(lh * r);
-    }
+    const lw = logoImg.naturalWidth;
+    const lh = logoImg.naturalHeight;
     canvas.width = lw;
     canvas.height = lh;
     const ctx = canvas.getContext('2d')!;
+    // White background to avoid transparency issues in PDF
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, lw, lh);
     ctx.drawImage(logoImg, 0, 0, lw, lh);
-    const logoData = canvas.toDataURL('image/jpeg', 0.7);
-    doc.addImage(logoData, 'JPEG', margin, y, 22, 16);
+    const logoData = canvas.toDataURL('image/jpeg', 0.85);
+    // Maintain aspect ratio: 28mm wide
+    const logoW = 28;
+    const logoH = logoW * (lh / lw);
+    doc.addImage(logoData, 'JPEG', margin, y, logoW, logoH);
   } catch { /* logo not available, skip */ }
 
   // Header bar
@@ -45,7 +44,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   doc.text('ORDEM DE COMPRA / ORÇAMENTO', W / 2, 7, { align: 'center' });
 
   y = 14;
-  const locStartX = margin + 28;
+  const locStartX = margin + 32;
 
   const locations = [
     { title: 'CEARÁ', lines: ['Rua Senador Pompeu, 1547', 'Centro - CEP: 60.025-001', 'Tel.: +55 (85) 3254-4700', 'CNPJ: 05.502.390/0001-11'] },
