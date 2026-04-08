@@ -17,6 +17,7 @@ import {
   BarChart3, TrendingUp, DollarSign,
   CalendarDays, Target, Users, Info, Grid3X3, BarChart2,
 } from 'lucide-react';
+import SellerComparison from '@/components/SellerComparison';
 
 const db = supabase as any;
 
@@ -547,6 +548,13 @@ export default function Metrics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Seller Comparison - Gestor only */}
+      {isGestor && (
+        <div className="mb-6">
+          <SellerComparison dateRange={dateRange} />
+        </div>
+      )}
     </AppLayout>
   );
 }
