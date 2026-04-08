@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,21 +52,6 @@ function normalize(s: string): string {
     .trim();
 }
 
-// More precise matching: check if normalized header matches any alias
-function matchesAny(header: string, aliases: string[]): boolean {
-  const h = normalize(header);
-  if (!h) return false;
-  return aliases.some(a => {
-    const na = normalize(a);
-    // Exact match first
-    if (h === na) return true;
-    // Check if the header contains the alias as a whole word
-    if (h.includes(na) || na.includes(h)) return true;
-    return false;
-  });
-}
-
-// Score-based matching: prioritize exact matches over partial
 function findBestMatch(header: string, aliases: string[]): number {
   const h = normalize(header);
   if (!h) return -1;
@@ -75,7 +60,7 @@ function findBestMatch(header: string, aliases: string[]): number {
   
   for (const a of aliases) {
     const na = normalize(a);
-    if (h === na) return 100; // Exact match
+    if (h === na) return 100;
     if (h.startsWith(na + ' ') || h.endsWith(' ' + na)) {
       bestScore = Math.max(bestScore, 80);
     }
@@ -90,15 +75,41 @@ function findBestMatch(header: string, aliases: string[]): number {
   return bestScore;
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
+    // Auth check
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: claims, error: authErr } = await supabase.auth.getClaims(authHeader.replace('Bearer ', ''));
+    if (authErr || !claims?.claims) {
+      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { url } = await req.json();
-    if (!url || !url.includes('docs.google.com/spreadsheets')) {
+    if (!url || typeof url !== 'string' || !url.includes('docs.google.com/spreadsheets')) {
       return new Response(JSON.stringify({ success: false, error: 'URL inválida. Use um link de planilha Google.' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Validate URL length
+    if (url.length > 500) {
+      return new Response(JSON.stringify({ success: false, error: 'URL muito longa.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -116,8 +127,6 @@ serve(async (req) => {
 
     const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
     
-    console.log('Fetching CSV from:', csvUrl);
-    
     const response = await fetch(csvUrl);
     if (!response.ok) {
       return new Response(JSON.stringify({ success: false, error: 'Não foi possível acessar a planilha. Verifique se ela está compartilhada como "Qualquer pessoa com o link".' }), {
@@ -126,12 +135,7 @@ serve(async (req) => {
     }
 
     const csvText = await response.text();
-    console.log('CSV text length:', csvText.length);
-    console.log('CSV first 500 chars:', csvText.substring(0, 500));
-    
     const rows = parseCSV(csvText);
-    
-    console.log('Total rows parsed:', rows.length);
     
     if (rows.length < 2) {
       return new Response(JSON.stringify({ success: false, error: 'Planilha vazia ou sem dados.' }), {
@@ -139,8 +143,6 @@ serve(async (req) => {
       });
     }
 
-    // Try to find the header row - it might not be the first row
-    // Look for a row that has recognizable column names
     let headerRowIdx = 0;
     const allFieldAliases = [
       'razao social', 'razão social', 'empresa', 'cliente', 'nome', 'company',
@@ -163,18 +165,14 @@ serve(async (req) => {
           matchCount++;
         }
       }
-      console.log(`Row ${i} match count: ${matchCount}, cells: ${JSON.stringify(rows[i])}`);
-      if (matchCount >= 2 && matchCount > 0) {
+      if (matchCount >= 2) {
         headerRowIdx = i;
         break;
       }
     }
     
     const headers = rows[headerRowIdx];
-    console.log('Using header row index:', headerRowIdx);
-    console.log('Headers found:', JSON.stringify(headers));
 
-    // Extended aliases for better matching - ordered by priority
     const fieldMap: Record<string, string[]> = {
       company_name: ['razao social', 'razão social', 'empresa', 'company_name', 'nome da empresa', 'nome empresa', 'cliente', 'company', 'nome fantasia', 'nome', 'razao', 'razão', 'name', 'nome razao social', 'fantasia'],
       cpf_cnpj: ['cpf cnpj', 'cpf/cnpj', 'cpf_cnpj', 'cnpj', 'cpf', 'documento', 'cnpj cpf', 'doc', 'cnpj/cpf'],
@@ -193,11 +191,9 @@ serve(async (req) => {
       notes: ['observações', 'observacoes', 'obs', 'notes', 'notas', 'observação', 'nota', 'info', 'informacoes', 'informações'],
     };
 
-    // Find column indices using scored matching to avoid conflicts
     const colMap: Record<string, number> = {};
     const usedColumns = new Set<number>();
     
-    // First pass: exact matches (highest priority)
     for (const [field, aliases] of Object.entries(fieldMap)) {
       for (let idx = 0; idx < headers.length; idx++) {
         if (usedColumns.has(idx)) continue;
@@ -210,7 +206,6 @@ serve(async (req) => {
       }
     }
     
-    // Second pass: partial matches for fields not yet matched
     for (const [field, aliases] of Object.entries(fieldMap)) {
       if (colMap[field] !== undefined) continue;
       
@@ -232,7 +227,6 @@ serve(async (req) => {
       }
     }
 
-    // Fallback: if no company_name found, try first non-empty text column
     if (colMap.company_name === undefined) {
       for (let idx = 0; idx < headers.length; idx++) {
         if (!usedColumns.has(idx) && headers[idx].trim()) {
@@ -246,13 +240,10 @@ serve(async (req) => {
       }
     }
 
-    // Debug: return matched columns info
     const matchedColumns: Record<string, string> = {};
     for (const [field, idx] of Object.entries(colMap)) {
       matchedColumns[field] = `[${idx}] ${headers[idx]}`;
     }
-    
-    console.log('Column mapping:', JSON.stringify(matchedColumns));
 
     const clients = [];
     const dataStartIdx = headerRowIdx + 1;
@@ -272,12 +263,6 @@ serve(async (req) => {
       }
     }
 
-    // Log sample client for debugging
-    if (clients.length > 0) {
-      console.log('Sample client (first):', JSON.stringify(clients[0]));
-      console.log('Sample client fields:', Object.keys(clients[0]).join(', '));
-    }
-
     return new Response(JSON.stringify({ 
       success: true, 
       clients, 
@@ -289,8 +274,8 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Import error:', error.message, error.stack);
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
+    console.error('Import error:', error);
+    return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

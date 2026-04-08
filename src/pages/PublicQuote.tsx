@@ -11,7 +11,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-const anonClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -23,6 +22,15 @@ export default function PublicQuote() {
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [error, setError] = useState('');
+
+  // Create a client that sends the token in custom header for RLS verification
+  const anonClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    global: {
+      headers: {
+        'x-quote-token': token || '',
+      },
+    },
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -76,7 +84,6 @@ export default function PublicQuote() {
     <div className="min-h-screen bg-background p-4 md:p-8">
       <Sonner />
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
         <div className="text-center mb-8">
           <img src="/mci-logo.png" alt="MCI Store" className="h-12 mx-auto mb-4" />
           <h1 className="text-2xl font-bold font-display">Orçamento {quote.quote_number}</h1>
@@ -92,7 +99,6 @@ export default function PublicQuote() {
           )}
         </div>
 
-        {/* Client Info */}
         <Card>
           <CardHeader><CardTitle className="text-lg">Informações</CardTitle></CardHeader>
           <CardContent>
@@ -105,7 +111,6 @@ export default function PublicQuote() {
           </CardContent>
         </Card>
 
-        {/* Items */}
         <Card>
           <CardHeader><CardTitle className="text-lg">Itens do Orçamento</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
@@ -150,7 +155,6 @@ export default function PublicQuote() {
           </CardContent>
         </Card>
 
-        {/* Notes */}
         {quote.notes && (
           <Card>
             <CardHeader><CardTitle className="text-lg">Observações</CardTitle></CardHeader>
@@ -158,7 +162,6 @@ export default function PublicQuote() {
           </Card>
         )}
 
-        {/* Action Buttons */}
         {!alreadyActed && (
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
             <Button

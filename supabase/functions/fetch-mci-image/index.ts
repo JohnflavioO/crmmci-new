@@ -1,3 +1,5 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -24,36 +26,23 @@ async function searchMCI(query: string): Promise<{ imageUrl: string; matchedName
     if (!response.ok) return null;
     const html = await response.text();
 
-    console.log(`Search query: "${query}", HTML length: ${html.length}`);
-
-    // Strategy: split HTML by listagem-item divs, then extract from each
     const parts = html.split(/class="listagem-item/);
-    console.log(`Found ${parts.length - 1} listagem-item sections`);
-
     if (parts.length <= 1) return null;
 
     for (let i = 1; i < parts.length; i++) {
-      const section = parts[i].substring(0, 3000); // Limit section size
-
-      // Extract name
+      const section = parts[i].substring(0, 3000);
       const nameMatch = section.match(/class="[^"]*nome-produto[^"]*"[^>]*>([^<]+)/);
       if (!nameMatch) continue;
       const name = nameMatch[1].trim();
 
-      // Extract image - try src first, then data-imagem-caminho, then any cdn.awsli image
       let imgUrl = '';
       const srcMatch = section.match(/imagem-principal[^>]*\ssrc="(https:\/\/cdn\.awsli[^"]+)"/);
       const dataMatch = section.match(/data-imagem-caminho="(https:\/\/cdn\.awsli[^"]+)"/);
       const anySrc = section.match(/src="(https:\/\/cdn\.awsli\.com\.br\/\d+x\d+\/[^"]+)"/);
-      
       imgUrl = srcMatch?.[1] || dataMatch?.[1] || anySrc?.[1] || '';
 
       if (!imgUrl) continue;
-
-      // Upgrade to higher res
       imgUrl = imgUrl.replace(/\/\d+x\d+\//, '/600x600/');
-      
-      console.log(`Match found: "${name}" -> ${imgUrl}`);
       return { imageUrl: imgUrl, matchedName: name };
     }
 
@@ -70,6 +59,25 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Auth check
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: claims, error: authErr } = await supabase.auth.getClaims(authHeader.replace('Bearer ', ''));
+    if (authErr || !claims?.claims) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { products } = await req.json() as { products: ProductQuery[] };
 
     if (!products || !Array.isArray(products) || products.length === 0) {
@@ -84,12 +92,10 @@ Deno.serve(async (req) => {
     for (const product of batch) {
       let result: { imageUrl: string; matchedName: string } | null = null;
 
-      // 1. Try by code
       if (product.code && product.code !== '-' && product.code.length > 1) {
         result = await searchMCI(product.code);
       }
 
-      // 2. Try by product name (first 5-6 meaningful words)
       if (!result) {
         const cleanName = product.name
           .replace(/\([^)]*\)/g, '')
@@ -100,7 +106,6 @@ Deno.serve(async (req) => {
         result = await searchMCI(cleanName);
       }
 
-      // 3. Try brand + short name
       if (!result && product.brand) {
         const shortName = product.name.split(/\s+/).slice(0, 3).join(' ');
         result = await searchMCI(`${product.brand} ${shortName}`);
@@ -112,7 +117,6 @@ Deno.serve(async (req) => {
         matched_name: result?.matchedName || '',
       });
 
-      // Small delay
       if (batch.indexOf(product) < batch.length - 1) {
         await new Promise(r => setTimeout(r, 300));
       }
@@ -123,7 +127,7 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
