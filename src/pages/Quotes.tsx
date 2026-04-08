@@ -64,11 +64,13 @@ const shippingMethods = [
 ];
 
 export default function Quotes() {
-  const { user, profile } = useAuth();
+  const { user, profile, isGestor, isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const [quotes, setQuotes] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [responsibleFilter, setResponsibleFilter] = useState('me');
+  const [sellerProfiles, setSellerProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<any | null>(null);
   const [form, setForm] = useState({
