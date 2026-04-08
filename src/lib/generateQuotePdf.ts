@@ -9,7 +9,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   const fmt = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-  // Load logo
+  // Load logo (compressed JPEG for smaller file size)
   try {
     const logoImg = new Image();
     logoImg.crossOrigin = 'anonymous';
@@ -19,12 +19,21 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       logoImg.src = '/mci-logo-quote.png';
     });
     const canvas = document.createElement('canvas');
-    canvas.width = logoImg.naturalWidth;
-    canvas.height = logoImg.naturalHeight;
+    // Resize logo to max 120px for smaller PDF
+    const logoMax = 120;
+    let lw = logoImg.naturalWidth;
+    let lh = logoImg.naturalHeight;
+    if (lw > logoMax || lh > logoMax) {
+      const r = Math.min(logoMax / lw, logoMax / lh);
+      lw = Math.round(lw * r);
+      lh = Math.round(lh * r);
+    }
+    canvas.width = lw;
+    canvas.height = lh;
     const ctx = canvas.getContext('2d')!;
-    ctx.drawImage(logoImg, 0, 0);
-    const logoData = canvas.toDataURL('image/png');
-    doc.addImage(logoData, 'PNG', margin, y, 22, 16);
+    ctx.drawImage(logoImg, 0, 0, lw, lh);
+    const logoData = canvas.toDataURL('image/jpeg', 0.7);
+    doc.addImage(logoData, 'JPEG', margin, y, 22, 16);
   } catch { /* logo not available, skip */ }
 
   // Header bar
@@ -146,8 +155,8 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
           img.onerror = () => reject();
           img.src = item.image_url;
         });
-        // Resize to small thumbnail for PDF (max 80px)
-        const maxSize = 80;
+        // Resize to tiny thumbnail for PDF (max 50px) with heavy JPEG compression
+        const maxSize = 50;
         let w = img.naturalWidth;
         let h = img.naturalHeight;
         if (w > maxSize || h > maxSize) {
@@ -160,7 +169,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
         c.height = h;
         const ctx2 = c.getContext('2d')!;
         ctx2.drawImage(img, 0, 0, w, h);
-        itemImages[i] = c.toDataURL('image/jpeg', 0.4);
+        itemImages[i] = c.toDataURL('image/jpeg', 0.3);
       } catch { /* skip */ }
     })
   );
