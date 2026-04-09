@@ -324,9 +324,18 @@ export default function Quotes() {
     }
   };
 
+  const getDefaultSalesperson = () => {
+    if (!isAdmin && !isGestor && profile?.full_name) {
+      // Try to match with salespeople list, otherwise use profile name
+      const match = salespeople.find((s: any) => s.name?.toLowerCase() === profile.full_name.toLowerCase());
+      return match?.name || profile.full_name;
+    }
+    return '';
+  };
+
   const resetForm = () => {
     setEditingQuote(null);
-    setForm({ client_id: '', salesperson: '', status: 'draft', notes: '', payment_terms: '', shipping_deadline: '', shipping_method: '', shipping_cost: 0, proposal_validity: '15 dias', payment_method: '', payment_status: 'pendente' });
+    setForm({ client_id: '', salesperson: getDefaultSalesperson(), status: 'draft', notes: '', payment_terms: '', shipping_deadline: '', shipping_method: '', shipping_cost: 0, proposal_validity: '15 dias', payment_method: '', payment_status: 'pendente' });
     setItems([emptyItem()]);
   };
 
@@ -351,7 +360,14 @@ export default function Quotes() {
           <h1 className="text-xl md:text-2xl font-bold font-display">Orçamentos</h1>
           <p className="text-muted-foreground text-sm">Crie e gerencie seus orçamentos</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
+        <Dialog open={dialogOpen} onOpenChange={(o) => { 
+          if (o && !editingQuote) {
+            // Opening for new quote - set default salesperson
+            setForm(prev => ({ ...prev, salesperson: prev.salesperson || getDefaultSalesperson() }));
+          }
+          setDialogOpen(o); 
+          if (!o) resetForm(); 
+        }}>
           <DialogTrigger asChild>
             <Button className="gap-2 w-full sm:w-auto min-h-[44px]"><Plus className="h-4 w-4" /> Novo Orçamento</Button>
           </DialogTrigger>
