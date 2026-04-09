@@ -55,6 +55,7 @@ const paymentMethodConfig: Record<string, { label: string; icon: any; color: str
 export default function Financial() {
   const { user, isFinanceiro, profile } = useAuth();
   const isMobile = useIsMobile();
+  const [searchParams] = useSearchParams();
   const [records, setRecords] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -66,6 +67,18 @@ export default function Financial() {
   const [filterPriority, setFilterPriority] = useState('all');
   const [viewMode, setViewMode] = useState<'grouped' | 'list'>('grouped');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'baixas' | 'pendencias' | 'relatorios'>('dashboard');
+
+  // Sync tab from URL params
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const priority = searchParams.get('priority');
+    if (tab && ['dashboard', 'baixas', 'pendencias', 'relatorios'].includes(tab)) {
+      setActiveTab(tab as any);
+    }
+    if (priority) {
+      setFilterPriority(priority);
+    }
+  }, [searchParams]);
 
   // Dialog states
   const [baixaRecord, setBaixaRecord] = useState<any>(null);
