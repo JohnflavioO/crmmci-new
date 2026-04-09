@@ -420,14 +420,18 @@ export default function Quotes() {
                 </div>
                 <div className="space-y-2">
                   <Label>Vendedor</Label>
-                  <Select value={form.salesperson} onValueChange={v => setForm(p => ({ ...p, salesperson: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Selecionar vendedor" /></SelectTrigger>
-                    <SelectContent>
-                      {salespeople.map((s: any) => (
-                        <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {!isAdmin && !isGestor && form.salesperson ? (
+                    <Input value={form.salesperson} readOnly className="bg-muted" />
+                  ) : (
+                    <Select value={form.salesperson} onValueChange={v => setForm(p => ({ ...p, salesperson: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Selecionar vendedor" /></SelectTrigger>
+                      <SelectContent>
+                        {salespeople.map((s: any) => (
+                          <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Status</Label>
