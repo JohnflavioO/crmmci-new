@@ -71,7 +71,7 @@ export default function AppSidebar({ onNavigate }: Props) {
 
         <LinkItem to="/ecoflow" icon={Calculator} label="Calculadora Ecoflow" />
 
-        {(isAdmin || isGestor || isFinanceiro) && (
+        {(isGestor || isFinanceiro) && (
           <>
             <div className="pt-4 pb-2 px-3">
               <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Financeiro</p>
