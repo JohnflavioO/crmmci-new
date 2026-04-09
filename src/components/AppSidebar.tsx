@@ -1,7 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake, Plug, Banknote,
+  LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake, Plug,
   Clock, ArrowDownCircle, AlertTriangle, FileBarChart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -31,7 +31,7 @@ interface Props {
 }
 
 export default function AppSidebar({ onNavigate }: Props) {
-  const { profile, isAdmin, isGestor, isFinanceiro, signOut } = useAuth();
+  const { isAdmin, isGestor, isFinanceiro, signOut } = useAuth();
   const location = useLocation();
 
   // Financeiro-only user (not admin, not gestor)
