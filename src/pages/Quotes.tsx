@@ -818,7 +818,16 @@ export default function Quotes() {
                   const PsIcon = ps.icon;
                   return (
                   <TableRow key={q.id}>
-                    <TableCell className="font-medium">{q.quote_number}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-1.5">
+                        {q.quote_number}
+                        {q.is_reseller && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-orange-100 text-orange-800 border border-orange-200">
+                            <Store className="h-2.5 w-2.5" /> Revenda
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>{q.clients?.company_name || '-'}</TableCell>
                     <TableCell>{new Date(q.quote_date).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell>
