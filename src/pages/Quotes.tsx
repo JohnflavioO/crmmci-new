@@ -8,15 +8,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift, Store } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift, Store, CalendarIcon, SplitSquareVertical } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 const db = supabase as any;
 
@@ -36,6 +41,8 @@ const paymentStatusLabels: Record<string, { label: string; icon: any; className:
   em_andamento: { label: 'Em andamento', icon: CircleDot, className: 'bg-blue-100 text-blue-800 border-blue-200' },
   liquidado: { label: 'Liquidado', icon: CheckCircle2, className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
 };
+
+const installmentOptions = Array.from({ length: 10 }, (_, i) => i + 1);
 
 interface QuoteItem {
   id?: string;
@@ -65,6 +72,75 @@ const shippingMethods = [
   { value: 'transportadora', label: 'Transportadora' },
 ];
 
+const defaultForm = {
+  client_id: '', salesperson: '', status: 'draft', notes: '',
+  payment_terms: '', shipping_deadline: '', shipping_method: '',
+  shipping_cost: 0, proposal_validity: '15 dias',
+  payment_method: '', payment_status: 'pendente',
+  is_reseller: false,
+  payment_date: '' as string,
+  installments: 1,
+  is_split_payment: false,
+  split_method_1: '',
+  split_value_1: 0,
+  split_date_1: '' as string,
+  split_installments_1: 1,
+  split_method_2: '',
+  split_value_2: 0,
+  split_date_2: '' as string,
+  split_installments_2: 1,
+};
+
+function PaymentMethodFields({ method, date, onDateChange, installments, onInstallmentsChange, label }: {
+  method: string;
+  date: string;
+  onDateChange: (v: string) => void;
+  installments: number;
+  onInstallmentsChange: (v: number) => void;
+  label?: string;
+}) {
+  if (method === 'pix') {
+    return (
+      <div className="space-y-2">
+        <Label className="text-xs">{label || 'Data do Pagamento'}</Label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}>
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {date ? format(new Date(date + 'T12:00:00'), "dd/MM/yyyy") : 'Selecionar data'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={date ? new Date(date + 'T12:00:00') : undefined}
+              onSelect={(d) => onDateChange(d ? format(d, 'yyyy-MM-dd') : '')}
+              locale={ptBR}
+              className="p-3 pointer-events-auto"
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+    );
+  }
+  if (method === 'boleto' || method === 'cartao') {
+    return (
+      <div className="space-y-2">
+        <Label className="text-xs">Parcelas</Label>
+        <Select value={String(installments)} onValueChange={v => onInstallmentsChange(parseInt(v))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {installmentOptions.map(n => (
+              <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }
+  return null;
+}
+
 export default function Quotes() {
   const { user, profile, isGestor, isAdmin } = useAuth();
   const isMobile = useIsMobile();
@@ -75,13 +151,7 @@ export default function Quotes() {
   const [sellerProfiles, setSellerProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<any | null>(null);
-  const [form, setForm] = useState({
-    client_id: '', salesperson: '', status: 'draft', notes: '',
-    payment_terms: '', shipping_deadline: '', shipping_method: '',
-    shipping_cost: 0, proposal_validity: '15 dias',
-    payment_method: '', payment_status: 'pendente',
-    is_reseller: false,
-  });
+  const [form, setForm] = useState({ ...defaultForm });
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
   const [salespeople, setSalespeople] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -102,7 +172,6 @@ export default function Quotes() {
       setSalespeople(s.data || []);
       setProducts(p.data || []);
 
-      // Load seller profiles for gestor filter
       if (isGestor && !isAdmin) {
         const { data: profiles } = await db.from('profiles').select('user_id, full_name').eq('active', true).eq('commercial_visible', true);
         setSellerProfiles((profiles || []).filter((p: any) => p.full_name));
@@ -166,23 +235,72 @@ export default function Quotes() {
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
+  // Validate payment fields for approval
+  const validatePaymentForApproval = (): string | null => {
+    if (!form.payment_method && !form.is_split_payment) {
+      return 'Selecione o método de pagamento.';
+    }
+
+    if (form.is_split_payment) {
+      if (!form.split_method_1) return 'Selecione o método 1 do pagamento misto.';
+      if (!form.split_method_2) return 'Selecione o método 2 do pagamento misto.';
+      if (form.split_value_1 <= 0) return 'Informe o valor do método 1.';
+      if (form.split_value_2 <= 0) return 'Informe o valor do método 2.';
+
+      const sumSplit = form.split_value_1 + form.split_value_2;
+      if (Math.abs(sumSplit - grandTotal) > 0.01) {
+        return `A soma dos valores do pagamento misto (${formatCurrency(sumSplit)}) não corresponde ao total do orçamento (${formatCurrency(grandTotal)}).`;
+      }
+
+      if (form.split_method_1 === 'pix' && !form.split_date_1) return 'Informe a data do pagamento PIX (método 1).';
+      if (form.split_method_2 === 'pix' && !form.split_date_2) return 'Informe a data do pagamento PIX (método 2).';
+    } else {
+      if (form.payment_method === 'pix' && !form.payment_date) {
+        return 'Informe a data do pagamento PIX.';
+      }
+    }
+
+    return null;
+  };
+
   const handleSave = async () => {
     if (!form.client_id) { toast.error('Selecione um cliente'); return; }
     if (items.every(i => !i.model)) { toast.error('Adicione pelo menos um item'); return; }
 
+    // Validate payment if approving
+    if (form.status === 'approved') {
+      const paymentError = validatePaymentForApproval();
+      if (paymentError) {
+        toast.error('Para aprovar este orçamento, preencha corretamente os dados de pagamento.', { description: paymentError });
+        return;
+      }
+    }
+
     try {
       let quoteId: string;
-      // Find salesperson_id from salespeople list
       const matchedSeller = salespeople.find((s: any) => s.name === form.salesperson);
-      const quoteData = {
+      
+      const quoteData: any = {
         client_id: form.client_id, salesperson: form.salesperson, status: form.status,
         salesperson_id: matchedSeller?.id || user?.id || null,
         notes: form.notes, total_amount: grandTotal,
         payment_terms: form.payment_terms, shipping_deadline: form.shipping_deadline,
         shipping_method: form.shipping_method, shipping_cost: form.shipping_cost,
         proposal_validity: form.proposal_validity,
-        payment_method: form.payment_method || null, payment_status: form.payment_status,
+        payment_method: form.is_split_payment ? null : (form.payment_method || null),
+        payment_status: form.payment_status,
         is_reseller: form.is_reseller,
+        payment_date: (!form.is_split_payment && form.payment_method === 'pix' && form.payment_date) ? form.payment_date : null,
+        installments: (!form.is_split_payment && (form.payment_method === 'boleto' || form.payment_method === 'cartao')) ? form.installments : 1,
+        is_split_payment: form.is_split_payment,
+        split_method_1: form.is_split_payment ? (form.split_method_1 || null) : null,
+        split_value_1: form.is_split_payment ? form.split_value_1 : 0,
+        split_date_1: form.is_split_payment && form.split_method_1 === 'pix' && form.split_date_1 ? form.split_date_1 : null,
+        split_installments_1: form.is_split_payment && (form.split_method_1 === 'boleto' || form.split_method_1 === 'cartao') ? form.split_installments_1 : 1,
+        split_method_2: form.is_split_payment ? (form.split_method_2 || null) : null,
+        split_value_2: form.is_split_payment ? form.split_value_2 : 0,
+        split_date_2: form.is_split_payment && form.split_method_2 === 'pix' && form.split_date_2 ? form.split_date_2 : null,
+        split_installments_2: form.is_split_payment && (form.split_method_2 === 'boleto' || form.split_method_2 === 'cartao') ? form.split_installments_2 : 1,
       };
 
       if (editingQuote) {
@@ -204,7 +322,7 @@ export default function Quotes() {
       const validItems = items.filter(i => i.model).map((item, idx) => ({
         quote_id: quoteId, item_number: idx + 1, product_code: item.product_code,
         quantity: item.quantity, model: item.model, brand: item.brand,
-        specifications: item.specifications, unit_price: item.is_gift ? item.unit_price : item.unit_price,
+        specifications: item.specifications, unit_price: item.unit_price,
         discount_percent: item.discount_percent, unit_total: item.unit_total,
         line_total: item.line_total, image_url: item.image_url, is_gift: item.is_gift,
       }));
@@ -235,6 +353,17 @@ export default function Quotes() {
       proposal_validity: quote.proposal_validity || '15 dias',
       payment_method: quote.payment_method || '', payment_status: quote.payment_status || 'pendente',
       is_reseller: quote.is_reseller || false,
+      payment_date: quote.payment_date || '',
+      installments: quote.installments || 1,
+      is_split_payment: quote.is_split_payment || false,
+      split_method_1: quote.split_method_1 || '',
+      split_value_1: parseFloat(quote.split_value_1) || 0,
+      split_date_1: quote.split_date_1 || '',
+      split_installments_1: quote.split_installments_1 || 1,
+      split_method_2: quote.split_method_2 || '',
+      split_value_2: parseFloat(quote.split_value_2) || 0,
+      split_date_2: quote.split_date_2 || '',
+      split_installments_2: quote.split_installments_2 || 1,
     });
     setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
     setDialogOpen(true);
@@ -261,6 +390,17 @@ export default function Quotes() {
         payment_status: 'pendente', total_amount: quote.total_amount, total: quote.total,
         discount: quote.discount, quote_number: numData || `ORC-${Date.now()}`,
         created_by: user?.id, is_reseller: quote.is_reseller || false,
+        payment_date: quote.payment_date || null,
+        installments: quote.installments || 1,
+        is_split_payment: quote.is_split_payment || false,
+        split_method_1: quote.split_method_1 || null,
+        split_value_1: quote.split_value_1 || 0,
+        split_date_1: quote.split_date_1 || null,
+        split_installments_1: quote.split_installments_1 || 1,
+        split_method_2: quote.split_method_2 || null,
+        split_value_2: quote.split_value_2 || 0,
+        split_date_2: quote.split_date_2 || null,
+        split_installments_2: quote.split_installments_2 || 1,
       }).select('id').single();
       if (error) throw error;
       if (qItems?.length > 0) {
@@ -279,6 +419,7 @@ export default function Quotes() {
       toast.error('Erro ao duplicar: ' + err.message);
     }
   };
+
   const handleCopyPublicLink = (quote: any) => {
     const baseUrl = window.location.origin;
     const link = `${baseUrl}/quote/${quote.public_token}`;
@@ -306,23 +447,13 @@ export default function Quotes() {
     setWhatsappLoading(quote.id);
     try {
       const { data: clientData } = await db.from('clients').select('*').eq('id', quote.client_id).maybeSingle();
-
       const phone = quote.clients.phone.replace(/\D/g, '');
       const clientName = clientData?.company_name || clientData?.name || 'Cliente';
       const total = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(quote.total_amount) || 0);
-
-      // Link público limpo usando a rota /quote/:token
       const publicLink = `${window.location.origin}/quote/${quote.public_token}`;
-
-      // Nome do vendedor logado
       const sellerName = profile?.full_name || '';
-
       let message = `Olá ${clientName}! 👋\n\nPreparei seu orçamento:\n\n📋 *${quote.quote_number}*\n💰 Valor: *${total}*\n\n📄 Ver proposta: ${publicLink}\n\nSe precisar de ajustes ou tiver dúvidas, estou à disposição 🙂`;
-
-      if (sellerName) {
-        message += `\n\nAtenciosamente,\n*${sellerName}*`;
-      }
-
+      if (sellerName) message += `\n\nAtenciosamente,\n*${sellerName}*`;
       window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
     } catch (err: any) {
       toast.error('Erro ao preparar WhatsApp: ' + err.message);
@@ -334,13 +465,11 @@ export default function Quotes() {
   const getDefaultSalesperson = useCallback(() => {
     if (!profile?.full_name) return '';
     if (salespeople.length > 0) {
-      // Try exact match first, then case-insensitive
       const exact = salespeople.find((s: any) => s.name === profile.full_name);
       if (exact) return exact.name;
       const match = salespeople.find((s: any) => s.name?.toLowerCase().trim() === profile.full_name.toLowerCase().trim());
       if (match) return match.name;
-      // Try partial match (first+last name)
-      const partial = salespeople.find((s: any) => 
+      const partial = salespeople.find((s: any) =>
         s.name?.toLowerCase().includes(profile.full_name.toLowerCase()) ||
         profile.full_name.toLowerCase().includes(s.name?.toLowerCase())
       );
@@ -349,7 +478,6 @@ export default function Quotes() {
     return profile.full_name;
   }, [profile?.full_name, salespeople]);
 
-  // Auto-set salesperson when profile/salespeople load
   useEffect(() => {
     if (!editingQuote) {
       const defaultSp = getDefaultSalesperson();
@@ -365,12 +493,11 @@ export default function Quotes() {
   const resetForm = () => {
     setEditingQuote(null);
     const defaultSp = getDefaultSalesperson();
-    setForm({ client_id: '', salesperson: defaultSp, status: 'draft', notes: '', payment_terms: '', shipping_deadline: '', shipping_method: '', shipping_cost: 0, proposal_validity: '15 dias', payment_method: '', payment_status: 'pendente', is_reseller: false });
+    setForm({ ...defaultForm, salesperson: defaultSp });
     setItems([emptyItem()]);
   };
 
   const filtered = quotes.filter((q: any) => {
-    // Gestor responsible filter (not admin - admin sees all)
     if (isGestor && !isAdmin) {
       if (responsibleFilter === 'me') {
         if (q.created_by !== user?.id) return false;
@@ -378,10 +505,32 @@ export default function Quotes() {
         if (q.created_by !== responsibleFilter) return false;
       }
     }
-    // Search filter
     return q.quote_number?.toLowerCase().includes(search.toLowerCase()) ||
       q.clients?.company_name?.toLowerCase().includes(search.toLowerCase());
   });
+
+  // Helper to render split payment summary for listings
+  const renderPaymentInfo = (q: any) => {
+    if (q.is_split_payment) {
+      const m1 = paymentMethodLabels[q.split_method_1];
+      const m2 = paymentMethodLabels[q.split_method_2];
+      return (
+        <span className="inline-flex items-center gap-1 text-xs">
+          <SplitSquareVertical className="h-3 w-3 text-primary" />
+          {m1?.label || '?'} + {m2?.label || '?'}
+        </span>
+      );
+    }
+    const pm = paymentMethodLabels[q.payment_method];
+    if (!pm) return <span className="text-muted-foreground text-xs">—</span>;
+    const PmIcon = pm.icon;
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-muted border border-border">
+        <PmIcon className="h-3 w-3" /> {pm.label}
+        {q.installments > 1 && ` ${q.installments}x`}
+      </span>
+    );
+  };
 
   return (
     <AppLayout>
@@ -390,13 +539,12 @@ export default function Quotes() {
           <h1 className="text-xl md:text-2xl font-bold font-display">Orçamentos</h1>
           <p className="text-muted-foreground text-sm">Crie e gerencie seus orçamentos</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { 
+        <Dialog open={dialogOpen} onOpenChange={(o) => {
           if (o && !editingQuote) {
-            // Opening for new quote - set default salesperson
             setForm(prev => ({ ...prev, salesperson: prev.salesperson || getDefaultSalesperson() }));
           }
-          setDialogOpen(o); 
-          if (!o) resetForm(); 
+          setDialogOpen(o);
+          if (!o) resetForm();
         }}>
           <DialogTrigger asChild>
             <Button className="gap-2 w-full sm:w-auto min-h-[44px]"><Plus className="h-4 w-4" /> Novo Orçamento</Button>
@@ -408,7 +556,6 @@ export default function Quotes() {
               </DialogTitle>
             </DialogHeader>
 
-            {/* MCI Header */}
             <QuoteHeader />
 
             <div className="space-y-6 mt-4">
@@ -461,38 +608,180 @@ export default function Quotes() {
                 </div>
               </div>
 
-              {/* Payment & Shipping */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg border bg-muted/20">
-                <div className="space-y-2">
-                  <Label>Condições de Pagamento</Label>
-                  <Input
-                    value={form.payment_terms}
-                    onChange={e => setForm(p => ({ ...p, payment_terms: e.target.value }))}
-                    placeholder="Ex: 30/60/90 dias, à vista, etc."
-                  />
+              {/* Payment Block - reorganized */}
+              <div className="space-y-4 p-4 rounded-lg border bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Pagamento</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="split-payment" className="text-xs text-muted-foreground cursor-pointer">Pagamento em dois métodos</Label>
+                    <Switch
+                      id="split-payment"
+                      checked={form.is_split_payment}
+                      onCheckedChange={(checked) => setForm(p => ({
+                        ...p,
+                        is_split_payment: checked,
+                        // Reset single payment when enabling split
+                        ...(checked ? { payment_method: '', payment_date: '', installments: 1 } : { split_method_1: '', split_method_2: '', split_value_1: 0, split_value_2: 0, split_date_1: '', split_date_2: '', split_installments_1: 1, split_installments_2: 1 }),
+                      }))}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Método de Pagamento</Label>
-                  <Select value={form.payment_method} onValueChange={v => setForm(p => ({ ...p, payment_method: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Selecionar método" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pix">PIX</SelectItem>
-                      <SelectItem value="cartao">Cartão</SelectItem>
-                      <SelectItem value="boleto">Boleto</SelectItem>
-                    </SelectContent>
-                  </Select>
+
+                {!form.is_split_payment ? (
+                  /* Single payment mode */
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs">Método de Pagamento</Label>
+                      <Select value={form.payment_method} onValueChange={v => setForm(p => ({ ...p, payment_method: v, payment_date: '', installments: 1 }))}>
+                        <SelectTrigger><SelectValue placeholder="Selecionar método" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pix">PIX</SelectItem>
+                          <SelectItem value="cartao">Cartão</SelectItem>
+                          <SelectItem value="boleto">Boleto</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {form.payment_method && (
+                      <PaymentMethodFields
+                        method={form.payment_method}
+                        date={form.payment_date}
+                        onDateChange={v => setForm(p => ({ ...p, payment_date: v }))}
+                        installments={form.installments}
+                        onInstallmentsChange={v => setForm(p => ({ ...p, installments: v }))}
+                      />
+                    )}
+
+                    <div className="space-y-2">
+                      <Label className="text-xs">Condições de Pagamento</Label>
+                      <Input
+                        value={form.payment_terms}
+                        onChange={e => setForm(p => ({ ...p, payment_terms: e.target.value }))}
+                        placeholder="Ex: à vista, entrada + saldo, etc."
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  /* Split payment mode */
+                  <div className="space-y-4">
+                    {/* Method 1 */}
+                    <div className="p-3 rounded-md border bg-background space-y-3">
+                      <Label className="text-xs font-semibold text-primary">Método 1 — Entrada</Label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Método</Label>
+                          <Select value={form.split_method_1} onValueChange={v => setForm(p => ({ ...p, split_method_1: v, split_date_1: '', split_installments_1: 1 }))}>
+                            <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pix">PIX</SelectItem>
+                              <SelectItem value="cartao">Cartão</SelectItem>
+                              <SelectItem value="boleto">Boleto</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Valor (R$)</Label>
+                          <Input type="number" step="0.01" min={0}
+                            value={form.split_value_1}
+                            onChange={e => {
+                              const v = parseFloat(e.target.value) || 0;
+                              setForm(p => ({ ...p, split_value_1: v, split_value_2: Math.max(0, Math.round((grandTotal - v) * 100) / 100) }));
+                            }}
+                            placeholder="0,00"
+                          />
+                        </div>
+                        {form.split_method_1 && (
+                          <PaymentMethodFields
+                            method={form.split_method_1}
+                            date={form.split_date_1}
+                            onDateChange={v => setForm(p => ({ ...p, split_date_1: v }))}
+                            installments={form.split_installments_1}
+                            onInstallmentsChange={v => setForm(p => ({ ...p, split_installments_1: v }))}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Method 2 */}
+                    <div className="p-3 rounded-md border bg-background space-y-3">
+                      <Label className="text-xs font-semibold text-primary">Método 2 — Restante</Label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Método</Label>
+                          <Select value={form.split_method_2} onValueChange={v => setForm(p => ({ ...p, split_method_2: v, split_date_2: '', split_installments_2: 1 }))}>
+                            <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pix">PIX</SelectItem>
+                              <SelectItem value="cartao">Cartão</SelectItem>
+                              <SelectItem value="boleto">Boleto</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Valor (R$)</Label>
+                          <Input type="number" step="0.01" min={0}
+                            value={form.split_value_2}
+                            onChange={e => {
+                              const v = parseFloat(e.target.value) || 0;
+                              setForm(p => ({ ...p, split_value_2: v }));
+                            }}
+                            placeholder="0,00"
+                          />
+                        </div>
+                        {form.split_method_2 && (
+                          <PaymentMethodFields
+                            method={form.split_method_2}
+                            date={form.split_date_2}
+                            onDateChange={v => setForm(p => ({ ...p, split_date_2: v }))}
+                            installments={form.split_installments_2}
+                            onInstallmentsChange={v => setForm(p => ({ ...p, split_installments_2: v }))}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Split summary */}
+                    {form.split_value_1 > 0 || form.split_value_2 > 0 ? (
+                      <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
+                        Método 1: {formatCurrency(form.split_value_1)} + Método 2: {formatCurrency(form.split_value_2)} = {formatCurrency(form.split_value_1 + form.split_value_2)}
+                        {Math.abs((form.split_value_1 + form.split_value_2) - grandTotal) > 0.01 && (
+                          <span className="text-destructive ml-2 font-medium">
+                            (Diferença de {formatCurrency(Math.abs((form.split_value_1 + form.split_value_2) - grandTotal))} em relação ao total)
+                          </span>
+                        )}
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-2">
+                      <Label className="text-xs">Condições de Pagamento</Label>
+                      <Input
+                        value={form.payment_terms}
+                        onChange={e => setForm(p => ({ ...p, payment_terms: e.target.value }))}
+                        placeholder="Ex: entrada PIX + restante em 3x cartão"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment Status */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Status do Pagamento</Label>
+                    <Select value={form.payment_status} onValueChange={v => setForm(p => ({ ...p, payment_status: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Selecionar status" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pendente">Pendente</SelectItem>
+                        <SelectItem value="em_andamento">Em andamento</SelectItem>
+                        <SelectItem value="liquidado">Liquidado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Status do Pagamento</Label>
-                  <Select value={form.payment_status} onValueChange={v => setForm(p => ({ ...p, payment_status: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Selecionar status" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pendente">Pendente</SelectItem>
-                      <SelectItem value="em_andamento">Em andamento</SelectItem>
-                      <SelectItem value="liquidado">Liquidado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+
+                {/* Approval warning */}
+                {form.status === 'approved' && !form.is_split_payment && !form.payment_method && (
+                  <p className="text-xs text-destructive font-medium">⚠ Para aprovar, preencha o método de pagamento.</p>
+                )}
               </div>
 
               {/* Shipping */}
@@ -672,11 +961,11 @@ export default function Quotes() {
                         </div>
                       </div>
                     </div>
-                    ))}
-                  </div>
-                  <Button type="button" onClick={addItem} className="mt-3 w-full gap-2 bg-green-600 hover:bg-green-700 text-white">
-                    <Plus className="h-4 w-4" /> Adicionar Novo Item
-                  </Button>
+                  ))}
+                </div>
+                <Button type="button" onClick={addItem} className="mt-3 w-full gap-2 bg-green-600 hover:bg-green-700 text-white">
+                  <Plus className="h-4 w-4" /> Adicionar Novo Item
+                </Button>
 
                 <div className="flex justify-end mt-4 p-3 bg-primary/5 rounded-lg">
                   <div className="text-right space-y-1">
@@ -728,7 +1017,6 @@ export default function Quotes() {
           ) : isMobile ? (
             <div className="space-y-3">
               {filtered.map((q: any) => {
-                const pm = paymentMethodLabels[q.payment_method];
                 const ps = paymentStatusLabels[q.payment_status] || paymentStatusLabels.pendente;
                 const PsIcon = ps.icon;
                 return (
@@ -760,11 +1048,7 @@ export default function Quotes() {
                           <Store className="h-3 w-3" /> Revenda
                         </span>
                       )}
-                      {pm && (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <pm.icon className="h-3 w-3" /> {pm.label}
-                        </span>
-                      )}
+                      {renderPaymentInfo(q)}
                       <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${ps.className}`}>
                         <PsIcon className="h-3 w-3" /> {ps.label}
                       </span>
@@ -802,8 +1086,8 @@ export default function Quotes() {
                   <TableHead>Nº Orçamento</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Data</TableHead>
-                   <TableHead>Frete</TableHead>
-                   <TableHead>Total</TableHead>
+                  <TableHead>Frete</TableHead>
+                  <TableHead>Total</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Pagamento</TableHead>
                   <TableHead>Financeiro</TableHead>
@@ -812,9 +1096,7 @@ export default function Quotes() {
               </TableHeader>
               <TableBody>
                 {filtered.map((q: any) => {
-                  const pm = paymentMethodLabels[q.payment_method];
                   const ps = paymentStatusLabels[q.payment_status] || paymentStatusLabels.pendente;
-                  const PmIcon = pm?.icon;
                   const PsIcon = ps.icon;
                   return (
                   <TableRow key={q.id}>
@@ -847,13 +1129,7 @@ export default function Quotes() {
                         {statusLabels[q.status] || q.status}
                       </span>
                     </TableCell>
-                    <TableCell>
-                      {pm ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-muted border border-border">
-                          <PmIcon className="h-3 w-3" /> {pm.label}
-                        </span>
-                      ) : <span className="text-muted-foreground text-xs">—</span>}
-                    </TableCell>
+                    <TableCell>{renderPaymentInfo(q)}</TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${ps.className}`}>
                         <PsIcon className="h-3 w-3" /> {ps.label}
