@@ -63,9 +63,8 @@ async function testConnection(apiKey: string, applicationKey: string) {
   try {
     response = await fetch(url, {
       headers: {
-        'Authorization': `chave_api ${apiKey}`,
+        'Authorization': `chave_api ${apiKey} aplicacao ${applicationKey}`,
         'Content-Type': 'application/json',
-        'chave_aplicacao': applicationKey,
       },
     });
   } catch (fetchErr) {
@@ -156,9 +155,8 @@ async function fetchOrderDetails(apiKey: string, applicationKey: string, orderId
   try {
     const response = await fetch(`${LOJA_INTEGRADA_API}/pedido/${orderId}`, {
       headers: {
-        'Authorization': `chave_api ${apiKey}`,
+        'Authorization': `chave_api ${apiKey} aplicacao ${applicationKey}`,
         'Content-Type': 'application/json',
-        'chave_aplicacao': applicationKey,
       },
     });
     if (!response.ok) {
@@ -206,9 +204,8 @@ async function importOrders(
     `${LOJA_INTEGRADA_API}/pedido?limit=${limit}&offset=${offset}&ordering=-data_criacao`,
     {
       headers: {
-        'Authorization': `chave_api ${apiKey}`,
+        'Authorization': `chave_api ${apiKey} aplicacao ${applicationKey}`,
         'Content-Type': 'application/json',
-        'chave_aplicacao': applicationKey,
       },
     }
   );
@@ -394,9 +391,8 @@ async function syncOrders(supabase: any, apiKey: string, applicationKey: string,
     `${LOJA_INTEGRADA_API}/pedido?limit=${limit}&offset=${offset}&ordering=-data_criacao`,
     {
       headers: {
-        'Authorization': `chave_api ${apiKey}`,
+        'Authorization': `chave_api ${apiKey} aplicacao ${applicationKey}`,
         'Content-Type': 'application/json',
-        'chave_aplicacao': applicationKey,
       },
     }
   );
