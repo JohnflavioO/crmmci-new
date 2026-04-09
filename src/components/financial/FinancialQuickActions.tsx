@@ -1,13 +1,12 @@
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, ArrowDownCircle, Clock } from 'lucide-react';
+import { AlertTriangle, Clock } from 'lucide-react';
 
 interface Props {
   onFilterOverdue: () => void;
   onFilterPending: () => void;
-  canEdit: boolean;
 }
 
-export default function FinancialQuickActions({ onFilterOverdue, onFilterPending, canEdit }: Props) {
+export default function FinancialQuickActions({ onFilterOverdue, onFilterPending }: Props) {
   return (
     <div className="flex flex-wrap gap-2 mb-4 md:mb-6">
       <Button variant="outline" size="sm" className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50" onClick={onFilterOverdue}>

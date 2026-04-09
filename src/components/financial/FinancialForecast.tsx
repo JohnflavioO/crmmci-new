@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
 import { TrendingUp } from 'lucide-react';
-import { startOfDay, addDays, isToday } from 'date-fns';
+import { startOfDay, addDays } from 'date-fns';
 
 interface Props {
   records: any[];
