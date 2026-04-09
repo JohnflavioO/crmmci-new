@@ -78,7 +78,9 @@ export default function Metrics() {
   useEffect(() => {
     if (!isGestor) return;
     const loadSellers = async () => {
-      const { data } = await db.from('profiles').select('user_id, full_name, role');
+      let query = db.from('profiles').select('user_id, full_name, role');
+      if (!isAdmin) query = query.eq('commercial_visible', true);
+      const { data } = await query;
       setSalespeople(data || []);
     };
     loadSellers();

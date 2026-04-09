@@ -89,7 +89,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (canSeeTeam) {
-      db.from('profiles').select('user_id, full_name').then(({ data }: any) => {
+      let query = db.from('profiles').select('user_id, full_name');
+      if (!isAdmin) query = query.eq('commercial_visible', true);
+      query.then(({ data }: any) => {
         setSellers((data || []) as SellerInfo[]);
       });
     }

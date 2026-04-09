@@ -74,7 +74,7 @@ export default function SellerComparison() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await db.from('profiles').select('user_id, full_name, role');
+      const { data } = await db.from('profiles').select('user_id, full_name, role').eq('commercial_visible', true);
       setSellers(data || []);
     };
     load();
