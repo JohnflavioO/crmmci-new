@@ -360,7 +360,14 @@ export default function Quotes() {
           <h1 className="text-xl md:text-2xl font-bold font-display">Orçamentos</h1>
           <p className="text-muted-foreground text-sm">Crie e gerencie seus orçamentos</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
+        <Dialog open={dialogOpen} onOpenChange={(o) => { 
+          if (o && !editingQuote) {
+            // Opening for new quote - set default salesperson
+            setForm(prev => ({ ...prev, salesperson: prev.salesperson || getDefaultSalesperson() }));
+          }
+          setDialogOpen(o); 
+          if (!o) resetForm(); 
+        }}>
           <DialogTrigger asChild>
             <Button className="gap-2 w-full sm:w-auto min-h-[44px]"><Plus className="h-4 w-4" /> Novo Orçamento</Button>
           </DialogTrigger>
