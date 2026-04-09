@@ -127,14 +127,39 @@ export default function Products() {
   };
 
   const handleScrape = async () => {
-    if (!scrapeUrl.trim()) return;
+    const trimmed = scrapeUrl.trim();
+    if (!trimmed) {
+      toast.error('Insira uma URL para importar');
+      return;
+    }
+    // Basic URL validation
+    let testUrl = trimmed;
+    if (!testUrl.startsWith('http')) testUrl = `https://${testUrl}`;
+    try { new URL(testUrl); } catch {
+      toast.error('URL inválida. Verifique o endereço e tente novamente.');
+      return;
+    }
+
     setScraping(true);
     try {
       const { data, error } = await supabase.functions.invoke('scrape-product', {
-        body: { url: scrapeUrl.trim() },
+        body: { url: trimmed },
       });
-      if (error) throw error;
-      if (data?.success && data.data) {
+
+      // supabase.functions.invoke returns error for non-2xx OR network issues
+      if (error) {
+        // Try to parse body for friendly message
+        const msg = data?.error || 'Falha na conexão com o servidor. Tente novamente.';
+        toast.error(msg);
+        return;
+      }
+
+      if (data?.ok === false || (!data?.success && !data?.ok)) {
+        toast.error(data?.error || 'Não foi possível extrair dados do produto. Tente preencher manualmente.');
+        return;
+      }
+
+      if (data?.data) {
         const d = data.data;
         setForm(prev => ({
           ...prev,
@@ -145,12 +170,15 @@ export default function Products() {
           brand: d.brand || prev.brand,
           sku: d.sku || prev.sku,
         }));
-        toast.success('Dados importados com sucesso!');
-      } else {
-        toast.error(data?.error || 'Não foi possível extrair dados do link');
+        const fields = [d.name, d.description, d.image_url, d.brand, d.sku].filter(Boolean).length + (d.price > 0 ? 1 : 0);
+        if (fields < 6) {
+          toast.success(`Importados ${fields} de 6 campos. Complete os demais manualmente.`);
+        } else {
+          toast.success('Todos os dados importados com sucesso!');
+        }
       }
     } catch (err: any) {
-      toast.error('Erro ao importar: ' + (err.message || 'falha na conexão'));
+      toast.error('Erro de conexão. Verifique sua internet e tente novamente.');
     } finally {
       setScraping(false);
     }
