@@ -104,6 +104,14 @@ async function importOrders(
   const offset = (page - 1) * limit;
   const serviceClient = getServiceClient();
 
+  // Fetch admin profile for salesperson assignment
+  const { data: adminProfile } = await serviceClient
+    .from('profiles')
+    .select('full_name')
+    .eq('user_id', userId)
+    .maybeSingle();
+  const adminName = adminProfile?.full_name || 'Admin';
+
   const response = await fetch(
     `${LOJA_INTEGRADA_API}/pedido?limit=${limit}&offset=${offset}&ordering=-data_criacao`,
     {
@@ -150,6 +158,8 @@ async function importOrders(
     const situacaoNome = orderData.situacao?.nome || orderData.situacao || '';
     const clienteNome = orderData.cliente?.nome || '';
     const clienteEmail = orderData.cliente?.email || '';
+    const clienteTelefone = orderData.cliente?.telefone_principal || '';
+    const clienteCpfCnpj = orderData.cliente?.cpf || orderData.cliente?.cnpj || '';
     const valorTotal = parseFloat(orderData.valor_total) || 0;
     const valorFrete = parseFloat(orderData.valor_envio) || 0;
     const valorDesconto = parseFloat(orderData.valor_desconto) || 0;
@@ -162,15 +172,55 @@ async function importOrders(
     // Build notes from available info
     const notesParts = [];
     if (clienteEmail) notesParts.push(`Email: ${clienteEmail}`);
-    if (orderData.cliente?.telefone_principal) notesParts.push(`Tel: ${orderData.cliente.telefone_principal}`);
+    if (clienteTelefone) notesParts.push(`Tel: ${clienteTelefone}`);
+    if (clienteCpfCnpj) notesParts.push(`CPF/CNPJ: ${clienteCpfCnpj}`);
     if (orderData.numero_pedido_canal) notesParts.push(`Pedido canal: ${orderData.numero_pedido_canal}`);
     if (orderData.observacao) notesParts.push(`Obs: ${orderData.observacao}`);
+
+    // Try to find or create client
+    let clientId: string | null = null;
+    if (clienteEmail || clienteNome) {
+      // Try to find existing client by email or name
+      if (clienteEmail) {
+        const { data: existingClient } = await serviceClient
+          .from('clients')
+          .select('id')
+          .eq('email', clienteEmail)
+          .maybeSingle();
+        if (existingClient) clientId = existingClient.id;
+      }
+      if (!clientId && clienteNome) {
+        const { data: existingClient } = await serviceClient
+          .from('clients')
+          .select('id')
+          .eq('name', clienteNome)
+          .maybeSingle();
+        if (existingClient) clientId = existingClient.id;
+      }
+      // Create new client if not found
+      if (!clientId && clienteNome) {
+        const { data: newClient } = await serviceClient
+          .from('clients')
+          .insert({
+            name: clienteNome,
+            email: clienteEmail || null,
+            phone: clienteTelefone || null,
+            cpf_cnpj: clienteCpfCnpj || null,
+            created_by: userId,
+            pipeline_stage: 'cliente',
+          })
+          .select('id')
+          .single();
+        if (newClient) clientId = newClient.id;
+      }
+    }
 
     const quoteData = {
       quote_number: quoteNumber || `LI-${externalId}`,
       client_name: clienteNome || `Pedido #${externalId}`,
-      salesperson: null,
-      salesperson_id: null,
+      client_id: clientId,
+      salesperson: adminName,
+      salesperson_id: userId,
       status: mapStatus(situacaoNome),
       total_amount: valorTotal,
       total: valorTotal - valorFrete,
