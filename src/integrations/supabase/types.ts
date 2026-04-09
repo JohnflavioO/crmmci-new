@@ -301,6 +301,7 @@ export type Database = {
           created_by: string | null
           discount: number | null
           id: string
+          is_reseller: boolean
           notes: string | null
           payment_method: string | null
           payment_status: string | null
@@ -328,6 +329,7 @@ export type Database = {
           created_by?: string | null
           discount?: number | null
           id?: string
+          is_reseller?: boolean
           notes?: string | null
           payment_method?: string | null
           payment_status?: string | null
@@ -355,6 +357,7 @@ export type Database = {
           created_by?: string | null
           discount?: number | null
           id?: string
+          is_reseller?: boolean
           notes?: string | null
           payment_method?: string | null
           payment_status?: string | null
