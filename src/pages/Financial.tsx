@@ -96,14 +96,21 @@ export default function Financial() {
     setLoading(true);
     const [recordsRes, profilesRes, quotesRes] = await Promise.all([
       db.from('financial_records').select('*').order('due_date', { ascending: true }),
-      db.from('profiles').select('user_id, full_name'),
-      db.from('quotes').select('id, quote_number, client_name, salesperson, created_by, client_id, clients(company_name, name)').eq('status', 'approved'),
+      db.from('profiles').select('user_id, full_name').eq('active', true),
+      db.from('quotes').select('id, quote_number, client_name, salesperson, created_by, client_id, payment_status, clients(company_name, name)').eq('status', 'approved'),
     ]);
 
+    const profileMap: Record<string, string> = {};
     if (profilesRes.data) {
-      const map: Record<string, string> = {};
-      (profilesRes.data as any[]).forEach((p: any) => { map[p.user_id] = p.full_name || 'Sem nome'; });
-      setProfiles(map);
+      (profilesRes.data as any[]).forEach((p: any) => { profileMap[p.user_id] = p.full_name || 'Sem nome'; });
+      setProfiles(profileMap);
+      // Build seller options from ALL profiles (not just those with records)
+      setSellerOptions(
+        (profilesRes.data as any[])
+          .filter((p: any) => p.full_name)
+          .map((p: any) => ({ uid: p.user_id, name: p.full_name }))
+          .sort((a: any, b: any) => a.name.localeCompare(b.name))
+      );
     }
 
     // Build quote lookup for enrichment
@@ -133,7 +140,13 @@ export default function Financial() {
           enriched.quote_number = quote.quote_number;
         }
 
-        // Compute dynamic status based on due_date
+        // If quote payment_status is liquidado but financial still pending, treat as pago
+        if (quote?.payment_status === 'liquidado' && !['pago', 'cancelado'].includes(enriched.financial_status)) {
+          enriched.financial_status = 'pago';
+          enriched.amount_paid = enriched.total_amount;
+        }
+
+        // Compute dynamic status based on due_date (only for non-terminal statuses)
         if (['pago', 'cancelado', 'pago_parcial', 'em_renegociacao', 'promessa_pagamento'].includes(enriched.financial_status)) return enriched;
         if (enriched.due_date) {
           const due = startOfDay(new Date(enriched.due_date));
