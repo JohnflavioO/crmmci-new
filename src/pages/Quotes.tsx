@@ -49,11 +49,12 @@ interface QuoteItem {
   unit_total: number;
   line_total: number;
   image_url: string;
+  is_gift: boolean;
 }
 
 const emptyItem = (): QuoteItem => ({
   item_number: 1, product_code: '', quantity: 1, model: '', brand: '',
-  specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0, image_url: '',
+  specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0, image_url: '', is_gift: false,
 });
 
 const shippingMethods = [
@@ -112,6 +113,9 @@ export default function Quotes() {
   useEffect(() => { loadData(); }, [isGestor, isAdmin]);
 
   const calcItem = (item: QuoteItem): QuoteItem => {
+    if (item.is_gift) {
+      return { ...item, unit_total: 0, line_total: 0 };
+    }
     const unitTotal = item.unit_price * (1 - item.discount_percent / 100);
     const lineTotal = unitTotal * item.quantity;
     return { ...item, unit_total: Math.round(unitTotal * 100) / 100, line_total: Math.round(lineTotal * 100) / 100 };
@@ -194,9 +198,9 @@ export default function Quotes() {
       const validItems = items.filter(i => i.model).map((item, idx) => ({
         quote_id: quoteId, item_number: idx + 1, product_code: item.product_code,
         quantity: item.quantity, model: item.model, brand: item.brand,
-        specifications: item.specifications, unit_price: item.unit_price,
+        specifications: item.specifications, unit_price: item.is_gift ? item.unit_price : item.unit_price,
         discount_percent: item.discount_percent, unit_total: item.unit_total,
-        line_total: item.line_total, image_url: item.image_url,
+        line_total: item.line_total, image_url: item.image_url, is_gift: item.is_gift,
       }));
 
       if (validItems.length > 0) {
