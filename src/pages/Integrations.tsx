@@ -261,13 +261,28 @@ export default function Integrations() {
             {/* Sync section */}
             {hasCredentials && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <h3 className="text-sm font-semibold">Pedidos da Loja Integrada</h3>
-                  <Button variant="outline" size="sm" onClick={() => handleSync(1)} disabled={syncing}>
-                    {syncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
-                    Sincronizar pedidos
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => handleSync(1)} disabled={syncing || importing}>
+                      {syncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                      Visualizar pedidos
+                    </Button>
+                    <Button size="sm" onClick={() => handleImport(1)} disabled={importing || syncing}>
+                      {importing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
+                      Importar para Orçamentos
+                    </Button>
+                  </div>
                 </div>
+
+                {importResult && (
+                  <div className="p-3 rounded-lg border bg-muted/30 text-sm space-y-1">
+                    <p className="font-medium">Resultado da última importação:</p>
+                    <p className="text-emerald-600">✓ {importResult.imported} pedidos importados</p>
+                    {importResult.skipped > 0 && <p className="text-muted-foreground">⊘ {importResult.skipped} já existentes (ignorados)</p>}
+                    {importResult.errors > 0 && <p className="text-destructive">✗ {importResult.errors} com erro</p>}
+                  </div>
+                )}
 
                 {orders.length > 0 && (
                   <>
