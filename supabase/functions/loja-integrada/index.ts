@@ -8,6 +8,18 @@ const corsHeaders = {
 
 const LOJA_INTEGRADA_API = 'https://api.lojaintegrada.com.br/v1';
 
+function jsonResponse(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+function maskKey(key: string): string {
+  if (key.length <= 6) return '***';
+  return key.slice(0, 3) + '***' + key.slice(-3);
+}
+
 async function getAuthenticatedAdmin(req: Request) {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
@@ -41,21 +53,83 @@ function getServiceClient() {
 }
 
 async function testConnection(apiKey: string, applicationKey: string) {
-  const response = await fetch(`${LOJA_INTEGRADA_API}/pedido?limit=1`, {
-    headers: {
-      'Authorization': `chave_api ${apiKey}`,
-      'Content-Type': 'application/json',
-      'chave_aplicacao': applicationKey,
-    },
-  });
+  console.log('[loja-integrada] Testing connection...');
+  console.log(`[loja-integrada] API Key: ${maskKey(apiKey)}, App Key: ${maskKey(applicationKey)}`);
+
+  const url = `${LOJA_INTEGRADA_API}/pedido?limit=1`;
+  console.log(`[loja-integrada] Calling: GET ${url}`);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        'Authorization': `chave_api ${apiKey}`,
+        'Content-Type': 'application/json',
+        'chave_aplicacao': applicationKey,
+      },
+    });
+  } catch (fetchErr) {
+    console.error('[loja-integrada] Network error:', fetchErr);
+    return {
+      ok: false,
+      error: 'Erro de rede ao conectar com a Loja Integrada. Verifique sua conexão.',
+      error_stage: 'network',
+    };
+  }
+
+  console.log(`[loja-integrada] Response status: ${response.status}`);
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Loja Integrada API error (${response.status}): ${text}`);
+    console.error(`[loja-integrada] API error body: ${text}`);
+
+    if (response.status === 401) {
+      return {
+        ok: false,
+        error: 'API Key inválida ou não autorizada pela Loja Integrada.',
+        error_stage: 'authentication',
+        http_status: 401,
+      };
+    }
+    if (response.status === 403) {
+      return {
+        ok: false,
+        error: 'Application Key inválida ou sem permissão. Verifique suas credenciais na Loja Integrada.',
+        error_stage: 'authorization',
+        http_status: 403,
+      };
+    }
+    if (response.status === 404) {
+      return {
+        ok: false,
+        error: 'Endpoint da API não encontrado. A API da Loja Integrada pode ter mudado.',
+        error_stage: 'endpoint',
+        http_status: 404,
+      };
+    }
+    return {
+      ok: false,
+      error: `Erro ${response.status} na API da Loja Integrada: ${text.slice(0, 200)}`,
+      error_stage: 'api_call',
+      http_status: response.status,
+    };
   }
 
-  const data = await response.json();
-  return { success: true, total_orders: data.meta?.total_count ?? 0 };
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    const text = await response.text();
+    console.error('[loja-integrada] Invalid JSON response:', text.slice(0, 200));
+    return {
+      ok: false,
+      error: 'Resposta inválida da Loja Integrada (não é JSON).',
+      error_stage: 'parse',
+    };
+  }
+
+  console.log(`[loja-integrada] Connection OK. Total orders: ${data.meta?.total_count ?? 0}`);
+  return { ok: true, success: true, total_orders: data.meta?.total_count ?? 0 };
 }
 
 function mapStatus(situacao: string | undefined): string {
@@ -86,11 +160,27 @@ async function fetchOrderDetails(apiKey: string, applicationKey: string, orderId
         'chave_aplicacao': applicationKey,
       },
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      await response.text();
+      return null;
+    }
     return await response.json();
   } catch {
     return null;
   }
+}
+
+async function fetchStoredCredentials(supabase: any) {
+  const { data: integration } = await supabase
+    .from('integrations')
+    .select('api_key, application_key')
+    .eq('integration_name', 'loja_integrada')
+    .maybeSingle();
+
+  if (!integration?.api_key || !integration?.application_key) {
+    return null;
+  }
+  return { apiKey: integration.api_key, applicationKey: integration.application_key };
 }
 
 async function importOrders(
@@ -104,7 +194,6 @@ async function importOrders(
   const offset = (page - 1) * limit;
   const serviceClient = getServiceClient();
 
-  // Fetch admin profile for salesperson assignment
   const { data: adminProfile } = await serviceClient
     .from('profiles')
     .select('full_name')
@@ -125,7 +214,12 @@ async function importOrders(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`API error (${response.status}): ${text}`);
+    console.error(`[loja-integrada] Import fetch error ${response.status}: ${text}`);
+    return {
+      ok: false,
+      error: `Erro ${response.status} ao buscar pedidos da Loja Integrada.`,
+      error_stage: 'fetch_orders',
+    };
   }
 
   const data = await response.json();
@@ -139,7 +233,6 @@ async function importOrders(
   for (const order of orders) {
     const externalId = String(order.numero);
 
-    // Check if already imported
     const { data: existing } = await serviceClient
       .from('quotes')
       .select('id')
@@ -151,7 +244,6 @@ async function importOrders(
       continue;
     }
 
-    // Fetch detailed order data
     const detail = await fetchOrderDetails(apiKey, applicationKey, externalId);
     const orderData = detail || order;
 
@@ -166,21 +258,17 @@ async function importOrders(
     const dataCriacao = orderData.data_criacao;
     const pagamento = orderData.pagamentos?.[0]?.forma_pagamento?.nome || '';
 
-    // Generate quote number
     const { data: quoteNumber } = await serviceClient.rpc('generate_quote_number');
 
-    // Build notes from available info
-    const notesParts = [];
+    const notesParts: string[] = [];
     if (clienteEmail) notesParts.push(`Email: ${clienteEmail}`);
     if (clienteTelefone) notesParts.push(`Tel: ${clienteTelefone}`);
     if (clienteCpfCnpj) notesParts.push(`CPF/CNPJ: ${clienteCpfCnpj}`);
     if (orderData.numero_pedido_canal) notesParts.push(`Pedido canal: ${orderData.numero_pedido_canal}`);
     if (orderData.observacao) notesParts.push(`Obs: ${orderData.observacao}`);
 
-    // Try to find or create client
     let clientId: string | null = null;
     if (clienteEmail || clienteNome) {
-      // Try to find existing client by email or name
       if (clienteEmail) {
         const { data: existingClient } = await serviceClient
           .from('clients')
@@ -197,7 +285,6 @@ async function importOrders(
           .maybeSingle();
         if (existingClient) clientId = existingClient.id;
       }
-      // Create new client if not found
       if (!clientId && clienteNome) {
         const { data: newClient } = await serviceClient
           .from('clients')
@@ -246,12 +333,11 @@ async function importOrders(
       .single();
 
     if (insertErr) {
-      console.error(`Error importing order ${externalId}:`, insertErr.message);
+      console.error(`[loja-integrada] Error importing order ${externalId}:`, insertErr.message);
       errors++;
       continue;
     }
 
-    // Import items if available
     const itens = orderData.itens || [];
     if (itens.length > 0 && newQuote) {
       const quoteItems = itens.map((item: any, idx: number) => ({
@@ -275,20 +361,20 @@ async function importOrders(
         .insert(quoteItems);
 
       if (itemsErr) {
-        console.error(`Error importing items for order ${externalId}:`, itemsErr.message);
+        console.error(`[loja-integrada] Error importing items for order ${externalId}:`, itemsErr.message);
       }
     }
 
     imported++;
   }
 
-  // Update last_sync_at
   await supabase
     .from('integrations')
     .update({ last_sync_at: new Date().toISOString(), status: 'connected' })
     .eq('integration_name', 'loja_integrada');
 
   return {
+    ok: true,
     success: true,
     imported,
     skipped,
@@ -316,7 +402,12 @@ async function syncOrders(supabase: any, apiKey: string, applicationKey: string,
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`API error (${response.status}): ${text}`);
+    console.error(`[loja-integrada] Sync fetch error ${response.status}: ${text}`);
+    return {
+      ok: false,
+      error: `Erro ${response.status} ao buscar pedidos.`,
+      error_stage: 'fetch_orders',
+    };
   }
 
   const data = await response.json();
@@ -329,6 +420,7 @@ async function syncOrders(supabase: any, apiKey: string, applicationKey: string,
     .eq('integration_name', 'loja_integrada');
 
   return {
+    ok: true,
     success: true,
     orders: orders.map((o: any) => ({
       id: o.numero,
@@ -361,14 +453,12 @@ Deno.serve(async (req) => {
 
     const parsed = ActionSchema.safeParse(await req.json());
     if (!parsed.success) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid request', details: parsed.error.flatten().fieldErrors }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ ok: false, error: 'Requisição inválida', details: parsed.error.flatten().fieldErrors }, 400);
     }
 
     const { action, api_key, application_key, page } = parsed.data;
 
+    // === STATUS ===
     if (action === 'status') {
       const { data } = await supabase
         .from('integrations')
@@ -376,38 +466,35 @@ Deno.serve(async (req) => {
         .eq('integration_name', 'loja_integrada')
         .maybeSingle();
 
-      return new Response(JSON.stringify({
+      return jsonResponse({
+        ok: true,
         connected: data?.status === 'connected',
         status: data?.status || 'disconnected',
         last_sync_at: data?.last_sync_at,
         has_credentials: !!data,
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // === TEST ===
     if (action === 'test') {
       if (!api_key || !application_key) {
-        return new Response(JSON.stringify({ error: 'API Key e Application Key são obrigatórias' }), {
-          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return jsonResponse({ ok: false, error: 'API Key e Application Key são obrigatórias' });
       }
-
       const result = await testConnection(api_key, application_key);
-      return new Response(JSON.stringify(result), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResponse(result);
     }
 
+    // === SAVE ===
     if (action === 'save') {
       if (!api_key || !application_key) {
-        return new Response(JSON.stringify({ error: 'API Key e Application Key são obrigatórias' }), {
-          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return jsonResponse({ ok: false, error: 'API Key e Application Key são obrigatórias' });
       }
 
-      await testConnection(api_key, application_key);
+      // Test first
+      const testResult = await testConnection(api_key, application_key);
+      if (!testResult.ok) {
+        return jsonResponse(testResult);
+      }
 
       const { error: upsertErr } = await supabase
         .from('integrations')
@@ -421,61 +508,47 @@ Deno.serve(async (req) => {
         }, { onConflict: 'integration_name' });
 
       if (upsertErr) {
-        throw new Error('Failed to save: ' + upsertErr.message);
+        console.error('[loja-integrada] Upsert error:', upsertErr.message);
+        return jsonResponse({ ok: false, error: 'Erro ao salvar credenciais no banco de dados.' });
       }
 
-      return new Response(JSON.stringify({ success: true, message: 'Integração salva com sucesso' }), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ ok: true, success: true, message: 'Integração salva com sucesso' });
     }
 
+    // === SYNC ===
     if (action === 'sync') {
-      const { data: integration } = await supabase
-        .from('integrations')
-        .select('api_key, application_key')
-        .eq('integration_name', 'loja_integrada')
-        .maybeSingle();
-
-      if (!integration?.api_key || !integration?.application_key) {
-        return new Response(JSON.stringify({ error: 'Integração não configurada' }), {
-          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      const creds = await fetchStoredCredentials(supabase);
+      if (!creds) {
+        return jsonResponse({ ok: false, error: 'Integração não configurada. Salve suas credenciais primeiro.' });
       }
-
-      const result = await syncOrders(supabase, integration.api_key, integration.application_key, page || 1);
-      return new Response(JSON.stringify(result), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      const result = await syncOrders(supabase, creds.apiKey, creds.applicationKey, page || 1);
+      return jsonResponse(result);
     }
 
+    // === IMPORT ===
     if (action === 'import') {
-      const { data: integration } = await supabase
-        .from('integrations')
-        .select('api_key, application_key')
-        .eq('integration_name', 'loja_integrada')
-        .maybeSingle();
-
-      if (!integration?.api_key || !integration?.application_key) {
-        return new Response(JSON.stringify({ error: 'Integração não configurada' }), {
-          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      const creds = await fetchStoredCredentials(supabase);
+      if (!creds) {
+        return jsonResponse({ ok: false, error: 'Integração não configurada. Salve suas credenciais primeiro.' });
       }
-
-      const result = await importOrders(supabase, userId, integration.api_key, integration.application_key, page || 1);
-      return new Response(JSON.stringify(result), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      const result = await importOrders(supabase, userId, creds.apiKey, creds.applicationKey, page || 1);
+      return jsonResponse(result);
     }
 
-    return new Response(JSON.stringify({ error: 'Unknown action' }), {
-      status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ ok: false, error: 'Ação desconhecida' });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Internal error';
-    const status = message === 'Unauthorized' ? 401 : message.startsWith('Forbidden') ? 403 : 500;
-    console.error('loja-integrada error:', error);
-    return new Response(JSON.stringify({ error: message }), {
-      status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    const message = error instanceof Error ? error.message : 'Erro interno';
+    console.error('[loja-integrada] Unhandled error:', error);
+
+    // Auth errors still return proper HTTP status for supabase client
+    if (message === 'Unauthorized') {
+      return jsonResponse({ ok: false, error: 'Não autorizado. Faça login novamente.' }, 401);
+    }
+    if (message.startsWith('Forbidden')) {
+      return jsonResponse({ ok: false, error: 'Acesso restrito ao administrador.' }, 403);
+    }
+
+    // All other errors return 200 so the frontend can read the payload
+    return jsonResponse({ ok: false, error: message });
   }
 });

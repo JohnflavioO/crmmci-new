@@ -55,8 +55,18 @@ export default function Integrations() {
 
   const callFunction = async (body: Record<string, unknown>) => {
     const { data, error } = await supabase.functions.invoke('loja-integrada', { body });
-    if (error) throw new Error(error.message || 'Erro na função');
-    if (data?.error) throw new Error(data.error);
+    // Handle HTTP-level errors (401/403 from auth)
+    if (error) {
+      // Try to extract structured error from the response
+      if (typeof data === 'object' && data?.error) {
+        throw new Error(data.error);
+      }
+      throw new Error(error.message || 'Erro ao conectar com o servidor');
+    }
+    // Handle application-level errors (returned as 200 with ok: false)
+    if (data && data.ok === false) {
+      throw new Error(data.error || 'Erro desconhecido na operação');
+    }
     return data;
   };
 
