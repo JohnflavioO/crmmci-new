@@ -58,7 +58,7 @@ export default function AppSidebar({ onNavigate }: Props) {
   };
 
   const financialMenuItems = [
-    { to: '/financial', icon: LayoutDashboard, label: 'Dashboard Financeiro' },
+    { to: '/financial?tab=dashboard', icon: LayoutDashboard, label: 'Dashboard Financeiro' },
     { to: '/financial?tab=pendencias', icon: Clock, label: 'Contas a Receber' },
     { to: '/financial?tab=baixas', icon: ArrowDownCircle, label: 'Baixas' },
     { to: '/financial?tab=pendencias&priority=vencidos', icon: AlertTriangle, label: 'Pendências' },
@@ -66,7 +66,7 @@ export default function AppSidebar({ onNavigate }: Props) {
   ];
 
   const FinancialLinkItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => {
-    const isActive = location.pathname + location.search === to || (to === '/financial' && location.pathname === '/financial' && !location.search);
+    const isActive = location.pathname + location.search === to || (to === '/financial?tab=dashboard' && location.pathname === '/financial' && !location.search);
     return (
       <NavLink
         to={to}
