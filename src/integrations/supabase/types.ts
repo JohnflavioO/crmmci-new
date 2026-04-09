@@ -95,6 +95,83 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_records: {
+        Row: {
+          amount_paid: number | null
+          baixa_at: string | null
+          baixa_by: string | null
+          client_id: string | null
+          client_name: string
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          external_order_id: string | null
+          financial_notes: string | null
+          financial_status: string
+          id: string
+          installment_number: number | null
+          installments_total: number | null
+          paid_date: string | null
+          payment_method: string | null
+          quote_id: string | null
+          source: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          amount_paid?: number | null
+          baixa_at?: string | null
+          baixa_by?: string | null
+          client_id?: string | null
+          client_name?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          external_order_id?: string | null
+          financial_notes?: string | null
+          financial_status?: string
+          id?: string
+          installment_number?: number | null
+          installments_total?: number | null
+          paid_date?: string | null
+          payment_method?: string | null
+          quote_id?: string | null
+          source?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number | null
+          baixa_at?: string | null
+          baixa_by?: string | null
+          client_id?: string | null
+          client_name?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          external_order_id?: string | null
+          financial_notes?: string | null
+          financial_status?: string
+          id?: string
+          installment_number?: number | null
+          installments_total?: number | null
+          paid_date?: string | null
+          payment_method?: string | null
+          quote_id?: string | null
+          source?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_records_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integrations: {
         Row: {
           api_key: string | null
@@ -613,6 +690,7 @@ export type Database = {
       get_public_quote_token: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_approved: { Args: never; Returns: boolean }
+      is_financeiro: { Args: never; Returns: boolean }
       is_gestor: { Args: never; Returns: boolean }
     }
     Enums: {
