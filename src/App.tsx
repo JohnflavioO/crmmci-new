@@ -19,12 +19,13 @@ import Reports from "./pages/Reports";
 import PublicQuote from "./pages/PublicQuote";
 import Negociacoes from "./pages/Negociacoes";
 import Integrations from "./pages/Integrations";
+import Financial from "./pages/Financial";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { user, loading, isApproved, isAdmin, isGestor } = useAuth();
+  const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro } = useAuth();
 
   if (loading) {
     return (
@@ -56,10 +57,11 @@ function AppRoutes() {
       <Route path="/pipeline" element={<Pipeline />} />
       <Route path="/quote/:token" element={<PublicQuote />} />
       <Route path="/negociacoes" element={<Negociacoes />} />
-      <Route path="/reports" element={<Reports />} />
-      {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
-      {isAdmin && <Route path="/integrations" element={<Integrations />} />}
-      <Route path="*" element={<NotFound />} />
+        <Route path="/reports" element={<Reports />} />
+        {(isAdmin || isGestor || isFinanceiro) && <Route path="/financial" element={<Financial />} />}
+        {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
+        {isAdmin && <Route path="/integrations" element={<Integrations />} />}
+        <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
