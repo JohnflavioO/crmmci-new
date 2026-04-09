@@ -119,7 +119,7 @@ export default function Negociacoes() {
       setSellers((profiles || []).filter((p: any) => p.full_name));
     }
     setLoading(false);
-  }, [canSeeAll]);
+  }, [canSeeAll, isAdmin]);
 
   useEffect(() => { loadData(); }, [loadData]);
 

@@ -95,7 +95,7 @@ export default function Dashboard() {
         setSellers((data || []) as SellerInfo[]);
       });
     }
-  }, [canSeeTeam]);
+  }, [canSeeTeam, isAdmin]);
 
   const myQuotes = allQuotes.filter(q => q.created_by === user?.id);
   const teamQuotes = (() => {

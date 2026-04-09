@@ -84,7 +84,7 @@ export default function Metrics() {
       setSalespeople(data || []);
     };
     loadSellers();
-  }, [isGestor]);
+  }, [isGestor, isAdmin]);
 
   const totalQuotes = quotes.length;
   const approved = quotes.filter(q => q.status === 'approved');

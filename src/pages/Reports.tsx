@@ -56,7 +56,7 @@ export default function Reports() {
         setSellers((data || []) as SellerInfo[]);
       });
     }
-  }, [canSeeAll]);
+  }, [canSeeAll, isAdmin]);
 
   useEffect(() => {
     const load = async () => {
