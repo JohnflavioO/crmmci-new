@@ -82,6 +82,23 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   doc.setTextColor(0);
   doc.setFont('helvetica', 'bold');
   doc.text(`Orçamento: ${quote.quote_number}`, margin, y);
+
+  // Reseller badge next to quote number
+  if (quote.is_reseller) {
+    const qnWidth = doc.getTextWidth(`Orçamento: ${quote.quote_number}  `);
+    const badgeX = margin + qnWidth;
+    const badgeText = 'REVENDA';
+    doc.setFontSize(7);
+    const badgeW = doc.getTextWidth(badgeText) + 6;
+    doc.setFillColor(139, 92, 246); // purple
+    doc.roundedRect(badgeX, y - 3.5, badgeW, 5, 1.5, 1.5, 'F');
+    doc.setTextColor(255);
+    doc.setFont('helvetica', 'bold');
+    doc.text(badgeText, badgeX + 3, y);
+    doc.setFontSize(9);
+    doc.setTextColor(0);
+  }
+
   doc.text(`Data: ${new Date(quote.quote_date).toLocaleDateString('pt-BR')}`, W - margin, y, { align: 'right' });
   y += 5;
 
