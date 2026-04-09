@@ -2,7 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake, Plug, Banknote,
-  Clock, ArrowDownCircle, AlertTriangle,
+  Clock, ArrowDownCircle, AlertTriangle, FileBarChart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserProfileEditor from './UserProfileEditor';
@@ -16,11 +16,6 @@ const navItems = [
   { to: '/tasks', icon: ListChecks, label: 'Tarefas' },
   { to: '/metrics', icon: BarChart3, label: 'Métricas' },
   { to: '/products', icon: Package, label: 'Produtos' },
-];
-
-const financialNavItems = [
-  { to: '/financial', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/financial', icon: Banknote, label: 'Contas a Receber', hash: '#contas' },
 ];
 
 const adminGestorItems = [
@@ -62,6 +57,33 @@ export default function AppSidebar({ onNavigate }: Props) {
     );
   };
 
+  const financialMenuItems = [
+    { to: '/financial', icon: LayoutDashboard, label: 'Dashboard Financeiro' },
+    { to: '/financial?tab=pendencias', icon: Clock, label: 'Contas a Receber' },
+    { to: '/financial?tab=baixas', icon: ArrowDownCircle, label: 'Baixas' },
+    { to: '/financial?tab=pendencias&priority=vencidos', icon: AlertTriangle, label: 'Pendências' },
+    { to: '/financial?tab=relatorios', icon: FileBarChart, label: 'Relatórios' },
+  ];
+
+  const FinancialLinkItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => {
+    const isActive = location.pathname + location.search === to || (to === '/financial' && location.pathname === '/financial' && !location.search);
+    return (
+      <NavLink
+        to={to}
+        onClick={onNavigate}
+        className={cn(
+          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]',
+          isActive
+            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+            : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
+        )}
+      >
+        <Icon className="h-5 w-5" />
+        {label}
+      </NavLink>
+    );
+  };
+
   return (
     <aside className="w-full md:w-64 h-full md:h-screen md:fixed md:left-0 md:top-0 flex flex-col border-r border-sidebar-border"
       style={{ background: 'var(--gradient-sidebar)' }}>
@@ -78,7 +100,9 @@ export default function AppSidebar({ onNavigate }: Props) {
       <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
         {isFinanceiroOnly ? (
           <>
-            <LinkItem to="/financial" icon={LayoutDashboard} label="Dashboard Financeiro" />
+            {financialMenuItems.map(item => (
+              <FinancialLinkItem key={item.to} {...item} />
+            ))}
           </>
         ) : (
           <>
@@ -93,7 +117,9 @@ export default function AppSidebar({ onNavigate }: Props) {
                 <div className="pt-4 pb-2 px-3">
                   <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Financeiro</p>
                 </div>
-                <LinkItem to="/financial" icon={Banknote} label="Financeiro" />
+                {financialMenuItems.map(item => (
+                  <FinancialLinkItem key={item.to} {...item} />
+                ))}
               </>
             )}
 
