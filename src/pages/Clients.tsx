@@ -79,9 +79,8 @@ export default function Clients() {
         const list = (data || []).filter((p: any) => p.user_id !== user?.id);
         setSellers(list);
       });
-      });
     }
-  }, [canSeeAll, user?.id]);
+  }, [canSeeAll, isAdmin, user?.id]);
 
   const loadClients = async () => {
     const { data } = await db.from('clients').select('*').order('company_name');
