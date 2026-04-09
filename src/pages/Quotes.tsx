@@ -325,20 +325,32 @@ export default function Quotes() {
   };
 
   const getDefaultSalesperson = useCallback(() => {
-    if (profile?.full_name && salespeople.length > 0) {
-      const match = salespeople.find((s: any) => s.name?.toLowerCase() === profile.full_name.toLowerCase());
-      return match?.name || profile.full_name;
+    if (!profile?.full_name) return '';
+    if (salespeople.length > 0) {
+      // Try exact match first, then case-insensitive
+      const exact = salespeople.find((s: any) => s.name === profile.full_name);
+      if (exact) return exact.name;
+      const match = salespeople.find((s: any) => s.name?.toLowerCase().trim() === profile.full_name.toLowerCase().trim());
+      if (match) return match.name;
+      // Try partial match (first+last name)
+      const partial = salespeople.find((s: any) => 
+        s.name?.toLowerCase().includes(profile.full_name.toLowerCase()) ||
+        profile.full_name.toLowerCase().includes(s.name?.toLowerCase())
+      );
+      if (partial) return partial.name;
     }
-    if (profile?.full_name) return profile.full_name;
-    return '';
+    return profile.full_name;
   }, [profile?.full_name, salespeople]);
 
-  // Auto-set salesperson when profile/salespeople load and form is empty
+  // Auto-set salesperson when profile/salespeople load
   useEffect(() => {
-    if (!editingQuote && !form.salesperson) {
+    if (!editingQuote) {
       const defaultSp = getDefaultSalesperson();
       if (defaultSp) {
-        setForm(prev => ({ ...prev, salesperson: defaultSp }));
+        setForm(prev => {
+          if (prev.salesperson && prev.salesperson !== '') return prev;
+          return { ...prev, salesperson: defaultSp };
+        });
       }
     }
   }, [getDefaultSalesperson, editingQuote]);
