@@ -20,12 +20,13 @@ import PublicQuote from "./pages/PublicQuote";
 import Negociacoes from "./pages/Negociacoes";
 import Integrations from "./pages/Integrations";
 import Financial from "./pages/Financial";
+import Logistics from "./pages/Logistics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro } = useAuth();
+  const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica } = useAuth();
 
   if (loading) {
     return (
@@ -45,9 +46,18 @@ function AppRoutes() {
   }
   if (!isApproved) return <PendingApproval />;
 
+  // Logistica-only user
+  const isLogisticaOnly = isLogistica && !isAdmin && !isGestor && !isFinanceiro;
+  // Financeiro-only user
+  const isFinanceiroOnly = isFinanceiro && !isGestor && !isAdmin;
+
   return (
     <Routes>
-      <Route path="/" element={isFinanceiro && !isGestor && !isAdmin ? <Navigate to="/financial" replace /> : <Dashboard />} />
+      <Route path="/" element={
+        isLogisticaOnly ? <Navigate to="/logistics" replace /> :
+        isFinanceiroOnly ? <Navigate to="/financial" replace /> :
+        <Dashboard />
+      } />
       <Route path="/clients" element={<Clients />} />
       <Route path="/quotes" element={<Quotes />} />
       <Route path="/products" element={<Products />} />
@@ -57,11 +67,12 @@ function AppRoutes() {
       <Route path="/pipeline" element={<Pipeline />} />
       <Route path="/quote/:token" element={<PublicQuote />} />
       <Route path="/negociacoes" element={<Negociacoes />} />
-        <Route path="/reports" element={<Reports />} />
-        {(isGestor || isFinanceiro) && <Route path="/financial" element={<Financial />} />}
-        {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
-        {isAdmin && <Route path="/integrations" element={<Integrations />} />}
-        <Route path="*" element={<NotFound />} />
+      <Route path="/reports" element={<Reports />} />
+      <Route path="/logistics" element={<Logistics />} />
+      {(isGestor || isFinanceiro) && <Route path="/financial" element={<Financial />} />}
+      {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
+      {isAdmin && <Route path="/integrations" element={<Integrations />} />}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

@@ -2,7 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake, Plug,
-  Clock, ArrowDownCircle, AlertTriangle, FileBarChart,
+  Clock, ArrowDownCircle, AlertTriangle, FileBarChart, Truck, PackageCheck, PackageSearch, ClipboardList, TriangleAlert, MapPin,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserProfileEditor from './UserProfileEditor';
@@ -31,11 +31,11 @@ interface Props {
 }
 
 export default function AppSidebar({ onNavigate }: Props) {
-  const { isAdmin, isGestor, isFinanceiro, signOut } = useAuth();
+  const { isAdmin, isGestor, isFinanceiro, isLogistica, signOut } = useAuth();
   const location = useLocation();
 
-  // Financeiro-only user (not admin, not gestor)
   const isFinanceiroOnly = isFinanceiro && !isAdmin && !isGestor;
+  const isLogisticaOnly = isLogistica && !isAdmin && !isGestor && !isFinanceiro;
 
   const LinkItem = ({ to, icon: Icon, label, color }: { to: string; icon: any; label: string; color?: string }) => {
     const isActive = location.pathname === to;
@@ -65,6 +65,15 @@ export default function AppSidebar({ onNavigate }: Props) {
     { to: '/financial?tab=relatorios', icon: FileBarChart, label: 'Relatórios' },
   ];
 
+  const logisticsMenuItems = [
+    { to: '/logistics?tab=dashboard', icon: LayoutDashboard, label: 'Dashboard Logística' },
+    { to: '/logistics?tab=pedidos', icon: ClipboardList, label: 'Pedidos' },
+    { to: '/logistics?tab=nf', icon: FileText, label: 'NF / Emissão' },
+    { to: '/logistics?tab=envios', icon: Truck, label: 'Envios' },
+    { to: '/logistics?tab=rastreamento', icon: MapPin, label: 'Rastreamento' },
+    { to: '/logistics?tab=problemas', icon: TriangleAlert, label: 'Problemas' },
+  ];
+
   const FinancialLinkItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => {
     const isActive = location.pathname + location.search === to || (to === '/financial?tab=dashboard' && location.pathname === '/financial' && !location.search);
     return (
@@ -83,6 +92,53 @@ export default function AppSidebar({ onNavigate }: Props) {
       </NavLink>
     );
   };
+
+  const LogisticsLinkItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => {
+    const isActive = location.pathname + location.search === to || (to === '/logistics?tab=dashboard' && location.pathname === '/logistics' && !location.search);
+    return (
+      <NavLink
+        to={to}
+        onClick={onNavigate}
+        className={cn(
+          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]',
+          isActive
+            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+            : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
+        )}
+      >
+        <Icon className="h-5 w-5" />
+        {label}
+      </NavLink>
+    );
+  };
+
+  // Logistica-only sidebar
+  if (isLogisticaOnly) {
+    return (
+      <aside className="w-full md:w-64 h-full md:h-screen md:fixed md:left-0 md:top-0 flex flex-col border-r border-sidebar-border"
+        style={{ background: 'var(--gradient-sidebar)' }}>
+        <div className="p-4 flex items-center gap-3">
+          <img src="/mci-logo.png" alt="MCI Store" className="h-10 w-auto" />
+          <div>
+            <h1 className="text-sm font-bold font-display text-sidebar-primary-foreground">MCI Store</h1>
+            <p className="text-[10px] text-sidebar-foreground/60">Setor Logística</p>
+          </div>
+        </div>
+        <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
+          {logisticsMenuItems.map(item => (
+            <LogisticsLinkItem key={item.to} {...item} />
+          ))}
+        </nav>
+        <div className="p-4 border-t border-sidebar-border">
+          <div className="mb-3"><UserProfileEditor /></div>
+          <button onClick={() => { signOut(); onNavigate?.(); }}
+            className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors w-full min-h-[44px]">
+            <LogOut className="h-4 w-4" /> Sair
+          </button>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="w-full md:w-64 h-full md:h-screen md:fixed md:left-0 md:top-0 flex flex-col border-r border-sidebar-border"
@@ -111,6 +167,12 @@ export default function AppSidebar({ onNavigate }: Props) {
             ))}
 
             <LinkItem to="/ecoflow" icon={Calculator} label="Calculadora Ecoflow" />
+
+            {/* Logistics menu for commercial users */}
+            <div className="pt-4 pb-2 px-3">
+              <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Logística</p>
+            </div>
+            <LinkItem to="/logistics" icon={Truck} label="Acompanhamento" />
 
             {(isGestor || isFinanceiro) && (
               <>
