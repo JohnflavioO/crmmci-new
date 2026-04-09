@@ -19,10 +19,10 @@ import {
   DollarSign, Clock, AlertTriangle, CheckCircle2, Search,
   FileBarChart, QrCode, CreditCard, Banknote, ArrowDownCircle,
   RefreshCw, CalendarDays, CircleDollarSign, Wallet, Users, List,
-  MessageSquare, History, ShieldAlert, Handshake, FileCheck
+  MessageSquare, History, ShieldAlert, Handshake
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import FinancialSellerGroup from '@/components/financial/FinancialSellerGroup';
+
 import FinancialSellerRanking from '@/components/financial/FinancialSellerRanking';
 import FinancialActionsDoDia from '@/components/financial/FinancialActionsDoDia';
 import FinancialForecast from '@/components/financial/FinancialForecast';
@@ -324,7 +324,7 @@ export default function Financial() {
   const activeRecords = records.filter(r => !['pago', 'cancelado'].includes(r.financial_status));
   const paidRecords = records.filter(r => r.financial_status === 'pago');
   const totalReceivable = activeRecords.reduce((s, r) => s + (parseFloat(r.total_amount) || 0), 0);
-  const totalPaid = paidRecords.reduce((s, r) => s + (parseFloat(r.amount_paid || r.total_amount) || 0), 0);
+  const _totalPaid = paidRecords.reduce((s, r) => s + (parseFloat(r.amount_paid || r.total_amount) || 0), 0);
   const overdue = records.filter(r => r.financial_status === 'vencido').length;
   const criticalOverdue = records.filter(r => r.financial_status === 'atraso_critico').length;
   const dueToday = records.filter(r => r.financial_status === 'vence_hoje').length;
@@ -407,13 +407,6 @@ export default function Financial() {
     );
   };
 
-  // Tab navigation for financial sections
-  const tabs = [
-    { key: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
-    { key: 'pendencias' as const, label: 'Pendências', icon: Clock },
-    { key: 'baixas' as const, label: 'Baixas', icon: ArrowDownCircle },
-    { key: 'relatorios' as const, label: 'Relatórios', icon: FileBarChart },
-  ];
 
   // Need to import LayoutDashboard at top... it's already there? No.
   // Let's use Banknote for dashboard icon since LayoutDashboard is not imported... actually it's not. Let me use existing icons.
