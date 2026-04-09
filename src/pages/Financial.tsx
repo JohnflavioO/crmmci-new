@@ -58,6 +58,7 @@ export default function Financial() {
   const [searchParams] = useSearchParams();
   const [records, setRecords] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [sellerOptions, setSellerOptions] = useState<{ uid: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
