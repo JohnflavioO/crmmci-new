@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle2, XCircle, AlertCircle, RefreshCw, Eye, EyeOff, ShoppingBag, Plug } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, AlertCircle, RefreshCw, Eye, EyeOff, ShoppingBag, Plug, Download } from 'lucide-react';
 
 type IntegrationStatus = 'disconnected' | 'connected' | 'error' | 'syncing';
 
@@ -42,10 +42,12 @@ export default function Integrations() {
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [orders, setOrders] = useState<SyncOrder[]>([]);
   const [totalOrders, setTotalOrders] = useState(0);
   const [syncPage, setSyncPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; errors: number } | null>(null);
 
   useEffect(() => {
     if (isAdmin) loadStatus();
