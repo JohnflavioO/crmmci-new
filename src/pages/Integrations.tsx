@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle2, XCircle, AlertCircle, RefreshCw, Eye, EyeOff, ShoppingBag, Plug } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, AlertCircle, RefreshCw, Eye, EyeOff, ShoppingBag, Plug, Download } from 'lucide-react';
 
 type IntegrationStatus = 'disconnected' | 'connected' | 'error' | 'syncing';
 
@@ -42,10 +42,12 @@ export default function Integrations() {
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [orders, setOrders] = useState<SyncOrder[]>([]);
   const [totalOrders, setTotalOrders] = useState(0);
   const [syncPage, setSyncPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; errors: number } | null>(null);
 
   useEffect(() => {
     if (isAdmin) loadStatus();
@@ -126,6 +128,26 @@ export default function Integrations() {
       toast.error('Erro na sincronização: ' + (e.message || 'Erro desconhecido'));
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleImport = async (page = 1) => {
+    setImporting(true);
+    setStatus('syncing');
+    try {
+      const data = await callFunction({ action: 'import', page });
+      setImportResult({ imported: data.imported, skipped: data.skipped, errors: data.errors });
+      setStatus('connected');
+      setLastSync(new Date().toISOString());
+      toast.success(`Importação concluída! ${data.imported} novos pedidos importados, ${data.skipped} já existentes.`);
+      if (data.errors > 0) {
+        toast.warning(`${data.errors} pedidos com erro na importação.`);
+      }
+    } catch (e: any) {
+      setStatus('error');
+      toast.error('Erro na importação: ' + (e.message || 'Erro desconhecido'));
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -239,13 +261,28 @@ export default function Integrations() {
             {/* Sync section */}
             {hasCredentials && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <h3 className="text-sm font-semibold">Pedidos da Loja Integrada</h3>
-                  <Button variant="outline" size="sm" onClick={() => handleSync(1)} disabled={syncing}>
-                    {syncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
-                    Sincronizar pedidos
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => handleSync(1)} disabled={syncing || importing}>
+                      {syncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                      Visualizar pedidos
+                    </Button>
+                    <Button size="sm" onClick={() => handleImport(1)} disabled={importing || syncing}>
+                      {importing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
+                      Importar para Orçamentos
+                    </Button>
+                  </div>
                 </div>
+
+                {importResult && (
+                  <div className="p-3 rounded-lg border bg-muted/30 text-sm space-y-1">
+                    <p className="font-medium">Resultado da última importação:</p>
+                    <p className="text-emerald-600">✓ {importResult.imported} pedidos importados</p>
+                    {importResult.skipped > 0 && <p className="text-muted-foreground">⊘ {importResult.skipped} já existentes (ignorados)</p>}
+                    {importResult.errors > 0 && <p className="text-destructive">✗ {importResult.errors} com erro</p>}
+                  </div>
+                )}
 
                 {orders.length > 0 && (
                   <>

@@ -339,6 +339,8 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           discount: number | null
+          external_order_id: string | null
+          external_status: string | null
           id: string
           installments: number | null
           is_reseller: boolean
@@ -358,6 +360,7 @@ export type Database = {
           shipping_cost: number | null
           shipping_deadline: string | null
           shipping_method: string | null
+          source: string | null
           split_date_1: string | null
           split_date_2: string | null
           split_installments_1: number | null
@@ -378,6 +381,8 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           discount?: number | null
+          external_order_id?: string | null
+          external_status?: string | null
           id?: string
           installments?: number | null
           is_reseller?: boolean
@@ -397,6 +402,7 @@ export type Database = {
           shipping_cost?: number | null
           shipping_deadline?: string | null
           shipping_method?: string | null
+          source?: string | null
           split_date_1?: string | null
           split_date_2?: string | null
           split_installments_1?: number | null
@@ -417,6 +423,8 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           discount?: number | null
+          external_order_id?: string | null
+          external_status?: string | null
           id?: string
           installments?: number | null
           is_reseller?: boolean
@@ -436,6 +444,7 @@ export type Database = {
           shipping_cost?: number | null
           shipping_deadline?: string | null
           shipping_method?: string | null
+          source?: string | null
           split_date_1?: string | null
           split_date_2?: string | null
           split_installments_1?: number | null
