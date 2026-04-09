@@ -199,6 +199,13 @@ export default function Approvals() {
             )}
           </TableCell>
         )}
+        {!isTrash && (
+          <TableCell>
+            {!isAdminUser && (
+              <Switch checked={a.profiles?.commercial_visible !== false} onCheckedChange={() => handleToggleCommercialVisible(a)} />
+            )}
+          </TableCell>
+        )}
         <TableCell>
           {isTrash && a.profiles?.deleted_at
             ? new Date(a.profiles.deleted_at).toLocaleDateString('pt-BR')
@@ -271,6 +278,20 @@ export default function Approvals() {
                       <TableHead>Nível</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Ativo</TableHead>
+                      <TableHead>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="flex items-center gap-1 cursor-help">
+                                <Eye className="h-3.5 w-3.5" /> Gestor
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs max-w-[200px]">Define se este usuário aparece para gestores nos filtros comerciais</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableHead>
                       <TableHead>Data</TableHead>
                       <TableHead className="w-28">Ações</TableHead>
                     </TableRow>
