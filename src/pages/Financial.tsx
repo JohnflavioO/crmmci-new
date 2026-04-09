@@ -13,13 +13,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { format, isToday, isBefore, addDays, startOfDay, startOfMonth, endOfMonth, subMonths, subDays } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { format, isToday, isBefore, startOfDay, startOfMonth, endOfMonth, subMonths, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import {
   DollarSign, Clock, AlertTriangle, CheckCircle2, Search,
   FileBarChart, QrCode, CreditCard, Banknote, ArrowDownCircle,
-  RefreshCw, TrendingDown, CalendarDays, CircleDollarSign, Wallet
+  RefreshCw, CalendarDays, CircleDollarSign, Wallet
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
