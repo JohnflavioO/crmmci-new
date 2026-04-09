@@ -105,7 +105,7 @@ export default function PublicQuote() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div><span className="text-muted-foreground">Cliente:</span> <strong>{quote.client_name}</strong></div>
               <div><span className="text-muted-foreground">Vendedor:</span> <strong>{quote.salesperson || '-'}</strong></div>
-              {quote.payment_terms && <div><span className="text-muted-foreground">Cond. Pagamento:</span> {quote.payment_terms}</div>}
+              {quote.payment_terms && <div><span className="text-muted-foreground">Obs. Pagamento:</span> {quote.payment_terms}</div>}
               {quote.proposal_validity && <div><span className="text-muted-foreground">Validade:</span> {quote.proposal_validity}</div>}
             </div>
           </CardContent>
