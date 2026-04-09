@@ -285,6 +285,16 @@ export default function Financial() {
         <StatCard title="Pagamentos Confirmados" value={paidRecords.length} icon={CheckCircle2} className="border-l-4 border-l-emerald-500" />
       </div>
 
+      {/* Ações do Dia */}
+      <FinancialActionsDoDia records={records} fmt={fmt} />
+
+      {/* Previsão + Alertas + Conversão */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6">
+        <FinancialForecast records={records} fmt={fmt} />
+        <FinancialAlerts records={records} fmt={fmt} />
+        <FinancialConversion records={records} fmt={fmt} />
+      </div>
+
       {/* Seller Ranking */}
       <FinancialSellerRanking records={records} profilesMap={profiles} fmt={fmt} />
 
