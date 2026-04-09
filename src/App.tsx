@@ -18,6 +18,7 @@ import Pipeline from "./pages/Pipeline";
 import Reports from "./pages/Reports";
 import PublicQuote from "./pages/PublicQuote";
 import Negociacoes from "./pages/Negociacoes";
+import Integrations from "./pages/Integrations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ function AppRoutes() {
       <Route path="/negociacoes" element={<Negociacoes />} />
       <Route path="/reports" element={<Reports />} />
       {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
+      {isAdmin && <Route path="/integrations" element={<Integrations />} />}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
