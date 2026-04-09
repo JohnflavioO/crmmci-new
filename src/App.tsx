@@ -58,7 +58,7 @@ function AppRoutes() {
       <Route path="/quote/:token" element={<PublicQuote />} />
       <Route path="/negociacoes" element={<Negociacoes />} />
         <Route path="/reports" element={<Reports />} />
-        {(isAdmin || isGestor || isFinanceiro) && <Route path="/financial" element={<Financial />} />}
+        {(isGestor || isFinanceiro) && <Route path="/financial" element={<Financial />} />}
         {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
         {isAdmin && <Route path="/integrations" element={<Integrations />} />}
         <Route path="*" element={<NotFound />} />

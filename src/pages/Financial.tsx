@@ -43,7 +43,7 @@ const paymentMethodIcons: Record<string, { label: string; icon: any }> = {
 };
 
 export default function Financial() {
-  const { user, isAdmin, isFinanceiro } = useAuth();
+  const { user, isFinanceiro } = useAuth();
   const isMobile = useIsMobile();
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +55,7 @@ export default function Financial() {
   const [baixaForm, setBaixaForm] = useState({ amount_paid: '', paid_date: '', financial_notes: '', financial_status: 'pago' });
   const [saving, setSaving] = useState(false);
 
-  const canEdit = isAdmin || isFinanceiro;
+  const canEdit = isFinanceiro;
 
   const loadRecords = useCallback(async () => {
     setLoading(true);
