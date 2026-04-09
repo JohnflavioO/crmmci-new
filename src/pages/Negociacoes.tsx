@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import {
   FileText, Search, ArrowLeft, Calendar, User, Building2,
-  Phone, Mail, MapPin
+  Phone, Mail, MapPin, Store
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -194,6 +194,11 @@ export default function Negociacoes() {
               <Badge className={`${getStatusColor(selectedQuote.status)} text-white`}>
                 {getStatusLabel(selectedQuote.status)}
               </Badge>
+              {(selectedQuote as any).is_reseller && (
+                <Badge className="bg-orange-100 text-orange-800 border border-orange-200">
+                  <Store className="h-3 w-3 mr-1" /> Revenda
+                </Badge>
+              )}
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
