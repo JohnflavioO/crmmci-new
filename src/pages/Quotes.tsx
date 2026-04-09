@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const db = supabase as any;
@@ -49,11 +49,12 @@ interface QuoteItem {
   unit_total: number;
   line_total: number;
   image_url: string;
+  is_gift: boolean;
 }
 
 const emptyItem = (): QuoteItem => ({
   item_number: 1, product_code: '', quantity: 1, model: '', brand: '',
-  specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0, image_url: '',
+  specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0, image_url: '', is_gift: false,
 });
 
 const shippingMethods = [
@@ -112,6 +113,9 @@ export default function Quotes() {
   useEffect(() => { loadData(); }, [isGestor, isAdmin]);
 
   const calcItem = (item: QuoteItem): QuoteItem => {
+    if (item.is_gift) {
+      return { ...item, unit_total: 0, line_total: 0 };
+    }
     const unitTotal = item.unit_price * (1 - item.discount_percent / 100);
     const lineTotal = unitTotal * item.quantity;
     return { ...item, unit_total: Math.round(unitTotal * 100) / 100, line_total: Math.round(lineTotal * 100) / 100 };
@@ -194,9 +198,9 @@ export default function Quotes() {
       const validItems = items.filter(i => i.model).map((item, idx) => ({
         quote_id: quoteId, item_number: idx + 1, product_code: item.product_code,
         quantity: item.quantity, model: item.model, brand: item.brand,
-        specifications: item.specifications, unit_price: item.unit_price,
+        specifications: item.specifications, unit_price: item.is_gift ? item.unit_price : item.unit_price,
         discount_percent: item.discount_percent, unit_total: item.unit_total,
-        line_total: item.line_total, image_url: item.image_url,
+        line_total: item.line_total, image_url: item.image_url, is_gift: item.is_gift,
       }));
 
       if (validItems.length > 0) {
@@ -258,7 +262,7 @@ export default function Quotes() {
           quantity: item.quantity, model: item.model, brand: item.brand, description: item.description || '',
           specifications: item.specifications, unit_price: item.unit_price,
           discount_percent: item.discount_percent, unit_total: item.unit_total,
-          line_total: item.line_total, image_url: item.image_url,
+          line_total: item.line_total, image_url: item.image_url, is_gift: item.is_gift || false,
         }));
         await db.from('quote_items').insert(dupItems);
       }
@@ -568,24 +572,42 @@ export default function Quotes() {
                         <Textarea value={item.specifications} rows={2}
                           onChange={e => updateItem(idx, 'specifications', e.target.value)} />
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs">Preço Unit. (R$)</Label>
-                          <Input type="number" step="0.01" value={item.unit_price}
-                            onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} />
+                          <Input type="number" step="0.01" value={item.unit_price} disabled={item.is_gift}
+                            onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} className={item.is_gift ? 'opacity-50' : ''} />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Desconto (%)</Label>
-                          <Input type="number" step="0.1" min={0} max={100} value={item.discount_percent}
-                            onChange={e => updateItem(idx, 'discount_percent', parseFloat(e.target.value) || 0)} />
+                          <Input type="number" step="0.1" min={0} max={100} value={item.discount_percent} disabled={item.is_gift}
+                            onChange={e => updateItem(idx, 'discount_percent', parseFloat(e.target.value) || 0)} className={item.is_gift ? 'opacity-50' : ''} />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Valor Unit.</Label>
-                          <Input value={formatCurrency(item.unit_total)} readOnly className="bg-muted" />
+                          <Input value={item.is_gift ? 'BRINDE' : formatCurrency(item.unit_total)} readOnly className="bg-muted" />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Total</Label>
-                          <Input value={formatCurrency(item.line_total)} readOnly className="bg-muted font-semibold" />
+                          <Input value={item.is_gift ? 'BRINDE' : formatCurrency(item.line_total)} readOnly className={`bg-muted font-semibold ${item.is_gift ? 'text-emerald-600' : ''}`} />
+                        </div>
+                        <div className="space-y-1 flex items-end">
+                          <Button
+                            type="button"
+                            variant={item.is_gift ? 'default' : 'outline'}
+                            size="sm"
+                            className={`w-full gap-1.5 min-h-[36px] ${item.is_gift ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''}`}
+                            onClick={() => {
+                              setItems(prev => {
+                                const updated = [...prev];
+                                updated[idx] = calcItem({ ...updated[idx], is_gift: !updated[idx].is_gift });
+                                return updated;
+                              });
+                            }}
+                          >
+                            <Gift className="h-3.5 w-3.5" />
+                            {item.is_gift ? 'Brinde ✓' : 'Brinde'}
+                          </Button>
                         </div>
                       </div>
                     </div>
