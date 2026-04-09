@@ -170,8 +170,11 @@ export default function Quotes() {
 
     try {
       let quoteId: string;
+      // Find salesperson_id from salespeople list
+      const matchedSeller = salespeople.find((s: any) => s.name === form.salesperson);
       const quoteData = {
         client_id: form.client_id, salesperson: form.salesperson, status: form.status,
+        salesperson_id: matchedSeller?.id || user?.id || null,
         notes: form.notes, total_amount: grandTotal,
         payment_terms: form.payment_terms, shipping_deadline: form.shipping_deadline,
         shipping_method: form.shipping_method, shipping_cost: form.shipping_cost,
