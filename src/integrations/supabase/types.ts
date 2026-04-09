@@ -95,6 +95,50 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_action_history: {
+        Row: {
+          action_type: string
+          created_at: string
+          financial_record_id: string
+          id: string
+          new_status: string | null
+          notes: string | null
+          performed_by: string
+          performed_by_name: string | null
+          previous_status: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          financial_record_id: string
+          id?: string
+          new_status?: string | null
+          notes?: string | null
+          performed_by: string
+          performed_by_name?: string | null
+          previous_status?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          financial_record_id?: string
+          id?: string
+          new_status?: string | null
+          notes?: string | null
+          performed_by?: string
+          performed_by_name?: string | null
+          previous_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_action_history_financial_record_id_fkey"
+            columns: ["financial_record_id"]
+            isOneToOne: false
+            referencedRelation: "financial_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_records: {
         Row: {
           amount_paid: number | null
