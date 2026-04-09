@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Check, X, UserCheck, ShieldCheck, Trash2, RotateCcw } from 'lucide-react';
+import { Check, X, UserCheck, ShieldCheck, Trash2, RotateCcw, Eye } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const db = supabase as any;
 
@@ -36,7 +37,7 @@ export default function Approvals() {
     const userIds = approvalsData.map((a: any) => a.user_id);
 
     const [{ data: profilesData }, { data: rolesData }] = await Promise.all([
-      db.from('profiles').select('user_id, full_name, phone, role, active, deleted_at').in('user_id', userIds),
+      db.from('profiles').select('user_id, full_name, phone, role, active, deleted_at, commercial_visible').in('user_id', userIds),
       db.from('user_roles').select('user_id, role').in('user_id', userIds),
     ]);
 
@@ -107,6 +108,15 @@ export default function Approvals() {
     }
 
     toast.success(newActive ? 'Usuário ativado' : 'Usuário desativado');
+    load();
+  };
+
+  const handleToggleCommercialVisible = async (approval: any) => {
+    const current = approval.profiles?.commercial_visible !== false;
+    const newVal = !current;
+    const { error } = await db.from('profiles').update({ commercial_visible: newVal }).eq('user_id', approval.user_id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(newVal ? 'Visível para gestores' : 'Oculto para gestores');
     load();
   };
 
@@ -189,6 +199,13 @@ export default function Approvals() {
             )}
           </TableCell>
         )}
+        {!isTrash && (
+          <TableCell>
+            {!isAdminUser && (
+              <Switch checked={a.profiles?.commercial_visible !== false} onCheckedChange={() => handleToggleCommercialVisible(a)} />
+            )}
+          </TableCell>
+        )}
         <TableCell>
           {isTrash && a.profiles?.deleted_at
             ? new Date(a.profiles.deleted_at).toLocaleDateString('pt-BR')
@@ -261,6 +278,20 @@ export default function Approvals() {
                       <TableHead>Nível</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Ativo</TableHead>
+                      <TableHead>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="flex items-center gap-1 cursor-help">
+                                <Eye className="h-3.5 w-3.5" /> Gestor
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs max-w-[200px]">Define se este usuário aparece para gestores nos filtros comerciais</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableHead>
                       <TableHead>Data</TableHead>
                       <TableHead className="w-28">Ações</TableHead>
                     </TableRow>

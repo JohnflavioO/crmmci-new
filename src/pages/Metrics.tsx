@@ -36,7 +36,7 @@ type ChartView = 'bar' | 'table';
 type ChartMetric = 'quantity' | 'value';
 
 export default function Metrics() {
-  const { user, isGestor, profile } = useAuth();
+  const { user, isGestor, isAdmin, profile } = useAuth();
   const [quotes, setQuotes] = useState<any[]>([]);
   const [period, setPeriod] = useState<Period>('month');
   const [customFrom, setCustomFrom] = useState<Date | undefined>(startOfMonth(new Date()));
@@ -78,11 +78,13 @@ export default function Metrics() {
   useEffect(() => {
     if (!isGestor) return;
     const loadSellers = async () => {
-      const { data } = await db.from('profiles').select('user_id, full_name, role');
+      let query = db.from('profiles').select('user_id, full_name, role');
+      if (!isAdmin) query = query.eq('commercial_visible', true);
+      const { data } = await query;
       setSalespeople(data || []);
     };
     loadSellers();
-  }, [isGestor]);
+  }, [isGestor, isAdmin]);
 
   const totalQuotes = quotes.length;
   const approved = quotes.filter(q => q.status === 'approved');

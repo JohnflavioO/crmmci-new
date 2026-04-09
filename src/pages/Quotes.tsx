@@ -101,7 +101,7 @@ export default function Quotes() {
 
       // Load seller profiles for gestor filter
       if (isGestor && !isAdmin) {
-        const { data: profiles } = await db.from('profiles').select('user_id, full_name').eq('active', true);
+        const { data: profiles } = await db.from('profiles').select('user_id, full_name').eq('active', true).eq('commercial_visible', true);
         setSellerProfiles((profiles || []).filter((p: any) => p.full_name));
       }
     } catch (err) {

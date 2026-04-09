@@ -113,11 +113,13 @@ export default function Negociacoes() {
     setQuotes(mapped);
 
     if (canSeeAll) {
-      const { data: profiles } = await db.from('profiles').select('user_id, full_name').eq('active', true);
+      let query = db.from('profiles').select('user_id, full_name').eq('active', true);
+      if (!isAdmin) query = query.eq('commercial_visible', true);
+      const { data: profiles } = await query;
       setSellers((profiles || []).filter((p: any) => p.full_name));
     }
     setLoading(false);
-  }, [canSeeAll]);
+  }, [canSeeAll, isAdmin]);
 
   useEffect(() => { loadData(); }, [loadData]);
 

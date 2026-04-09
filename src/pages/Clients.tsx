@@ -73,12 +73,14 @@ export default function Clients() {
 
   useEffect(() => {
     if (canSeeAll) {
-      db.from('profiles').select('user_id, full_name').then(({ data }: any) => {
+      let query = db.from('profiles').select('user_id, full_name');
+      if (!isAdmin) query = query.eq('commercial_visible', true);
+      query.then(({ data }: any) => {
         const list = (data || []).filter((p: any) => p.user_id !== user?.id);
         setSellers(list);
       });
     }
-  }, [canSeeAll, user?.id]);
+  }, [canSeeAll, isAdmin, user?.id]);
 
   const loadClients = async () => {
     const { data } = await db.from('clients').select('*').order('company_name');
