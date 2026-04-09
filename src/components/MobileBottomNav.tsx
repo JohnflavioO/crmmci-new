@@ -1,17 +1,26 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Users, Kanban } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Kanban, Banknote } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
-const items = [
+const commercialItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/quotes', icon: FileText, label: 'Orçamentos' },
   { to: '/clients', icon: Users, label: 'Clientes' },
   { to: '/pipeline', icon: Kanban, label: 'Funil' },
 ];
 
+const financialItems = [
+  { to: '/financial', icon: Banknote, label: 'Financeiro' },
+];
+
 export default function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isFinanceiro, isAdmin, isGestor } = useAuth();
+
+  const isFinanceiroOnly = isFinanceiro && !isAdmin && !isGestor;
+  const items = isFinanceiroOnly ? financialItems : commercialItems;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border md:hidden safe-area-bottom">

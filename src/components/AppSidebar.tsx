@@ -2,6 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake, Plug, Banknote,
+  Clock, ArrowDownCircle, AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserProfileEditor from './UserProfileEditor';
@@ -15,6 +16,11 @@ const navItems = [
   { to: '/tasks', icon: ListChecks, label: 'Tarefas' },
   { to: '/metrics', icon: BarChart3, label: 'Métricas' },
   { to: '/products', icon: Package, label: 'Produtos' },
+];
+
+const financialNavItems = [
+  { to: '/financial', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/financial', icon: Banknote, label: 'Contas a Receber', hash: '#contas' },
 ];
 
 const adminGestorItems = [
@@ -32,6 +38,9 @@ interface Props {
 export default function AppSidebar({ onNavigate }: Props) {
   const { profile, isAdmin, isGestor, isFinanceiro, signOut } = useAuth();
   const location = useLocation();
+
+  // Financeiro-only user (not admin, not gestor)
+  const isFinanceiroOnly = isFinanceiro && !isAdmin && !isGestor;
 
   const LinkItem = ({ to, icon: Icon, label, color }: { to: string; icon: any; label: string; color?: string }) => {
     const isActive = location.pathname === to;
@@ -60,33 +69,43 @@ export default function AppSidebar({ onNavigate }: Props) {
         <img src="/mci-logo.png" alt="MCI Store" className="h-10 w-auto" />
         <div>
           <h1 className="text-sm font-bold font-display text-sidebar-primary-foreground">MCI Store</h1>
-          <p className="text-[10px] text-sidebar-foreground/60">Sistema de Orçamentos</p>
+          <p className="text-[10px] text-sidebar-foreground/60">
+            {isFinanceiroOnly ? 'Setor Financeiro' : 'Sistema de Orçamentos'}
+          </p>
         </div>
       </div>
 
       <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
-        {navItems.map(item => (
-          <LinkItem key={item.to} {...item} color={item.to === '/quotes' ? '#15AFA1' : undefined} />
-        ))}
-
-        <LinkItem to="/ecoflow" icon={Calculator} label="Calculadora Ecoflow" />
-
-        {(isGestor || isFinanceiro) && (
+        {isFinanceiroOnly ? (
           <>
-            <div className="pt-4 pb-2 px-3">
-              <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Financeiro</p>
-            </div>
-            <LinkItem to="/financial" icon={Banknote} label="Financeiro" />
+            <LinkItem to="/financial" icon={LayoutDashboard} label="Dashboard Financeiro" />
           </>
-        )}
-
-        {(isAdmin || isGestor) && (
+        ) : (
           <>
-            <div className="pt-4 pb-2 px-3">
-              <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Admin</p>
-            </div>
-            {adminGestorItems.map(item => <LinkItem key={item.to} {...item} />)}
-            {isAdmin && adminOnlyItems.map(item => <LinkItem key={item.to} {...item} />)}
+            {navItems.map(item => (
+              <LinkItem key={item.to} {...item} color={item.to === '/quotes' ? '#15AFA1' : undefined} />
+            ))}
+
+            <LinkItem to="/ecoflow" icon={Calculator} label="Calculadora Ecoflow" />
+
+            {(isGestor || isFinanceiro) && (
+              <>
+                <div className="pt-4 pb-2 px-3">
+                  <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Financeiro</p>
+                </div>
+                <LinkItem to="/financial" icon={Banknote} label="Financeiro" />
+              </>
+            )}
+
+            {(isAdmin || isGestor) && (
+              <>
+                <div className="pt-4 pb-2 px-3">
+                  <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Admin</p>
+                </div>
+                {adminGestorItems.map(item => <LinkItem key={item.to} {...item} />)}
+                {isAdmin && adminOnlyItems.map(item => <LinkItem key={item.to} {...item} />)}
+              </>
+            )}
           </>
         )}
       </nav>
