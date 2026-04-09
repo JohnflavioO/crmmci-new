@@ -74,10 +74,10 @@ export default function Approvals() {
   };
 
   const handleRoleChange = async (approval: any, newRole: string) => {
-    const profileRole = newRole === 'gestor' ? 'gestor' : newRole === 'financeiro' ? 'financeiro' : 'comercial';
+    const profileRole = newRole === 'gestor' ? 'gestor' : newRole === 'financeiro' ? 'financeiro' : newRole === 'logistica' ? 'logistica' : 'comercial';
     await db.from('profiles').update({ role: profileRole }).eq('user_id', approval.user_id);
 
-    if (newRole === 'gestor' || newRole === 'financeiro') {
+    if (['gestor', 'financeiro', 'logistica'].includes(newRole)) {
       const { data: existing } = await db.from('user_roles').select('id').eq('user_id', approval.user_id).maybeSingle();
       if (existing) {
         await db.from('user_roles').update({ role: newRole }).eq('user_id', approval.user_id);
@@ -91,7 +91,7 @@ export default function Approvals() {
       }
     }
 
-    const roleLabels: Record<string, string> = { gestor: 'Gestor', financeiro: 'Financeiro', comercial: 'Comercial' };
+    const roleLabels: Record<string, string> = { gestor: 'Gestor', financeiro: 'Financeiro', logistica: 'Logística', comercial: 'Comercial' };
     toast.success(`Nível alterado para ${roleLabels[newRole] || newRole}`);
     load();
   };

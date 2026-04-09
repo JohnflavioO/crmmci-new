@@ -94,7 +94,7 @@ export default function Logistics() {
   const [historyRecordId, setHistoryRecordId] = useState<string | null>(null);
   const [history, setHistory] = useState<any[]>([]);
 
-  const canOperate = isLogistica || isAdmin;
+  const canOperate = isLogistica;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
