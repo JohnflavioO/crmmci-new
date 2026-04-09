@@ -170,8 +170,11 @@ export default function Quotes() {
 
     try {
       let quoteId: string;
+      // Find salesperson_id from salespeople list
+      const matchedSeller = salespeople.find((s: any) => s.name === form.salesperson);
       const quoteData = {
         client_id: form.client_id, salesperson: form.salesperson, status: form.status,
+        salesperson_id: matchedSeller?.id || user?.id || null,
         notes: form.notes, total_amount: grandTotal,
         payment_terms: form.payment_terms, shipping_deadline: form.shipping_deadline,
         shipping_method: form.shipping_method, shipping_cost: form.shipping_cost,
@@ -325,20 +328,32 @@ export default function Quotes() {
   };
 
   const getDefaultSalesperson = useCallback(() => {
-    if (profile?.full_name && salespeople.length > 0) {
-      const match = salespeople.find((s: any) => s.name?.toLowerCase() === profile.full_name.toLowerCase());
-      return match?.name || profile.full_name;
+    if (!profile?.full_name) return '';
+    if (salespeople.length > 0) {
+      // Try exact match first, then case-insensitive
+      const exact = salespeople.find((s: any) => s.name === profile.full_name);
+      if (exact) return exact.name;
+      const match = salespeople.find((s: any) => s.name?.toLowerCase().trim() === profile.full_name.toLowerCase().trim());
+      if (match) return match.name;
+      // Try partial match (first+last name)
+      const partial = salespeople.find((s: any) => 
+        s.name?.toLowerCase().includes(profile.full_name.toLowerCase()) ||
+        profile.full_name.toLowerCase().includes(s.name?.toLowerCase())
+      );
+      if (partial) return partial.name;
     }
-    if (profile?.full_name) return profile.full_name;
-    return '';
+    return profile.full_name;
   }, [profile?.full_name, salespeople]);
 
-  // Auto-set salesperson when profile/salespeople load and form is empty
+  // Auto-set salesperson when profile/salespeople load
   useEffect(() => {
-    if (!editingQuote && !form.salesperson) {
+    if (!editingQuote) {
       const defaultSp = getDefaultSalesperson();
       if (defaultSp) {
-        setForm(prev => ({ ...prev, salesperson: defaultSp }));
+        setForm(prev => {
+          if (prev.salesperson && prev.salesperson !== '') return prev;
+          return { ...prev, salesperson: defaultSp };
+        });
       }
     }
   }, [getDefaultSalesperson, editingQuote]);
@@ -408,14 +423,18 @@ export default function Quotes() {
                 </div>
                 <div className="space-y-2">
                   <Label>Vendedor</Label>
-                  <Select value={form.salesperson} onValueChange={v => setForm(p => ({ ...p, salesperson: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Selecionar vendedor" /></SelectTrigger>
-                    <SelectContent>
-                      {salespeople.map((s: any) => (
-                        <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {!isAdmin && !isGestor && form.salesperson ? (
+                    <Input value={form.salesperson} readOnly className="bg-muted" />
+                  ) : (
+                    <Select value={form.salesperson} onValueChange={v => setForm(p => ({ ...p, salesperson: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Selecionar vendedor" /></SelectTrigger>
+                      <SelectContent>
+                        {salespeople.map((s: any) => (
+                          <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Status</Label>
