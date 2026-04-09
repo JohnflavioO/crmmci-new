@@ -262,7 +262,7 @@ export default function Quotes() {
           quantity: item.quantity, model: item.model, brand: item.brand, description: item.description || '',
           specifications: item.specifications, unit_price: item.unit_price,
           discount_percent: item.discount_percent, unit_total: item.unit_total,
-          line_total: item.line_total, image_url: item.image_url,
+          line_total: item.line_total, image_url: item.image_url, is_gift: item.is_gift || false,
         }));
         await db.from('quote_items').insert(dupItems);
       }
