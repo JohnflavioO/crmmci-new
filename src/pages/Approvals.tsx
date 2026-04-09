@@ -201,9 +201,7 @@ export default function Approvals() {
         )}
         {!isTrash && (
           <TableCell>
-            {!isAdminUser && (
-              <Switch checked={a.profiles?.commercial_visible !== false} onCheckedChange={() => handleToggleCommercialVisible(a)} />
-            )}
+            <Switch checked={a.profiles?.commercial_visible !== false} onCheckedChange={() => handleToggleCommercialVisible(a)} />
           </TableCell>
         )}
         <TableCell>
