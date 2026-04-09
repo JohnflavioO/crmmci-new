@@ -79,9 +79,11 @@ async function testConnection(apiKey: string, applicationKey: string) {
 
   console.log(`[loja-integrada] Response status: ${response.status}`);
 
+  // Read body ONCE as text, then parse
+  const responseText = await response.text();
+
   if (!response.ok) {
-    const text = await response.text();
-    console.error(`[loja-integrada] API error body: ${text}`);
+    console.error(`[loja-integrada] API error body: ${responseText.slice(0, 500)}`);
 
     if (response.status === 401) {
       return {
@@ -109,7 +111,7 @@ async function testConnection(apiKey: string, applicationKey: string) {
     }
     return {
       ok: false,
-      error: `Erro ${response.status} na API da Loja Integrada: ${text.slice(0, 200)}`,
+      error: `Erro ${response.status} na API da Loja Integrada: ${responseText.slice(0, 200)}`,
       error_stage: 'api_call',
       http_status: response.status,
     };
@@ -117,10 +119,9 @@ async function testConnection(apiKey: string, applicationKey: string) {
 
   let data;
   try {
-    data = await response.json();
+    data = JSON.parse(responseText);
   } catch {
-    const text = await response.text();
-    console.error('[loja-integrada] Invalid JSON response:', text.slice(0, 200));
+    console.error('[loja-integrada] Invalid JSON response:', responseText.slice(0, 200));
     return {
       ok: false,
       error: 'Resposta inválida da Loja Integrada (não é JSON).',
