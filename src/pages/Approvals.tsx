@@ -74,14 +74,15 @@ export default function Approvals() {
   };
 
   const handleRoleChange = async (approval: any, newRole: string) => {
-    await db.from('profiles').update({ role: newRole === 'gestor' ? 'gestor' : 'comercial' }).eq('user_id', approval.user_id);
+    const profileRole = newRole === 'gestor' ? 'gestor' : newRole === 'financeiro' ? 'financeiro' : 'comercial';
+    await db.from('profiles').update({ role: profileRole }).eq('user_id', approval.user_id);
 
-    if (newRole === 'gestor') {
+    if (newRole === 'gestor' || newRole === 'financeiro') {
       const { data: existing } = await db.from('user_roles').select('id').eq('user_id', approval.user_id).maybeSingle();
       if (existing) {
-        await db.from('user_roles').update({ role: 'gestor' }).eq('user_id', approval.user_id);
+        await db.from('user_roles').update({ role: newRole }).eq('user_id', approval.user_id);
       } else {
-        await db.from('user_roles').insert({ user_id: approval.user_id, role: 'gestor' });
+        await db.from('user_roles').insert({ user_id: approval.user_id, role: newRole });
       }
     } else {
       const { data: existing } = await db.from('user_roles').select('id, role').eq('user_id', approval.user_id).maybeSingle();
@@ -90,7 +91,8 @@ export default function Approvals() {
       }
     }
 
-    toast.success(`Nível alterado para ${newRole === 'gestor' ? 'Gestor' : 'Comercial'}`);
+    const roleLabels: Record<string, string> = { gestor: 'Gestor', financeiro: 'Financeiro', comercial: 'Comercial' };
+    toast.success(`Nível alterado para ${roleLabels[newRole] || newRole}`);
     load();
   };
 
@@ -187,6 +189,7 @@ export default function Approvals() {
               <SelectContent>
                 <SelectItem value="comercial">Comercial</SelectItem>
                 <SelectItem value="gestor">Gestor</SelectItem>
+                <SelectItem value="financeiro">Financeiro</SelectItem>
               </SelectContent>
             </Select>
           )}
