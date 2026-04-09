@@ -343,6 +343,12 @@ export default function Financial() {
         </CardContent>
       </Card>
 
+      {/* Quick Actions */}
+      <FinancialQuickActions
+        onFilterOverdue={() => { setFilterPeriod('overdue'); setFilterStatus('all'); }}
+        onFilterPending={() => { setFilterStatus('aguardando_pagamento'); setFilterPeriod('all'); }}
+      />
+
       {/* Filters */}
       <Card className="mb-4">
         <CardContent className="p-4">
