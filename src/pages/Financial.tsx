@@ -93,9 +93,10 @@ export default function Financial() {
 
   const loadRecords = useCallback(async () => {
     setLoading(true);
-    const [recordsRes, profilesRes] = await Promise.all([
+    const [recordsRes, profilesRes, quotesRes] = await Promise.all([
       db.from('financial_records').select('*').order('due_date', { ascending: true }),
       db.from('profiles').select('user_id, full_name'),
+      db.from('quotes').select('id, quote_number, client_name, salesperson, created_by, client_id, clients(company_name, name)').eq('status', 'approved'),
     ]);
 
     if (profilesRes.data) {
@@ -104,22 +105,45 @@ export default function Financial() {
       setProfiles(map);
     }
 
+    // Build quote lookup for enrichment
+    const quotesMap: Record<string, any> = {};
+    if (quotesRes.data) {
+      (quotesRes.data as any[]).forEach((q: any) => { quotesMap[q.id] = q; });
+    }
+
     if (recordsRes.error) {
       toast.error('Erro ao carregar registros financeiros');
     } else {
       const today = startOfDay(new Date());
       const updated = (recordsRes.data || []).map((r: any) => {
-        if (['pago', 'cancelado', 'pago_parcial', 'em_renegociacao', 'promessa_pagamento'].includes(r.financial_status)) return r;
-        if (r.due_date) {
-          const due = startOfDay(new Date(r.due_date));
-          if (isToday(due)) return { ...r, financial_status: 'vence_hoje' };
-          if (isBefore(due, today)) {
-            const daysOverdue = differenceInDays(today, due);
-            if (daysOverdue > 30) return { ...r, financial_status: 'atraso_critico' };
-            return { ...r, financial_status: 'vencido' };
+        // Enrich with quote data
+        const quote = r.quote_id ? quotesMap[r.quote_id] : null;
+        let enriched = { ...r };
+        
+        // Fill client_name from quote/client if still blank
+        if (!enriched.client_name || enriched.client_name === '') {
+          if (quote) {
+            enriched.client_name = quote.clients?.company_name || quote.clients?.name || quote.client_name || 'Sem cliente';
           }
         }
-        return r;
+        
+        // Add quote_number for display
+        if (quote?.quote_number) {
+          enriched.quote_number = quote.quote_number;
+        }
+
+        // Compute dynamic status based on due_date
+        if (['pago', 'cancelado', 'pago_parcial', 'em_renegociacao', 'promessa_pagamento'].includes(enriched.financial_status)) return enriched;
+        if (enriched.due_date) {
+          const due = startOfDay(new Date(enriched.due_date));
+          if (isToday(due)) return { ...enriched, financial_status: 'vence_hoje' };
+          if (isBefore(due, today)) {
+            const daysOverdue = differenceInDays(today, due);
+            if (daysOverdue > 30) return { ...enriched, financial_status: 'atraso_critico' };
+            return { ...enriched, financial_status: 'vencido' };
+          }
+        }
+        return enriched;
       });
       setRecords(updated);
     }
