@@ -47,7 +47,7 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/" element={<Dashboard />} />
+      <Route path="/" element={isFinanceiro && !isGestor && !isAdmin ? <Navigate to="/financial" replace /> : <Dashboard />} />
       <Route path="/clients" element={<Clients />} />
       <Route path="/quotes" element={<Quotes />} />
       <Route path="/products" element={<Products />} />
