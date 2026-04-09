@@ -164,7 +164,7 @@ export default function Approvals() {
 
   const renderUserRow = (a: any, isTrash = false) => {
     const isAdminUser = a.system_role === 'admin';
-    const currentRole = isAdminUser ? 'admin' : (a.system_role === 'gestor' ? 'gestor' : 'comercial');
+    const currentRole = isAdminUser ? 'admin' : (a.system_role === 'gestor' ? 'gestor' : a.system_role === 'financeiro' ? 'financeiro' : 'comercial');
     const isActive = a.profiles?.active !== false;
 
     return (
