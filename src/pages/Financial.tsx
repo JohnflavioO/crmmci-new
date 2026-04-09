@@ -366,11 +366,7 @@ export default function Financial() {
       .sort((a, b) => b.openValue - a.openValue);
   }, [filtered, profiles]);
 
-  // Unique sellers for filter
-  const sellerOptions = useMemo(() => {
-    const uids = new Set(records.map(r => r.created_by).filter(Boolean));
-    return Array.from(uids).map(uid => ({ uid, name: profiles[uid] || 'Desconhecido' })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [records, profiles]);
+  // sellerOptions is now populated from loadRecords using ALL profiles
 
   // Stats
   const activeRecords = records.filter(r => !['pago', 'cancelado'].includes(r.financial_status));
