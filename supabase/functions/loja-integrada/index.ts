@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const LOJA_INTEGRADA_API = 'https://api.lojaintegrada.com.br/v1';
+const LOJA_INTEGRADA_API = 'https://api.awsli.com.br/v1';
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
