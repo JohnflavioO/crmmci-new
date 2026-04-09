@@ -324,17 +324,29 @@ export default function Quotes() {
     }
   };
 
-  const getDefaultSalesperson = () => {
-    if (profile?.full_name) {
+  const getDefaultSalesperson = useCallback(() => {
+    if (profile?.full_name && salespeople.length > 0) {
       const match = salespeople.find((s: any) => s.name?.toLowerCase() === profile.full_name.toLowerCase());
       return match?.name || profile.full_name;
     }
+    if (profile?.full_name) return profile.full_name;
     return '';
-  };
+  }, [profile?.full_name, salespeople]);
+
+  // Auto-set salesperson when profile/salespeople load and form is empty
+  useEffect(() => {
+    if (!editingQuote && !form.salesperson) {
+      const defaultSp = getDefaultSalesperson();
+      if (defaultSp) {
+        setForm(prev => ({ ...prev, salesperson: defaultSp }));
+      }
+    }
+  }, [getDefaultSalesperson, editingQuote]);
 
   const resetForm = () => {
     setEditingQuote(null);
-    setForm({ client_id: '', salesperson: getDefaultSalesperson(), status: 'draft', notes: '', payment_terms: '', shipping_deadline: '', shipping_method: '', shipping_cost: 0, proposal_validity: '15 dias', payment_method: '', payment_status: 'pendente' });
+    const defaultSp = getDefaultSalesperson();
+    setForm({ client_id: '', salesperson: defaultSp, status: 'draft', notes: '', payment_terms: '', shipping_deadline: '', shipping_method: '', shipping_cost: 0, proposal_validity: '15 dias', payment_method: '', payment_status: 'pendente' });
     setItems([emptyItem()]);
   };
 
