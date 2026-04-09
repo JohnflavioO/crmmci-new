@@ -14,7 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift, Store } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const db = supabase as any;
@@ -79,6 +80,7 @@ export default function Quotes() {
     payment_terms: '', shipping_deadline: '', shipping_method: '',
     shipping_cost: 0, proposal_validity: '15 dias',
     payment_method: '', payment_status: 'pendente',
+    is_reseller: false,
   });
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
   const [salespeople, setSalespeople] = useState<any[]>([]);
@@ -180,6 +182,7 @@ export default function Quotes() {
         shipping_method: form.shipping_method, shipping_cost: form.shipping_cost,
         proposal_validity: form.proposal_validity,
         payment_method: form.payment_method || null, payment_status: form.payment_status,
+        is_reseller: form.is_reseller,
       };
 
       if (editingQuote) {
@@ -231,6 +234,7 @@ export default function Quotes() {
       shipping_cost: parseFloat(quote.shipping_cost) || 0,
       proposal_validity: quote.proposal_validity || '15 dias',
       payment_method: quote.payment_method || '', payment_status: quote.payment_status || 'pendente',
+      is_reseller: quote.is_reseller || false,
     });
     setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
     setDialogOpen(true);
@@ -256,7 +260,7 @@ export default function Quotes() {
         proposal_validity: quote.proposal_validity, payment_method: quote.payment_method,
         payment_status: 'pendente', total_amount: quote.total_amount, total: quote.total,
         discount: quote.discount, quote_number: numData || `ORC-${Date.now()}`,
-        created_by: user?.id,
+        created_by: user?.id, is_reseller: quote.is_reseller || false,
       }).select('id').single();
       if (error) throw error;
       if (qItems?.length > 0) {
@@ -361,7 +365,7 @@ export default function Quotes() {
   const resetForm = () => {
     setEditingQuote(null);
     const defaultSp = getDefaultSalesperson();
-    setForm({ client_id: '', salesperson: defaultSp, status: 'draft', notes: '', payment_terms: '', shipping_deadline: '', shipping_method: '', shipping_cost: 0, proposal_validity: '15 dias', payment_method: '', payment_status: 'pendente' });
+    setForm({ client_id: '', salesperson: defaultSp, status: 'draft', notes: '', payment_terms: '', shipping_deadline: '', shipping_method: '', shipping_cost: 0, proposal_validity: '15 dias', payment_method: '', payment_status: 'pendente', is_reseller: false });
     setItems([emptyItem()]);
   };
 
@@ -522,7 +526,18 @@ export default function Quotes() {
                 </div>
               </div>
 
-              {/* Observações */}
+              {/* Revenda + Observações */}
+              <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20">
+                <Checkbox
+                  id="is_reseller"
+                  checked={form.is_reseller}
+                  onCheckedChange={(checked) => setForm(p => ({ ...p, is_reseller: !!checked }))}
+                />
+                <label htmlFor="is_reseller" className="flex items-center gap-2 text-sm font-medium cursor-pointer select-none">
+                  <Store className="h-4 w-4 text-orange-500" />
+                  Cliente Revenda
+                </label>
+              </div>
               <div className="space-y-2">
                 <Label>Observações</Label>
                 <Textarea rows={4} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Observações gerais do orçamento..." />
@@ -739,6 +754,12 @@ export default function Quotes() {
                         'bg-gray-100 text-gray-700 border-gray-200'
                       }`}>
                         {statusLabels[q.status] || q.status}
+                      </span>
+                      {q.is_reseller && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
+                          <Store className="h-3 w-3" /> Revenda
+                      </span>
+                      )}
                       </span>
                       {pm && (
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
