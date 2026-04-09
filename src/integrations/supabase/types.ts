@@ -301,8 +301,11 @@ export type Database = {
           created_by: string | null
           discount: number | null
           id: string
+          installments: number | null
           is_reseller: boolean
+          is_split_payment: boolean
           notes: string | null
+          payment_date: string | null
           payment_method: string | null
           payment_status: string | null
           payment_terms: string | null
@@ -316,6 +319,14 @@ export type Database = {
           shipping_cost: number | null
           shipping_deadline: string | null
           shipping_method: string | null
+          split_date_1: string | null
+          split_date_2: string | null
+          split_installments_1: number | null
+          split_installments_2: number | null
+          split_method_1: string | null
+          split_method_2: string | null
+          split_value_1: number | null
+          split_value_2: number | null
           status: string | null
           total: number | null
           total_amount: number | null
@@ -329,8 +340,11 @@ export type Database = {
           created_by?: string | null
           discount?: number | null
           id?: string
+          installments?: number | null
           is_reseller?: boolean
+          is_split_payment?: boolean
           notes?: string | null
+          payment_date?: string | null
           payment_method?: string | null
           payment_status?: string | null
           payment_terms?: string | null
@@ -344,6 +358,14 @@ export type Database = {
           shipping_cost?: number | null
           shipping_deadline?: string | null
           shipping_method?: string | null
+          split_date_1?: string | null
+          split_date_2?: string | null
+          split_installments_1?: number | null
+          split_installments_2?: number | null
+          split_method_1?: string | null
+          split_method_2?: string | null
+          split_value_1?: number | null
+          split_value_2?: number | null
           status?: string | null
           total?: number | null
           total_amount?: number | null
@@ -357,8 +379,11 @@ export type Database = {
           created_by?: string | null
           discount?: number | null
           id?: string
+          installments?: number | null
           is_reseller?: boolean
+          is_split_payment?: boolean
           notes?: string | null
+          payment_date?: string | null
           payment_method?: string | null
           payment_status?: string | null
           payment_terms?: string | null
@@ -372,6 +397,14 @@ export type Database = {
           shipping_cost?: number | null
           shipping_deadline?: string | null
           shipping_method?: string | null
+          split_date_1?: string | null
+          split_date_2?: string | null
+          split_installments_1?: number | null
+          split_installments_2?: number | null
+          split_method_1?: string | null
+          split_method_2?: string | null
+          split_value_1?: number | null
+          split_value_2?: number | null
           status?: string | null
           total?: number | null
           total_amount?: number | null
