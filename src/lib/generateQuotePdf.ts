@@ -182,6 +182,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     if (bg) { doc.setFillColor(245, 245, 245); doc.rect(margin, y - 5, cw, rowHeight, 'F'); }
     cx = margin + 2;
 
+    doc.setTextColor(30);
     doc.text(String(item.item_number || i + 1), cx, y);
     cx += cols[0].w;
 
@@ -193,21 +194,31 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     cx += cols[1].w;
 
     const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
+    const isGift = item.is_gift === true;
     const remaining = [
       item.product_code || '',
       desc,
       item.brand || '',
       String(item.quantity || 1),
-      fmt(parseFloat(item.unit_price) || 0),
-      `${item.discount_percent || 0}%`,
-      fmt(parseFloat(item.line_total || item.total_price) || 0),
+      isGift ? 'BRINDE' : fmt(parseFloat(item.unit_price) || 0),
+      isGift ? '-' : `${item.discount_percent || 0}%`,
+      isGift ? 'BRINDE' : fmt(parseFloat(item.line_total || item.total_price) || 0),
     ];
     remaining.forEach((val, ci) => {
       const colIdx = ci + 2;
       const maxChars = Math.floor(cols[colIdx].w / 1.8);
+      if (isGift && (ci === 4 || ci === 6)) {
+        doc.setTextColor(0, 150, 100);
+        doc.setFont('helvetica', 'bold');
+      } else {
+        doc.setTextColor(30);
+        doc.setFont('helvetica', 'normal');
+      }
       doc.text(val.substring(0, maxChars), cx, y);
       cx += cols[colIdx].w;
     });
+    doc.setTextColor(30);
+    doc.setFont('helvetica', 'normal');
     y += rowHeight;
   });
 
