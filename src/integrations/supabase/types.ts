@@ -95,6 +95,45 @@ export type Database = {
         }
         Relationships: []
       }
+      integrations: {
+        Row: {
+          api_key: string | null
+          application_key: string | null
+          config: Json | null
+          created_at: string
+          created_by: string
+          id: string
+          integration_name: string
+          last_sync_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          api_key?: string | null
+          application_key?: string | null
+          config?: Json | null
+          created_at?: string
+          created_by: string
+          id?: string
+          integration_name: string
+          last_sync_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          api_key?: string | null
+          application_key?: string | null
+          config?: Json | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          integration_name?: string
+          last_sync_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string

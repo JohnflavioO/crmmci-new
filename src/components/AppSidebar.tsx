@@ -1,7 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake,
+  LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake, Plug,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserProfileEditor from './UserProfileEditor';
@@ -17,8 +17,12 @@ const navItems = [
   { to: '/products', icon: Package, label: 'Produtos' },
 ];
 
-const adminItems = [
+const adminGestorItems = [
   { to: '/approvals', icon: UserCheck, label: 'Usuários' },
+];
+
+const adminOnlyItems = [
+  { to: '/integrations', icon: Plug, label: 'Integrações' },
 ];
 
 interface Props {
@@ -72,7 +76,8 @@ export default function AppSidebar({ onNavigate }: Props) {
             <div className="pt-4 pb-2 px-3">
               <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Admin</p>
             </div>
-            {adminItems.map(item => <LinkItem key={item.to} {...item} />)}
+            {adminGestorItems.map(item => <LinkItem key={item.to} {...item} />)}
+            {isAdmin && adminOnlyItems.map(item => <LinkItem key={item.to} {...item} />)}
           </>
         )}
       </nav>
