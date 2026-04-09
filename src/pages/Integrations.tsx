@@ -131,6 +131,26 @@ export default function Integrations() {
     }
   };
 
+  const handleImport = async (page = 1) => {
+    setImporting(true);
+    setStatus('syncing');
+    try {
+      const data = await callFunction({ action: 'import', page });
+      setImportResult({ imported: data.imported, skipped: data.skipped, errors: data.errors });
+      setStatus('connected');
+      setLastSync(new Date().toISOString());
+      toast.success(`Importação concluída! ${data.imported} novos pedidos importados, ${data.skipped} já existentes.`);
+      if (data.errors > 0) {
+        toast.warning(`${data.errors} pedidos com erro na importação.`);
+      }
+    } catch (e: any) {
+      setStatus('error');
+      toast.error('Erro na importação: ' + (e.message || 'Erro desconhecido'));
+    } finally {
+      setImporting(false);
+    }
+  };
+
   if (!isAdmin) {
     return (
       <AppLayout>
