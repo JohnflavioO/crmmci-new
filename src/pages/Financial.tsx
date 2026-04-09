@@ -23,6 +23,11 @@ import {
 import { useIsMobile } from '@/hooks/use-mobile';
 import FinancialSellerGroup from '@/components/financial/FinancialSellerGroup';
 import FinancialSellerRanking from '@/components/financial/FinancialSellerRanking';
+import FinancialActionsDoDia from '@/components/financial/FinancialActionsDoDia';
+import FinancialForecast from '@/components/financial/FinancialForecast';
+import FinancialAlerts from '@/components/financial/FinancialAlerts';
+import FinancialConversion from '@/components/financial/FinancialConversion';
+import FinancialQuickActions from '@/components/financial/FinancialQuickActions';
 
 const db = supabase as any;
 
