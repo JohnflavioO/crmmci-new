@@ -18,9 +18,11 @@ import { cn } from '@/lib/utils';
 import {
   DollarSign, Clock, AlertTriangle, CheckCircle2, Search,
   FileBarChart, QrCode, CreditCard, Banknote, ArrowDownCircle,
-  RefreshCw, CalendarDays, CircleDollarSign, Wallet
+  RefreshCw, CalendarDays, CircleDollarSign, Wallet, Users, List
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import FinancialSellerGroup from '@/components/financial/FinancialSellerGroup';
+import FinancialSellerRanking from '@/components/financial/FinancialSellerRanking';
 
 const db = supabase as any;
 
@@ -44,11 +46,14 @@ export default function Financial() {
   const { user, isFinanceiro } = useAuth();
   const isMobile = useIsMobile();
   const [records, setRecords] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterMethod, setFilterMethod] = useState('all');
   const [filterPeriod, setFilterPeriod] = useState('all');
+  const [filterSeller, setFilterSeller] = useState('all');
+  const [viewMode, setViewMode] = useState<'grouped' | 'list'>('grouped');
   const [baixaRecord, setBaixaRecord] = useState<any>(null);
   const [baixaForm, setBaixaForm] = useState({ amount_paid: '', paid_date: '', financial_notes: '', financial_status: 'pago' });
   const [saving, setSaving] = useState(false);
@@ -57,16 +62,22 @@ export default function Financial() {
 
   const loadRecords = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await db
-      .from('financial_records')
-      .select('*')
-      .order('due_date', { ascending: true });
+    const [recordsRes, profilesRes] = await Promise.all([
+      db.from('financial_records').select('*').order('due_date', { ascending: true }),
+      db.from('profiles').select('user_id, full_name'),
+    ]);
 
-    if (error) {
+    if (profilesRes.data) {
+      const map: Record<string, string> = {};
+      (profilesRes.data as any[]).forEach((p: any) => { map[p.user_id] = p.full_name || 'Sem nome'; });
+      setProfiles(map);
+    }
+
+    if (recordsRes.error) {
       toast.error('Erro ao carregar registros financeiros');
     } else {
       const today = startOfDay(new Date());
-      const updated = (data || []).map((r: any) => {
+      const updated = (recordsRes.data || []).map((r: any) => {
         if (['pago', 'cancelado', 'pago_parcial'].includes(r.financial_status)) return r;
         if (r.due_date) {
           const due = startOfDay(new Date(r.due_date));
@@ -82,7 +93,6 @@ export default function Financial() {
 
   useEffect(() => { loadRecords(); }, [loadRecords]);
 
-  // Period filtering helper
   const getDateRange = useCallback((period: string) => {
     const now = new Date();
     switch (period) {
@@ -93,7 +103,6 @@ export default function Financial() {
         const lm = subMonths(now, 1);
         return { start: startOfMonth(lm), end: endOfMonth(lm) };
       }
-      case 'overdue': return null; // special case
       default: return null;
     }
   }, []);
@@ -105,6 +114,7 @@ export default function Financial() {
     }
     if (filterStatus !== 'all' && r.financial_status !== filterStatus) return false;
     if (filterMethod !== 'all' && r.payment_method !== filterMethod) return false;
+    if (filterSeller !== 'all' && r.created_by !== filterSeller) return false;
 
     if (filterPeriod === 'overdue') {
       if (!r.due_date || !isBefore(new Date(r.due_date), startOfDay(new Date()))) return false;
@@ -117,28 +127,49 @@ export default function Financial() {
       } else if (range && !r.due_date) return false;
     }
     return true;
-  }), [records, search, filterStatus, filterMethod, filterPeriod, getDateRange]);
+  }), [records, search, filterStatus, filterMethod, filterPeriod, filterSeller, getDateRange]);
 
-  // ===== Stats =====
+  // Grouped by seller
+  const groupedBySeller = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    filtered.forEach(r => {
+      const uid = r.created_by || 'unknown';
+      if (!groups[uid]) groups[uid] = [];
+      groups[uid].push(r);
+    });
+    // Sort groups by open value desc
+    return Object.entries(groups)
+      .map(([uid, recs]) => ({
+        uid,
+        name: profiles[uid] || 'Desconhecido',
+        records: recs,
+        openValue: recs.filter(r => !['pago', 'cancelado'].includes(r.financial_status))
+          .reduce((s, r) => s + (parseFloat(r.total_amount) || 0), 0),
+      }))
+      .sort((a, b) => b.openValue - a.openValue);
+  }, [filtered, profiles]);
+
+  // Unique sellers for filter
+  const sellerOptions = useMemo(() => {
+    const uids = new Set(records.map(r => r.created_by).filter(Boolean));
+    return Array.from(uids).map(uid => ({ uid, name: profiles[uid] || 'Desconhecido' })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [records, profiles]);
+
+  // Stats
   const activeRecords = records.filter(r => !['pago', 'cancelado'].includes(r.financial_status));
   const paidRecords = records.filter(r => r.financial_status === 'pago');
-
   const totalReceivable = activeRecords.reduce((s, r) => s + (parseFloat(r.total_amount) || 0), 0);
   const totalPaid = paidRecords.reduce((s, r) => s + (parseFloat(r.amount_paid || r.total_amount) || 0), 0);
   const overdue = records.filter(r => r.financial_status === 'vencido').length;
   const dueToday = records.filter(r => r.financial_status === 'vence_hoje').length;
-
-  // Paid this month
   const monthStart = startOfMonth(new Date());
   const monthEnd = endOfMonth(new Date());
   const paidThisMonth = paidRecords
     .filter(r => r.paid_date && new Date(r.paid_date) >= monthStart && new Date(r.paid_date) <= monthEnd)
     .reduce((s, r) => s + (parseFloat(r.amount_paid || r.total_amount) || 0), 0);
-
   const pendingCount = activeRecords.length;
   const baixasCount = paidRecords.filter(r => r.baixa_at).length;
 
-  // Per method stats
   const methodStats = useMemo(() => {
     const methods = ['boleto', 'pix', 'cartao'];
     return methods.map(m => {
@@ -154,7 +185,6 @@ export default function Financial() {
     });
   }, [records]);
 
-  // Per status stats
   const statusStats = useMemo(() => {
     return Object.keys(financialStatusLabels).map(key => ({
       key,
@@ -210,12 +240,32 @@ export default function Financial() {
           </h1>
           <p className="text-muted-foreground text-sm">Contas a receber, baixas e pendências</p>
         </div>
-        <Button variant="outline" size="sm" onClick={loadRecords} className="gap-2 self-start">
-          <RefreshCw className="h-4 w-4" /> Atualizar
-        </Button>
+        <div className="flex gap-2 self-start">
+          <div className="flex border rounded-md overflow-hidden">
+            <Button
+              variant={viewMode === 'grouped' ? 'default' : 'ghost'}
+              size="sm"
+              className="rounded-none gap-1.5 h-8"
+              onClick={() => setViewMode('grouped')}
+            >
+              <Users className="h-3.5 w-3.5" /> Por Vendedor
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              className="rounded-none gap-1.5 h-8"
+              onClick={() => setViewMode('list')}
+            >
+              <List className="h-3.5 w-3.5" /> Lista Geral
+            </Button>
+          </div>
+          <Button variant="outline" size="sm" onClick={loadRecords} className="gap-2 h-8">
+            <RefreshCw className="h-4 w-4" /> Atualizar
+          </Button>
+        </div>
       </div>
 
-      {/* ===== Dashboard Cards ===== */}
+      {/* Dashboard Cards */}
       <div className={cn("grid gap-3 md:gap-4 mb-4 md:mb-6", isMobile ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4")}>
         <StatCard title="Total a Receber" value={fmt(totalReceivable)} icon={DollarSign} />
         <StatCard title="Recebido no Mês" value={fmt(paidThisMonth)} icon={CircleDollarSign} />
@@ -230,7 +280,10 @@ export default function Financial() {
         <StatCard title="Pagamentos Confirmados" value={paidRecords.length} icon={CheckCircle2} className="border-l-4 border-l-emerald-500" />
       </div>
 
-      {/* ===== Resumo por Método ===== */}
+      {/* Seller Ranking */}
+      <FinancialSellerRanking records={records} profilesMap={profiles} fmt={fmt} />
+
+      {/* Resumo por Método */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6">
         {methodStats.map(ms => {
           const conf = paymentMethodConfig[ms.method];
@@ -257,7 +310,7 @@ export default function Financial() {
         })}
       </div>
 
-      {/* ===== Resumo por Status ===== */}
+      {/* Resumo por Status */}
       <Card className="shadow-card mb-4 md:mb-6">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-display">Resumo por Status Financeiro</CardTitle>
@@ -275,7 +328,7 @@ export default function Financial() {
         </CardContent>
       </Card>
 
-      {/* ===== Filters ===== */}
+      {/* Filters */}
       <Card className="mb-4">
         <CardContent className="p-4">
           <div className={cn("flex gap-3 flex-wrap", isMobile && "flex-col")}>
@@ -285,6 +338,15 @@ export default function Financial() {
                 <Input placeholder="Buscar cliente ou pedido..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
               </div>
             </div>
+            <Select value={filterSeller} onValueChange={setFilterSeller}>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos Vendedores</SelectItem>
+                {sellerOptions.map(s => (
+                  <SelectItem key={s.uid} value={s.uid}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
@@ -318,101 +380,126 @@ export default function Financial() {
         </CardContent>
       </Card>
 
-      {/* ===== Records Table ===== */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center justify-between">
-            <span>Contas a Receber ({filtered.length})</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : filtered.length === 0 ? (
-            <p className="text-center text-muted-foreground py-12">Nenhum registro financeiro encontrado</p>
-          ) : isMobile ? (
-            <div className="divide-y">
-              {filtered.map(r => {
-                const st = financialStatusLabels[r.financial_status] || financialStatusLabels.aguardando_pagamento;
-                const pm = paymentMethodConfig[r.payment_method];
-                const PmIcon = pm?.icon;
-                return (
-                  <div key={r.id} className="p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm truncate">{r.client_name || 'Sem cliente'}</span>
-                      <Badge className={cn('text-xs', st.color)}>{st.label}</Badge>
-                    </div>
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        {PmIcon && <PmIcon className="h-3 w-3" />} {pm?.label || r.payment_method || '-'}
-                      </span>
-                      <span>Venc: {r.due_date ? format(new Date(r.due_date), 'dd/MM/yyyy') : '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold">{fmt(parseFloat(r.total_amount) || 0)}</span>
-                      {canEdit && !['pago', 'cancelado'].includes(r.financial_status) && (
-                        <Button size="sm" variant="outline" onClick={() => handleOpenBaixa(r)}>
-                          <ArrowDownCircle className="h-3 w-3 mr-1" /> Baixa
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Método</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Pago</TableHead>
-                  <TableHead>Data Pgto</TableHead>
-                  {canEdit && <TableHead>Ações</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+      {/* Records */}
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <CardContent className="py-12">
+            <p className="text-center text-muted-foreground">Nenhum registro financeiro encontrado</p>
+          </CardContent>
+        </Card>
+      ) : viewMode === 'grouped' ? (
+        <div className="space-y-4">
+          {groupedBySeller.map(group => (
+            <FinancialSellerGroup
+              key={group.uid}
+              sellerName={group.name}
+              records={group.records}
+              canEdit={canEdit}
+              isMobile={isMobile}
+              onBaixa={handleOpenBaixa}
+              fmt={fmt}
+            />
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center justify-between">
+              <span>Contas a Receber ({filtered.length})</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isMobile ? (
+              <div className="divide-y">
                 {filtered.map(r => {
                   const st = financialStatusLabels[r.financial_status] || financialStatusLabels.aguardando_pagamento;
                   const pm = paymentMethodConfig[r.payment_method];
                   const PmIcon = pm?.icon;
                   return (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-medium">{r.client_name || 'Sem cliente'}</TableCell>
-                      <TableCell>
-                        {PmIcon ? (
-                          <span className="flex items-center gap-1"><PmIcon className="h-3 w-3" /> {pm.label}</span>
-                        ) : (r.payment_method || '-')}
-                      </TableCell>
-                      <TableCell className="font-semibold">{fmt(parseFloat(r.total_amount) || 0)}</TableCell>
-                      <TableCell>{r.due_date ? format(new Date(r.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
-                      <TableCell><Badge className={cn('text-xs', st.color)}>{st.label}</Badge></TableCell>
-                      <TableCell>{r.amount_paid ? fmt(parseFloat(r.amount_paid)) : '-'}</TableCell>
-                      <TableCell>{r.paid_date ? format(new Date(r.paid_date), 'dd/MM/yyyy') : '-'}</TableCell>
-                      {canEdit && (
-                        <TableCell>
-                          {!['pago', 'cancelado'].includes(r.financial_status) && (
-                            <Button size="sm" variant="outline" onClick={() => handleOpenBaixa(r)}>
-                              <ArrowDownCircle className="h-3 w-3 mr-1" /> Baixa
-                            </Button>
-                          )}
-                        </TableCell>
-                      )}
-                    </TableRow>
+                    <div key={r.id} className="p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm truncate">{r.client_name || 'Sem cliente'}</span>
+                        <Badge className={cn('text-xs', st.color)}>{st.label}</Badge>
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          {PmIcon && <PmIcon className="h-3 w-3" />} {pm?.label || r.payment_method || '-'}
+                        </span>
+                        <span>Venc: {r.due_date ? format(new Date(r.due_date), 'dd/MM/yyyy') : '-'}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Vendedor: {profiles[r.created_by] || 'Desconhecido'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold">{fmt(parseFloat(r.total_amount) || 0)}</span>
+                        {canEdit && !['pago', 'cancelado'].includes(r.financial_status) && (
+                          <Button size="sm" variant="outline" onClick={() => handleOpenBaixa(r)}>
+                            <ArrowDownCircle className="h-3 w-3 mr-1" /> Baixa
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   );
                 })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Vendedor</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Método</TableHead>
+                    <TableHead>Valor</TableHead>
+                    <TableHead>Vencimento</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Pago</TableHead>
+                    <TableHead>Data Pgto</TableHead>
+                    {canEdit && <TableHead>Ações</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map(r => {
+                    const st = financialStatusLabels[r.financial_status] || financialStatusLabels.aguardando_pagamento;
+                    const pm = paymentMethodConfig[r.payment_method];
+                    const PmIcon = pm?.icon;
+                    return (
+                      <TableRow key={r.id}>
+                        <TableCell className="text-xs">{profiles[r.created_by] || 'Desconhecido'}</TableCell>
+                        <TableCell className="font-medium">{r.client_name || 'Sem cliente'}</TableCell>
+                        <TableCell>
+                          {PmIcon ? (
+                            <span className="flex items-center gap-1"><PmIcon className="h-3 w-3" /> {pm.label}</span>
+                          ) : (r.payment_method || '-')}
+                        </TableCell>
+                        <TableCell className="font-semibold">{fmt(parseFloat(r.total_amount) || 0)}</TableCell>
+                        <TableCell>{r.due_date ? format(new Date(r.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
+                        <TableCell><Badge className={cn('text-xs', st.color)}>{st.label}</Badge></TableCell>
+                        <TableCell>{r.amount_paid ? fmt(parseFloat(r.amount_paid)) : '-'}</TableCell>
+                        <TableCell>{r.paid_date ? format(new Date(r.paid_date), 'dd/MM/yyyy') : '-'}</TableCell>
+                        {canEdit && (
+                          <TableCell>
+                            {!['pago', 'cancelado'].includes(r.financial_status) && (
+                              <Button size="sm" variant="outline" onClick={() => handleOpenBaixa(r)}>
+                                <ArrowDownCircle className="h-3 w-3 mr-1" /> Baixa
+                              </Button>
+                            )}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-      {/* ===== Baixa Dialog ===== */}
+      {/* Baixa Dialog */}
       <Dialog open={!!baixaRecord} onOpenChange={v => !v && setBaixaRecord(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -423,6 +510,7 @@ export default function Financial() {
               <div>
                 <p className="text-sm text-muted-foreground">Cliente: <strong>{baixaRecord.client_name}</strong></p>
                 <p className="text-sm text-muted-foreground">Valor: <strong>{fmt(parseFloat(baixaRecord.total_amount) || 0)}</strong></p>
+                <p className="text-sm text-muted-foreground">Vendedor: <strong>{profiles[baixaRecord.created_by] || 'Desconhecido'}</strong></p>
               </div>
               <div>
                 <Label>Valor Recebido</Label>
