@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Users, Kanban, Banknote, Clock, ArrowDownCircle } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Kanban, Banknote, Clock, ArrowDownCircle, Truck, ClipboardList, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -16,19 +16,28 @@ const financialItems = [
   { to: '/financial?tab=baixas', icon: ArrowDownCircle, label: 'Baixas' },
 ];
 
+const logisticsItems = [
+  { to: '/logistics?tab=dashboard', icon: Truck, label: 'Dashboard' },
+  { to: '/logistics?tab=pedidos', icon: ClipboardList, label: 'Pedidos' },
+  { to: '/logistics?tab=envios', icon: MapPin, label: 'Envios' },
+];
+
 export default function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isFinanceiro, isAdmin, isGestor } = useAuth();
+  const { isFinanceiro, isAdmin, isGestor, isLogistica } = useAuth();
 
   const isFinanceiroOnly = isFinanceiro && !isAdmin && !isGestor;
-  const items = isFinanceiroOnly ? financialItems : commercialItems;
+  const isLogisticaOnly = isLogistica && !isAdmin && !isGestor && !isFinanceiro;
+  const items = isLogisticaOnly ? logisticsItems : isFinanceiroOnly ? financialItems : commercialItems;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border md:hidden safe-area-bottom">
       <div className="flex items-stretch">
         {items.map(({ to, icon: Icon, label }) => {
-          const active = location.pathname + location.search === to || (to === '/financial?tab=dashboard' && location.pathname === '/financial' && !location.search);
+          const active = location.pathname + location.search === to
+            || (to === '/financial?tab=dashboard' && location.pathname === '/financial' && !location.search)
+            || (to === '/logistics?tab=dashboard' && location.pathname === '/logistics' && !location.search);
           return (
             <button
               key={to}

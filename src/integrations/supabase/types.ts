@@ -255,6 +255,109 @@ export type Database = {
         }
         Relationships: []
       }
+      logistics_action_history: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          logistics_record_id: string
+          new_status: string | null
+          notes: string | null
+          performed_by: string
+          performed_by_name: string | null
+          previous_status: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          logistics_record_id: string
+          new_status?: string | null
+          notes?: string | null
+          performed_by: string
+          performed_by_name?: string | null
+          previous_status?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          logistics_record_id?: string
+          new_status?: string | null
+          notes?: string | null
+          performed_by?: string
+          performed_by_name?: string | null
+          previous_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logistics_action_history_logistics_record_id_fkey"
+            columns: ["logistics_record_id"]
+            isOneToOne: false
+            referencedRelation: "logistics_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      logistics_records: {
+        Row: {
+          codigo_rastreio: string | null
+          created_at: string
+          data_entrega: string | null
+          data_envio: string | null
+          entrada_at: string | null
+          entrada_by: string | null
+          id: string
+          logistics_status: string
+          nf_data: string | null
+          nf_numero: string | null
+          observacao_logistica: string | null
+          quote_id: string
+          transportadora: string | null
+          updated_at: string
+        }
+        Insert: {
+          codigo_rastreio?: string | null
+          created_at?: string
+          data_entrega?: string | null
+          data_envio?: string | null
+          entrada_at?: string | null
+          entrada_by?: string | null
+          id?: string
+          logistics_status?: string
+          nf_data?: string | null
+          nf_numero?: string | null
+          observacao_logistica?: string | null
+          quote_id: string
+          transportadora?: string | null
+          updated_at?: string
+        }
+        Update: {
+          codigo_rastreio?: string | null
+          created_at?: string
+          data_entrega?: string | null
+          data_envio?: string | null
+          entrada_at?: string | null
+          entrada_by?: string | null
+          id?: string
+          logistics_status?: string
+          nf_data?: string | null
+          nf_numero?: string | null
+          observacao_logistica?: string | null
+          quote_id?: string
+          transportadora?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logistics_records_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: true
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -736,6 +839,7 @@ export type Database = {
       is_approved: { Args: never; Returns: boolean }
       is_financeiro: { Args: never; Returns: boolean }
       is_gestor: { Args: never; Returns: boolean }
+      is_logistica: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

@@ -10,13 +10,14 @@ interface AuthContextType {
   isAdmin: boolean;
   isGestor: boolean;
   isFinanceiro: boolean;
+  isLogistica: boolean;
   profile: { full_name: string; phone: string; role: string; avatar_url?: string } | null;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null, session: null, loading: true,
-  isApproved: false, isAdmin: false, isGestor: false, isFinanceiro: false, profile: null,
+  isApproved: false, isAdmin: false, isGestor: false, isFinanceiro: false, isLogistica: false, profile: null,
   signOut: async () => {},
 });
 
@@ -30,9 +31,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isGestor, setIsGestor] = useState(false);
   const [isFinanceiro, setIsFinanceiro] = useState(false);
+  const [isLogistica, setIsLogistica] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string } | null>(null);
 
-  // Step 1: Set up auth listener (no data fetching here)
   useEffect(() => {
     let currentUserId: string | null = null;
 
@@ -47,14 +48,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAdmin(false);
           setIsGestor(false);
           setIsFinanceiro(false);
+          setIsLogistica(false);
           setProfile(null);
           setLoading(false);
         } else if (newUserId !== currentUserId) {
-          // Only set loading true for a NEW user login
           currentUserId = newUserId;
           setLoading(true);
         }
-        // If same user, don't touch loading - data is already loaded
       }
     );
 
@@ -66,14 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       } else if (uid !== currentUserId) {
         currentUserId = uid;
-        // loading stays true, useEffect on user?.id will handle it
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // Step 2: Fetch user data separately when user changes
   useEffect(() => {
     if (!user) return;
     
@@ -81,11 +79,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const fetchData = async () => {
       try {
-        const [approvedRes, adminRes, gestorRes, financeiroRes, profileRes] = await Promise.all([
+        const [approvedRes, adminRes, gestorRes, financeiroRes, logisticaRes, profileRes] = await Promise.all([
           supabase.rpc('is_approved'),
           supabase.rpc('is_admin'),
           supabase.rpc('is_gestor'),
           supabase.rpc('is_financeiro'),
+          supabase.rpc('is_logistica' as any),
           (supabase as any).from('profiles').select('full_name, phone, role, avatar_url').eq('user_id', user.id).maybeSingle(),
         ]);
 
@@ -95,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAdmin(adminRes.data === true);
         setIsGestor(gestorRes.data === true);
         setIsFinanceiro(financeiroRes.data === true);
+        setIsLogistica(logisticaRes.data === true);
         setProfile(profileRes.data as any);
       } catch (e) {
         console.error('fetchUserData error:', e);
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isApproved, isAdmin, isGestor, isFinanceiro, profile, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, profile, signOut }}>
       {children}
     </AuthContext.Provider>
   );
