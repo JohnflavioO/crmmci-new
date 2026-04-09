@@ -11,7 +11,7 @@ const commercialItems = [
 ];
 
 const financialItems = [
-  { to: '/financial', icon: Banknote, label: 'Dashboard' },
+  { to: '/financial?tab=dashboard', icon: Banknote, label: 'Dashboard' },
   { to: '/financial?tab=pendencias', icon: Clock, label: 'Pendências' },
   { to: '/financial?tab=baixas', icon: ArrowDownCircle, label: 'Baixas' },
 ];
@@ -28,7 +28,7 @@ export default function MobileBottomNav() {
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border md:hidden safe-area-bottom">
       <div className="flex items-stretch">
         {items.map(({ to, icon: Icon, label }) => {
-          const active = location.pathname + location.search === to || (to === '/financial' && location.pathname === '/financial' && !location.search);
+          const active = location.pathname + location.search === to || (to === '/financial?tab=dashboard' && location.pathname === '/financial' && !location.search);
           return (
             <button
               key={to}
