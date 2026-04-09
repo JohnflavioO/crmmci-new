@@ -653,11 +653,11 @@ export default function Quotes() {
                     )}
 
                     <div className="space-y-2">
-                      <Label className="text-xs">Condições de Pagamento</Label>
+                      <Label className="text-xs">Observações de pagamento</Label>
                       <Input
                         value={form.payment_terms}
                         onChange={e => setForm(p => ({ ...p, payment_terms: e.target.value }))}
-                        placeholder="Ex: à vista, entrada + saldo, etc."
+                        placeholder="Ex: combinar entrega antes do pagamento, etc. (opcional)"
                       />
                     </div>
                   </div>
@@ -753,11 +753,11 @@ export default function Quotes() {
                     ) : null}
 
                     <div className="space-y-2">
-                      <Label className="text-xs">Condições de Pagamento</Label>
+                      <Label className="text-xs">Observações de pagamento</Label>
                       <Input
                         value={form.payment_terms}
                         onChange={e => setForm(p => ({ ...p, payment_terms: e.target.value }))}
-                        placeholder="Ex: entrada PIX + restante em 3x cartão"
+                        placeholder="Ex: observações adicionais sobre pagamento (opcional)"
                       />
                     </div>
                   </div>
