@@ -68,6 +68,7 @@ export default function Clients() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [sellers, setSellers] = useState<SellerInfo[]>([]);
+  const [cnpjLoading, setCnpjLoading] = useState(false);
 
   const canSeeAll = isGestor || isAdmin;
 
@@ -189,6 +190,63 @@ export default function Clients() {
   };
 
   const updateForm = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
+
+  const validateCnpj = (cnpj: string): boolean => {
+    const digits = cnpj.replace(/\D/g, '');
+    if (digits.length !== 14) return false;
+    if (/^(\d)\1+$/.test(digits)) return false;
+    const calc = (str: string, weights: number[]) =>
+      weights.reduce((sum, w, i) => sum + parseInt(str[i]) * w, 0);
+    const d1Weights = [5,4,3,2,9,8,7,6,5,4,3,2];
+    const d2Weights = [6,5,4,3,2,9,8,7,6,5,4,3,2];
+    const r1 = calc(digits, d1Weights) % 11;
+    const d1 = r1 < 2 ? 0 : 11 - r1;
+    if (parseInt(digits[12]) !== d1) return false;
+    const r2 = calc(digits, d2Weights) % 11;
+    const d2 = r2 < 2 ? 0 : 11 - r2;
+    return parseInt(digits[13]) === d2;
+  };
+
+  const handleCnpjChange = async (value: string) => {
+    updateForm('cpf_cnpj', value);
+    const cleanCnpj = value.replace(/\D/g, '');
+    if (cleanCnpj.length !== 14) return;
+    if (!validateCnpj(cleanCnpj)) {
+      toast.error('CNPJ inválido');
+      return;
+    }
+    setCnpjLoading(true);
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          toast.info('CNPJ não encontrado na base de dados');
+        } else {
+          toast.error('Erro ao consultar CNPJ. Preencha manualmente.');
+        }
+        return;
+      }
+      const data = await res.json();
+      setForm(prev => ({
+        ...prev,
+        company_name: data.razao_social || prev.company_name,
+        phone: data.ddd_telefone_1 ? `(${data.ddd_telefone_1.substring(0,2)}) ${data.ddd_telefone_1.substring(2)}` : prev.phone,
+        email: data.email && data.email !== 'null' ? data.email : prev.email,
+        cep: data.cep ? data.cep.replace(/(\d{5})(\d{3})/, '$1-$2') : prev.cep,
+        address: data.logradouro || prev.address,
+        address_number: data.numero || prev.address_number,
+        complement: data.complemento || prev.complement,
+        neighborhood: data.bairro || prev.neighborhood,
+        city: data.municipio || prev.city,
+        state: data.uf || prev.state,
+      }));
+      toast.success('Dados da empresa preenchidos automaticamente!');
+    } catch {
+      toast.error('Erro ao consultar CNPJ. Preencha manualmente.');
+    } finally {
+      setCnpjLoading(false);
+    }
+  };
 
   const handleCepChange = async (value: string) => {
     const cleanCep = value.replace(/\D/g, '');
@@ -350,7 +408,10 @@ export default function Clients() {
               </div>
               <div className="space-y-2">
                 <Label>CPF/CNPJ</Label>
-                <Input value={form.cpf_cnpj} onChange={e => updateForm('cpf_cnpj', e.target.value)} inputMode="numeric" />
+                <div className="relative">
+                  <Input value={form.cpf_cnpj} onChange={e => handleCnpjChange(e.target.value)} inputMode="numeric" placeholder="Digite o CNPJ para buscar" />
+                  {cnpjLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Contrib. ICMS</Label>
