@@ -38,6 +38,8 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         navigateFallbackDenylist: [/^\/~oauth/],
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/npqujpfqsnwxowlciyof\.supabase\.co\/rest\/v1\/.*/i,
@@ -45,9 +47,13 @@ export default defineConfig(({ mode }) => ({
             options: { cacheName: "api-cache", expiration: { maxEntries: 50, maxAgeSeconds: 300 } },
           },
           {
+            urlPattern: /^https:\/\/brasilapi\.com\.br\/.*/i,
+            handler: "NetworkOnly",
+          },
+          {
             urlPattern: /\.(js|css|png|jpg|jpeg|svg|woff2?)$/i,
             handler: "StaleWhileRevalidate",
-            options: { cacheName: "static-assets", expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 } },
+            options: { cacheName: "static-assets", expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 } },
           },
         ],
       },
