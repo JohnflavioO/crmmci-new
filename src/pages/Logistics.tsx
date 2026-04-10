@@ -159,12 +159,12 @@ export default function Logistics() {
       const approvedOnly = merged.filter((r: any) => r.quote_status === 'approved');
       setRecords(approvedOnly);
 
-      // Fetch only active sellers (comercial role in profiles)
+      // Fetch all active sellers (comercial, gestor, admin)
       const { data: activeSellers } = await db
         .from('profiles')
         .select('user_id, full_name')
         .eq('active', true)
-        .eq('role', 'comercial')
+        .in('role', ['comercial', 'gestor', 'admin'])
         .neq('full_name', '')
         .order('full_name');
       setSellers((activeSellers || []).map((p: any) => ({ id: p.user_id, name: p.full_name })));
