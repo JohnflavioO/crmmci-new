@@ -1073,6 +1073,9 @@ export default function Quotes() {
                       <Button size="sm" variant="ghost" onClick={() => handleDuplicate(q)} className="min-h-[44px] flex-1">
                         <Copy className="h-4 w-4 text-blue-600" />
                       </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setChatQuote({ id: q.id, number: q.quote_number })} className="min-h-[44px] flex-1" title="Chat interno">
+                        <MessageSquare className="h-4 w-4 text-primary" />
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={() => handleExportPdf(q)} className="min-h-[44px] flex-1">
                         <Download className="h-4 w-4" />
                       </Button>
@@ -1170,6 +1173,9 @@ export default function Quotes() {
                         </Button>
                         <Button size="icon" variant="ghost" onClick={() => handleDuplicate(q)} title="Duplicar Orçamento">
                           <Copy className="h-4 w-4 text-blue-600" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => setChatQuote({ id: q.id, number: q.quote_number })} title="Chat Interno">
+                          <MessageSquare className="h-4 w-4 text-primary" />
                         </Button>
                         <Button size="icon" variant="ghost" onClick={() => handleExportPdf(q)} title="Exportar PDF">
                           <Download className="h-4 w-4" />
