@@ -861,7 +861,7 @@ function RecordsList({
       <div className="space-y-3">
         {records.map(r => {
           const next = getNextStatus(r.logistics_status);
-          const showNfAction = canOperate && ['emitindo_nf', 'entrada_realizada'].includes(r.logistics_status);
+          const showNfAction = canOperate && !r.nf_numero && !['nf_emitida', 'pronto_envio', 'enviado', 'em_transporte', 'entregue'].includes(r.logistics_status);
           return (
             <Card key={r.id} className="p-3">
               <div className="flex items-start justify-between mb-2">
@@ -891,7 +891,7 @@ function RecordsList({
                 )}
                 {showNfAction && (
                   <Button size="sm" variant="default" className="text-xs h-7 bg-purple-600 hover:bg-purple-700" onClick={() => onRegisterNf(r)}>
-                    <FileText className="h-3 w-3 mr-1" /> Registrar NF
+                    <FileText className="h-3 w-3 mr-1" /> Emitir NF
                   </Button>
                 )}
                 {canOperate && (
@@ -940,7 +940,7 @@ function RecordsList({
         <TableBody>
           {records.map(r => {
             const next = getNextStatus(r.logistics_status);
-            const showNfAction = canOperate && ['emitindo_nf', 'entrada_realizada'].includes(r.logistics_status);
+            const showNfAction = canOperate && !r.nf_numero && !['nf_emitida', 'pronto_envio', 'enviado', 'em_transporte', 'entregue'].includes(r.logistics_status);
             return (
               <TableRow key={r.id}>
                 <TableCell className="font-medium">{r.quote_number}</TableCell>
@@ -968,8 +968,8 @@ function RecordsList({
                       <Download className="h-3.5 w-3.5" />
                     </Button>
                     {showNfAction && (
-                      <Button size="sm" variant="outline" className="h-7 text-xs border-purple-300 text-purple-700 hover:bg-purple-50" onClick={() => onRegisterNf(r)} title="Registrar NF">
-                        <FileText className="h-3.5 w-3.5 mr-1" /> Registrar NF
+                      <Button size="sm" variant="outline" className="h-7 text-xs border-purple-300 text-purple-700 hover:bg-purple-50" onClick={() => onRegisterNf(r)} title="Emitir NF">
+                        <FileText className="h-3.5 w-3.5 mr-1" /> Emitir NF
                       </Button>
                     )}
                     {canOperate && (
