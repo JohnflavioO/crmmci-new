@@ -23,6 +23,11 @@ import {
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { generateQuotePdf } from '@/lib/generateQuotePdf';
+import LogisticsWorkQueue from '@/components/logistics/LogisticsWorkQueue';
+import LogisticsSmartAlerts from '@/components/logistics/LogisticsSmartAlerts';
+import LogisticsEfficiency from '@/components/logistics/LogisticsEfficiency';
+import LogisticsSellerView from '@/components/logistics/LogisticsSellerView';
+import LogisticsShippingIndicators from '@/components/logistics/LogisticsShippingIndicators';
 
 const db = supabase as any;
 
