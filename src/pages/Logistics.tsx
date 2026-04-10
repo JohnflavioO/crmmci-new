@@ -159,13 +159,14 @@ export default function Logistics() {
       const approvedOnly = merged.filter((r: any) => r.quote_status === 'approved');
       setRecords(approvedOnly);
 
-      const sellersSet = new Map<string, string>();
-      merged.forEach((r: any) => {
-        if (r.created_by && r.salesperson) {
-          sellersSet.set(r.created_by, r.salesperson);
-        }
-      });
-      setSellers(Array.from(sellersSet.entries()).map(([id, name]) => ({ id, name })));
+      // Fetch active sellers from profiles
+      const { data: activeSellers } = await db
+        .from('profiles')
+        .select('user_id, full_name')
+        .eq('active', true)
+        .neq('full_name', '')
+        .order('full_name');
+      setSellers((activeSellers || []).map((p: any) => ({ id: p.user_id, name: p.full_name })));
 
     } catch (e: any) {
       console.error('Logistics fetch error:', e);
