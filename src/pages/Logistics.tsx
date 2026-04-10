@@ -159,7 +159,7 @@ export default function Logistics() {
       const approvedOnly = merged.filter((r: any) => r.quote_status === 'approved');
       setRecords(approvedOnly);
 
-      // Fetch all active sellers (comercial, gestor, admin)
+      // Fetch active sellers (comercial, gestor, admin) excluding test accounts
       const { data: activeSellers } = await db
         .from('profiles')
         .select('user_id, full_name')
@@ -167,7 +167,10 @@ export default function Logistics() {
         .in('role', ['comercial', 'gestor', 'admin'])
         .neq('full_name', '')
         .order('full_name');
-      setSellers((activeSellers || []).map((p: any) => ({ id: p.user_id, name: p.full_name })));
+      const filteredSellers = (activeSellers || []).filter((p: any) =>
+        !p.full_name.toLowerCase().includes('teste')
+      );
+      setSellers(filteredSellers.map((p: any) => ({ id: p.user_id, name: p.full_name })));
 
     } catch (e: any) {
       console.error('Logistics fetch error:', e);
