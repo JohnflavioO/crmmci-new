@@ -590,25 +590,31 @@ export default function Logistics() {
                   <Input placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
                 </div>
                 {tab === 'pedidos' && (
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-muted-foreground">Status</Label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        {allStatuses.map(s => (
+                          <SelectItem key={s} value={s}>{logisticsStatusLabels[s].label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-muted-foreground">Vendedor</Label>
+                  <Select value={sellerFilter} onValueChange={setSellerFilter}>
+                    <SelectTrigger className="w-[180px]"><SelectValue placeholder="Vendedor" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos</SelectItem>
-                      {allStatuses.map(s => (
-                        <SelectItem key={s} value={s}>{logisticsStatusLabels[s].label}</SelectItem>
+                      {sellers.map(s => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                )}
-                <Select value={sellerFilter} onValueChange={setSellerFilter}>
-                  <SelectTrigger className="w-[180px]"><SelectValue placeholder="Vendedor" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    {sellers.map(s => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                </div>
               </div>
 
               <RecordsList
