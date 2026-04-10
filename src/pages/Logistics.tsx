@@ -18,7 +18,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import {
   Truck, PackageCheck, FileText, Search, Eye, Download, ClipboardList,
-  AlertTriangle, MapPin, RefreshCw, Clock, CheckCircle2, Package,
+  AlertTriangle, MapPin, RefreshCw, Clock, CheckCircle2,
   TriangleAlert, History, ArrowRight, Upload, FileDown, X,
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -69,7 +69,7 @@ interface LogisticsRecord {
 }
 
 export default function Logistics() {
-  const { user, isLogistica, isAdmin, isGestor, profile } = useAuth();
+  const { user, isLogistica, profile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'dashboard';
   const isMobile = useIsMobile();
