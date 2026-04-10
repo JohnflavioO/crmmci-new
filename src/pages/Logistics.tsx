@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import {
   Truck, PackageCheck, FileText, Search, Eye, Download, ClipboardList,
   AlertTriangle, MapPin, RefreshCw, Clock, CheckCircle2, Package,
-  TriangleAlert, History, ArrowRight,
+  TriangleAlert, History, ArrowRight, Upload, FileDown, X,
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { generateQuotePdf } from '@/lib/generateQuotePdf';
@@ -47,6 +47,7 @@ interface LogisticsRecord {
   logistics_status: string;
   nf_numero: string | null;
   nf_data: string | null;
+  nf_pdf_url: string | null;
   codigo_rastreio: string | null;
   transportadora: string | null;
   observacao_logistica: string | null;
@@ -56,7 +57,6 @@ interface LogisticsRecord {
   entrada_at: string | null;
   created_at: string;
   updated_at: string;
-  // joined from quotes
   quote_number?: string;
   client_name?: string;
   salesperson?: string;
@@ -94,12 +94,20 @@ export default function Logistics() {
   const [historyRecordId, setHistoryRecordId] = useState<string | null>(null);
   const [history, setHistory] = useState<any[]>([]);
 
+  // NF Registration dialog
+  const [nfRecord, setNfRecord] = useState<LogisticsRecord | null>(null);
+  const [nfNumero, setNfNumero] = useState('');
+  const [nfData, setNfData] = useState('');
+  const [nfObs, setNfObs] = useState('');
+  const [nfFile, setNfFile] = useState<File | null>(null);
+  const [nfUploading, setNfUploading] = useState(false);
+  const nfFileRef = useRef<HTMLInputElement>(null);
+
   const canOperate = isLogistica;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch logistics records with quote data
       const { data: logData, error: logErr } = await db
         .from('logistics_records')
         .select('*')
@@ -107,7 +115,6 @@ export default function Logistics() {
 
       if (logErr) throw logErr;
 
-      // Fetch quotes for joined data
       const quoteIds = (logData || []).map((r: any) => r.quote_id);
       let quotesMap: Record<string, any> = {};
       if (quoteIds.length > 0) {
@@ -120,7 +127,6 @@ export default function Logistics() {
         });
       }
 
-      // Fetch seller profiles
       const sellerIds = [...new Set((Object.values(quotesMap) as any[]).map((q: any) => q.created_by).filter(Boolean))];
       let profilesMap: Record<string, string> = {};
       if (sellerIds.length > 0) {
@@ -151,7 +157,6 @@ export default function Logistics() {
 
       setRecords(merged);
 
-      // Build sellers list
       const sellersSet = new Map<string, string>();
       merged.forEach((r: any) => {
         if (r.created_by && r.salesperson) {
@@ -170,7 +175,6 @@ export default function Logistics() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Filtered records
   const filtered = useMemo(() => {
     let list = records;
     if (statusFilter !== 'all') list = list.filter(r => r.logistics_status === statusFilter);
@@ -186,7 +190,6 @@ export default function Logistics() {
       );
     }
 
-    // Tab-specific filters
     if (tab === 'nf') list = list.filter(r => ['emitindo_nf', 'nf_emitida'].includes(r.logistics_status) || !r.nf_numero);
     if (tab === 'envios') list = list.filter(r => ['pronto_envio', 'enviado', 'em_transporte'].includes(r.logistics_status));
     if (tab === 'rastreamento') list = list.filter(r => r.logistics_status === 'enviado' || r.logistics_status === 'em_transporte' || r.codigo_rastreio);
@@ -195,7 +198,6 @@ export default function Logistics() {
     return list;
   }, [records, statusFilter, sellerFilter, search, tab]);
 
-  // Stats
   const stats = useMemo(() => {
     const s = { aguardando: 0, emitindoNf: 0, prontoEnvio: 0, enviados: 0, transporte: 0, entregues: 0, problemas: 0, semRastreio: 0 };
     records.forEach(r => {
@@ -211,7 +213,6 @@ export default function Logistics() {
     return s;
   }, [records]);
 
-  // Open edit dialog
   const openEdit = (r: LogisticsRecord) => {
     setEditRecord(r);
     setEditStatus(r.logistics_status);
@@ -223,9 +224,134 @@ export default function Logistics() {
     setEditDataEnvio(r.data_envio || '');
   };
 
-  // Save edit
+  // Open NF registration modal
+  const openNfRegistration = (r: LogisticsRecord) => {
+    setNfRecord(r);
+    setNfNumero(r.nf_numero || '');
+    setNfData(r.nf_data || new Date().toISOString().split('T')[0]);
+    setNfObs(r.observacao_logistica || '');
+    setNfFile(null);
+    if (nfFileRef.current) nfFileRef.current.value = '';
+  };
+
+  // Handle NF file selection
+  const handleNfFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      toast.error('Apenas arquivos PDF são aceitos');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Arquivo muito grande. Máximo: 10MB');
+      e.target.value = '';
+      return;
+    }
+    setNfFile(file);
+  };
+
+  // Save NF registration
+  const saveNfRegistration = async () => {
+    if (!nfRecord) return;
+    if (!nfNumero.trim()) {
+      toast.error('Informe o número da NF');
+      return;
+    }
+    if (!nfFile && !nfRecord.nf_pdf_url) {
+      toast.error('Anexe o PDF da NF para concluir esta etapa');
+      return;
+    }
+
+    setNfUploading(true);
+    try {
+      let pdfUrl = nfRecord.nf_pdf_url;
+
+      // Upload PDF if new file selected
+      if (nfFile) {
+        const filePath = `${nfRecord.quote_id}/${Date.now()}_${nfFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+
+        // Remove old file if replacing
+        if (nfRecord.nf_pdf_url) {
+          await supabase.storage.from('nf-pdfs').remove([nfRecord.nf_pdf_url]);
+        }
+
+        const { error: uploadErr } = await supabase.storage
+          .from('nf-pdfs')
+          .upload(filePath, nfFile, { contentType: 'application/pdf', upsert: false });
+
+        if (uploadErr) throw uploadErr;
+        pdfUrl = filePath;
+      }
+
+      const previousStatus = nfRecord.logistics_status;
+      const updates: any = {
+        nf_numero: nfNumero.trim(),
+        nf_data: nfData || null,
+        nf_pdf_url: pdfUrl,
+        observacao_logistica: nfObs || null,
+        logistics_status: 'nf_emitida',
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await db.from('logistics_records').update(updates).eq('id', nfRecord.id);
+      if (error) throw error;
+
+      // Log action
+      if (previousStatus !== 'nf_emitida') {
+        await db.from('logistics_action_history').insert({
+          logistics_record_id: nfRecord.id,
+          action_type: 'nf_emitida',
+          previous_status: previousStatus,
+          new_status: 'nf_emitida',
+          notes: `NF ${nfNumero.trim()} registrada${nfFile ? ' com PDF anexado' : ''}`,
+          performed_by: user?.id,
+          performed_by_name: profile?.full_name || '',
+        });
+      }
+
+      toast.success('NF registrada com sucesso!');
+      setNfRecord(null);
+      setNfFile(null);
+      fetchData();
+    } catch (e: any) {
+      toast.error('Erro ao registrar NF: ' + (e.message || ''));
+    } finally {
+      setNfUploading(false);
+    }
+  };
+
+  // Download NF PDF
+  const downloadNfPdf = async (record: LogisticsRecord) => {
+    if (!record.nf_pdf_url) {
+      toast.error('Nenhum PDF de NF anexado');
+      return;
+    }
+    try {
+      const { data, error } = await supabase.storage
+        .from('nf-pdfs')
+        .createSignedUrl(record.nf_pdf_url, 300);
+      if (error) throw error;
+      window.open(data.signedUrl, '_blank');
+    } catch (e: any) {
+      toast.error('Erro ao abrir PDF da NF: ' + (e.message || ''));
+    }
+  };
+
+  // Save edit (updated to validate NF status)
   const saveEdit = async () => {
     if (!editRecord) return;
+
+    // Validate: nf_emitida requires nf_numero and nf_pdf_url
+    if (editStatus === 'nf_emitida' && !editNfNumero.trim()) {
+      toast.error('Informe o número da NF e anexe o PDF para marcar como NF Emitida. Use o botão "Registrar NF" para isso.');
+      return;
+    }
+    if (editStatus === 'nf_emitida' && !editRecord.nf_pdf_url) {
+      toast.error('Anexe o PDF da NF antes de marcar como NF Emitida. Use o botão "Registrar NF".');
+      return;
+    }
+
     try {
       const previousStatus = editRecord.logistics_status;
       const updates: any = {
@@ -250,7 +376,6 @@ export default function Logistics() {
       const { error } = await db.from('logistics_records').update(updates).eq('id', editRecord.id);
       if (error) throw error;
 
-      // Log action
       if (previousStatus !== editStatus) {
         await db.from('logistics_action_history').insert({
           logistics_record_id: editRecord.id,
@@ -271,8 +396,14 @@ export default function Logistics() {
     }
   };
 
-  // Quick status change
+  // Quick status change (block nf_emitida without NF data)
   const quickStatusChange = async (record: LogisticsRecord, newStatus: string) => {
+    if (newStatus === 'nf_emitida') {
+      if (!record.nf_numero || !record.nf_pdf_url) {
+        openNfRegistration(record);
+        return;
+      }
+    }
     try {
       const updates: any = {
         logistics_status: newStatus,
@@ -302,7 +433,6 @@ export default function Logistics() {
     }
   };
 
-  // Download PDF
   const downloadPdf = async (record: LogisticsRecord) => {
     try {
       const { data: quote } = await db.from('quotes').select('*').eq('id', record.quote_id).maybeSingle();
@@ -319,7 +449,6 @@ export default function Logistics() {
     }
   };
 
-  // View history
   const viewHistory = async (recordId: string) => {
     setHistoryRecordId(recordId);
     const { data } = await db
@@ -339,7 +468,6 @@ export default function Logistics() {
     return <Badge variant="outline" className={cn('text-xs font-medium', cfg.color)}>{cfg.label}</Badge>;
   };
 
-  // Next status helper
   const getNextStatus = (current: string): string | null => {
     const flow = ['aguardando_entrada', 'entrada_realizada', 'emitindo_nf', 'nf_emitida', 'em_separacao', 'pronto_envio', 'enviado', 'em_transporte', 'entregue'];
     const idx = flow.indexOf(current);
@@ -376,7 +504,6 @@ export default function Logistics() {
               <StatCard title="Sem Rastreio" value={stats.semRastreio} icon={AlertTriangle} />
             </div>
 
-            {/* Ações do Dia */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Ações do Dia</CardTitle>
@@ -416,7 +543,6 @@ export default function Logistics() {
               </CardContent>
             </Card>
 
-            {/* Recent records */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Últimos Pedidos</CardTitle>
@@ -431,6 +557,8 @@ export default function Logistics() {
                   onViewDetail={setDetailRecord}
                   onViewHistory={viewHistory}
                   onQuickStatus={quickStatusChange}
+                  onRegisterNf={openNfRegistration}
+                  onDownloadNfPdf={downloadNfPdf}
                   getNextStatus={getNextStatus}
                   fmt={fmt}
                   StatusBadge={StatusBadge}
@@ -453,7 +581,6 @@ export default function Logistics() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Filters */}
               <div className="flex flex-wrap gap-3 mb-4">
                 <div className="relative flex-1 min-w-[200px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -490,6 +617,8 @@ export default function Logistics() {
                 onViewDetail={setDetailRecord}
                 onViewHistory={viewHistory}
                 onQuickStatus={quickStatusChange}
+                onRegisterNf={openNfRegistration}
+                onDownloadNfPdf={downloadNfPdf}
                 getNextStatus={getNextStatus}
                 fmt={fmt}
                 StatusBadge={StatusBadge}
@@ -521,6 +650,13 @@ export default function Logistics() {
                   <div><span className="text-muted-foreground">Data Envio:</span> <strong>{detailRecord.data_envio ? format(new Date(detailRecord.data_envio), 'dd/MM/yyyy') : '-'}</strong></div>
                   <div><span className="text-muted-foreground">Entrega:</span> <strong>{detailRecord.data_entrega ? format(new Date(detailRecord.data_entrega), 'dd/MM/yyyy') : '-'}</strong></div>
                 </div>
+                {detailRecord.nf_pdf_url && (
+                  <div className="pt-2">
+                    <Button size="sm" variant="outline" onClick={() => downloadNfPdf(detailRecord)}>
+                      <FileDown className="h-4 w-4 mr-1" /> Baixar PDF da NF
+                    </Button>
+                  </div>
+                )}
                 {detailRecord.observacao_logistica && (
                   <div><span className="text-muted-foreground">Obs:</span> <p className="mt-1">{detailRecord.observacao_logistica}</p></div>
                 )}
@@ -545,6 +681,9 @@ export default function Logistics() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {editStatus === 'nf_emitida' && !editRecord.nf_pdf_url && (
+                    <p className="text-xs text-destructive mt-1">Use "Registrar NF" para anexar o PDF antes de marcar como NF Emitida.</p>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -580,6 +719,93 @@ export default function Logistics() {
           </DialogContent>
         </Dialog>
 
+        {/* NF Registration Dialog */}
+        <Dialog open={!!nfRecord} onOpenChange={() => { setNfRecord(null); setNfFile(null); }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle>Registrar NF - {nfRecord?.quote_number}</DialogTitle></DialogHeader>
+            {nfRecord && (
+              <div className="space-y-4">
+                <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                  <div className="grid grid-cols-2 gap-1">
+                    <div><span className="text-muted-foreground">Cliente:</span> <strong>{nfRecord.client_name}</strong></div>
+                    <div><span className="text-muted-foreground">Valor:</span> <strong>{fmt(nfRecord.total_amount || 0)}</strong></div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Número da NF <span className="text-destructive">*</span></Label>
+                  <Input
+                    value={nfNumero}
+                    onChange={e => setNfNumero(e.target.value)}
+                    placeholder="Ex: 001234"
+                    maxLength={50}
+                  />
+                </div>
+
+                <div>
+                  <Label>PDF da Nota Fiscal <span className="text-destructive">*</span></Label>
+                  <div className="mt-1">
+                    {nfRecord.nf_pdf_url && !nfFile && (
+                      <div className="flex items-center gap-2 p-2 rounded border bg-muted/30 mb-2">
+                        <FileText className="h-4 w-4 text-primary" />
+                        <span className="text-sm flex-1">PDF já anexado</span>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => downloadNfPdf(nfRecord)}>
+                          <FileDown className="h-3 w-3 mr-1" /> Ver
+                        </Button>
+                      </div>
+                    )}
+                    {nfFile && (
+                      <div className="flex items-center gap-2 p-2 rounded border bg-green-50 mb-2">
+                        <FileText className="h-4 w-4 text-green-600" />
+                        <span className="text-sm flex-1 truncate">{nfFile.name}</span>
+                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setNfFile(null); if (nfFileRef.current) nfFileRef.current.value = ''; }}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                    <input
+                      ref={nfFileRef}
+                      type="file"
+                      accept="application/pdf"
+                      onChange={handleNfFileChange}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => nfFileRef.current?.click()}
+                      className="w-full"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {nfFile ? 'Trocar arquivo' : nfRecord.nf_pdf_url ? 'Substituir PDF' : 'Selecionar PDF da NF'}
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-1">Apenas PDF, máximo 10MB</p>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Data de Emissão</Label>
+                  <Input type="date" value={nfData} onChange={e => setNfData(e.target.value)} />
+                </div>
+
+                <div>
+                  <Label>Observação</Label>
+                  <Textarea value={nfObs} onChange={e => setNfObs(e.target.value)} placeholder="Observação opcional..." maxLength={500} />
+                </div>
+
+                <Button onClick={saveNfRegistration} className="w-full" disabled={nfUploading}>
+                  {nfUploading ? (
+                    <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Salvando...</>
+                  ) : (
+                    <><CheckCircle2 className="h-4 w-4 mr-2" /> Registrar NF e Marcar como Emitida</>
+                  )}
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
         {/* History Dialog */}
         <Dialog open={!!historyRecordId} onOpenChange={() => setHistoryRecordId(null)}>
           <DialogContent className="max-w-lg">
@@ -610,7 +836,7 @@ export default function Logistics() {
 
 // Records list component
 function RecordsList({
-  records, canOperate, isMobile, onEdit, onDownloadPdf, onViewDetail, onViewHistory, onQuickStatus, getNextStatus, fmt, StatusBadge,
+  records, canOperate, isMobile, onEdit, onDownloadPdf, onViewDetail, onViewHistory, onQuickStatus, onRegisterNf, onDownloadNfPdf, getNextStatus, fmt, StatusBadge,
 }: {
   records: LogisticsRecord[];
   canOperate: boolean;
@@ -620,6 +846,8 @@ function RecordsList({
   onViewDetail: (r: LogisticsRecord) => void;
   onViewHistory: (id: string) => void;
   onQuickStatus: (r: LogisticsRecord, status: string) => void;
+  onRegisterNf: (r: LogisticsRecord) => void;
+  onDownloadNfPdf: (r: LogisticsRecord) => void;
   getNextStatus: (status: string) => string | null;
   fmt: (v: number) => string;
   StatusBadge: React.FC<{ status: string }>;
@@ -633,6 +861,7 @@ function RecordsList({
       <div className="space-y-3">
         {records.map(r => {
           const next = getNextStatus(r.logistics_status);
+          const showNfAction = canOperate && ['emitindo_nf', 'entrada_realizada'].includes(r.logistics_status);
           return (
             <Card key={r.id} className="p-3">
               <div className="flex items-start justify-between mb-2">
@@ -655,13 +884,28 @@ function RecordsList({
                 <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => onDownloadPdf(r)}>
                   <Download className="h-3 w-3 mr-1" /> PDF
                 </Button>
+                {r.nf_pdf_url && (
+                  <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => onDownloadNfPdf(r)}>
+                    <FileDown className="h-3 w-3 mr-1" /> NF
+                  </Button>
+                )}
+                {showNfAction && (
+                  <Button size="sm" variant="default" className="text-xs h-7 bg-purple-600 hover:bg-purple-700" onClick={() => onRegisterNf(r)}>
+                    <FileText className="h-3 w-3 mr-1" /> Registrar NF
+                  </Button>
+                )}
                 {canOperate && (
                   <>
                     <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => onEdit(r)}>
                       <ClipboardList className="h-3 w-3 mr-1" /> Editar
                     </Button>
-                    {next && (
+                    {next && next !== 'nf_emitida' && (
                       <Button size="sm" variant="default" className="text-xs h-7" onClick={() => onQuickStatus(r, next)}>
+                        <ArrowRight className="h-3 w-3 mr-1" /> {logisticsStatusLabels[next]?.label}
+                      </Button>
+                    )}
+                    {next === 'nf_emitida' && (
+                      <Button size="sm" variant="default" className="text-xs h-7 bg-purple-600 hover:bg-purple-700" onClick={() => onQuickStatus(r, next)}>
                         <ArrowRight className="h-3 w-3 mr-1" /> {logisticsStatusLabels[next]?.label}
                       </Button>
                     )}
@@ -696,6 +940,7 @@ function RecordsList({
         <TableBody>
           {records.map(r => {
             const next = getNextStatus(r.logistics_status);
+            const showNfAction = canOperate && ['emitindo_nf', 'entrada_realizada'].includes(r.logistics_status);
             return (
               <TableRow key={r.id}>
                 <TableCell className="font-medium">{r.quote_number}</TableCell>
@@ -703,16 +948,30 @@ function RecordsList({
                 <TableCell>{r.salesperson}</TableCell>
                 <TableCell>{fmt(r.total_amount || 0)}</TableCell>
                 <TableCell><StatusBadge status={r.logistics_status} /></TableCell>
-                <TableCell>{r.nf_numero || '-'}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <span>{r.nf_numero || '-'}</span>
+                    {r.nf_pdf_url && (
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onDownloadNfPdf(r)} title="Baixar PDF da NF">
+                        <FileDown className="h-3.5 w-3.5 text-primary" />
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>{r.codigo_rastreio || '-'}</TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1">
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onViewDetail(r)} title="Ver detalhes">
                       <Eye className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onDownloadPdf(r)} title="Baixar PDF">
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onDownloadPdf(r)} title="Baixar PDF orçamento">
                       <Download className="h-3.5 w-3.5" />
                     </Button>
+                    {showNfAction && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs border-purple-300 text-purple-700 hover:bg-purple-50" onClick={() => onRegisterNf(r)} title="Registrar NF">
+                        <FileText className="h-3.5 w-3.5 mr-1" /> Registrar NF
+                      </Button>
+                    )}
                     {canOperate && (
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(r)} title="Editar">
                         <ClipboardList className="h-3.5 w-3.5" />
