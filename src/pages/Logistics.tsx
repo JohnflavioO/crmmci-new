@@ -159,24 +159,15 @@ export default function Logistics() {
       const approvedOnly = merged.filter((r: any) => r.quote_status === 'approved');
       setRecords(approvedOnly);
 
-      // Fetch only active sellers (users with 'user' role = vendedores)
-      const { data: sellerRoles } = await db
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'user');
-      const sellerUserIds = (sellerRoles || []).map((r: any) => r.user_id);
-      if (sellerUserIds.length > 0) {
-        const { data: activeSellers } = await db
-          .from('profiles')
-          .select('user_id, full_name')
-          .eq('active', true)
-          .neq('full_name', '')
-          .in('user_id', sellerUserIds)
-          .order('full_name');
-        setSellers((activeSellers || []).map((p: any) => ({ id: p.user_id, name: p.full_name })));
-      } else {
-        setSellers([]);
-      }
+      // Fetch only active sellers (comercial role in profiles)
+      const { data: activeSellers } = await db
+        .from('profiles')
+        .select('user_id, full_name')
+        .eq('active', true)
+        .eq('role', 'comercial')
+        .neq('full_name', '')
+        .order('full_name');
+      setSellers((activeSellers || []).map((p: any) => ({ id: p.user_id, name: p.full_name })));
 
     } catch (e: any) {
       console.error('Logistics fetch error:', e);
