@@ -159,14 +159,24 @@ export default function Logistics() {
       const approvedOnly = merged.filter((r: any) => r.quote_status === 'approved');
       setRecords(approvedOnly);
 
-      // Fetch active sellers from profiles
-      const { data: activeSellers } = await db
-        .from('profiles')
-        .select('user_id, full_name')
-        .eq('active', true)
-        .neq('full_name', '')
-        .order('full_name');
-      setSellers((activeSellers || []).map((p: any) => ({ id: p.user_id, name: p.full_name })));
+      // Fetch only active sellers (users with 'user' role = vendedores)
+      const { data: sellerRoles } = await db
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'user');
+      const sellerUserIds = (sellerRoles || []).map((r: any) => r.user_id);
+      if (sellerUserIds.length > 0) {
+        const { data: activeSellers } = await db
+          .from('profiles')
+          .select('user_id, full_name')
+          .eq('active', true)
+          .neq('full_name', '')
+          .in('user_id', sellerUserIds)
+          .order('full_name');
+        setSellers((activeSellers || []).map((p: any) => ({ id: p.user_id, name: p.full_name })));
+      } else {
+        setSellers([]);
+      }
 
     } catch (e: any) {
       console.error('Logistics fetch error:', e);
@@ -584,7 +594,7 @@ export default function Logistics() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-3 mb-4">
+              <div className="flex flex-wrap items-end gap-3 mb-4">
                 <div className="relative flex-1 min-w-[200px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
