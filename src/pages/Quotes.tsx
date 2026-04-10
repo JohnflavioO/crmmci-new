@@ -15,6 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift, Store, CalendarIcon, SplitSquareVertical, ShoppingBag } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
+import QuoteChat from '@/components/QuoteChat';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -157,6 +159,7 @@ export default function Quotes() {
   const [products, setProducts] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState<Record<number, string>>({});
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
+  const [chatQuote, setChatQuote] = useState<{ id: string; number: string } | null>(null);
 
   const loadData = async () => {
     try {
@@ -1070,6 +1073,9 @@ export default function Quotes() {
                       <Button size="sm" variant="ghost" onClick={() => handleDuplicate(q)} className="min-h-[44px] flex-1">
                         <Copy className="h-4 w-4 text-blue-600" />
                       </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setChatQuote({ id: q.id, number: q.quote_number })} className="min-h-[44px] flex-1" title="Chat interno">
+                        <MessageSquare className="h-4 w-4 text-primary" />
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={() => handleExportPdf(q)} className="min-h-[44px] flex-1">
                         <Download className="h-4 w-4" />
                       </Button>
@@ -1168,6 +1174,9 @@ export default function Quotes() {
                         <Button size="icon" variant="ghost" onClick={() => handleDuplicate(q)} title="Duplicar Orçamento">
                           <Copy className="h-4 w-4 text-blue-600" />
                         </Button>
+                        <Button size="icon" variant="ghost" onClick={() => setChatQuote({ id: q.id, number: q.quote_number })} title="Chat Interno">
+                          <MessageSquare className="h-4 w-4 text-primary" />
+                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => handleExportPdf(q)} title="Exportar PDF">
                           <Download className="h-4 w-4" />
                         </Button>
@@ -1187,6 +1196,12 @@ export default function Quotes() {
           )}
         </CardContent>
       </Card>
+      <QuoteChat
+        quoteId={chatQuote?.id || ''}
+        quoteNumber={chatQuote?.number || ''}
+        open={!!chatQuote}
+        onOpenChange={(o) => { if (!o) setChatQuote(null); }}
+      />
     </AppLayout>
   );
 }
