@@ -1189,6 +1189,12 @@ export default function Quotes() {
           )}
         </CardContent>
       </Card>
+      <QuoteChat
+        quoteId={chatQuote?.id || ''}
+        quoteNumber={chatQuote?.number || ''}
+        open={!!chatQuote}
+        onOpenChange={(o) => { if (!o) setChatQuote(null); }}
+      />
     </AppLayout>
   );
 }
