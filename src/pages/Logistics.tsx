@@ -170,7 +170,7 @@ export default function Logistics() {
       const filteredSellers = (activeSellers || []).filter((p: any) =>
         !p.full_name.toLowerCase().includes('teste')
       );
-      setSellers((activeSellers || []).map((p: any) => ({ id: p.user_id, name: p.full_name })));
+      setSellers(filteredSellers.map((p: any) => ({ id: p.user_id, name: p.full_name })));
 
     } catch (e: any) {
       console.error('Logistics fetch error:', e);
