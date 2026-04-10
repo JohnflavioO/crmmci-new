@@ -423,7 +423,7 @@ export default function Logistics() {
               </CardHeader>
               <CardContent>
                 <RecordsList
-                  records={records.slice(0, 10)}
+                  records={records.filter(r => r.logistics_status !== 'entregue').slice(0, 10)}
                   canOperate={canOperate}
                   isMobile={isMobile}
                   onEdit={openEdit}
