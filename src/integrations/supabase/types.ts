@@ -311,6 +311,7 @@ export type Database = {
           logistics_status: string
           nf_data: string | null
           nf_numero: string | null
+          nf_pdf_url: string | null
           observacao_logistica: string | null
           quote_id: string
           transportadora: string | null
@@ -327,6 +328,7 @@ export type Database = {
           logistics_status?: string
           nf_data?: string | null
           nf_numero?: string | null
+          nf_pdf_url?: string | null
           observacao_logistica?: string | null
           quote_id: string
           transportadora?: string | null
@@ -343,6 +345,7 @@ export type Database = {
           logistics_status?: string
           nf_data?: string | null
           nf_numero?: string | null
+          nf_pdf_url?: string | null
           observacao_logistica?: string | null
           quote_id?: string
           transportadora?: string | null
