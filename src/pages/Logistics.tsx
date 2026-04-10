@@ -155,7 +155,9 @@ export default function Logistics() {
         };
       });
 
-      setRecords(merged);
+      // Only show logistics records where the quote is currently approved
+      const approvedOnly = merged.filter((r: any) => r.quote_status === 'approved');
+      setRecords(approvedOnly);
 
       const sellersSet = new Map<string, string>();
       merged.forEach((r: any) => {
