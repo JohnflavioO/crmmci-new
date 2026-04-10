@@ -23,6 +23,11 @@ import {
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { generateQuotePdf } from '@/lib/generateQuotePdf';
+import LogisticsWorkQueue from '@/components/logistics/LogisticsWorkQueue';
+import LogisticsSmartAlerts from '@/components/logistics/LogisticsSmartAlerts';
+import LogisticsEfficiency from '@/components/logistics/LogisticsEfficiency';
+import LogisticsSellerView from '@/components/logistics/LogisticsSellerView';
+import LogisticsShippingIndicators from '@/components/logistics/LogisticsShippingIndicators';
 
 const db = supabase as any;
 
@@ -500,6 +505,9 @@ export default function Logistics() {
         {/* Dashboard Tab */}
         {tab === 'dashboard' && (
           <>
+            {/* Alertas Inteligentes */}
+            <LogisticsSmartAlerts records={records} />
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <StatCard title="Aguardando Entrada" value={stats.aguardando} icon={Clock} />
               <StatCard title="Emitindo NF" value={stats.emitindoNf} icon={FileText} />
@@ -547,6 +555,48 @@ export default function Logistics() {
                 {stats.aguardando === 0 && stats.emitindoNf === 0 && stats.semRastreio === 0 && stats.problemas === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-4">Nenhuma ação pendente 🎉</p>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Fila de Trabalho */}
+            <LogisticsWorkQueue
+              stats={stats}
+              onNavigate={(filter, targetTab) => {
+                if (filter) setStatusFilter(filter);
+                setTab(targetTab);
+              }}
+            />
+
+            {/* Eficiência Logística */}
+            <LogisticsEfficiency records={records} />
+
+            {/* Indicadores de Envio */}
+            <LogisticsShippingIndicators records={records} />
+
+            {/* Visão por Vendedor */}
+            <LogisticsSellerView records={records} />
+
+            {/* Pedidos em Andamento */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Pedidos em Andamento</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RecordsList
+                  records={records.filter(r => !['entregue', 'problema_logistico'].includes(r.logistics_status))}
+                  canOperate={canOperate}
+                  isMobile={isMobile}
+                  onEdit={openEdit}
+                  onDownloadPdf={downloadPdf}
+                  onViewDetail={setDetailRecord}
+                  onViewHistory={viewHistory}
+                  onQuickStatus={quickStatusChange}
+                  onRegisterNf={openNfRegistration}
+                  onDownloadNfPdf={downloadNfPdf}
+                  getNextStatus={getNextStatus}
+                  fmt={fmt}
+                  StatusBadge={StatusBadge}
+                />
               </CardContent>
             </Card>
 
