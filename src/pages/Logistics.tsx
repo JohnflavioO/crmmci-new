@@ -190,7 +190,7 @@ export default function Logistics() {
       );
     }
 
-    if (tab === 'nf') list = list.filter(r => ['emitindo_nf', 'nf_emitida'].includes(r.logistics_status) || !r.nf_numero);
+    if (tab === 'nf') list = list.filter(r => ['aguardando_entrada', 'entrada_realizada', 'emitindo_nf'].includes(r.logistics_status) || (!r.nf_numero && !['nf_emitida', 'pronto_envio', 'enviado', 'em_transporte', 'entregue'].includes(r.logistics_status)));
     if (tab === 'envios') list = list.filter(r => ['pronto_envio', 'enviado', 'em_transporte'].includes(r.logistics_status));
     if (tab === 'rastreamento') list = list.filter(r => r.logistics_status === 'enviado' || r.logistics_status === 'em_transporte' || r.codigo_rastreio);
     if (tab === 'problemas') list = list.filter(r => r.logistics_status === 'problema_logistico');
