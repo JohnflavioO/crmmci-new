@@ -218,7 +218,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       item.brand || '',
       String(item.quantity || 1),
       isGift ? 'BRINDE' : fmt(parseFloat(item.unit_price) || 0),
-      isGift ? '-' : `${item.discount_percent || 0}%`,
+      isGift ? '-' : (item.discount_percent ? `${item.discount_percent}%` : ''),
       isGift ? 'BRINDE' : fmt(parseFloat(item.line_total || item.total_price) || 0),
     ];
     remaining.forEach((val, ci) => {
