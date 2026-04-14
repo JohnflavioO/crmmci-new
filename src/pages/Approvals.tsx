@@ -395,6 +395,41 @@ export default function Approvals() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de confirmação de exclusão permanente */}
+      <Dialog open={!!permanentDeleteTarget} onOpenChange={open => { if (!open) { setPermanentDeleteTarget(null); setPermanentDeleteConfirm(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Deletar permanentemente</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja <strong>deletar permanentemente</strong> a conta de <strong>{permanentDeleteTarget?.profiles?.full_name}</strong>? 
+              Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Digite <strong>DELETAR</strong> para confirmar:
+            </p>
+            <Input
+              value={permanentDeleteConfirm}
+              onChange={e => setPermanentDeleteConfirm(e.target.value)}
+              placeholder="Digite DELETAR"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPermanentDeleteTarget(null); setPermanentDeleteConfirm(''); }}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={permanentDeleteConfirm !== 'DELETAR'}
+              onClick={handlePermanentDelete}
+            >
+              Deletar Permanentemente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
