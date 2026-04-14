@@ -78,54 +78,28 @@ async function testConnection(apiKey: string, applicationKey: string) {
 
   console.log(`[loja-integrada] Response status: ${response.status}`);
 
-  // Read body ONCE as text, then parse
   const responseText = await response.text();
 
   if (!response.ok) {
     console.error(`[loja-integrada] API error body: ${responseText.slice(0, 500)}`);
 
     if (response.status === 401) {
-      return {
-        ok: false,
-        error: 'API Key inválida ou não autorizada pela Loja Integrada.',
-        error_stage: 'authentication',
-        http_status: 401,
-      };
+      return { ok: false, error: 'API Key inválida ou não autorizada pela Loja Integrada.', error_stage: 'authentication', http_status: 401 };
     }
     if (response.status === 403) {
-      return {
-        ok: false,
-        error: 'Application Key inválida ou sem permissão. Verifique suas credenciais na Loja Integrada.',
-        error_stage: 'authorization',
-        http_status: 403,
-      };
+      return { ok: false, error: 'Application Key inválida ou sem permissão.', error_stage: 'authorization', http_status: 403 };
     }
     if (response.status === 404) {
-      return {
-        ok: false,
-        error: 'Endpoint da API não encontrado. A API da Loja Integrada pode ter mudado.',
-        error_stage: 'endpoint',
-        http_status: 404,
-      };
+      return { ok: false, error: 'Endpoint da API não encontrado.', error_stage: 'endpoint', http_status: 404 };
     }
-    return {
-      ok: false,
-      error: `Erro ${response.status} na API da Loja Integrada: ${responseText.slice(0, 200)}`,
-      error_stage: 'api_call',
-      http_status: response.status,
-    };
+    return { ok: false, error: `Erro ${response.status} na API da Loja Integrada: ${responseText.slice(0, 200)}`, error_stage: 'api_call', http_status: response.status };
   }
 
   let data;
   try {
     data = JSON.parse(responseText);
   } catch {
-    console.error('[loja-integrada] Invalid JSON response:', responseText.slice(0, 200));
-    return {
-      ok: false,
-      error: 'Resposta inválida da Loja Integrada (não é JSON).',
-      error_stage: 'parse',
-    };
+    return { ok: false, error: 'Resposta inválida da Loja Integrada (não é JSON).', error_stage: 'parse' };
   }
 
   console.log(`[loja-integrada] Connection OK. Total orders: ${data.meta?.total_count ?? 0}`);
@@ -169,29 +143,156 @@ async function fetchOrderDetails(apiKey: string, applicationKey: string, orderId
   }
 }
 
-async function fetchStoredCredentials(supabase: any) {
-  const { data: integration } = await supabase
+async function fetchStoredCredentials(serviceClient: any) {
+  const { data: integration } = await serviceClient
     .from('integrations')
-    .select('api_key, application_key')
+    .select('api_key, application_key, created_by')
     .eq('integration_name', 'loja_integrada')
     .maybeSingle();
 
   if (!integration?.api_key || !integration?.application_key) {
     return null;
   }
-  return { apiKey: integration.api_key, applicationKey: integration.application_key };
+  return { apiKey: integration.api_key, applicationKey: integration.application_key, createdBy: integration.created_by };
 }
 
-async function importOrders(
-  supabase: any,
+function buildQuoteData(
+  orderData: any,
+  externalId: string,
+  clientId: string | null,
+  userId: string,
+  adminName: string,
+  quoteNumber: string | null
+) {
+  const situacaoNome = orderData.situacao?.nome || orderData.situacao || '';
+  const clienteNome = orderData.cliente?.nome || '';
+  const clienteEmail = orderData.cliente?.email || '';
+  const clienteTelefone = orderData.cliente?.telefone_principal || '';
+  const clienteCpfCnpj = orderData.cliente?.cpf || orderData.cliente?.cnpj || '';
+  const valorTotal = parseFloat(orderData.valor_total) || 0;
+  const valorFrete = parseFloat(orderData.valor_envio) || 0;
+  const valorDesconto = parseFloat(orderData.valor_desconto) || 0;
+  const dataCriacao = orderData.data_criacao;
+  const pagamento = orderData.pagamentos?.[0]?.forma_pagamento?.nome || '';
+
+  const notesParts: string[] = [];
+  if (clienteEmail) notesParts.push(`Email: ${clienteEmail}`);
+  if (clienteTelefone) notesParts.push(`Tel: ${clienteTelefone}`);
+  if (clienteCpfCnpj) notesParts.push(`CPF/CNPJ: ${clienteCpfCnpj}`);
+  if (orderData.numero_pedido_canal) notesParts.push(`Pedido canal: ${orderData.numero_pedido_canal}`);
+  if (orderData.observacao) notesParts.push(`Obs: ${orderData.observacao}`);
+
+  const mappedStatus = mapStatus(situacaoNome);
+
+  return {
+    quote_number: quoteNumber || `LI-${externalId}`,
+    client_name: clienteNome || `Pedido #${externalId}`,
+    client_id: clientId,
+    salesperson: adminName,
+    salesperson_id: userId,
+    status: mappedStatus,
+    total_amount: valorTotal,
+    total: valorTotal - valorFrete,
+    shipping_cost: valorFrete,
+    discount: valorDesconto,
+    payment_method: mapPaymentMethod(pagamento),
+    payment_status: mappedStatus === 'approved' ? 'liquidado' : 'pendente',
+    payment_terms: pagamento || null,
+    notes: notesParts.length > 0 ? `[Importado da Loja Integrada]\n${notesParts.join('\n')}` : '[Importado da Loja Integrada]',
+    source: 'loja_integrada',
+    external_order_id: externalId,
+    external_status: situacaoNome,
+    created_by: userId,
+    quote_date: dataCriacao ? new Date(dataCriacao).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    is_reseller: false,
+    is_split_payment: false,
+  };
+}
+
+async function findOrCreateClient(serviceClient: any, orderData: any, userId: string): Promise<string | null> {
+  const clienteNome = orderData.cliente?.nome || '';
+  const clienteEmail = orderData.cliente?.email || '';
+  const clienteTelefone = orderData.cliente?.telefone_principal || '';
+  const clienteCpfCnpj = orderData.cliente?.cpf || orderData.cliente?.cnpj || '';
+
+  if (!clienteEmail && !clienteNome) return null;
+
+  let clientId: string | null = null;
+
+  if (clienteEmail) {
+    const { data: existingClient } = await serviceClient
+      .from('clients')
+      .select('id')
+      .eq('email', clienteEmail)
+      .maybeSingle();
+    if (existingClient) clientId = existingClient.id;
+  }
+
+  if (!clientId && clienteNome) {
+    const { data: existingClient } = await serviceClient
+      .from('clients')
+      .select('id')
+      .eq('name', clienteNome)
+      .maybeSingle();
+    if (existingClient) clientId = existingClient.id;
+  }
+
+  if (!clientId && clienteNome) {
+    const { data: newClient } = await serviceClient
+      .from('clients')
+      .insert({
+        name: clienteNome,
+        email: clienteEmail || null,
+        phone: clienteTelefone || null,
+        cpf_cnpj: clienteCpfCnpj || null,
+        created_by: userId,
+        pipeline_stage: 'cliente',
+      })
+      .select('id')
+      .single();
+    if (newClient) clientId = newClient.id;
+  }
+
+  return clientId;
+}
+
+async function upsertQuoteItems(serviceClient: any, quoteId: string, orderData: any) {
+  const itens = orderData.itens || [];
+  if (itens.length === 0) return;
+
+  // Delete old items and re-insert
+  await serviceClient.from('quote_items').delete().eq('quote_id', quoteId);
+
+  const quoteItems = itens.map((item: any, idx: number) => ({
+    quote_id: quoteId,
+    item_number: idx + 1,
+    description: item.nome || item.produto?.nome || `Item ${idx + 1}`,
+    model: item.nome || item.produto?.nome || `Item ${idx + 1}`,
+    brand: '',
+    product_code: item.sku || '',
+    quantity: parseInt(item.quantidade) || 1,
+    unit_price: parseFloat(item.preco_venda) || 0,
+    discount_percent: 0,
+    unit_total: parseFloat(item.preco_venda) || 0,
+    line_total: (parseFloat(item.preco_venda) || 0) * (parseInt(item.quantidade) || 1),
+    specifications: '',
+    image_url: '',
+    is_gift: false,
+  }));
+
+  const { error: itemsErr } = await serviceClient.from('quote_items').insert(quoteItems);
+  if (itemsErr) {
+    console.error(`[loja-integrada] Error upserting items for quote ${quoteId}:`, itemsErr.message);
+  }
+}
+
+async function importAllOrders(
+  serviceClient: any,
   userId: string,
   apiKey: string,
   applicationKey: string,
-  page = 1
 ) {
-  const limit = 20;
-  const offset = (page - 1) * limit;
-  const serviceClient = getServiceClient();
+  console.log('[loja-integrada] Starting full import/upsert...');
 
   const { data: adminProfile } = await serviceClient
     .from('profiles')
@@ -200,190 +301,147 @@ async function importOrders(
     .maybeSingle();
   const adminName = adminProfile?.full_name || 'Admin';
 
-  const response = await fetch(
-    `${LOJA_INTEGRADA_API}/pedido?limit=${limit}&offset=${offset}&ordering=-data_criacao`,
-    {
-      headers: {
-        'Authorization': `chave_api ${apiKey} aplicacao ${applicationKey}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-
-  if (!response.ok) {
-    const text = await response.text();
-    console.error(`[loja-integrada] Import fetch error ${response.status}: ${text}`);
-    return {
-      ok: false,
-      error: `Erro ${response.status} ao buscar pedidos da Loja Integrada.`,
-      error_stage: 'fetch_orders',
-    };
-  }
-
-  const data = await response.json();
-  const orders = data.objects || [];
-  const totalCount = data.meta?.total_count ?? 0;
-
   let imported = 0;
+  let updated = 0;
   let skipped = 0;
   let errors = 0;
+  let page = 1;
+  const limit = 50;
+  let hasMore = true;
 
-  for (const order of orders) {
-    const externalId = String(order.numero);
+  while (hasMore) {
+    const offset = (page - 1) * limit;
+    console.log(`[loja-integrada] Fetching page ${page} (offset ${offset})...`);
 
-    const { data: existing } = await serviceClient
-      .from('quotes')
-      .select('id')
-      .eq('external_order_id', externalId)
-      .maybeSingle();
-
-    if (existing) {
-      skipped++;
-      continue;
+    let response: Response;
+    try {
+      response = await fetch(
+        `${LOJA_INTEGRADA_API}/pedido?limit=${limit}&offset=${offset}&ordering=-data_criacao`,
+        {
+          headers: {
+            'Authorization': `chave_api ${apiKey} aplicacao ${applicationKey}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    } catch (fetchErr) {
+      console.error(`[loja-integrada] Network error on page ${page}:`, fetchErr);
+      errors++;
+      break;
     }
 
-    const detail = await fetchOrderDetails(apiKey, applicationKey, externalId);
-    const orderData = detail || order;
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`[loja-integrada] API error on page ${page}: ${response.status} ${text.slice(0, 200)}`);
+      errors++;
+      break;
+    }
 
-    const situacaoNome = orderData.situacao?.nome || orderData.situacao || '';
-    const clienteNome = orderData.cliente?.nome || '';
-    const clienteEmail = orderData.cliente?.email || '';
-    const clienteTelefone = orderData.cliente?.telefone_principal || '';
-    const clienteCpfCnpj = orderData.cliente?.cpf || orderData.cliente?.cnpj || '';
-    const valorTotal = parseFloat(orderData.valor_total) || 0;
-    const valorFrete = parseFloat(orderData.valor_envio) || 0;
-    const valorDesconto = parseFloat(orderData.valor_desconto) || 0;
-    const dataCriacao = orderData.data_criacao;
-    const pagamento = orderData.pagamentos?.[0]?.forma_pagamento?.nome || '';
+    const data = await response.json();
+    const orders = data.objects || [];
+    const totalCount = data.meta?.total_count ?? 0;
 
-    const { data: quoteNumber } = await serviceClient.rpc('generate_quote_number');
+    if (orders.length === 0) {
+      hasMore = false;
+      break;
+    }
 
-    const notesParts: string[] = [];
-    if (clienteEmail) notesParts.push(`Email: ${clienteEmail}`);
-    if (clienteTelefone) notesParts.push(`Tel: ${clienteTelefone}`);
-    if (clienteCpfCnpj) notesParts.push(`CPF/CNPJ: ${clienteCpfCnpj}`);
-    if (orderData.numero_pedido_canal) notesParts.push(`Pedido canal: ${orderData.numero_pedido_canal}`);
-    if (orderData.observacao) notesParts.push(`Obs: ${orderData.observacao}`);
+    for (const order of orders) {
+      const externalId = String(order.numero);
 
-    let clientId: string | null = null;
-    if (clienteEmail || clienteNome) {
-      if (clienteEmail) {
-        const { data: existingClient } = await serviceClient
-          .from('clients')
-          .select('id')
-          .eq('email', clienteEmail)
+      try {
+        const detail = await fetchOrderDetails(apiKey, applicationKey, externalId);
+        const orderData = detail || order;
+        const situacaoNome = orderData.situacao?.nome || orderData.situacao || '';
+
+        // Check if already exists
+        const { data: existing } = await serviceClient
+          .from('quotes')
+          .select('id, external_status, status')
+          .eq('external_order_id', externalId)
           .maybeSingle();
-        if (existingClient) clientId = existingClient.id;
-      }
-      if (!clientId && clienteNome) {
-        const { data: existingClient } = await serviceClient
-          .from('clients')
-          .select('id')
-          .eq('name', clienteNome)
-          .maybeSingle();
-        if (existingClient) clientId = existingClient.id;
-      }
-      if (!clientId && clienteNome) {
-        const { data: newClient } = await serviceClient
-          .from('clients')
-          .insert({
-            name: clienteNome,
-            email: clienteEmail || null,
-            phone: clienteTelefone || null,
-            cpf_cnpj: clienteCpfCnpj || null,
-            created_by: userId,
-            pipeline_stage: 'cliente',
-          })
+
+        if (existing) {
+          // Update if status changed
+          const newMappedStatus = mapStatus(situacaoNome);
+          if (existing.external_status !== situacaoNome) {
+            const updateData: Record<string, unknown> = {
+              external_status: situacaoNome,
+              updated_at: new Date().toISOString(),
+            };
+            // Only update CRM status if the order wasn't manually changed
+            if (existing.status === mapStatus(existing.external_status)) {
+              updateData.status = newMappedStatus;
+              updateData.payment_status = newMappedStatus === 'approved' ? 'liquidado' : 'pendente';
+            }
+
+            await serviceClient.from('quotes').update(updateData).eq('id', existing.id);
+            console.log(`[loja-integrada] Updated order ${externalId}: ${existing.external_status} -> ${situacaoNome}`);
+            updated++;
+          } else {
+            skipped++;
+          }
+          continue;
+        }
+
+        // New order - create
+        const clientId = await findOrCreateClient(serviceClient, orderData, userId);
+        const { data: quoteNumber } = await serviceClient.rpc('generate_quote_number');
+
+        const quoteData = buildQuoteData(orderData, externalId, clientId, userId, adminName, quoteNumber);
+
+        const { data: newQuote, error: insertErr } = await serviceClient
+          .from('quotes')
+          .insert(quoteData)
           .select('id')
           .single();
-        if (newClient) clientId = newClient.id;
+
+        if (insertErr) {
+          console.error(`[loja-integrada] Error importing order ${externalId}:`, insertErr.message);
+          errors++;
+          continue;
+        }
+
+        if (newQuote) {
+          await upsertQuoteItems(serviceClient, newQuote.id, orderData);
+        }
+
+        console.log(`[loja-integrada] Imported new order ${externalId} as quote ${quoteData.quote_number}`);
+        imported++;
+      } catch (orderErr) {
+        console.error(`[loja-integrada] Error processing order ${externalId}:`, orderErr);
+        errors++;
       }
     }
 
-    const quoteData = {
-      quote_number: quoteNumber || `LI-${externalId}`,
-      client_name: clienteNome || `Pedido #${externalId}`,
-      client_id: clientId,
-      salesperson: adminName,
-      salesperson_id: userId,
-      status: mapStatus(situacaoNome),
-      total_amount: valorTotal,
-      total: valorTotal - valorFrete,
-      shipping_cost: valorFrete,
-      discount: valorDesconto,
-      payment_method: mapPaymentMethod(pagamento),
-      payment_status: mapStatus(situacaoNome) === 'approved' ? 'liquidado' : 'pendente',
-      payment_terms: pagamento || null,
-      notes: notesParts.length > 0 ? `[Importado da Loja Integrada]\n${notesParts.join('\n')}` : '[Importado da Loja Integrada]',
-      source: 'loja_integrada',
-      external_order_id: externalId,
-      external_status: situacaoNome,
-      created_by: userId,
-      quote_date: dataCriacao ? new Date(dataCriacao).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      is_reseller: false,
-      is_split_payment: false,
-    };
+    hasMore = offset + limit < totalCount;
+    page++;
 
-    const { data: newQuote, error: insertErr } = await serviceClient
-      .from('quotes')
-      .insert(quoteData)
-      .select('id')
-      .single();
-
-    if (insertErr) {
-      console.error(`[loja-integrada] Error importing order ${externalId}:`, insertErr.message);
-      errors++;
-      continue;
+    // Rate limiting: small delay between pages
+    if (hasMore) {
+      await new Promise(r => setTimeout(r, 500));
     }
-
-    const itens = orderData.itens || [];
-    if (itens.length > 0 && newQuote) {
-      const quoteItems = itens.map((item: any, idx: number) => ({
-        quote_id: newQuote.id,
-        item_number: idx + 1,
-        model: item.nome || item.produto?.nome || `Item ${idx + 1}`,
-        brand: '',
-        product_code: item.sku || '',
-        quantity: parseInt(item.quantidade) || 1,
-        unit_price: parseFloat(item.preco_venda) || 0,
-        discount_percent: 0,
-        unit_total: parseFloat(item.preco_venda) || 0,
-        line_total: (parseFloat(item.preco_venda) || 0) * (parseInt(item.quantidade) || 1),
-        specifications: '',
-        image_url: '',
-        is_gift: false,
-      }));
-
-      const { error: itemsErr } = await serviceClient
-        .from('quote_items')
-        .insert(quoteItems);
-
-      if (itemsErr) {
-        console.error(`[loja-integrada] Error importing items for order ${externalId}:`, itemsErr.message);
-      }
-    }
-
-    imported++;
   }
 
-  await supabase
+  // Update integration status
+  await serviceClient
     .from('integrations')
     .update({ last_sync_at: new Date().toISOString(), status: 'connected' })
     .eq('integration_name', 'loja_integrada');
+
+  console.log(`[loja-integrada] Import complete: ${imported} imported, ${updated} updated, ${skipped} unchanged, ${errors} errors`);
 
   return {
     ok: true,
     success: true,
     imported,
+    updated,
     skipped,
     errors,
-    total_count: totalCount,
-    page,
-    has_more: offset + limit < totalCount,
   };
 }
 
-async function syncOrders(supabase: any, apiKey: string, applicationKey: string, page = 1) {
+async function syncOrders(serviceClient: any, apiKey: string, applicationKey: string, page = 1) {
   const limit = 20;
   const offset = (page - 1) * limit;
 
@@ -400,18 +458,14 @@ async function syncOrders(supabase: any, apiKey: string, applicationKey: string,
   if (!response.ok) {
     const text = await response.text();
     console.error(`[loja-integrada] Sync fetch error ${response.status}: ${text}`);
-    return {
-      ok: false,
-      error: `Erro ${response.status} ao buscar pedidos.`,
-      error_stage: 'fetch_orders',
-    };
+    return { ok: false, error: `Erro ${response.status} ao buscar pedidos.`, error_stage: 'fetch_orders' };
   }
 
   const data = await response.json();
   const orders = data.objects || [];
   const totalCount = data.meta?.total_count ?? 0;
 
-  await supabase
+  await serviceClient
     .from('integrations')
     .update({ last_sync_at: new Date().toISOString(), status: 'connected' })
     .eq('integration_name', 'loja_integrada');
@@ -434,7 +488,7 @@ async function syncOrders(supabase: any, apiKey: string, applicationKey: string,
 }
 
 const ActionSchema = z.object({
-  action: z.enum(['test', 'save', 'sync', 'status', 'import']),
+  action: z.enum(['test', 'save', 'sync', 'status', 'import', 'auto_sync']),
   api_key: z.string().optional(),
   application_key: z.string().optional(),
   page: z.number().optional(),
@@ -446,14 +500,35 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { supabase, userId } = await getAuthenticatedAdmin(req);
-
-    const parsed = ActionSchema.safeParse(await req.json());
+    const body = await req.json();
+    const parsed = ActionSchema.safeParse(body);
     if (!parsed.success) {
       return jsonResponse({ ok: false, error: 'Requisição inválida', details: parsed.error.flatten().fieldErrors }, 400);
     }
 
     const { action, api_key, application_key, page } = parsed.data;
+
+    // === AUTO_SYNC (called by cron, uses service role key from Authorization header) ===
+    if (action === 'auto_sync') {
+      const authHeader = req.headers.get('Authorization');
+      const expectedKey = Deno.env.get('SUPABASE_ANON_KEY');
+      if (!authHeader || !authHeader.includes(expectedKey || '___none___')) {
+        return jsonResponse({ ok: false, error: 'Unauthorized' }, 401);
+      }
+
+      const serviceClient = getServiceClient();
+      const creds = await fetchStoredCredentials(serviceClient);
+      if (!creds) {
+        console.log('[loja-integrada] Auto-sync: no credentials configured, skipping.');
+        return jsonResponse({ ok: true, message: 'No credentials configured, skipping auto-sync.' });
+      }
+
+      const result = await importAllOrders(serviceClient, creds.createdBy, creds.apiKey, creds.applicationKey);
+      return jsonResponse(result);
+    }
+
+    // All other actions require authenticated admin
+    const { supabase, userId } = await getAuthenticatedAdmin(req);
 
     // === STATUS ===
     if (action === 'status') {
@@ -487,7 +562,6 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: false, error: 'API Key e Application Key são obrigatórias' });
       }
 
-      // Test first
       const testResult = await testConnection(api_key, application_key);
       if (!testResult.ok) {
         return jsonResponse(testResult);
@@ -512,23 +586,25 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, success: true, message: 'Integração salva com sucesso' });
     }
 
-    // === SYNC ===
+    // === SYNC (preview only) ===
     if (action === 'sync') {
-      const creds = await fetchStoredCredentials(supabase);
+      const serviceClient = getServiceClient();
+      const creds = await fetchStoredCredentials(serviceClient);
       if (!creds) {
         return jsonResponse({ ok: false, error: 'Integração não configurada. Salve suas credenciais primeiro.' });
       }
-      const result = await syncOrders(supabase, creds.apiKey, creds.applicationKey, page || 1);
+      const result = await syncOrders(serviceClient, creds.apiKey, creds.applicationKey, page || 1);
       return jsonResponse(result);
     }
 
-    // === IMPORT ===
+    // === IMPORT (full upsert) ===
     if (action === 'import') {
-      const creds = await fetchStoredCredentials(supabase);
+      const serviceClient = getServiceClient();
+      const creds = await fetchStoredCredentials(serviceClient);
       if (!creds) {
         return jsonResponse({ ok: false, error: 'Integração não configurada. Salve suas credenciais primeiro.' });
       }
-      const result = await importOrders(supabase, userId, creds.apiKey, creds.applicationKey, page || 1);
+      const result = await importAllOrders(serviceClient, userId, creds.apiKey, creds.applicationKey);
       return jsonResponse(result);
     }
 
@@ -537,7 +613,6 @@ Deno.serve(async (req) => {
     const message = error instanceof Error ? error.message : 'Erro interno';
     console.error('[loja-integrada] Unhandled error:', error);
 
-    // Auth errors still return proper HTTP status for supabase client
     if (message === 'Unauthorized') {
       return jsonResponse({ ok: false, error: 'Não autorizado. Faça login novamente.' }, 401);
     }
@@ -545,7 +620,6 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: false, error: 'Acesso restrito ao administrador.' }, 403);
     }
 
-    // All other errors return 200 so the frontend can read the payload
     return jsonResponse({ ok: false, error: message });
   }
 });
