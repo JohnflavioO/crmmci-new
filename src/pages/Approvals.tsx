@@ -39,7 +39,7 @@ export default function Approvals() {
     const userIds = approvalsData.map((a: any) => a.user_id);
 
     const [{ data: profilesData }, { data: rolesData }] = await Promise.all([
-      db.from('profiles').select('user_id, full_name, phone, role, active, deleted_at, commercial_visible').in('user_id', userIds),
+      db.from('profiles').select('user_id, full_name, phone, email, role, active, deleted_at, commercial_visible').in('user_id', userIds),
       db.from('user_roles').select('user_id, role').in('user_id', userIds),
     ]);
 
@@ -194,6 +194,7 @@ export default function Approvals() {
             <span className="font-medium">{a.profiles?.full_name || 'Sem nome'}</span>
           </div>
         </TableCell>
+        <TableCell className="text-xs text-muted-foreground">{a.profiles?.email || '-'}</TableCell>
         <TableCell>{a.profiles?.phone || '-'}</TableCell>
         <TableCell>
           {isAdminUser ? (
@@ -300,6 +301,7 @@ export default function Approvals() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
+                      <TableHead>E-mail</TableHead>
                       <TableHead>Telefone</TableHead>
                       <TableHead>Nível</TableHead>
                       <TableHead>Status</TableHead>
@@ -344,6 +346,7 @@ export default function Approvals() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
+                      <TableHead>E-mail</TableHead>
                       <TableHead>Telefone</TableHead>
                       <TableHead>Nível</TableHead>
                       <TableHead>Status</TableHead>
