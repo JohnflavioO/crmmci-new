@@ -113,6 +113,7 @@ export default function FollowUpGeneratorModal({ open, onOpenChange, client, sel
     if (open) {
       generate();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, client.id]);
 
   const handleCopy = async () => {

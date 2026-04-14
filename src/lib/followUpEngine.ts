@@ -99,7 +99,7 @@ const formatCurrency = (v: number) =>
  * Response: FollowUpSuggestion
  */
 export function generateFollowUp(ctx: FollowUpContext): FollowUpSuggestion {
-  const category = determineCategory(ctx.objective);
+  const _category = determineCategory(ctx.objective);
   const name = ctx.contactName || ctx.companyName || ctx.clientName || 'Cliente';
   const company = ctx.companyName || '';
 

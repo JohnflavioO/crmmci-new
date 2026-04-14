@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Phone, Clock, MessageSquare, Sparkles } from 'lucide-react';
+import { AlertTriangle, Phone, Clock, Sparkles } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import FollowUpGeneratorModal from './FollowUpGeneratorModal';
 
