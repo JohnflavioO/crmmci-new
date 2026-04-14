@@ -455,6 +455,7 @@ export type Database = {
           commercial_visible: boolean
           created_at: string | null
           deleted_at: string | null
+          email: string | null
           full_name: string
           id: string
           phone: string | null
@@ -467,6 +468,7 @@ export type Database = {
           commercial_visible?: boolean
           created_at?: string | null
           deleted_at?: string | null
+          email?: string | null
           full_name?: string
           id?: string
           phone?: string | null
@@ -479,6 +481,7 @@ export type Database = {
           commercial_visible?: boolean
           created_at?: string | null
           deleted_at?: string | null
+          email?: string | null
           full_name?: string
           id?: string
           phone?: string | null
