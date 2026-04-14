@@ -34,6 +34,28 @@ interface Props {
 export default function AppSidebar({ onNavigate }: Props) {
   const { isAdmin, isGestor, isFinanceiro, isLogistica, signOut } = useAuth();
   const location = useLocation();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefreshApp = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // Clear all caches (service worker + browser caches)
+      if ('caches' in window) {
+        const names = await caches.keys();
+        await Promise.all(names.map(n => caches.delete(n)));
+      }
+      // Force service worker update if available
+      const reg = await navigator.serviceWorker?.getRegistration();
+      if (reg) {
+        await reg.update();
+        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+      // Hard reload
+      window.location.reload();
+    } catch {
+      window.location.reload();
+    }
+  }, []);
 
   const isFinanceiroOnly = isFinanceiro && !isAdmin && !isGestor;
   const isLogisticaOnly = isLogistica && !isAdmin && !isGestor && !isFinanceiro;
