@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useRef, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -23,6 +23,8 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+const MAX_LOADING_MS = 12000;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -33,6 +35,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isFinanceiro, setIsFinanceiro] = useState(false);
   const [isLogistica, setIsLogistica] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string } | null>(null);
+
+  // Safety timeout: never stay loading forever
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(prev => {
+        if (prev) {
+          console.warn('[Auth] Loading timeout reached, forcing loaded state');
+          return false;
+        }
+        return prev;
+      });
+    }, MAX_LOADING_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     let currentUserId: string | null = null;
@@ -58,7 +74,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    supabase.auth.getSession().then(({ data: { session: s }, error }) => {
+      if (error) {
+        console.error('[Auth] getSession error, clearing session:', error.message);
+        supabase.auth.signOut().catch(() => {});
+        setLoading(false);
+        return;
+      }
       const uid = s?.user?.id ?? null;
       setSession(s);
       setUser(s?.user ?? null);
@@ -67,6 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else if (uid !== currentUserId) {
         currentUserId = uid;
       }
+    }).catch((err) => {
+      console.error('[Auth] getSession exception:', err);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -90,6 +115,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (cancelled) return;
 
+        // Check for auth errors (invalid token)
+        const hasAuthError = [approvedRes, adminRes, gestorRes, financeiroRes, logisticaRes].some(
+          r => r.error?.message?.includes('JWT') || r.error?.code === 'PGRST301'
+        );
+        if (hasAuthError) {
+          console.warn('[Auth] JWT/auth error detected, signing out');
+          await supabase.auth.signOut();
+          return;
+        }
+
         setIsApproved(approvedRes.data === true);
         setIsAdmin(adminRes.data === true);
         setIsGestor(gestorRes.data === true);
@@ -97,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLogistica(logisticaRes.data === true);
         setProfile(profileRes.data as any);
       } catch (e) {
-        console.error('fetchUserData error:', e);
+        console.error('[Auth] fetchUserData error:', e);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -107,9 +142,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, [user?.id]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     await supabase.auth.signOut();
-  };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, session, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, profile, signOut }}>
