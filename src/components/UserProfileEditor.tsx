@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Camera, Loader2 } from 'lucide-react';
+import { Camera, Loader2, Mail, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const db = supabase as any;
 
@@ -20,9 +21,16 @@ export default function UserProfileEditor() {
   const [avatarUrl, setAvatarUrl] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Email change state
+  const [newEmail, setNewEmail] = useState('');
+  const [changingEmail, setChangingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
   const handleOpen = () => {
     setFullName(profile?.full_name || '');
     setAvatarUrl((profile as any)?.avatar_url || '');
+    setNewEmail('');
+    setEmailSent(false);
     setOpen(true);
   };
 
@@ -50,7 +58,6 @@ export default function UserProfileEditor() {
         .from('avatars')
         .getPublicUrl(path);
 
-      // Add cache-buster
       const url = `${publicUrl}?t=${Date.now()}`;
       setAvatarUrl(url);
 
@@ -78,6 +85,31 @@ export default function UserProfileEditor() {
       toast.error('Erro: ' + err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangeEmail = async () => {
+    if (!newEmail || !newEmail.includes('@')) {
+      toast.error('Informe um e-mail válido');
+      return;
+    }
+    if (newEmail === user?.email) {
+      toast.error('O novo e-mail deve ser diferente do atual');
+      return;
+    }
+    setChangingEmail(true);
+    try {
+      const { error } = await supabase.auth.updateUser(
+        { email: newEmail },
+        { emailRedirectTo: window.location.origin }
+      );
+      if (error) throw error;
+      setEmailSent(true);
+      toast.success('E-mail de confirmação enviado!');
+    } catch (err: any) {
+      toast.error('Erro ao alterar e-mail: ' + err.message);
+    } finally {
+      setChangingEmail(false);
     }
   };
 
@@ -126,10 +158,50 @@ export default function UserProfileEditor() {
           </div>
           <p className="text-xs text-muted-foreground">Clique para alterar a foto</p>
 
-          <div className="w-full space-y-3">
+          <div className="w-full space-y-4">
             <div>
               <Label>Nome Completo</Label>
               <Input value={fullName} onChange={e => setFullName(e.target.value)} />
+            </div>
+
+            {/* Email change section */}
+            <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-sm font-semibold">Alterar E-mail</Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                E-mail atual: <span className="font-medium text-foreground">{user?.email}</span>
+              </p>
+
+              {emailSent ? (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    Um e-mail de confirmação foi enviado para <strong>{newEmail}</strong> e para seu e-mail atual.
+                    Confirme em ambos para concluir a alteração.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <>
+                  <Input
+                    type="email"
+                    placeholder="Novo e-mail"
+                    value={newEmail}
+                    onChange={e => setNewEmail(e.target.value)}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleChangeEmail}
+                    disabled={changingEmail || !newEmail}
+                    className="w-full"
+                  >
+                    {changingEmail && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+                    Enviar confirmação
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
