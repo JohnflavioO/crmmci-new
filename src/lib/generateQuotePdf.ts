@@ -239,10 +239,10 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     y += rowHeight;
   });
 
-  y += 3;
+  y += 2;
   doc.setDrawColor(200);
   doc.line(margin, y, W - margin, y);
-  y += 5;
+  y += 3;
 
   // Subtotal, Frete, Total
   const shippingCost = parseFloat(quote.shipping_cost) || 0;
@@ -250,101 +250,91 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   const subtotal = totalWithShipping - shippingCost;
   const grandTotal = totalWithShipping;
 
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(60);
 
   if (shippingCost > 0) {
     doc.text(`Subtotal: ${fmt(subtotal)}`, W - margin, y, { align: 'right' });
-    y += 4;
+    y += 3.5;
     doc.text(`Frete: ${fmt(shippingCost)}`, W - margin, y, { align: 'right' });
-    y += 5;
+    y += 4;
   }
 
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 128, 128);
   doc.text(`TOTAL: ${fmt(grandTotal)}`, W - margin, y, { align: 'right' });
-  y += 8;
+  y += 5;
 
   // Payment/Shipping info
-  checkPage(30);
-  doc.setFontSize(8);
+  checkPage(20);
+  doc.setFontSize(7);
   doc.setTextColor(60);
   doc.setFont('helvetica', 'normal');
   const shippingLabels: Record<string, string> = {
     correios: 'Correios', mao_propria: 'Mão Própria', retirada: 'Retirada', transportadora: 'Transportadora',
   };
-  if (quote.payment_terms) { doc.text(`Forma de Pagamento: ${quote.payment_terms}`, margin, y); y += 4; }
-  if (quote.shipping_deadline) { doc.text(`Prazo de Envio: ${quote.shipping_deadline}`, margin, y); y += 4; }
-  if (quote.shipping_method) { doc.text(`Forma de Envio: ${shippingLabels[quote.shipping_method] || quote.shipping_method}`, margin, y); y += 4; }
-  if (quote.proposal_validity) { doc.text(`Validade da Proposta: ${quote.proposal_validity}`, margin, y); y += 4; }
-  y += 2;
+  if (quote.payment_terms) { doc.text(`Forma de Pagamento: ${quote.payment_terms}`, margin, y); y += 3; }
+  if (quote.shipping_deadline) { doc.text(`Prazo de Envio: ${quote.shipping_deadline}`, margin, y); y += 3; }
+  if (quote.shipping_method) { doc.text(`Forma de Envio: ${shippingLabels[quote.shipping_method] || quote.shipping_method}`, margin, y); y += 3; }
+  if (quote.proposal_validity) { doc.text(`Validade da Proposta: ${quote.proposal_validity}`, margin, y); y += 3; }
+  y += 1;
 
   // Notes
   if (quote.notes) {
-    checkPage(15);
+    checkPage(10);
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
     doc.setTextColor(0);
     doc.text('Observações:', margin, y);
-    y += 4;
+    y += 3;
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(60);
     const noteLines = doc.splitTextToSize(quote.notes, cw);
     doc.text(noteLines, margin, y);
-    y += noteLines.length * 3.5 + 3;
+    y += noteLines.length * 3 + 2;
   }
 
-  // Bank details
-  checkPage(30);
-  y += 3;
+  // Bank details + Signature side by side
+  checkPage(18);
+  y += 1;
   doc.setDrawColor(200);
   doc.line(margin, y, W - margin, y);
-  y += 5;
+  y += 3;
+
+  // Left: Bank details
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   doc.setTextColor(0, 128, 128);
   doc.text('DADOS BANCÁRIOS', margin, y);
-  y += 4;
+  y += 3;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
+  doc.setFontSize(6.5);
   doc.setTextColor(50);
-  const bankLines = [
-    'ITAÚ - Ag: 0366 | Cc: 71016-8',
-    'Multicomercial e Importadora EIRELI',
-    'Pix (CNPJ): 05.502.390/0001-11',
-  ];
-  bankLines.forEach(line => {
-    doc.text(line, margin, y);
-    y += 3.5;
-  });
+  doc.text('ITAÚ - Ag: 0366 | Cc: 71016-8 | Multicomercial e Importadora EIRELI | Pix (CNPJ): 05.502.390/0001-11', margin, y);
+  y += 5;
 
-  // Date and Signature
-  checkPage(35);
-  y += 8;
+  // Signature lines
   const sigX = margin;
-  const sigW = 75;
+  const sigW = 65;
   doc.setDrawColor(100);
   doc.line(sigX, y, sigX + sigW, y);
-  doc.setFontSize(7);
+  doc.setFontSize(6);
   doc.setTextColor(60);
-  doc.text('Data:', sigX, y + 4);
-  doc.text('___/___/______', sigX + 12, y + 4);
+  doc.text('Data: ___/___/______', sigX, y + 3);
 
   const sigX2 = W - margin - sigW;
   doc.line(sigX2, y, sigX2 + sigW, y);
-  doc.text('Aprovação do Cliente', sigX2 + sigW / 2, y + 4, { align: 'center' });
+  doc.text('Aprovação do Cliente', sigX2 + sigW / 2, y + 3, { align: 'center' });
 
   // Confidentiality footer
-  y += 12;
-  checkPage(10);
-  doc.setFontSize(5.5);
+  y += 7;
+  doc.setFontSize(5);
   doc.setTextColor(130);
   doc.setFont('helvetica', 'italic');
-  const confText = 'O documento é confidencial e de propriedade da empresa. Não pode ser copiado, mesmo que em parte sem permissão por escrito da mesma. Atenciosamente,';
-  const confLines = doc.splitTextToSize(confText, cw);
-  doc.text(confLines, margin, y);
-
+  const confText = 'O documento é confidencial e de propriedade da empresa. Não pode ser copiado, mesmo que em parte sem permissão por escrito da mesma.';
+  doc.text(confText, W / 2, y, { align: 'center', maxWidth: cw });
   if (options?.returnBlob) {
     return doc.output('blob');
   }
