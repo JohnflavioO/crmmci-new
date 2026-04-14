@@ -11,7 +11,7 @@ import FollowUpGeneratorModal from './FollowUpGeneratorModal';
 const db = supabase as any;
 
 const ACTIVE_STATUSES = ['sent', 'negociacao', 'negotiation', 'contato_feito', 'contact_made', 'pre_sale', 'pre_venda'];
-const CLOSED_STATUSES = ['approved', 'rejected', 'cancelled', 'lost', 'concluido'];
+
 
 interface FollowUpOpportunity {
   id: string;
