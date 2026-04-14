@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { z } from "https://esm.sh/zod@3.23.8";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -77,7 +78,24 @@ serve(async (req) => {
     // Use service role for DB operations (bypass RLS)
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const body = await req.json();
+    const PayloadSchema = z.object({
+      nf_numero: z.string().min(1).max(100),
+      nf_chave_acesso: z.string().max(100).optional().nullable(),
+      nf_data_emissao: z.string().max(30).optional().nullable(),
+      nf_xml_url: z.string().url().max(2000).optional().nullable(),
+      nf_pdf_url: z.string().url().max(2000).optional().nullable(),
+      referencia_pedido: z.string().max(200).optional().nullable(),
+      quote_id: z.string().uuid().optional().nullable(),
+    });
+
+    const parsed = PayloadSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return new Response(
+        JSON.stringify({ error: "Payload inválido", details: parsed.error.flatten().fieldErrors }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const {
       nf_numero,
       nf_chave_acesso,
@@ -86,14 +104,7 @@ serve(async (req) => {
       nf_pdf_url,
       referencia_pedido,
       quote_id: directQuoteId,
-    } = body;
-
-    if (!nf_numero) {
-      return new Response(
-        JSON.stringify({ error: "nf_numero é obrigatório" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    } = parsed.data;
 
     // --- Step 1: Find the matching quote ---
     let matchedQuoteId: string | null = directQuoteId || null;
