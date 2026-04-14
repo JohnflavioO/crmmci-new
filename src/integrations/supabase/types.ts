@@ -309,12 +309,16 @@ export type Database = {
           entrada_by: string | null
           id: string
           logistics_status: string
+          nf_chave_acesso: string | null
           nf_data: string | null
           nf_numero: string | null
           nf_pdf_url: string | null
+          nf_xml_url: string | null
           observacao_logistica: string | null
+          origem_nf: string | null
           quote_id: string
           transportadora: string | null
+          ultima_sincronizacao_nf: string | null
           updated_at: string
         }
         Insert: {
@@ -326,12 +330,16 @@ export type Database = {
           entrada_by?: string | null
           id?: string
           logistics_status?: string
+          nf_chave_acesso?: string | null
           nf_data?: string | null
           nf_numero?: string | null
           nf_pdf_url?: string | null
+          nf_xml_url?: string | null
           observacao_logistica?: string | null
+          origem_nf?: string | null
           quote_id: string
           transportadora?: string | null
+          ultima_sincronizacao_nf?: string | null
           updated_at?: string
         }
         Update: {
@@ -343,12 +351,16 @@ export type Database = {
           entrada_by?: string | null
           id?: string
           logistics_status?: string
+          nf_chave_acesso?: string | null
           nf_data?: string | null
           nf_numero?: string | null
           nf_pdf_url?: string | null
+          nf_xml_url?: string | null
           observacao_logistica?: string | null
+          origem_nf?: string | null
           quote_id?: string
           transportadora?: string | null
+          ultima_sincronizacao_nf?: string | null
           updated_at?: string
         }
         Relationships: [
