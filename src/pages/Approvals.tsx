@@ -23,6 +23,8 @@ export default function Approvals() {
   const [activeTab, setActiveTab] = useState('active');
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<any>(null);
+  const [permanentDeleteConfirm, setPermanentDeleteConfirm] = useState('');
 
   const load = async () => {
     const { data: approvalsData } = await db.from('user_approvals')
@@ -152,6 +154,23 @@ export default function Approvals() {
     load();
   };
 
+  const handlePermanentDelete = async () => {
+    if (!permanentDeleteTarget || permanentDeleteConfirm !== 'DELETAR') return;
+    const userId = permanentDeleteTarget.user_id;
+
+    // Delete in order: user_roles, user_approvals, profiles
+    await db.from('user_roles').delete().eq('user_id', userId);
+    const { error: approvalError } = await db.from('user_approvals').delete().eq('user_id', userId);
+    if (approvalError) { toast.error('Erro ao deletar aprovação: ' + approvalError.message); return; }
+    const { error: profileError } = await db.from('profiles').delete().eq('user_id', userId);
+    if (profileError) { toast.error('Erro ao deletar perfil: ' + profileError.message); return; }
+
+    toast.success('Conta removida permanentemente');
+    setPermanentDeleteTarget(null);
+    setPermanentDeleteConfirm('');
+    load();
+  };
+
   const statusBadge = (status: string) => {
     const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
       pending: { label: 'Pendente', variant: 'secondary' },
@@ -216,9 +235,14 @@ export default function Approvals() {
         </TableCell>
         <TableCell>
           {isTrash ? (
-            <Button size="icon" variant="ghost" onClick={() => handleRestore(a)} title="Restaurar">
-              <RotateCcw className="h-4 w-4 text-accent" />
-            </Button>
+            <div className="flex gap-1">
+              <Button size="icon" variant="ghost" onClick={() => handleRestore(a)} title="Restaurar">
+                <RotateCcw className="h-4 w-4 text-accent" />
+              </Button>
+              <Button size="icon" variant="ghost" onClick={() => { setPermanentDeleteTarget(a); setPermanentDeleteConfirm(''); }} title="Deletar permanentemente">
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
           ) : (
             <div className="flex gap-1">
               {a.status === 'pending' && (
@@ -367,6 +391,41 @@ export default function Approvals() {
               onClick={handleMoveToTrash}
             >
               Confirmar Exclusão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de confirmação de exclusão permanente */}
+      <Dialog open={!!permanentDeleteTarget} onOpenChange={open => { if (!open) { setPermanentDeleteTarget(null); setPermanentDeleteConfirm(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Deletar permanentemente</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja <strong>deletar permanentemente</strong> a conta de <strong>{permanentDeleteTarget?.profiles?.full_name}</strong>? 
+              Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Digite <strong>DELETAR</strong> para confirmar:
+            </p>
+            <Input
+              value={permanentDeleteConfirm}
+              onChange={e => setPermanentDeleteConfirm(e.target.value)}
+              placeholder="Digite DELETAR"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPermanentDeleteTarget(null); setPermanentDeleteConfirm(''); }}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={permanentDeleteConfirm !== 'DELETAR'}
+              onClick={handlePermanentDelete}
+            >
+              Deletar Permanentemente
             </Button>
           </DialogFooter>
         </DialogContent>
