@@ -154,10 +154,16 @@ export default function AppSidebar({ onNavigate }: Props) {
         </nav>
         <div className="p-4 border-t border-sidebar-border">
           <div className="mb-3"><UserProfileEditor /></div>
-          <button onClick={() => { signOut(); onNavigate?.(); }}
-            className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors w-full min-h-[44px]">
-            <LogOut className="h-4 w-4" /> Sair
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={handleRefreshApp} disabled={refreshing}
+              className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]">
+              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} /> Atualizar
+            </button>
+            <button onClick={() => { signOut(); onNavigate?.(); }}
+              className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]">
+              <LogOut className="h-4 w-4" /> Sair
+            </button>
+          </div>
         </div>
       </aside>
     );
@@ -225,12 +231,18 @@ export default function AppSidebar({ onNavigate }: Props) {
         <div className="mb-3">
           <UserProfileEditor />
         </div>
-        <button
-          onClick={() => { signOut(); onNavigate?.(); }}
-          className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors w-full min-h-[44px]"
-        >
-          <LogOut className="h-4 w-4" /> Sair
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleRefreshApp} disabled={refreshing}
+            className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]">
+            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} /> Atualizar
+          </button>
+          <button
+            onClick={() => { signOut(); onNavigate?.(); }}
+            className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]"
+          >
+            <LogOut className="h-4 w-4" /> Sair
+          </button>
+        </div>
       </div>
     </aside>
   );
