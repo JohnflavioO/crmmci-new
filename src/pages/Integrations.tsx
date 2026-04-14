@@ -47,7 +47,7 @@ export default function Integrations() {
   const [totalOrders, setTotalOrders] = useState(0);
   const [syncPage, setSyncPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
-  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; errors: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ imported: number; updated: number; skipped: number; errors: number } | null>(null);
 
   useEffect(() => {
     if (isAdmin) loadStatus();
@@ -55,15 +55,12 @@ export default function Integrations() {
 
   const callFunction = async (body: Record<string, unknown>) => {
     const { data, error } = await supabase.functions.invoke('loja-integrada', { body });
-    // Handle HTTP-level errors (401/403 from auth)
     if (error) {
-      // Try to extract structured error from the response
       if (typeof data === 'object' && data?.error) {
         throw new Error(data.error);
       }
       throw new Error(error.message || 'Erro ao conectar com o servidor');
     }
-    // Handle application-level errors (returned as 200 with ok: false)
     if (data && data.ok === false) {
       throw new Error(data.error || 'Erro desconhecido na operação');
     }
@@ -141,15 +138,19 @@ export default function Integrations() {
     }
   };
 
-  const handleImport = async (page = 1) => {
+  const handleImport = async () => {
     setImporting(true);
     setStatus('syncing');
     try {
-      const data = await callFunction({ action: 'import', page });
-      setImportResult({ imported: data.imported, skipped: data.skipped, errors: data.errors });
+      const data = await callFunction({ action: 'import' });
+      setImportResult({ imported: data.imported, updated: data.updated || 0, skipped: data.skipped, errors: data.errors });
       setStatus('connected');
       setLastSync(new Date().toISOString());
-      toast.success(`Importação concluída! ${data.imported} novos pedidos importados, ${data.skipped} já existentes.`);
+      const parts: string[] = [];
+      if (data.imported > 0) parts.push(`${data.imported} novos importados`);
+      if (data.updated > 0) parts.push(`${data.updated} atualizados`);
+      if (data.skipped > 0) parts.push(`${data.skipped} sem alteração`);
+      toast.success(`Importação concluída! ${parts.join(', ')}.`);
       if (data.errors > 0) {
         toast.warning(`${data.errors} pedidos com erro na importação.`);
       }
@@ -278,19 +279,27 @@ export default function Integrations() {
                       {syncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
                       Visualizar pedidos
                     </Button>
-                    <Button size="sm" onClick={() => handleImport(1)} disabled={importing || syncing}>
+                    <Button size="sm" onClick={handleImport} disabled={importing || syncing}>
                       {importing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
                       Importar para Orçamentos
                     </Button>
                   </div>
                 </div>
 
+                <p className="text-xs text-muted-foreground">
+                  A sincronização automática roda a cada 30 minutos. Use o botão para importar manualmente.
+                </p>
+
                 {importResult && (
                   <div className="p-3 rounded-lg border bg-muted/30 text-sm space-y-1">
                     <p className="font-medium">Resultado da última importação:</p>
-                    <p className="text-emerald-600">✓ {importResult.imported} pedidos importados</p>
-                    {importResult.skipped > 0 && <p className="text-muted-foreground">⊘ {importResult.skipped} já existentes (ignorados)</p>}
+                    {importResult.imported > 0 && <p className="text-emerald-600">✓ {importResult.imported} pedidos novos importados</p>}
+                    {importResult.updated > 0 && <p className="text-blue-600">↻ {importResult.updated} pedidos atualizados</p>}
+                    {importResult.skipped > 0 && <p className="text-muted-foreground">⊘ {importResult.skipped} sem alteração</p>}
                     {importResult.errors > 0 && <p className="text-destructive">✗ {importResult.errors} com erro</p>}
+                    {importResult.imported === 0 && importResult.updated === 0 && importResult.errors === 0 && (
+                      <p className="text-muted-foreground">Todos os pedidos já estão sincronizados.</p>
+                    )}
                   </div>
                 )}
 
