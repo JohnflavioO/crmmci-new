@@ -506,7 +506,10 @@ export default function Logistics() {
         {tab === 'dashboard' && (
           <>
             {/* Alertas Inteligentes */}
-            <LogisticsSmartAlerts records={records} onSelectRecord={(r) => openEdit(r)} />
+            <LogisticsSmartAlerts records={records} onSelectRecord={(r) => {
+              const full = records.find(rec => rec.id === r.id);
+              if (full) openEdit(full);
+            }} />
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <StatCard title="Aguardando Entrada" value={stats.aguardando} icon={Clock} />
