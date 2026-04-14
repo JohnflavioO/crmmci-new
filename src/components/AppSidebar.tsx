@@ -2,8 +2,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake, Plug,
-  Clock, ArrowDownCircle, AlertTriangle, FileBarChart, Truck, PackageCheck, PackageSearch, ClipboardList, TriangleAlert, MapPin,
+  Clock, ArrowDownCircle, AlertTriangle, FileBarChart, Truck, PackageCheck, PackageSearch, ClipboardList, TriangleAlert, MapPin, RefreshCw,
 } from 'lucide-react';
+import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import UserProfileEditor from './UserProfileEditor';
 
@@ -33,6 +34,28 @@ interface Props {
 export default function AppSidebar({ onNavigate }: Props) {
   const { isAdmin, isGestor, isFinanceiro, isLogistica, signOut } = useAuth();
   const location = useLocation();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefreshApp = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // Clear all caches (service worker + browser caches)
+      if ('caches' in window) {
+        const names = await caches.keys();
+        await Promise.all(names.map(n => caches.delete(n)));
+      }
+      // Force service worker update if available
+      const reg = await navigator.serviceWorker?.getRegistration();
+      if (reg) {
+        await reg.update();
+        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+      // Hard reload
+      window.location.reload();
+    } catch {
+      window.location.reload();
+    }
+  }, []);
 
   const isFinanceiroOnly = isFinanceiro && !isAdmin && !isGestor;
   const isLogisticaOnly = isLogistica && !isAdmin && !isGestor && !isFinanceiro;
@@ -131,10 +154,16 @@ export default function AppSidebar({ onNavigate }: Props) {
         </nav>
         <div className="p-4 border-t border-sidebar-border">
           <div className="mb-3"><UserProfileEditor /></div>
-          <button onClick={() => { signOut(); onNavigate?.(); }}
-            className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors w-full min-h-[44px]">
-            <LogOut className="h-4 w-4" /> Sair
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={handleRefreshApp} disabled={refreshing}
+              className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]">
+              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} /> Atualizar
+            </button>
+            <button onClick={() => { signOut(); onNavigate?.(); }}
+              className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]">
+              <LogOut className="h-4 w-4" /> Sair
+            </button>
+          </div>
         </div>
       </aside>
     );
@@ -202,12 +231,18 @@ export default function AppSidebar({ onNavigate }: Props) {
         <div className="mb-3">
           <UserProfileEditor />
         </div>
-        <button
-          onClick={() => { signOut(); onNavigate?.(); }}
-          className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors w-full min-h-[44px]"
-        >
-          <LogOut className="h-4 w-4" /> Sair
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleRefreshApp} disabled={refreshing}
+            className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]">
+            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} /> Atualizar
+          </button>
+          <button
+            onClick={() => { signOut(); onNavigate?.(); }}
+            className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]"
+          >
+            <LogOut className="h-4 w-4" /> Sair
+          </button>
+        </div>
       </div>
     </aside>
   );
