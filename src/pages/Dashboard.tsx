@@ -164,7 +164,7 @@ export default function Dashboard() {
     }
   }, [canSeeTeam, sellers, teamFilter]);
 
-  const myQuotes = allQuotes.filter(q => q.created_by === user?.id);
+  const myQuotes = allQuotes; // already filtered by created_by = user.id in query
   const selectedTeamSellers = useMemo(
     () => (teamFilter === 'all' ? sellers : sellers.filter((seller) => seller.user_id === teamFilter)),
     [sellers, teamFilter],
