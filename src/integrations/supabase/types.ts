@@ -960,6 +960,7 @@ export type Database = {
       is_financeiro: { Args: never; Returns: boolean }
       is_gestor: { Args: never; Returns: boolean }
       is_logistica: { Args: never; Returns: boolean }
+      is_quote_owner: { Args: { p_quote_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
