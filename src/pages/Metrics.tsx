@@ -15,9 +15,8 @@ import {
 } from 'recharts';
 import {
   BarChart3, TrendingUp, DollarSign,
-  CalendarDays, Target, Users, Info, Grid3X3, BarChart2,
+  CalendarDays, Target, Grid3X3, BarChart2,
 } from 'lucide-react';
-import SellerComparison from '@/components/SellerComparison';
 
 const db = supabase as any;
 
@@ -36,13 +35,11 @@ type ChartView = 'bar' | 'table';
 type ChartMetric = 'quantity' | 'value';
 
 export default function Metrics() {
-  const { user, isGestor, isAdmin, profile } = useAuth();
+  const { user } = useAuth();
   const [quotes, setQuotes] = useState<any[]>([]);
   const [period, setPeriod] = useState<Period>('month');
   const [customFrom, setCustomFrom] = useState<Date | undefined>(startOfMonth(new Date()));
   const [customTo, setCustomTo] = useState<Date | undefined>(new Date());
-  const [salespeople, setSalespeople] = useState<any[]>([]);
-  const [selectedSeller, setSelectedSeller] = useState('me');
   const [chartView, setChartView] = useState<ChartView>('bar');
   const [chartMetric, setChartMetric] = useState<ChartMetric>('quantity');
 
@@ -69,17 +66,6 @@ export default function Metrics() {
     load();
   }, [dateRange, user?.id]);
 
-  useEffect(() => {
-    // Sellers list disabled - each user sees only own data
-    const loadSellers = async () => {
-      return;
-      let query = db.from('profiles').select('user_id, full_name, role');
-      if (!isAdmin) query = query.eq('commercial_visible', true);
-      const { data } = await query;
-      setSalespeople(data || []);
-    };
-    loadSellers();
-  }, [isGestor, isAdmin]);
 
   const totalQuotes = quotes.length;
   const approved = quotes.filter(q => q.status === 'approved');
@@ -183,11 +169,6 @@ export default function Metrics() {
     );
   };
 
-  const sellerLabel = useMemo(() => {
-    if (selectedSeller === 'me') return profile?.full_name || 'Meus números';
-    if (selectedSeller === 'all') return 'Todos';
-    return salespeople.find(s => s.user_id === selectedSeller)?.full_name || '';
-  }, [selectedSeller, salespeople, profile]);
 
   return (
     <AppLayout>
@@ -198,21 +179,6 @@ export default function Metrics() {
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
-          {isGestor && (
-            <Select value={selectedSeller} onValueChange={setSelectedSeller}>
-              <SelectTrigger className="w-full sm:w-[200px] bg-background min-h-[44px]">
-                <Users className="h-4 w-4 mr-2 text-muted-foreground" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="me">{profile?.full_name || 'Meus números'}</SelectItem>
-                <SelectItem value="all">Todos</SelectItem>
-                {salespeople.filter(s => s.user_id !== user?.id).map(s => (
-                  <SelectItem key={s.user_id} value={s.user_id}>{s.full_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
           <Select value={period} onValueChange={v => setPeriod(v as Period)}>
             <SelectTrigger className="w-full sm:w-[220px] bg-background min-h-[44px]">
               <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -546,12 +512,6 @@ export default function Metrics() {
         </Card>
       </div>
 
-      {/* Seller Comparison - Gestor only */}
-      {isGestor && (
-        <div className="mb-6">
-          <SellerComparison />
-        </div>
-      )}
     </AppLayout>
   );
 }
