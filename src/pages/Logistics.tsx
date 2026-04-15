@@ -160,9 +160,8 @@ export default function Logistics() {
         };
       });
 
-      // Only show logistics records where the quote is currently approved
-      const approvedOnly = merged.filter((r: any) => r.quote_status === 'approved');
-      setRecords(approvedOnly);
+      // Show all logistics records (logistics records are created for quotes that entered the logistics flow)
+      setRecords(merged);
 
       // Fetch active sellers (comercial, gestor, admin) excluding test accounts
       const { data: activeSellers } = await db
