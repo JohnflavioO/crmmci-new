@@ -236,7 +236,7 @@ export default function Quotes() {
   };
 
   const hasItems = items.some(i => !!i.model);
-  const isQuickEntry = !hasItems && form.manual_total > 0 && QUICK_ENTRY_STATUSES.includes(form.status);
+  
   const totalAmount = hasItems ? items.reduce((sum, item) => sum + item.line_total, 0) : form.manual_total;
   const grandTotal = totalAmount + (form.shipping_cost || 0);
 
