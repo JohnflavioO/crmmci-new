@@ -619,6 +619,34 @@ export default function Quotes() {
                 </div>
               </div>
 
+              {/* Quick entry - manual total */}
+              {QUICK_ENTRY_STATUSES.includes(form.status) && (
+                <div className="p-4 rounded-lg border border-dashed border-primary/30 bg-primary/5 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag className="h-4 w-4 text-primary" />
+                    <Label className="text-sm font-semibold">Lançamento rápido</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Use este campo para registrar rapidamente o valor da negociação sem adicionar itens neste momento.
+                  </p>
+                  <div className="max-w-xs">
+                    <Label className="text-xs">Valor total da negociação (R$)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      value={form.manual_total || ''}
+                      onChange={e => setForm(p => ({ ...p, manual_total: parseFloat(e.target.value) || 0 }))}
+                      placeholder="0,00"
+                      className="mt-1"
+                    />
+                  </div>
+                  {form.manual_total > 0 && !hasItems && (
+                    <p className="text-xs text-emerald-600 font-medium">✓ Você pode salvar sem adicionar itens/produtos</p>
+                  )}
+                </div>
+              )}
+
               {/* Payment Block - reorganized */}
               <div className="space-y-4 p-4 rounded-lg border bg-muted/20">
                 <div className="flex items-center justify-between">
