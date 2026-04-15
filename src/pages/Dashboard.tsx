@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -33,7 +33,22 @@ const paymentStatusConfig: Record<string, { label: string; icon: any; className:
   liquidado: { label: 'Liquidado', icon: CheckCircle2, className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
 };
 
-interface SellerInfo { user_id: string; full_name: string }
+interface SellerInfo {
+  user_id: string;
+  full_name: string;
+  clients_count?: number;
+  quotes_count?: number;
+  total_value?: number;
+  approved_count?: number;
+  pending_count?: number;
+  rejected_count?: number;
+}
+
+interface TopClientInfo {
+  name: string;
+  total: number;
+  count: number;
+}
 
 function computeStats(quotes: any[]) {
   const totalValue = quotes.reduce((sum: number, q: any) => sum + (parseFloat(q.total_amount) || 0), 0);
@@ -65,59 +80,110 @@ function computeTopClients(quotes: any[]) {
 export default function Dashboard() {
   const { user, isGestor, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const canSeeTeam = isGestor || isAdmin;
+  const canSeeTeam = isGestor && !isAdmin;
 
   const [allQuotes, setAllQuotes] = useState<any[]>([]);
   const [myClientsCount, setMyClientsCount] = useState(0);
-  const [teamClientsCount, setTeamClientsCount] = useState(0);
   const [productsCount, setProductsCount] = useState(0);
   const [sellers, setSellers] = useState<SellerInfo[]>([]);
   const [teamFilter, setTeamFilter] = useState('all');
+  const [teamRecentQuotes, setTeamRecentQuotes] = useState<any[]>([]);
+  const [teamTopClients, setTeamTopClients] = useState<TopClientInfo[]>([]);
 
   useEffect(() => {
-    const load = async () => {
-      const promises: Promise<any>[] = [
-        db.from('quotes').select('*, clients(company_name)').order('created_at', { ascending: false }),
-        db.from('clients').select('id', { count: 'exact', head: true }).eq('created_by', user?.id),
+    const loadOwnData = async () => {
+      if (!user?.id) {
+        setAllQuotes([]);
+        setMyClientsCount(0);
+        setProductsCount(0);
+        return;
+      }
+
+      const [quotesRes, clientsRes, productsRes] = await Promise.all([
+        db.from('quotes').select('*, clients(company_name)').eq('created_by', user.id).order('created_at', { ascending: false }),
+        db.from('clients').select('id', { count: 'exact', head: true }).eq('created_by', user.id),
         db.from('products').select('id', { count: 'exact', head: true }),
-      ];
+      ]);
 
-      // If gestor/admin, also load team clients count and sellers
-      if (canSeeTeam) {
-        promises.push(
-          db.from('clients').select('id', { count: 'exact', head: true }),
-          db.from('profiles').select('user_id, full_name, role').eq('commercial_visible', true).eq('active', true),
-        );
-      }
-
-      const results = await Promise.all(promises);
-      setAllQuotes(results[0].data || []);
-      setMyClientsCount(results[1].count || 0);
-      setProductsCount(results[2].count || 0);
-
-      if (canSeeTeam && results[3]) {
-        setTeamClientsCount(results[3].count || 0);
-      }
-      if (canSeeTeam && results[4]) {
-        setSellers(results[4].data || []);
-      }
+      setAllQuotes(quotesRes.data || []);
+      setMyClientsCount(clientsRes.count || 0);
+      setProductsCount(productsRes.count || 0);
     };
-    load();
-  }, [user?.id, canSeeTeam]);
 
-  // My quotes = only mine
+    loadOwnData();
+  }, [user?.id]);
+
+  useEffect(() => {
+    const loadTeamData = async () => {
+      if (!canSeeTeam || !user?.id) {
+        setSellers([]);
+        setTeamRecentQuotes([]);
+        setTeamTopClients([]);
+        return;
+      }
+
+      const activeOwner = teamFilter === 'all' ? null : teamFilter;
+
+      const [sellerStatsRes, recentRes, topClientsRes] = await Promise.all([
+        db.rpc('get_team_dashboard_sellers'),
+        db.rpc('get_team_dashboard_recent_quotes', { p_owner: activeOwner, p_limit: 8 }),
+        db.rpc('get_team_dashboard_top_clients', { p_owner: activeOwner, p_limit: 5 }),
+      ]);
+
+      const sellerRows = (sellerStatsRes.data || []).filter((seller: any) => seller?.full_name);
+      setSellers(sellerRows);
+      setTeamRecentQuotes(recentRes.data || []);
+      setTeamTopClients(
+        ((topClientsRes.data || []) as any[]).map((client) => ({
+          name: client.client_name || 'Sem nome',
+          total: Number(client.total_value) || 0,
+          count: Number(client.quotes_count) || 0,
+        }))
+      );
+    };
+
+    loadTeamData();
+  }, [canSeeTeam, teamFilter, user?.id]);
+
+  useEffect(() => {
+    if (!canSeeTeam && teamFilter !== 'all') {
+      setTeamFilter('all');
+      return;
+    }
+
+    if (canSeeTeam && teamFilter !== 'all' && sellers.length > 0 && !sellers.some((seller) => seller.user_id === teamFilter)) {
+      setTeamFilter('all');
+    }
+  }, [canSeeTeam, sellers, teamFilter]);
+
   const myQuotes = allQuotes.filter(q => q.created_by === user?.id);
-  // Team quotes = all (RLS returns all for gestor) with optional filter
-  const teamQuotes = (() => {
-    if (teamFilter === 'all') return allQuotes;
-    return allQuotes.filter(q => q.created_by === teamFilter);
-  })();
+  const selectedTeamSellers = useMemo(
+    () => (teamFilter === 'all' ? sellers : sellers.filter((seller) => seller.user_id === teamFilter)),
+    [sellers, teamFilter],
+  );
 
   const myStats = computeStats(myQuotes);
-  const teamStats = computeStats(teamQuotes);
+  const teamStats = useMemo(() => {
+    const quotes = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller.quotes_count || 0), 0);
+    const totalValue = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller.total_value || 0), 0);
+    const approved = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller.approved_count || 0), 0);
+    const pending = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller.pending_count || 0), 0);
+    const rejected = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller.rejected_count || 0), 0);
+
+    return {
+      quotes,
+      totalValue,
+      approved,
+      pending,
+      rejected,
+      avgTicket: quotes > 0 ? totalValue / quotes : 0,
+    };
+  }, [selectedTeamSellers]);
+  const teamClientsCount = useMemo(
+    () => selectedTeamSellers.reduce((sum, seller) => sum + Number(seller.clients_count || 0), 0),
+    [selectedTeamSellers],
+  );
   const myTopClients = computeTopClients(myQuotes);
-  const teamTopClients = computeTopClients(teamQuotes);
-  const teamRecent = teamQuotes.slice(0, 8);
   const myRecent = myQuotes.slice(0, 8);
 
   const formatCurrency = (v: number) =>
@@ -132,12 +198,13 @@ export default function Dashboard() {
     const pmConfig = paymentMethodIcons[q.payment_method];
     const psConfig = paymentStatusConfig[q.payment_status] || paymentStatusConfig.pendente;
     const PsIcon = psConfig.icon;
+    const clientLabel = q.clients?.company_name || q.client_name || 'Sem cliente';
     return (
       <div key={q.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-muted/50 gap-2">
         <div>
           <p className="font-medium text-sm">{q.quote_number}</p>
           <p className="text-xs text-muted-foreground">
-            {q.clients?.company_name || 'Sem cliente'}
+            {clientLabel}
             {showSeller && <span className="ml-2 text-xs opacity-60">• {getSellerName(q.created_by)}</span>}
           </p>
         </div>
