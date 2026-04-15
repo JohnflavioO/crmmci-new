@@ -41,7 +41,6 @@ export default function Metrics() {
   const [customFrom, setCustomFrom] = useState<Date | undefined>(startOfMonth(new Date()));
   const [customTo, setCustomTo] = useState<Date | undefined>(new Date());
   const [chartView, setChartView] = useState<ChartView>('bar');
-  const [chartView, setChartView] = useState<ChartView>('bar');
   const [chartMetric, setChartMetric] = useState<ChartMetric>('quantity');
 
   const dateRange = useMemo(() => {
