@@ -51,9 +51,9 @@ interface TopClientInfo {
 }
 
 function computeStats(quotes: any[]) {
-  const totalValue = quotes.reduce((sum: number, q: any) => sum + (parseFloat(q.total_amount) || 0), 0);
+  const totalValue = quotes.reduce((sum: number, q: any) => sum + (parseFloat(q.total_amount) || parseFloat(q.total) || 0), 0);
   const approved = quotes.filter((q: any) => q.status === 'approved').length;
-  const pending = quotes.filter((q: any) => q.status === 'draft' || q.status === 'sent').length;
+  const pending = quotes.filter((q: any) => ['draft', 'sent', 'pre_venda', 'pre_sale', 'contato_feito', 'contact_made', 'negociacao', 'negotiation'].includes(q.status)).length;
   const rejected = quotes.filter((q: any) => q.status === 'rejected').length;
   return {
     quotes: quotes.length,
