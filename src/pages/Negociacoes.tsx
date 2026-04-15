@@ -84,7 +84,7 @@ interface SellerProfile {
 
 export default function Negociacoes() {
   const { user, isGestor, isAdmin } = useAuth();
-  const canSeeAll = isGestor || isAdmin;
+  const canSeeAll = false;
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [quotes, setQuotes] = useState<NegociacaoQuote[]>([]);
@@ -102,6 +102,7 @@ export default function Negociacoes() {
     const { data } = await db
       .from('quotes')
       .select('id, quote_number, client_name, client_id, status, total_amount, shipping_cost, created_at, created_by, salesperson, payment_terms, payment_method, payment_status, shipping_method, shipping_deadline, proposal_validity, notes, approved_at, rejected_at, quote_date, clients(name, company_name, cpf_cnpj, phone, email, contact_name, contact_phone, city, state, address, is_whatsapp)')
+      .eq('created_by', user?.id)
       .order('created_at', { ascending: false });
 
     const mapped = (data || [])
@@ -111,15 +112,8 @@ export default function Negociacoes() {
         client_name: q.clients?.company_name || q.clients?.name || q.client_name || '',
       }));
     setQuotes(mapped);
-
-    if (canSeeAll) {
-      let query = db.from('profiles').select('user_id, full_name').eq('active', true);
-      if (!isAdmin) query = query.eq('commercial_visible', true);
-      const { data: profiles } = await query;
-      setSellers((profiles || []).filter((p: any) => p.full_name));
-    }
     setLoading(false);
-  }, [canSeeAll, isAdmin]);
+  }, [user?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
 

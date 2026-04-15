@@ -45,17 +45,19 @@ interface SellerProfile {
 }
 
 export default function Pipeline() {
-  const { isGestor } = useAuth();
+  const { user } = useAuth();
   const isMobile = useIsMobile();
   const [quotes, setQuotes] = useState<PipelineQuote[]>([]);
   const [draggedQuote, setDraggedQuote] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
-  const [sellers, setSellers] = useState<SellerProfile[]>([]);
-  const [selectedSellers, setSelectedSellers] = useState<string[]>([]);
-  const [compareMode, setCompareMode] = useState(false);
+  const sellers: SellerProfile[] = [];
+  const selectedSellers: string[] = [];
+  const compareMode = false;
 
   const loadData = useCallback(async () => {
-    const { data } = await db.from('quotes').select('id, quote_number, client_name, status, total_amount, shipping_cost, created_at, created_by, salesperson, clients(name, company_name)');
+    const { data } = await db.from('quotes')
+      .select('id, quote_number, client_name, status, total_amount, shipping_cost, created_at, created_by, salesperson, clients(name, company_name)')
+      .eq('created_by', user?.id);
     const mapped = (data || [])
       .filter((q: any) => q.status && q.status !== 'draft' && q.status !== 'rejected')
       .map((q: any) => ({
@@ -63,12 +65,7 @@ export default function Pipeline() {
         client_name: q.clients?.company_name || q.clients?.name || q.client_name || '',
       }));
     setQuotes(mapped);
-
-    if (isGestor) {
-      const { data: profiles } = await db.from('profiles').select('user_id, full_name').eq('active', true).eq('commercial_visible', true);
-      setSellers((profiles || []).filter((p: any) => p.full_name));
-    }
-  }, [isGestor]);
+  }, [user?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
 

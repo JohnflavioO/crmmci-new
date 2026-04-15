@@ -29,10 +29,10 @@ const formatCurrency = (v: number) =>
 
 export default function Reports() {
   const { user, isGestor, isAdmin } = useAuth();
-  const canSeeAll = isGestor || isAdmin;
+  const canSeeAll = false;
 
 
-  const [sellers, setSellers] = useState<SellerInfo[]>([]);
+  const sellers: SellerInfo[] = [];
   const [selectedSeller, setSelectedSeller] = useState<string>('mine');
   const [quotes, setQuotes] = useState<any[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -49,18 +49,10 @@ export default function Reports() {
   const [dealsView, setDealsView] = useState<ChartView>('chart');
 
   useEffect(() => {
-    if (canSeeAll) {
-      let query = db.from('profiles').select('user_id, full_name').eq('active', true);
-      if (!isAdmin) query = query.eq('commercial_visible', true);
-      query.then(({ data }: any) => {
-        setSellers((data || []) as SellerInfo[]);
-      });
-    }
-  }, [canSeeAll, isAdmin]);
-
-  useEffect(() => {
     const load = async () => {
-      let query = db.from('quotes').select('*, clients(company_name), quote_items(quantity, description, unit_price, line_total)');
+      let query = db.from('quotes')
+        .select('*, clients(company_name), quote_items(quantity, description, unit_price, line_total)')
+        .eq('created_by', user?.id);
       if (dateRange?.from) query = query.gte('created_at', dateRange.from.toISOString());
       if (dateRange?.to) {
         const end = new Date(dateRange.to);
@@ -71,12 +63,10 @@ export default function Reports() {
       setQuotes(data || []);
     };
     load();
-  }, [dateRange]);
+  }, [dateRange, user?.id]);
 
   const filteredQuotes = useMemo(() => {
-    if (!canSeeAll || selectedSeller === 'all') return quotes;
-    if (selectedSeller === 'mine') return quotes.filter((q: any) => q.created_by === user?.id);
-    return quotes.filter((q: any) => q.created_by === selectedSeller);
+    return quotes;
   }, [quotes, selectedSeller, canSeeAll, user?.id]);
 
   const stats = useMemo(() => {
