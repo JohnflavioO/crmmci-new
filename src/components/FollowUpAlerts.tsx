@@ -39,7 +39,7 @@ const stageLabels: Record<string, string> = {
 };
 
 export default function FollowUpAlerts() {
-  const { user, isGestor } = useAuth();
+  const { user } = useAuth();
   const { profile } = useAuth();
   const [opportunities, setOpportunities] = useState<FollowUpOpportunity[]>([]);
   const [selectedClient, setSelectedClient] = useState<FollowUpOpportunity | null>(null);
