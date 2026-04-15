@@ -81,7 +81,19 @@ export default function EstoqueSC() {
       if (data?.error) throw new Error(data.error);
       setItems(data.items ?? []);
       setLastUpdated(data.timestamp ?? new Date().toISOString());
-      toast({ title: 'Estoque atualizado', description: `${data.items?.length ?? 0} itens carregados.` });
+      // Log debug info to console for diagnostics
+      if (data?.debug) {
+        console.log('[EstoqueSC] Debug:', data.debug);
+      }
+      const count = data.items?.length ?? 0;
+      if (count === 0) {
+        toast({ 
+          title: 'Estoque consultado', 
+          description: 'A API retornou 0 itens. O armazém pode estar sem estoque para este CNPJ.',
+        });
+      } else {
+        toast({ title: 'Estoque atualizado', description: `${count} itens carregados.` });
+      }
     } catch (err: any) {
       const msg = err?.message || 'Erro ao consultar estoque';
       setError(msg);
