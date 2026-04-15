@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -67,12 +67,12 @@ export default function Clients() {
   const [form, setForm] = useState(emptyClient);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
-  const [sellers, setSellers] = useState<SellerInfo[]>([]);
+  const sellers: SellerInfo[] = [];
   const [cnpjLoading, setCnpjLoading] = useState(false);
 
   const canSeeAll = false;
 
-  const loadClients = async () => {
+  const loadClients = useCallback(async () => {
     if (!user?.id) {
       setAllClients([]);
       return;
@@ -85,9 +85,9 @@ export default function Clients() {
       .order('company_name');
 
     setAllClients((data as any[]) || []);
-  };
+  }, [user?.id]);
 
-  const loadQuotes = async () => {
+  const loadQuotes = useCallback(async () => {
     if (!user?.id) {
       setAllQuotes([]);
       return;
@@ -100,7 +100,7 @@ export default function Clients() {
       .order('created_at', { ascending: false });
 
     setAllQuotes((data as any[]) || []);
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -111,7 +111,7 @@ export default function Clients() {
 
     loadClients();
     loadQuotes();
-  }, [user?.id]);
+  }, [loadClients, loadQuotes, user?.id]);
 
   // Advanced filters hook
   const {
