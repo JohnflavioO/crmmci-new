@@ -24,6 +24,7 @@ import Integrations from "./pages/Integrations";
 import Financial from "./pages/Financial";
 import Logistics from "./pages/Logistics";
 import NotFound from "./pages/NotFound";
+import ForcePasswordChange from "./pages/ForcePasswordChange";
 import { useState, useEffect } from "react";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 
@@ -92,7 +93,7 @@ function LoadingScreen() {
 }
 
 function AppRoutes() {
-  const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica } = useAuth();
+  const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange } = useAuth();
 
   if (loading) return <LoadingScreen />;
 
@@ -105,6 +106,7 @@ function AppRoutes() {
     );
   }
   if (!isApproved) return <PendingApproval />;
+  if (forcePasswordChange) return <ForcePasswordChange />;
 
   const isLogisticaOnly = isLogistica && !isAdmin && !isGestor && !isFinanceiro;
   const isFinanceiroOnly = isFinanceiro && !isGestor && !isAdmin;

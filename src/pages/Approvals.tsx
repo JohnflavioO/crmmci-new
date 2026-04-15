@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Check, X, UserCheck, ShieldCheck, Trash2, RotateCcw, Eye } from 'lucide-react';
+import { Check, X, UserCheck, ShieldCheck, Trash2, RotateCcw, Eye, KeyRound, Loader2, Copy } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const db = supabase as any;
@@ -25,6 +25,9 @@ export default function Approvals() {
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<any>(null);
   const [permanentDeleteConfirm, setPermanentDeleteConfirm] = useState('');
+  const [resetTarget, setResetTarget] = useState<any>(null);
+  const [resetting, setResetting] = useState(false);
+  const [tempPassword, setTempPassword] = useState('');
 
   const load = async () => {
     const { data: approvalsData } = await db.from('user_approvals')
@@ -262,6 +265,18 @@ export default function Approvals() {
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               )}
+              {!isAdminUser && a.status === 'approved' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" onClick={() => { setResetTarget(a); setTempPassword(''); }} title="Resetar senha">
+                        <KeyRound className="h-4 w-4 text-amber-600" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-xs">Resetar senha</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           )}
         </TableCell>
@@ -430,6 +445,70 @@ export default function Approvals() {
             >
               Deletar Permanentemente
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de reset de senha */}
+      <Dialog open={!!resetTarget} onOpenChange={open => { if (!open) { setResetTarget(null); setTempPassword(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-amber-600" />
+              Resetar Senha
+            </DialogTitle>
+            <DialogDescription>
+              {tempPassword
+                ? `A senha de ${resetTarget?.profiles?.full_name} foi redefinida com sucesso.`
+                : `Deseja resetar a senha de ${resetTarget?.profiles?.full_name}? Uma senha temporária será gerada e o usuário será obrigado a trocar no próximo login.`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          {tempPassword ? (
+            <div className="space-y-3">
+              <div className="p-3 rounded-lg bg-muted border">
+                <p className="text-xs text-muted-foreground mb-1">Senha temporária gerada:</p>
+                <div className="flex items-center gap-2">
+                  <code className="text-sm font-mono font-bold flex-1">{tempPassword}</code>
+                  <Button size="icon" variant="ghost" onClick={() => { navigator.clipboard.writeText(tempPassword); toast.success('Senha copiada!'); }}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Envie esta senha para <strong>{resetTarget?.profiles?.email || 'o usuário'}</strong>. Ele será obrigado a criar uma nova senha no próximo login.
+              </p>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setResetTarget(null); setTempPassword(''); }}>
+              {tempPassword ? 'Fechar' : 'Cancelar'}
+            </Button>
+            {!tempPassword && (
+              <Button
+                variant="default"
+                disabled={resetting}
+                onClick={async () => {
+                  setResetting(true);
+                  try {
+                    const { data, error } = await supabase.functions.invoke('admin-reset-password', {
+                      body: { target_user_id: resetTarget.user_id },
+                    });
+                    if (error) throw error;
+                    if (data?.error) throw new Error(data.error);
+                    setTempPassword(data.temp_password);
+                    toast.success('Senha redefinida com sucesso!');
+                  } catch (err: any) {
+                    toast.error('Erro ao resetar senha: ' + err.message);
+                  } finally {
+                    setResetting(false);
+                  }
+                }}
+              >
+                {resetting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Confirmar Reset
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

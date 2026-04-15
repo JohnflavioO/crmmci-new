@@ -61,23 +61,18 @@ export default function Metrics() {
         .gte('quote_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('quote_date', format(dateRange.to, 'yyyy-MM-dd'));
 
-      if (!isGestor) {
-        query = query.eq('created_by', user?.id);
-      } else if (selectedSeller !== 'all' && selectedSeller !== 'me') {
-        query = query.eq('created_by', selectedSeller);
-      } else if (selectedSeller === 'me') {
-        query = query.eq('created_by', user?.id);
-      }
+      query = query.eq('created_by', user?.id);
 
       const { data } = await query.order('quote_date', { ascending: true });
       setQuotes(data || []);
     };
     load();
-  }, [dateRange, selectedSeller, user?.id, isGestor]);
+  }, [dateRange, user?.id]);
 
   useEffect(() => {
-    if (!isGestor) return;
+    // Sellers list disabled - each user sees only own data
     const loadSellers = async () => {
+      return;
       let query = db.from('profiles').select('user_id, full_name, role');
       if (!isAdmin) query = query.eq('commercial_visible', true);
       const { data } = await query;
