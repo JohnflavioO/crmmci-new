@@ -94,7 +94,7 @@ const defaultForm = {
   manual_total: 0,
 };
 
-const QUICK_ENTRY_STATUSES = ['contato_feito', 'sent'];
+const QUICK_ENTRY_STATUSES = ['contato_feito', 'sent', 'negociacao'];
 
 function PaymentMethodFields({ method, date, onDateChange, installments, onInstallmentsChange, label }: {
   method: string;
@@ -275,7 +275,7 @@ export default function Quotes() {
     if (!form.client_id) { toast.error('Selecione um cliente'); return; }
     const hasAnyItem = items.some(i => !!i.model);
     const canQuickEntry = form.manual_total > 0 && QUICK_ENTRY_STATUSES.includes(form.status);
-    if (!hasAnyItem && !canQuickEntry) { toast.error('Adicione pelo menos um item ou informe o valor total da negociação (para status Contato Feito ou Proposta Enviada)'); return; }
+    if (!hasAnyItem && !canQuickEntry) { toast.error('Adicione pelo menos um item ou informe o valor total da negociação (para status Contato Feito, Proposta Enviada ou Negociação)'); return; }
 
     // Validate payment if approving
     if (form.status === 'approved') {
