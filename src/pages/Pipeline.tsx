@@ -7,12 +7,6 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { GripVertical, FileText, Users, X } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 
 const db = supabase as any;
 
@@ -85,13 +79,7 @@ export default function Pipeline() {
     if (draggedQuote) { moveQuote(draggedQuote, stage); setDraggedQuote(null); }
   };
 
-  const toggleSeller = (userId: string) => {
-    setSelectedSellers(prev => {
-      if (prev.includes(userId)) return prev.filter(id => id !== userId);
-      if (prev.length >= 3) { toast.info('Máximo de 3 vendedores para comparação'); return prev; }
-      return [...prev, userId];
-    });
-  };
+  const toggleSeller = (_userId: string) => {};
 
   const getQuotesForSeller = (sellerId: string) =>
     quotes.filter(q => q.created_by === sellerId);
@@ -225,41 +213,8 @@ export default function Pipeline() {
           <p className="text-muted-foreground text-sm">Arraste orçamentos entre as etapas do funil</p>
         </div>
 
-        {isGestor && sellers.length > 0 && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="shrink-0">
-                <Users className="h-4 w-4 mr-2" />
-                Comparar Vendedores
-                {selectedSellers.length > 0 && (
-                  <Badge variant="secondary" className="ml-2 text-[10px]">{selectedSellers.length}</Badge>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-3" align="end">
-              <p className="text-sm font-semibold mb-2">Selecione até 3 vendedores</p>
-              <div className="space-y-2 max-h-[250px] overflow-y-auto">
-                {sellers.map(s => (
-                  <label key={s.user_id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-2 py-1.5">
-                    <Checkbox
-                      checked={selectedSellers.includes(s.user_id)}
-                      onCheckedChange={() => toggleSeller(s.user_id)}
-                    />
-                    <span className="text-sm">{s.full_name}</span>
-                  </label>
-                ))}
-              </div>
-              {selectedSellers.length > 0 && (
-                <Button size="sm" className="w-full mt-3" onClick={() => setCompareMode(true)}>
-                  Comparar ({selectedSellers.length})
-                </Button>
-              )}
-            </PopoverContent>
-          </Popover>
-        )}
+        {/* Comparar vendedores removido - cada usuário vê apenas própria carteira */}
       </div>
-
-      {compareMode && selectedSellers.length > 0 && renderSellerComparison()}
 
       {/* Summary cards */}
       <div className={isMobile ? 'grid grid-cols-2 gap-2 mb-4' : 'flex gap-3 mb-4 overflow-x-auto pb-1 scrollbar-always-visible'}>
