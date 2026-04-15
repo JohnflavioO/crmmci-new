@@ -164,7 +164,7 @@ export default function Quotes() {
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
   const [chatQuote, setChatQuote] = useState<{ id: string; number: string } | null>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       if (!user?.id) {
         setQuotes([]);
@@ -194,9 +194,9 @@ export default function Quotes() {
     } catch (err) {
       console.error('loadData error:', err);
     }
-  };
+  }, [isAdmin, isGestor, user?.id]);
 
-  useEffect(() => { loadData(); }, [user?.id, isGestor, isAdmin]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const calcItem = (item: QuoteItem): QuoteItem => {
     if (item.is_gift) {
