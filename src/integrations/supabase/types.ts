@@ -424,6 +424,33 @@ export type Database = {
           },
         ]
       }
+      password_reset_log: {
+        Row: {
+          created_at: string
+          id: string
+          performed_by: string
+          performed_by_name: string | null
+          target_user_id: string
+          target_user_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          performed_by: string
+          performed_by_name?: string | null
+          target_user_id: string
+          target_user_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          performed_by?: string
+          performed_by_name?: string | null
+          target_user_id?: string
+          target_user_name?: string | null
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           brand: string | null
@@ -468,6 +495,7 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           email: string | null
+          force_password_change: boolean
           full_name: string
           id: string
           phone: string | null
@@ -481,6 +509,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           email?: string | null
+          force_password_change?: boolean
           full_name?: string
           id?: string
           phone?: string | null
@@ -494,6 +523,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           email?: string | null
+          force_password_change?: boolean
           full_name?: string
           id?: string
           phone?: string | null
