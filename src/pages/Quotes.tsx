@@ -91,7 +91,10 @@ const defaultForm = {
   split_value_2: 0,
   split_date_2: '' as string,
   split_installments_2: 1,
+  manual_total: 0,
 };
+
+const QUICK_ENTRY_STATUSES = ['contato_feito', 'sent'];
 
 function PaymentMethodFields({ method, date, onDateChange, installments, onInstallmentsChange, label }: {
   method: string;
@@ -232,7 +235,9 @@ export default function Quotes() {
     ).slice(0, 8);
   };
 
-  const totalAmount = items.reduce((sum, item) => sum + item.line_total, 0);
+  const hasItems = items.some(i => !!i.model);
+  
+  const totalAmount = hasItems ? items.reduce((sum, item) => sum + item.line_total, 0) : form.manual_total;
   const grandTotal = totalAmount + (form.shipping_cost || 0);
 
   const formatCurrency = (v: number) =>
@@ -268,7 +273,9 @@ export default function Quotes() {
 
   const handleSave = async () => {
     if (!form.client_id) { toast.error('Selecione um cliente'); return; }
-    if (items.every(i => !i.model)) { toast.error('Adicione pelo menos um item'); return; }
+    const hasAnyItem = items.some(i => !!i.model);
+    const canQuickEntry = form.manual_total > 0 && QUICK_ENTRY_STATUSES.includes(form.status);
+    if (!hasAnyItem && !canQuickEntry) { toast.error('Adicione pelo menos um item ou informe o valor total da negociação (para status Contato Feito ou Proposta Enviada)'); return; }
 
     // Validate payment if approving
     if (form.status === 'approved') {
@@ -367,6 +374,7 @@ export default function Quotes() {
       split_value_2: parseFloat(quote.split_value_2) || 0,
       split_date_2: quote.split_date_2 || '',
       split_installments_2: quote.split_installments_2 || 1,
+      manual_total: (!qItems || qItems.length === 0) ? (parseFloat(quote.total_amount) || 0) : 0,
     });
     setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
     setDialogOpen(true);
@@ -610,6 +618,34 @@ export default function Quotes() {
                   <Input value={form.proposal_validity} onChange={e => setForm(p => ({ ...p, proposal_validity: e.target.value }))} placeholder="Ex: 15 dias" />
                 </div>
               </div>
+
+              {/* Quick entry - manual total */}
+              {QUICK_ENTRY_STATUSES.includes(form.status) && (
+                <div className="p-4 rounded-lg border border-dashed border-primary/30 bg-primary/5 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag className="h-4 w-4 text-primary" />
+                    <Label className="text-sm font-semibold">Lançamento rápido</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Use este campo para registrar rapidamente o valor da negociação sem adicionar itens neste momento.
+                  </p>
+                  <div className="max-w-xs">
+                    <Label className="text-xs">Valor total da negociação (R$)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      value={form.manual_total || ''}
+                      onChange={e => setForm(p => ({ ...p, manual_total: parseFloat(e.target.value) || 0 }))}
+                      placeholder="0,00"
+                      className="mt-1"
+                    />
+                  </div>
+                  {form.manual_total > 0 && !hasItems && (
+                    <p className="text-xs text-emerald-600 font-medium">✓ Você pode salvar sem adicionar itens/produtos</p>
+                  )}
+                </div>
+              )}
 
               {/* Payment Block - reorganized */}
               <div className="space-y-4 p-4 rounded-lg border bg-muted/20">
