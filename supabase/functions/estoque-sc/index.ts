@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
     const ms = Date.now() - t0;
 
     const rawBody = await res.text();
-    console.log("[estoque-sc] status=", res.status, "bytes=", rawBody.length, "ms=", ms);
+    console.log("[estoque-sc] status=", res.status, "bytes=", rawBody.length, "ms=", ms); 
 
     if (!res.ok) {
       console.error("[estoque-sc] API error body:", rawBody.substring(0, 500));
@@ -111,7 +111,10 @@ Deno.serve(async (req) => {
     const list = Array.isArray(rawItems) ? rawItems : [];
 
     // Aggregate by product code (same product may appear on multiple addresses)
-    const map = new Map<string, { codigo: string; descricao: string; unidade: string; quantidade: number }>();
+    const map = new Map<
+      string,
+      { codigo: string; descricao: string; unidade: string; quantidade: number }
+    >();
 
     for (const item of list) {
       const { codigo, descricao } = parseItemField(String(item.Item ?? ""));
@@ -128,7 +131,7 @@ Deno.serve(async (req) => {
 
     const items = Array.from(map.values()).sort((a, b) => a.codigo.localeCompare(b.codigo));
 
-    console.log("[estoque-sc] OK — raw:", list.length, "aggregated:", items.length);
+    console.log("[estoque-sc] OK raw:", list.length, "products:", items.length);
 
     return respond({
       ok: true,
