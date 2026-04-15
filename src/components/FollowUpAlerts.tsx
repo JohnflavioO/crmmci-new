@@ -119,7 +119,7 @@ export default function FollowUpAlerts() {
       setOpportunities(items);
     };
     load();
-  }, [user, isGestor]);
+  }, [user?.id]);
 
   if (opportunities.length === 0) return null;
 
