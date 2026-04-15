@@ -374,6 +374,7 @@ export default function Quotes() {
       split_value_2: parseFloat(quote.split_value_2) || 0,
       split_date_2: quote.split_date_2 || '',
       split_installments_2: quote.split_installments_2 || 1,
+      manual_total: (!qItems || qItems.length === 0) ? (parseFloat(quote.total_amount) || 0) : 0,
     });
     setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
     setDialogOpen(true);
