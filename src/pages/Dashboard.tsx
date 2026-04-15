@@ -51,9 +51,9 @@ interface TopClientInfo {
 }
 
 function computeStats(quotes: any[]) {
-  const totalValue = quotes.reduce((sum: number, q: any) => sum + (parseFloat(q.total_amount) || 0), 0);
+  const totalValue = quotes.reduce((sum: number, q: any) => sum + (parseFloat(q.total_amount) || parseFloat(q.total) || 0), 0);
   const approved = quotes.filter((q: any) => q.status === 'approved').length;
-  const pending = quotes.filter((q: any) => q.status === 'draft' || q.status === 'sent').length;
+  const pending = quotes.filter((q: any) => ['draft', 'sent', 'pre_venda', 'pre_sale', 'contato_feito', 'contact_made', 'negociacao', 'negotiation'].includes(q.status)).length;
   const rejected = quotes.filter((q: any) => q.status === 'rejected').length;
   return {
     quotes: quotes.length,
@@ -69,8 +69,8 @@ function computeTopClients(quotes: any[]) {
   const clientMap: Record<string, { name: string; total: number; count: number }> = {};
   quotes.forEach((q: any) => {
     if (q.client_id) {
-      if (!clientMap[q.client_id]) clientMap[q.client_id] = { name: q.clients?.company_name || '', total: 0, count: 0 };
-      clientMap[q.client_id].total += parseFloat(q.total_amount) || 0;
+      if (!clientMap[q.client_id]) clientMap[q.client_id] = { name: q.clients?.company_name || q.client_name || '', total: 0, count: 0 };
+      clientMap[q.client_id].total += parseFloat(q.total_amount) || parseFloat(q.total) || 0;
       clientMap[q.client_id].count++;
     }
   });
@@ -164,7 +164,7 @@ export default function Dashboard() {
     }
   }, [canSeeTeam, sellers, teamFilter]);
 
-  const myQuotes = allQuotes.filter(q => q.created_by === user?.id);
+  const myQuotes = allQuotes; // already filtered by created_by = user.id in query
   const selectedTeamSellers = useMemo(
     () => (teamFilter === 'all' ? sellers : sellers.filter((seller) => seller.user_id === teamFilter)),
     [sellers, teamFilter],
