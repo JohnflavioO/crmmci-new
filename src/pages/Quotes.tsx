@@ -585,8 +585,8 @@ export default function Quotes() {
                 </div>
                 <div className="space-y-2">
                   <Label>Vendedor</Label>
-                  {!isAdmin && !isGestor && form.salesperson ? (
-                    <Input value={form.salesperson} readOnly className="bg-muted" />
+                  {!isAdmin && !isGestor ? (
+                    <Input value={form.salesperson || profile?.full_name || ''} readOnly className="bg-muted cursor-not-allowed" />
                   ) : (
                     <Select value={form.salesperson} onValueChange={v => setForm(p => ({ ...p, salesperson: v }))}>
                       <SelectTrigger><SelectValue placeholder="Selecionar vendedor" /></SelectTrigger>
