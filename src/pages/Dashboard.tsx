@@ -126,7 +126,7 @@ export default function Dashboard() {
 
       const [sellerStatsRes, recentRes, topClientsRes] = await Promise.all([
         db.rpc('get_team_dashboard_sellers'),
-        db.rpc('get_team_dashboard_recent_quotes', { p_owner: activeOwner, p_limit: 8 }),
+        db.rpc('get_team_dashboard_recent_quotes', { p_owner: activeOwner, p_limit: 500 }),
         db.rpc('get_team_dashboard_top_clients', { p_owner: activeOwner, p_limit: 5 }),
       ]);
 
@@ -183,6 +183,8 @@ export default function Dashboard() {
     () => selectedTeamSellers.reduce((sum, seller) => sum + Number(seller.clients_count || 0), 0),
     [selectedTeamSellers],
   );
+  const teamQuotes = teamRecentQuotes;
+  const teamRecent = teamRecentQuotes.slice(0, 8);
   const myTopClients = computeTopClients(myQuotes);
   const myRecent = myQuotes.slice(0, 8);
 
@@ -309,7 +311,7 @@ export default function Dashboard() {
     );
   }
 
-  // Team dashboard for gestor/admin
+  // Team dashboard for gestor
   return (
     <AppLayout>
       <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
