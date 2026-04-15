@@ -6,25 +6,30 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Endpoint confirmado via teste direto — /producao/ é o path válido (não /ordem/)
-// O servidor api.escalasoft.com.br NÃO hospeda esse endpoint (retorna 404)
-// O servidor real é o IP direto do armazém Sanco
 const SANCO_API_URL =
   "http://170.82.192.22:9999/escalasoft/armazem/producao/estoquemercadoria";
-
 const CNPJ = "05502390000200";
-const SANCO_TIMEOUT_MS = 30000;
-const BODY_LOG_PREVIEW_LENGTH = 1500;
+const TIMEOUT_MS = 30000;
 
-function jsonResponse(body: Record<string, unknown>, status = 200, cacheControl?: string) {
+/** Always return 200 so the Supabase SDK can read the body */
+function respond(body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-      ...(cacheControl ? { "Cache-Control": cacheControl } : {}),
-    },
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+/**
+ * Parse the "Item" field from Sanco: "4221 - IP  F10 BARNDOOR ..."
+ * Returns { codigo: "4221", descricao: "IP F10 BARNDOOR ..." }
+ */
+function parseItemField(raw: string): { codigo: string; descricao: string } {
+  const idx = raw.indexOf(" - ");
+  if (idx === -1) return { codigo: raw.trim(), descricao: raw.trim() };
+  return {
+    codigo: raw.substring(0, idx).trim(),
+    descricao: raw.substring(idx + 3).trim(),
+  };
 }
 
 Deno.serve(async (req) => {
@@ -33,196 +38,110 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Validate JWT
+    // --- Auth ---
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return jsonResponse({ ok: false, error: "Não autorizado" }, 401);
+      return respond({ ok: false, error: "Não autorizado" });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return jsonResponse({ ok: false, error: "Não autorizado" }, 401);
+    const { data: { user }, error: userErr } = await supabase.auth.getUser();
+    if (userErr || !user) {
+      return respond({ ok: false, error: "Não autorizado" });
     }
 
-    // Build final URL
+    // --- External call ---
     const finalUrl = `${SANCO_API_URL}?cnpj=${CNPJ}`;
-    const externalMethod = "GET";
-    const externalHeaders = { Accept: "application/json" };
+    console.log("[estoque-sc] GET", finalUrl, "user=", user.id);
 
-    // Detailed logging
-    console.log("=== ESTOQUE SC - INÍCIO DA CONSULTA ===");
-    console.log("URL final:", finalUrl);
-    console.log("Método HTTP externo:", externalMethod);
-    console.log("Query params: cnpj=" + CNPJ);
-    console.log("Headers enviados:", JSON.stringify(externalHeaders));
-    console.log("Timeout configurado:", SANCO_TIMEOUT_MS, "ms");
-    console.log("Usuário autenticado:", user.id);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    const t0 = Date.now();
 
-    // Fetch from Sanco API with timeout
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), SANCO_TIMEOUT_MS);
-
-    let sancoResponse;
-    const fetchStart = Date.now();
+    let res: Response;
     try {
-      sancoResponse = await fetch(finalUrl, {
-        method: externalMethod,
-        signal: controller.signal,
-        headers: externalHeaders,
+      res = await fetch(finalUrl, {
+        signal: ctrl.signal,
+        headers: { Accept: "application/json" },
       });
     } catch (fetchErr) {
-      clearTimeout(timeout);
-      const elapsed = Date.now() - fetchStart;
-      console.error("ERRO de conexão com API Sanco:", fetchErr);
-      console.error("Tempo decorrido:", elapsed, "ms");
-      return jsonResponse({
+      clearTimeout(timer);
+      const ms = Date.now() - t0;
+      console.error("[estoque-sc] fetch failed:", fetchErr, "after", ms, "ms");
+      return respond({
         ok: false,
-        error: "API do armazém Sanco indisponível. Tente novamente mais tarde.",
-        diagnostics: {
-          linha_erro: fetchErr instanceof Error ? fetchErr.stack?.split("\n")[1]?.trim() ?? null : null,
-          url_chamada: finalUrl,
-          metodo_http: externalMethod,
-          query_params: { cnpj: CNPJ },
-          headers_enviados: externalHeaders,
-          erro: fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
-          tempo_ms: elapsed,
-        },
-        timestamp: new Date().toISOString(),
+        error: "API do armazém Sanco indisponível. Tente novamente.",
+        diagnostics: { url: finalUrl, tempo_ms: ms, erro: String(fetchErr) },
       });
     }
-    clearTimeout(timeout);
-    const elapsed = Date.now() - fetchStart;
+    clearTimeout(timer);
+    const ms = Date.now() - t0;
 
-    console.log("Status HTTP retornado:", sancoResponse.status);
-    console.log("Tempo de resposta:", elapsed, "ms");
+    const rawBody = await res.text();
+    console.log("[estoque-sc] status=", res.status, "bytes=", rawBody.length, "ms=", ms);
 
-    // Read raw body
-    const rawBody = await sancoResponse.text();
-    console.log("Tamanho body bruto:", rawBody.length, "bytes");
-    console.log(
-      "Body bruto (primeiros 1500 chars):",
-      rawBody.substring(0, BODY_LOG_PREVIEW_LENGTH)
-    );
-
-    if (!sancoResponse.ok) {
-      console.error(`API Sanco retornou erro HTTP ${sancoResponse.status}`);
-      console.error("Body de erro:", rawBody.substring(0, 1000));
-      return jsonResponse({
+    if (!res.ok) {
+      console.error("[estoque-sc] API error body:", rawBody.substring(0, 500));
+      return respond({
         ok: false,
-        error: `API do armazém Sanco retornou erro (${sancoResponse.status}). Tente novamente.`,
-        diagnostics: {
-          url_chamada: finalUrl,
-          metodo_http: externalMethod,
-          query_params: { cnpj: CNPJ },
-          headers_enviados: externalHeaders,
-          status_http: sancoResponse.status,
-          body_bruto: rawBody,
-          tempo_ms: elapsed,
-        },
-        timestamp: new Date().toISOString(),
+        error: `API Sanco retornou erro HTTP ${res.status}`,
+        diagnostics: { url: finalUrl, status: res.status, body: rawBody.substring(0, 500), tempo_ms: ms },
       });
     }
 
-    // Parse JSON
-    let data;
+    let parsed: unknown;
     try {
-      data = JSON.parse(rawBody);
-    } catch (parseErr) {
-      console.error("Erro ao parsear JSON:", parseErr);
-      console.error("Body não é JSON válido:", rawBody.substring(0, 500));
-      return jsonResponse({
+      parsed = JSON.parse(rawBody);
+    } catch {
+      console.error("[estoque-sc] JSON inválido:", rawBody.substring(0, 300));
+      return respond({
         ok: false,
         error: "Resposta da API Sanco não é JSON válido.",
-        diagnostics: {
-          linha_erro: parseErr instanceof Error ? parseErr.stack?.split("\n")[1]?.trim() ?? null : null,
-          url_chamada: finalUrl,
-          metodo_http: externalMethod,
-          query_params: { cnpj: CNPJ },
-          headers_enviados: externalHeaders,
-          body_bruto: rawBody,
-          tempo_ms: elapsed,
-        },
-        timestamp: new Date().toISOString(),
+        diagnostics: { url: finalUrl, body_preview: rawBody.substring(0, 300), tempo_ms: ms },
       });
     }
 
-    const items = Array.isArray(data?.EstoqueMercadoria)
-      ? data.EstoqueMercadoria
-      : Array.isArray(data?.Item)
-        ? data.Item
-        : data?.Item
-          ? [data.Item]
-          : Array.isArray(data)
-            ? data
-            : [];
-    const rootKeys = data && typeof data === "object" ? Object.keys(data) : [];
-    const detectedFormat = Array.isArray(data)
-      ? "array"
-      : rootKeys.includes("EstoqueMercadoria")
-        ? "EstoqueMercadoria"
-        : rootKeys.includes("Item")
-          ? "Item"
-          : "desconhecido";
+    // --- Normalize: extract simple list ---
+    const rawItems = (parsed as Record<string, unknown>)?.EstoqueMercadoria;
+    const list = Array.isArray(rawItems) ? rawItems : [];
 
-    // Log detalhado sobre resultado
-    console.log("=== RESULTADO ===");
-    console.log("Formato detectado:", detectedFormat);
-    console.log("Total de itens retornados:", items.length);
-    console.log("Chaves no objeto raiz:", rootKeys);
-    if (items.length === 0) {
-      console.warn("⚠️ RETORNO VAZIO - A API respondeu com 0 itens.");
-      console.warn("Possíveis causas:");
-      console.warn("  1. CNPJ sem estoque no armazém Sanco");
-      console.warn("  2. Parâmetro CNPJ incorreto");
-      console.warn("  3. Formato da resposta diferente do esperado");
-      console.warn("  3. Estoque zerado neste momento");
-    } else {
-      console.log("Primeiro item (amostra):", JSON.stringify(items[0]).substring(0, 300));
+    // Aggregate by product code (same product may appear on multiple addresses)
+    const map = new Map<string, { codigo: string; descricao: string; unidade: string; quantidade: number }>();
+
+    for (const item of list) {
+      const { codigo, descricao } = parseItemField(String(item.Item ?? ""));
+      const unidade = String(item.UnidadeMedida ?? "UN");
+      const qtd = Number(item.SaldoDisponivel?.Quantidade ?? 0);
+
+      const existing = map.get(codigo);
+      if (existing) {
+        existing.quantidade += qtd;
+      } else {
+        map.set(codigo, { codigo, descricao, unidade, quantidade: qtd });
+      }
     }
-    console.log("=== FIM DA CONSULTA ===");
 
-    return jsonResponse(
-      {
-        ok: true,
-        items,
-        total: items.length,
-        timestamp: new Date().toISOString(),
-        debug: {
-          url_chamada: finalUrl,
-          metodo_http: externalMethod,
-          cnpj: CNPJ,
-          status_http: sancoResponse.status,
-          tempo_ms: elapsed,
-          itens_retornados: items.length,
-          formato_detectado: detectedFormat,
-          chaves_resposta: rootKeys,
-        },
-      },
-      200,
-      "public, max-age=300"
-    );
+    const items = Array.from(map.values()).sort((a, b) => a.codigo.localeCompare(b.codigo));
+
+    console.log("[estoque-sc] OK — raw:", list.length, "aggregated:", items.length);
+
+    return respond({
+      ok: true,
+      items,
+      total: items.length,
+      timestamp: new Date().toISOString(),
+    });
   } catch (err) {
-    console.error("Edge function error:", err);
-    return jsonResponse(
-      {
-        ok: false,
-        error: "Erro interno ao consultar estoque.",
-        diagnostics: {
-          linha_erro: err instanceof Error ? err.stack?.split("\n")[1]?.trim() ?? null : null,
-          stack: err instanceof Error ? err.stack : String(err),
-        },
-        timestamp: new Date().toISOString(),
-      },
-      500
-    );
+    console.error("[estoque-sc] unexpected:", err);
+    return respond({
+      ok: false,
+      error: "Erro interno ao consultar estoque.",
+      diagnostics: { stack: err instanceof Error ? err.stack : String(err) },
+    });
   }
 });
