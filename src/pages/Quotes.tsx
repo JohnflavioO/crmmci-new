@@ -91,7 +91,10 @@ const defaultForm = {
   split_value_2: 0,
   split_date_2: '' as string,
   split_installments_2: 1,
+  manual_total: 0,
 };
+
+const QUICK_ENTRY_STATUSES = ['contato_feito', 'sent'];
 
 function PaymentMethodFields({ method, date, onDateChange, installments, onInstallmentsChange, label }: {
   method: string;
@@ -232,7 +235,9 @@ export default function Quotes() {
     ).slice(0, 8);
   };
 
-  const totalAmount = items.reduce((sum, item) => sum + item.line_total, 0);
+  const hasItems = items.some(i => !!i.model);
+  const isQuickEntry = !hasItems && form.manual_total > 0 && QUICK_ENTRY_STATUSES.includes(form.status);
+  const totalAmount = hasItems ? items.reduce((sum, item) => sum + item.line_total, 0) : form.manual_total;
   const grandTotal = totalAmount + (form.shipping_cost || 0);
 
   const formatCurrency = (v: number) =>
@@ -268,7 +273,9 @@ export default function Quotes() {
 
   const handleSave = async () => {
     if (!form.client_id) { toast.error('Selecione um cliente'); return; }
-    if (items.every(i => !i.model)) { toast.error('Adicione pelo menos um item'); return; }
+    const hasAnyItem = items.some(i => !!i.model);
+    const canQuickEntry = form.manual_total > 0 && QUICK_ENTRY_STATUSES.includes(form.status);
+    if (!hasAnyItem && !canQuickEntry) { toast.error('Adicione pelo menos um item ou informe o valor total da negociação (para status Contato Feito ou Proposta Enviada)'); return; }
 
     // Validate payment if approving
     if (form.status === 'approved') {
