@@ -69,8 +69,8 @@ function computeTopClients(quotes: any[]) {
   const clientMap: Record<string, { name: string; total: number; count: number }> = {};
   quotes.forEach((q: any) => {
     if (q.client_id) {
-      if (!clientMap[q.client_id]) clientMap[q.client_id] = { name: q.clients?.company_name || '', total: 0, count: 0 };
-      clientMap[q.client_id].total += parseFloat(q.total_amount) || 0;
+      if (!clientMap[q.client_id]) clientMap[q.client_id] = { name: q.clients?.company_name || q.client_name || '', total: 0, count: 0 };
+      clientMap[q.client_id].total += parseFloat(q.total_amount) || parseFloat(q.total) || 0;
       clientMap[q.client_id].count++;
     }
   });
