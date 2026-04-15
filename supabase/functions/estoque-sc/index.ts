@@ -12,7 +12,7 @@ const corsHeaders = {
 const SANCO_API_URL =
   "http://170.82.192.22:9999/escalasoft/armazem/producao/estoquemercadoria";
 
-const CNPJ = "0550239000020";
+const CNPJ = "05502390000200";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
