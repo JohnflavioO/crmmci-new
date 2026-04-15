@@ -35,7 +35,7 @@ type ChartView = 'bar' | 'table';
 type ChartMetric = 'quantity' | 'value';
 
 export default function Metrics() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [quotes, setQuotes] = useState<any[]>([]);
   const [period, setPeriod] = useState<Period>('month');
   const [customFrom, setCustomFrom] = useState<Date | undefined>(startOfMonth(new Date()));
