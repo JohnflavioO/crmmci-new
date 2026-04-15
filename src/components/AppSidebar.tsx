@@ -2,7 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake, Plug,
-  Clock, ArrowDownCircle, AlertTriangle, FileBarChart, Truck, PackageCheck, PackageSearch, ClipboardList, TriangleAlert, MapPin, RefreshCw,
+  Clock, ArrowDownCircle, AlertTriangle, FileBarChart, Truck, ClipboardList, TriangleAlert, MapPin, RefreshCw, Warehouse,
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -202,6 +202,7 @@ export default function AppSidebar({ onNavigate }: Props) {
               <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Logística</p>
             </div>
             <LinkItem to="/logistics" icon={Truck} label="Acompanhamento" />
+            <LinkItem to="/estoque-sc" icon={Warehouse} label="Estoque SC" />
 
             {(isGestor || isFinanceiro) && (
               <>

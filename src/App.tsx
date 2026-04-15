@@ -25,6 +25,7 @@ import Financial from "./pages/Financial";
 import Logistics from "./pages/Logistics";
 import NotFound from "./pages/NotFound";
 import ForcePasswordChange from "./pages/ForcePasswordChange";
+import EstoqueSC from "./pages/EstoqueSC";
 import { useState, useEffect } from "react";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 
@@ -129,6 +130,7 @@ function AppRoutes() {
       <Route path="/negociacoes" element={<Negociacoes />} />
       <Route path="/reports" element={<Reports />} />
       <Route path="/logistics" element={<Logistics />} />
+      <Route path="/estoque-sc" element={<EstoqueSC />} />
       {(isGestor || isFinanceiro) && <Route path="/financial" element={<Financial />} />}
       {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
       {isAdmin && <Route path="/integrations" element={<Integrations />} />}
