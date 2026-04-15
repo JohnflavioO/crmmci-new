@@ -65,29 +65,49 @@ function computeTopClients(quotes: any[]) {
 export default function Dashboard() {
   const { user, isGestor, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const canSeeTeam = false; // Each user sees only own data
+  const canSeeTeam = isGestor || isAdmin;
 
   const [allQuotes, setAllQuotes] = useState<any[]>([]);
-  const [clientsCount, setClientsCount] = useState(0);
+  const [myClientsCount, setMyClientsCount] = useState(0);
+  const [teamClientsCount, setTeamClientsCount] = useState(0);
   const [productsCount, setProductsCount] = useState(0);
-  const sellers: SellerInfo[] = [];
+  const [sellers, setSellers] = useState<SellerInfo[]>([]);
   const [teamFilter, setTeamFilter] = useState('all');
 
   useEffect(() => {
     const load = async () => {
-      const [quotesRes, clientsRes, productsRes] = await Promise.all([
+      const promises: Promise<any>[] = [
         db.from('quotes').select('*, clients(company_name)').order('created_at', { ascending: false }),
-        db.from('clients').select('id', { count: 'exact', head: true }),
+        db.from('clients').select('id', { count: 'exact', head: true }).eq('created_by', user?.id),
         db.from('products').select('id', { count: 'exact', head: true }),
-      ]);
-      setAllQuotes(quotesRes.data || []);
-      setClientsCount(clientsRes.count || 0);
-      setProductsCount(productsRes.count || 0);
+      ];
+
+      // If gestor/admin, also load team clients count and sellers
+      if (canSeeTeam) {
+        promises.push(
+          db.from('clients').select('id', { count: 'exact', head: true }),
+          db.from('profiles').select('user_id, full_name, role').eq('commercial_visible', true).eq('active', true),
+        );
+      }
+
+      const results = await Promise.all(promises);
+      setAllQuotes(results[0].data || []);
+      setMyClientsCount(results[1].count || 0);
+      setProductsCount(results[2].count || 0);
+
+      if (canSeeTeam && results[3]) {
+        setTeamClientsCount(results[3].count || 0);
+      }
+      if (canSeeTeam && results[4]) {
+        setSellers(results[4].data || []);
+      }
     };
     load();
-  }, []);
+  }, [user?.id, canSeeTeam]);
 
-  const myQuotes = allQuotes;
+  // My quotes = only mine
+  const myQuotes = allQuotes.filter(q => q.created_by === user?.id);
+  // Team quotes = all (RLS returns all for gestor) with optional filter
   const teamQuotes = (() => {
     if (teamFilter === 'all') return allQuotes;
     return allQuotes.filter(q => q.created_by === teamFilter);
@@ -143,7 +163,7 @@ export default function Dashboard() {
     );
   };
 
-  const renderStatsBlock = (stats: any, label: string) => (
+  const renderStatsBlock = (stats: any, clientsCount: number) => (
     <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-3 md:mb-4">
         <StatCard title="Total Orçamentos" value={stats.quotes} icon={FileText} />
@@ -160,6 +180,7 @@ export default function Dashboard() {
     </>
   );
 
+  // Simple dashboard for regular sellers
   if (!canSeeTeam) {
     return (
       <AppLayout>
@@ -177,18 +198,14 @@ export default function Dashboard() {
             </Button>
           </div>
         </div>
-        {renderStatsBlock(myStats, 'Meus')}
-        {/* Revenue Forecasting */}
+        {renderStatsBlock(myStats, myClientsCount)}
         <div className="mb-4 md:mb-6">
           <h2 className="text-lg font-bold font-display mb-3">Previsão de Faturamento</h2>
           <RevenueForecasting quotes={myQuotes} />
         </div>
-
-        {/* Follow-up Alerts */}
         <div className="mb-4 md:mb-6">
           <FollowUpAlerts />
         </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           <Card className="shadow-card lg:col-span-2">
             <CardHeader><CardTitle className="font-display text-lg">Últimos Orçamentos</CardTitle></CardHeader>
@@ -225,6 +242,7 @@ export default function Dashboard() {
     );
   }
 
+  // Team dashboard for gestor/admin
   return (
     <AppLayout>
       <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -234,8 +252,8 @@ export default function Dashboard() {
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <Button variant="outline" onClick={() => navigate('/reports')} className="gap-2 min-h-[44px] border-primary text-primary hover:bg-primary/5">
-              <ClipboardList className="h-4 w-4" /> Relatórios
-            </Button>
+            <ClipboardList className="h-4 w-4" /> Relatórios
+          </Button>
           <Button onClick={() => navigate('/quotes')} className="gap-2 min-h-[44px]">
             <Plus className="h-4 w-4" /> Criar Proposta
           </Button>
@@ -253,15 +271,13 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {renderStatsBlock(teamStats, 'Time')}
+      {renderStatsBlock(teamStats, teamClientsCount)}
 
-      {/* Revenue Forecasting */}
       <div className="mb-4 md:mb-6">
         <h2 className="text-lg font-bold font-display mb-3">Previsão de Faturamento</h2>
         <RevenueForecasting quotes={teamQuotes} />
       </div>
 
-      {/* Follow-up Alerts */}
       <div className="mb-4 md:mb-6">
         <FollowUpAlerts />
       </div>
@@ -299,13 +315,14 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Meus Resultados - separated */}
       <div className="border-t pt-6 md:pt-8">
         <div className="mb-4 md:mb-6">
           <h2 className="text-lg md:text-xl font-bold font-display">Meus Resultados</h2>
           <p className="text-muted-foreground text-sm">Seus números pessoais</p>
         </div>
 
-        {renderStatsBlock(myStats, 'Meus')}
+        {renderStatsBlock(myStats, myClientsCount)}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           <Card className="shadow-card lg:col-span-2">
