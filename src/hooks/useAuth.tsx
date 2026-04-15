@@ -12,12 +12,13 @@ interface AuthContextType {
   isFinanceiro: boolean;
   isLogistica: boolean;
   profile: { full_name: string; phone: string; role: string; avatar_url?: string } | null;
+  forcePasswordChange: boolean;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null, session: null, loading: true,
-  isApproved: false, isAdmin: false, isGestor: false, isFinanceiro: false, isLogistica: false, profile: null,
+  isApproved: false, isAdmin: false, isGestor: false, isFinanceiro: false, isLogistica: false, profile: null, forcePasswordChange: false,
   signOut: async () => {},
 });
 
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isFinanceiro, setIsFinanceiro] = useState(false);
   const [isLogistica, setIsLogistica] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string } | null>(null);
+  const [forcePasswordChange, setForcePasswordChange] = useState(false);
 
   // Safety timeout: never stay loading forever
   useEffect(() => {
@@ -110,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           supabase.rpc('is_gestor'),
           supabase.rpc('is_financeiro'),
           supabase.rpc('is_logistica' as any),
-          (supabase as any).from('profiles').select('full_name, phone, role, avatar_url').eq('user_id', user.id).maybeSingle(),
+          (supabase as any).from('profiles').select('full_name, phone, role, avatar_url, force_password_change').eq('user_id', user.id).maybeSingle(),
         ]);
 
         if (cancelled) return;
@@ -131,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsFinanceiro(financeiroRes.data === true);
         setIsLogistica(logisticaRes.data === true);
         setProfile(profileRes.data as any);
+        setForcePasswordChange(profileRes.data?.force_password_change === true);
       } catch (e) {
         console.error('[Auth] fetchUserData error:', e);
       } finally {
@@ -147,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, profile, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, profile, forcePasswordChange, signOut }}>
       {children}
     </AuthContext.Provider>
   );
