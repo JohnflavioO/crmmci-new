@@ -918,6 +918,43 @@ export type Database = {
       delete_quote_cascade: { Args: { p_quote_id: string }; Returns: undefined }
       generate_quote_number: { Args: never; Returns: string }
       get_public_quote_token: { Args: never; Returns: string }
+      get_team_dashboard_recent_quotes: {
+        Args: { p_limit?: number; p_owner?: string }
+        Returns: {
+          client_name: string
+          created_at: string
+          created_by: string
+          id: string
+          payment_method: string
+          payment_status: string
+          quote_number: string
+          shipping_cost: number
+          status: string
+          total_amount: number
+        }[]
+      }
+      get_team_dashboard_sellers: {
+        Args: never
+        Returns: {
+          approved_count: number
+          clients_count: number
+          full_name: string
+          pending_count: number
+          quotes_count: number
+          rejected_count: number
+          total_value: number
+          user_id: string
+        }[]
+      }
+      get_team_dashboard_top_clients: {
+        Args: { p_limit?: number; p_owner?: string }
+        Returns: {
+          client_id: string
+          client_name: string
+          quotes_count: number
+          total_value: number
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
       is_approved: { Args: never; Returns: boolean }
       is_financeiro: { Args: never; Returns: boolean }
