@@ -47,23 +47,28 @@ export default function FollowUpAlerts() {
 
   useEffect(() => {
     const load = async () => {
+      if (!user?.id) return;
+
       // Fetch quotes with active statuses (open opportunities only)
-      const { data: quotesData } = await db
+      const { data: quotesData, error: quotesError } = await db
         .from('quotes')
         .select('id, quote_number, status, total_amount, total, client_id, client_name, created_by, updated_at, created_at, salesperson')
         .in('status', ACTIVE_STATUSES)
+        .eq('created_by', user.id)
         .order('updated_at', { ascending: true });
+
+      if (quotesError) {
+        console.error('[FollowUpAlerts] Quotes error:', quotesError);
+        setOpportunities([]);
+        return;
+      }
 
       if (!quotesData || quotesData.length === 0) {
         setOpportunities([]);
         return;
       }
 
-      // Filter by ownership (seller sees own, gestor sees all)
-      const filtered = quotesData.filter((q: any) => {
-        if (isGestor) return true;
-        return q.created_by === user?.id;
-      });
+      const filtered = quotesData;
 
       // Get client details for enrichment
       const clientIds = [...new Set(filtered.map((q: any) => q.client_id).filter(Boolean))];
