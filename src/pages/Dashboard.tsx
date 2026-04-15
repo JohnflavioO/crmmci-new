@@ -99,15 +99,23 @@ export default function Dashboard() {
         return;
       }
 
-      const [quotesRes, clientsRes, productsRes] = await Promise.all([
-        db.from('quotes').select('*, clients(company_name)').eq('created_by', user.id).order('created_at', { ascending: false }),
-        db.from('clients').select('id', { count: 'exact', head: true }).eq('created_by', user.id),
-        db.from('products').select('id', { count: 'exact', head: true }),
-      ]);
+      try {
+        const [quotesRes, clientsRes, productsRes] = await Promise.all([
+          db.from('quotes').select('*, clients(company_name)').eq('created_by', user.id).order('created_at', { ascending: false }),
+          db.from('clients').select('id', { count: 'exact', head: true }).eq('created_by', user.id),
+          db.from('products').select('id', { count: 'exact', head: true }),
+        ]);
 
-      setAllQuotes(quotesRes.data || []);
-      setMyClientsCount(clientsRes.count || 0);
-      setProductsCount(productsRes.count || 0);
+        if (quotesRes.error) console.error('[Dashboard] Quotes error:', quotesRes.error);
+        if (clientsRes.error) console.error('[Dashboard] Clients error:', clientsRes.error);
+        if (productsRes.error) console.error('[Dashboard] Products error:', productsRes.error);
+
+        setAllQuotes(quotesRes.data || []);
+        setMyClientsCount(clientsRes.count ?? 0);
+        setProductsCount(productsRes.count ?? 0);
+      } catch (err) {
+        console.error('[Dashboard] loadOwnData error:', err);
+      }
     };
 
     loadOwnData();
