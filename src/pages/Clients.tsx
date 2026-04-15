@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -56,7 +56,7 @@ interface SellerInfo {
 }
 
 export default function Clients() {
-  const { user, isGestor, isAdmin } = useAuth();
+  const { user } = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [allClients, setAllClients] = useState<Client[]>([]);
@@ -67,33 +67,51 @@ export default function Clients() {
   const [form, setForm] = useState(emptyClient);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
-  const [sellers, setSellers] = useState<SellerInfo[]>([]);
+  const sellers: SellerInfo[] = [];
   const [cnpjLoading, setCnpjLoading] = useState(false);
 
-  const canSeeAll = isGestor || isAdmin;
+  const canSeeAll = false;
+
+  const loadClients = useCallback(async () => {
+    if (!user?.id) {
+      setAllClients([]);
+      return;
+    }
+
+    const { data } = await db
+      .from('clients')
+      .select('*')
+      .eq('created_by', user.id)
+      .order('company_name');
+
+    setAllClients((data as any[]) || []);
+  }, [user?.id]);
+
+  const loadQuotes = useCallback(async () => {
+    if (!user?.id) {
+      setAllQuotes([]);
+      return;
+    }
+
+    const { data } = await db
+      .from('quotes')
+      .select('id, client_id, status, created_at')
+      .eq('created_by', user.id)
+      .order('created_at', { ascending: false });
+
+    setAllQuotes((data as any[]) || []);
+  }, [user?.id]);
 
   useEffect(() => {
-    if (canSeeAll) {
-      let query = db.from('profiles').select('user_id, full_name');
-      if (!isAdmin) query = query.eq('commercial_visible', true);
-      query.then(({ data }: any) => {
-        const list = (data || []).filter((p: any) => p.user_id !== user?.id);
-        setSellers(list);
-      });
+    if (!user?.id) {
+      setAllClients([]);
+      setAllQuotes([]);
+      return;
     }
-  }, [canSeeAll, isAdmin, user?.id]);
 
-  const loadClients = async () => {
-    const { data } = await db.from('clients').select('*').order('company_name');
-    setAllClients((data as any[]) || []);
-  };
-
-  const loadQuotes = async () => {
-    const { data } = await db.from('quotes').select('id, client_id, status, created_at');
-    setAllQuotes((data as any[]) || []);
-  };
-
-  useEffect(() => { loadClients(); loadQuotes(); }, []);
+    loadClients();
+    loadQuotes();
+  }, [loadClients, loadQuotes, user?.id]);
 
   // Advanced filters hook
   const {
