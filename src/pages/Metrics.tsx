@@ -198,21 +198,6 @@ export default function Metrics() {
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
-          {isGestor && (
-            <Select value={selectedSeller} onValueChange={setSelectedSeller}>
-              <SelectTrigger className="w-full sm:w-[200px] bg-background min-h-[44px]">
-                <Users className="h-4 w-4 mr-2 text-muted-foreground" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="me">{profile?.full_name || 'Meus números'}</SelectItem>
-                <SelectItem value="all">Todos</SelectItem>
-                {salespeople.filter(s => s.user_id !== user?.id).map(s => (
-                  <SelectItem key={s.user_id} value={s.user_id}>{s.full_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
           <Select value={period} onValueChange={v => setPeriod(v as Period)}>
             <SelectTrigger className="w-full sm:w-[220px] bg-background min-h-[44px]">
               <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -546,12 +531,6 @@ export default function Metrics() {
         </Card>
       </div>
 
-      {/* Seller Comparison - Gestor only */}
-      {isGestor && (
-        <div className="mb-6">
-          <SellerComparison />
-        </div>
-      )}
     </AppLayout>
   );
 }
