@@ -166,10 +166,19 @@ export default function Quotes() {
 
   const loadData = async () => {
     try {
+      if (!user?.id) {
+        setQuotes([]);
+        setClients([]);
+        setSalespeople([]);
+        setProducts([]);
+        setSellerProfiles([]);
+        return;
+      }
+
       const [q, c, s, p] = await Promise.all([
         db.from('quotes').select('*, clients(company_name, phone)')
           .order('created_at', { ascending: false }),
-        db.from('clients').select('id, company_name').eq('created_by', user?.id).order('company_name'),
+        db.from('clients').select('id, company_name, name').eq('created_by', user.id).order('company_name'),
         db.from('salespeople').select('*').eq('active', true).order('name'),
         db.from('products').select('id, name, brand, code, price, description, image_url').order('name'),
       ]);
@@ -187,7 +196,7 @@ export default function Quotes() {
     }
   };
 
-  useEffect(() => { loadData(); }, [isGestor, isAdmin]);
+  useEffect(() => { loadData(); }, [user?.id, isGestor, isAdmin]);
 
   const calcItem = (item: QuoteItem): QuoteItem => {
     if (item.is_gift) {
@@ -517,7 +526,8 @@ export default function Quotes() {
       }
     }
     return q.quote_number?.toLowerCase().includes(search.toLowerCase()) ||
-      q.clients?.company_name?.toLowerCase().includes(search.toLowerCase());
+      q.client_name?.toLowerCase()?.includes(search.toLowerCase()) ||
+      q.clients?.company_name?.toLowerCase()?.includes(search.toLowerCase());
   });
 
   // Helper to render split payment summary for listings
@@ -578,7 +588,7 @@ export default function Quotes() {
                     <SelectTrigger><SelectValue placeholder="Selecionar cliente" /></SelectTrigger>
                     <SelectContent>
                       {clients.map((c: any) => (
-                        <SelectItem key={c.id} value={c.id}>{c.company_name}</SelectItem>
+                        <SelectItem key={c.id} value={c.id}>{c.company_name || c.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
