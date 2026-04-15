@@ -65,12 +65,12 @@ function computeTopClients(quotes: any[]) {
 export default function Dashboard() {
   const { user, isGestor, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const canSeeTeam = isGestor;
+  const canSeeTeam = false; // Each user sees only own data
 
   const [allQuotes, setAllQuotes] = useState<any[]>([]);
   const [clientsCount, setClientsCount] = useState(0);
   const [productsCount, setProductsCount] = useState(0);
-  const [sellers, setSellers] = useState<SellerInfo[]>([]);
+  const sellers: SellerInfo[] = [];
   const [teamFilter, setTeamFilter] = useState('all');
 
   useEffect(() => {
@@ -87,17 +87,7 @@ export default function Dashboard() {
     load();
   }, []);
 
-  useEffect(() => {
-    if (canSeeTeam) {
-      let query = db.from('profiles').select('user_id, full_name');
-      if (!isAdmin) query = query.eq('commercial_visible', true);
-      query.then(({ data }: any) => {
-        setSellers((data || []) as SellerInfo[]);
-      });
-    }
-  }, [canSeeTeam, isAdmin]);
-
-  const myQuotes = allQuotes.filter(q => q.created_by === user?.id);
+  const myQuotes = allQuotes;
   const teamQuotes = (() => {
     if (teamFilter === 'all') return allQuotes;
     return allQuotes.filter(q => q.created_by === teamFilter);
