@@ -45,8 +45,6 @@ export default function Pipeline() {
   const [draggedQuote, setDraggedQuote] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
   const sellers: SellerProfile[] = [];
-  const selectedSellers: string[] = [];
-  const compareMode = false;
 
   const loadData = useCallback(async () => {
     const { data } = await db.from('quotes')
@@ -79,19 +77,11 @@ export default function Pipeline() {
     if (draggedQuote) { moveQuote(draggedQuote, stage); setDraggedQuote(null); }
   };
 
-  const toggleSeller = (_userId: string) => {};
-
-  const getQuotesForSeller = (sellerId: string) =>
-    quotes.filter(q => q.created_by === sellerId);
-
   const getStageQuotes = (stage: string, filterQuotes?: PipelineQuote[]) =>
     (filterQuotes || quotes).filter(q => q.status === stage);
 
   const getStageValue = (stage: string, filterQuotes?: PipelineQuote[]) =>
     getStageQuotes(stage, filterQuotes).reduce((s, q) => s + (parseFloat(String(q.total_amount)) || 0), 0);
-
-  const getTotalValue = (filterQuotes: PipelineQuote[]) =>
-    filterQuotes.reduce((s, q) => s + (parseFloat(String(q.total_amount)) || 0), 0);
 
   const renderQuoteCard = (quote: PipelineQuote, stageIdx: number) => (
     <div
@@ -131,79 +121,6 @@ export default function Pipeline() {
       )}
     </div>
   );
-
-  const renderSellerComparison = () => {
-    const sellerData = selectedSellers.map(sid => {
-      const seller = sellers.find(s => s.user_id === sid);
-      const sellerQuotes = getQuotesForSeller(sid);
-      return { seller, quotes: sellerQuotes };
-    });
-
-    const colWidth = selectedSellers.length === 1 ? 'w-full' : selectedSellers.length === 2 ? 'w-1/2' : 'w-1/3';
-
-    return (
-      <div className="mt-4">
-        <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-bold">Comparativo de Vendedores</h2>
-          <Button size="sm" variant="ghost" onClick={() => { setCompareMode(false); setSelectedSellers([]); }}>
-            <X className="h-4 w-4 mr-1" /> Fechar
-          </Button>
-        </div>
-
-        <div className={`flex gap-4 ${isMobile ? 'flex-col' : ''} overflow-x-auto pb-4`}>
-          {sellerData.map(({ seller, quotes: sq }) => (
-            <div key={seller?.user_id} className={`${isMobile ? 'w-full' : colWidth} flex-shrink-0 min-w-[300px]`}>
-              <div className="rounded-xl border bg-card p-4 shadow-sm">
-                <div className="flex items-center gap-2 mb-3 pb-3 border-b">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Users className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">{seller?.full_name || 'Vendedor'}</p>
-                    <p className="text-xs text-muted-foreground">{sq.length} orçamentos · {formatCurrency(getTotalValue(sq))}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  {STAGES.map(stage => {
-                    const stageQ = getStageQuotes(stage.key, sq);
-                    const stageV = getStageValue(stage.key, sq);
-                    return (
-                      <div key={stage.key} className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-muted/30">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2.5 h-2.5 rounded-full ${stage.color}`} />
-                          <span className="text-xs font-medium">{stage.label}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-xs font-bold">{stageQ.length}</span>
-                          <span className="text-[10px] text-muted-foreground ml-1.5">{formatCurrency(stageV)}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Mini list of quotes */}
-                <div className="mt-3 pt-3 border-t max-h-[200px] overflow-y-auto space-y-1.5">
-                  {sq.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">Nenhum orçamento</p>}
-                  {sq.slice(0, 10).map(q => (
-                    <div key={q.id} className="flex items-center justify-between text-xs py-1 px-2 rounded bg-muted/20">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
-                        <span className="truncate">{q.quote_number}</span>
-                      </div>
-                      <span className="font-medium text-primary shrink-0 ml-2">{formatCurrency(parseFloat(String(q.total_amount)) || 0)}</span>
-                    </div>
-                  ))}
-                  {sq.length > 10 && <p className="text-[10px] text-muted-foreground text-center">+{sq.length - 10} mais</p>}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <AppLayout>
