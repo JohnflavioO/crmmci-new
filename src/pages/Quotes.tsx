@@ -282,6 +282,19 @@ export default function Quotes() {
 
   const handleSave = async () => {
     if (!form.client_id) { toast.error('Selecione um cliente'); return; }
+
+    // Validate reseller IE
+    if (form.is_reseller) {
+      const selectedClient = clients.find((c: any) => c.id === form.client_id);
+      const ie = selectedClient?.contrib_icms?.replace(/[.\-\/\s]/g, '') || '';
+      if (!ie || ie.length < 8 || ie.length > 14) {
+        toast.error('Clientes do tipo revenda precisam ter Inscrição Estadual válida cadastrada antes de continuar.', {
+          description: 'Edite o cadastro do cliente e preencha a Inscrição Estadual.',
+        });
+        return;
+      }
+    }
+
     const hasAnyItem = items.some(i => !!i.model);
     const canQuickEntry = form.manual_total > 0 && QUICK_ENTRY_STATUSES.includes(form.status);
     if (!hasAnyItem && !canQuickEntry) { toast.error('Adicione pelo menos um item ou informe o valor total da negociação (para status Contato Feito, Proposta Enviada ou Negociação)'); return; }
