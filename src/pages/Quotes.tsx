@@ -178,7 +178,7 @@ export default function Quotes() {
       const [q, c, s, p] = await Promise.all([
         db.from('quotes').select('*, clients(company_name, phone)')
           .order('created_at', { ascending: false }),
-        db.from('clients').select('id, company_name, name').eq('created_by', user.id).order('company_name'),
+        db.from('clients').select('id, company_name, name, is_revenda, contrib_icms').eq('created_by', user.id).order('company_name'),
         db.from('salespeople').select('*').eq('active', true).order('name'),
         db.from('products').select('id, name, brand, code, price, description, image_url').order('name'),
       ]);
@@ -282,6 +282,19 @@ export default function Quotes() {
 
   const handleSave = async () => {
     if (!form.client_id) { toast.error('Selecione um cliente'); return; }
+
+    // Validate reseller IE
+    if (form.is_reseller) {
+      const selectedClient = clients.find((c: any) => c.id === form.client_id);
+      const ie = selectedClient?.contrib_icms?.replace(/[.\-\/\s]/g, '') || '';
+      if (!ie || ie.length < 8 || ie.length > 14) {
+        toast.error('Clientes do tipo revenda precisam ter Inscrição Estadual válida cadastrada antes de continuar.', {
+          description: 'Edite o cadastro do cliente e preencha a Inscrição Estadual.',
+        });
+        return;
+      }
+    }
+
     const hasAnyItem = items.some(i => !!i.model);
     const canQuickEntry = form.manual_total > 0 && QUICK_ENTRY_STATUSES.includes(form.status);
     if (!hasAnyItem && !canQuickEntry) { toast.error('Adicione pelo menos um item ou informe o valor total da negociação (para status Contato Feito, Proposta Enviada ou Negociação)'); return; }
@@ -584,7 +597,14 @@ export default function Quotes() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Cliente *</Label>
-                  <Select value={form.client_id} onValueChange={v => setForm(p => ({ ...p, client_id: v }))}>
+                  <Select value={form.client_id} onValueChange={v => {
+                    const selectedClient = clients.find((c: any) => c.id === v);
+                    setForm(p => ({
+                      ...p,
+                      client_id: v,
+                      is_reseller: selectedClient?.is_revenda || false,
+                    }));
+                  }}>
                     <SelectTrigger><SelectValue placeholder="Selecionar cliente" /></SelectTrigger>
                     <SelectContent>
                       {clients.map((c: any) => (
@@ -875,6 +895,15 @@ export default function Quotes() {
                   <Store className="h-4 w-4 text-orange-500" />
                   Cliente Revenda
                 </label>
+                {form.is_reseller && (() => {
+                  const sc = clients.find((c: any) => c.id === form.client_id);
+                  const ie = sc?.contrib_icms;
+                  return ie ? (
+                    <span className="text-xs text-muted-foreground ml-auto">IE: {ie}</span>
+                  ) : (
+                    <span className="text-xs text-destructive ml-auto">⚠ IE não cadastrada</span>
+                  );
+                })()}
               </div>
               <div className="space-y-2">
                 <Label>Observações</Label>

@@ -31,6 +31,7 @@ export type Database = {
           created_by: string | null
           email: string | null
           id: string
+          is_revenda: boolean
           is_whatsapp: boolean | null
           last_interaction_at: string | null
           name: string
@@ -57,6 +58,7 @@ export type Database = {
           created_by?: string | null
           email?: string | null
           id?: string
+          is_revenda?: boolean
           is_whatsapp?: boolean | null
           last_interaction_at?: string | null
           name: string
@@ -83,6 +85,7 @@ export type Database = {
           created_by?: string | null
           email?: string | null
           id?: string
+          is_revenda?: boolean
           is_whatsapp?: boolean | null
           last_interaction_at?: string | null
           name?: string
