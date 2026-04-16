@@ -284,6 +284,16 @@ export default function Quotes() {
   const handleSave = async () => {
     if (saving) return; // prevent double-click
 
+    // Safety net: if anything keeps `saving` true for too long, force-release it.
+    // This prevents the dialog from staying frozen on "Salvando..." when a network call hangs.
+    const watchdog = setTimeout(() => {
+      console.warn('[Quotes.handleSave] Watchdog fired — forcing saving=false (network likely stalled)');
+      setSavingFlag(false);
+      toast.error('Tempo excedido ao salvar.', {
+        description: 'A operação demorou mais que o esperado. Verifique sua conexão e tente novamente.',
+      });
+    }, 25000);
+
     try {
       // ---- Validações de pré-requisito (sempre com toast) ----
       if (!form.client_id) {
@@ -401,6 +411,7 @@ export default function Quotes() {
         description: msg + code,
       });
     } finally {
+      clearTimeout(watchdog);
       setSavingFlag(false);
     }
   };
