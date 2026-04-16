@@ -36,6 +36,7 @@ interface Client {
   contrib_icms: string;
   notes: string;
   is_whatsapp: boolean;
+  is_revenda: boolean;
   created_by?: string;
   created_at?: string;
   last_interaction_at?: string;
@@ -45,7 +46,7 @@ const emptyClient: Omit<Client, 'id'> = {
   company_name: '', cpf_cnpj: '', city: '', state: '', phone: '', email: '',
   contact_name: '', address: '', address_number: '', complement: '',
   neighborhood: '', cep: '', contact_phone: '', contrib_icms: '', notes: '',
-  is_whatsapp: false,
+  is_whatsapp: false, is_revenda: false,
 };
 
 const db = supabase as any;
