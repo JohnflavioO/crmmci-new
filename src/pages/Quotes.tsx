@@ -584,7 +584,14 @@ export default function Quotes() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Cliente *</Label>
-                  <Select value={form.client_id} onValueChange={v => setForm(p => ({ ...p, client_id: v }))}>
+                  <Select value={form.client_id} onValueChange={v => {
+                    const selectedClient = clients.find((c: any) => c.id === v);
+                    setForm(p => ({
+                      ...p,
+                      client_id: v,
+                      is_reseller: selectedClient?.is_revenda || false,
+                    }));
+                  }}>
                     <SelectTrigger><SelectValue placeholder="Selecionar cliente" /></SelectTrigger>
                     <SelectContent>
                       {clients.map((c: any) => (
