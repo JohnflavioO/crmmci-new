@@ -411,6 +411,7 @@ export default function Quotes() {
         description: msg + code,
       });
     } finally {
+      clearTimeout(watchdog);
       setSavingFlag(false);
     }
   };
