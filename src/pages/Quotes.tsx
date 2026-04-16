@@ -155,6 +155,7 @@ export default function Quotes() {
   const [responsibleFilter, setResponsibleFilter] = useState('me');
   const [sellerProfiles, setSellerProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [saving, setSavingFlag] = useState(false);
   const [editingQuote, setEditingQuote] = useState<any | null>(null);
   const [form, setForm] = useState({ ...defaultForm });
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
