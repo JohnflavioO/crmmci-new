@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2, MessageCircle } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2, MessageCircle, Store } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -451,10 +451,40 @@ export default function Clients() {
                   {cnpjLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Contrib. ICMS</Label>
-                <Input value={form.contrib_icms} onChange={e => updateForm('contrib_icms', e.target.value)} />
+              <div className="sm:col-span-2 flex items-center gap-3 p-3 rounded-lg border bg-muted/20">
+                <Checkbox
+                  id="is_revenda"
+                  checked={form.is_revenda}
+                  onCheckedChange={(checked) => setForm(prev => ({ ...prev, is_revenda: !!checked }))}
+                />
+                <label htmlFor="is_revenda" className="flex items-center gap-2 text-sm font-medium cursor-pointer select-none">
+                  <Store className="h-4 w-4 text-orange-500" />
+                  Cliente é Revenda
+                </label>
               </div>
+              {form.is_revenda && (
+                <div className="sm:col-span-2 space-y-2">
+                  <Label className="flex items-center gap-1">
+                    Inscrição Estadual *
+                    <span className="text-xs text-muted-foreground">(obrigatória para revenda)</span>
+                  </Label>
+                  <Input
+                    value={form.contrib_icms}
+                    onChange={e => updateForm('contrib_icms', e.target.value)}
+                    placeholder="Ex: 123.456.789.012"
+                    maxLength={18}
+                  />
+                  {form.is_revenda && form.contrib_icms && !validateInscricaoEstadual(form.contrib_icms) && (
+                    <p className="text-xs text-destructive">Inscrição Estadual inválida (8 a 14 caracteres numéricos)</p>
+                  )}
+                </div>
+              )}
+              {!form.is_revenda && (
+                <div className="space-y-2">
+                  <Label>Contrib. ICMS</Label>
+                  <Input value={form.contrib_icms} onChange={e => updateForm('contrib_icms', e.target.value)} />
+                </div>
+              )}
               <div className="sm:col-span-2 space-y-2">
                 <Label>Endereço</Label>
                 <Input value={form.address} onChange={e => updateForm('address', e.target.value)} />
