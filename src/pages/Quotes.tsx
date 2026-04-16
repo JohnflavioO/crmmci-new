@@ -1087,8 +1087,10 @@ export default function Quotes() {
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-                <Button onClick={handleSave}>Salvar Orçamento</Button>
+                <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>Cancelar</Button>
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? 'Salvando...' : 'Salvar Orçamento'}
+                </Button>
               </div>
             </div>
           </DialogContent>
