@@ -322,13 +322,38 @@ export default function Clients() {
   const [importing, setImporting] = useState(false);
 
   const handleImportSheet = async () => {
-    if (!sheetUrl.trim()) return;
+    const url = sheetUrl.trim();
+    if (!url) {
+      toast.error('Cole o link da planilha do Google Sheets.');
+      return;
+    }
+    // Validate URL format before calling backend
+    if (!/^https?:\/\/docs\.google\.com\/spreadsheets\/d\/[A-Za-z0-9_-]+/.test(url)) {
+      toast.error('Link inválido', {
+        description: 'Use um link do Google Sheets no formato: https://docs.google.com/spreadsheets/d/...',
+      });
+      return;
+    }
     setImporting(true);
     try {
       const { data, error } = await supabase.functions.invoke('import-clients-sheet', {
-        body: { url: sheetUrl.trim() },
+        body: { url },
       });
-      if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao importar');
+      console.log('[ImportSheet] response:', { data, error });
+      if (error) {
+        // Network/edge error
+        throw new Error(error.message || 'Falha de comunicação com o servidor de importação.');
+      }
+      if (!data?.success) {
+        throw new Error(data?.error || 'Não foi possível importar a planilha.');
+      }
+      if (!Array.isArray(data.clients) || data.clients.length === 0) {
+        toast.warning('Nenhum cliente encontrado na planilha.', {
+          description: 'Verifique se há linhas de dados abaixo do cabeçalho.',
+        });
+        setImporting(false);
+        return;
+      }
 
       const validFields = [
         'company_name', 'cpf_cnpj', 'city', 'state', 'phone', 'email',

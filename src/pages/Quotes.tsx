@@ -155,6 +155,7 @@ export default function Quotes() {
   const [responsibleFilter, setResponsibleFilter] = useState('me');
   const [sellerProfiles, setSellerProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [saving, setSavingFlag] = useState(false);
   const [editingQuote, setEditingQuote] = useState<any | null>(null);
   const [form, setForm] = useState({ ...defaultForm });
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
@@ -281,37 +282,48 @@ export default function Quotes() {
   };
 
   const handleSave = async () => {
-    if (!form.client_id) { toast.error('Selecione um cliente'); return; }
-
-    // Validate reseller IE
-    if (form.is_reseller) {
-      const selectedClient = clients.find((c: any) => c.id === form.client_id);
-      const ie = selectedClient?.contrib_icms?.replace(/[.\-\/\s]/g, '') || '';
-      if (!ie || ie.length < 8 || ie.length > 14) {
-        toast.error('Clientes do tipo revenda precisam ter Inscrição Estadual válida cadastrada antes de continuar.', {
-          description: 'Edite o cadastro do cliente e preencha a Inscrição Estadual.',
-        });
-        return;
-      }
-    }
-
-    const hasAnyItem = items.some(i => !!i.model);
-    const canQuickEntry = form.manual_total > 0 && QUICK_ENTRY_STATUSES.includes(form.status);
-    if (!hasAnyItem && !canQuickEntry) { toast.error('Adicione pelo menos um item ou informe o valor total da negociação (para status Contato Feito, Proposta Enviada ou Negociação)'); return; }
-
-    // Validate payment if approving
-    if (form.status === 'approved') {
-      const paymentError = validatePaymentForApproval();
-      if (paymentError) {
-        toast.error('Para aprovar este orçamento, preencha corretamente os dados de pagamento.', { description: paymentError });
-        return;
-      }
-    }
+    if (saving) return; // prevent double-click
 
     try {
+      // ---- Validações de pré-requisito (sempre com toast) ----
+      if (!form.client_id) {
+        toast.error('Selecione um cliente');
+        return;
+      }
+
+      // Validate reseller IE
+      if (form.is_reseller) {
+        const selectedClient = clients.find((c: any) => c.id === form.client_id);
+        const ie = selectedClient?.contrib_icms?.replace(/[.\-/\s]/g, '') || '';
+        if (!ie || ie.length < 8 || ie.length > 14) {
+          toast.error('Clientes do tipo revenda precisam ter Inscrição Estadual válida cadastrada antes de continuar.', {
+            description: 'Edite o cadastro do cliente e preencha a Inscrição Estadual.',
+          });
+          return;
+        }
+      }
+
+      const hasAnyItem = items.some(i => !!i.model);
+      const canQuickEntry = form.manual_total > 0 && QUICK_ENTRY_STATUSES.includes(form.status);
+      if (!hasAnyItem && !canQuickEntry) {
+        toast.error('Adicione pelo menos um item ou informe o valor total da negociação (para status Contato Feito, Proposta Enviada ou Negociação)');
+        return;
+      }
+
+      // Validate payment if approving
+      if (form.status === 'approved') {
+        const paymentError = validatePaymentForApproval();
+        if (paymentError) {
+          toast.error('Para aprovar este orçamento, preencha corretamente os dados de pagamento.', { description: paymentError });
+          return;
+        }
+      }
+
+      setSavingFlag(true);
+
       let quoteId: string;
       const matchedSeller = salespeople.find((s: any) => s.name === form.salesperson);
-      
+
       const quoteData: any = {
         client_id: form.client_id, salesperson: form.salesperson, status: form.status,
         salesperson_id: matchedSeller?.id || user?.id || null,
@@ -335,19 +347,29 @@ export default function Quotes() {
         split_installments_2: form.is_split_payment && (form.split_method_2 === 'boleto' || form.split_method_2 === 'cartao') ? form.split_installments_2 : 1,
       };
 
+      console.log('[Quotes.handleSave] Payload:', { editing: !!editingQuote, quoteData, itemsCount: items.filter(i => i.model).length });
+
       if (editingQuote) {
         const { error } = await db.from('quotes').update(quoteData).eq('id', editingQuote.id);
-        if (error) throw error;
+        if (error) {
+          console.error('[Quotes.handleSave] Update error:', error);
+          throw error;
+        }
         quoteId = editingQuote.id;
-        await db.from('quote_items').delete().eq('quote_id', quoteId);
+        const { error: delErr } = await db.from('quote_items').delete().eq('quote_id', quoteId);
+        if (delErr) console.warn('[Quotes.handleSave] delete items warning:', delErr);
       } else {
-        const { data: numData } = await db.rpc('generate_quote_number');
+        const { data: numData, error: numErr } = await db.rpc('generate_quote_number');
+        if (numErr) console.warn('[Quotes.handleSave] generate_quote_number warning:', numErr);
         const { data, error } = await db.from('quotes').insert({
           ...quoteData,
           quote_number: numData || `ORC-${Date.now()}`,
           created_by: user?.id,
         }).select('id').single();
-        if (error) throw error;
+        if (error) {
+          console.error('[Quotes.handleSave] Insert error:', error);
+          throw error;
+        }
         quoteId = data.id;
       }
 
@@ -361,7 +383,10 @@ export default function Quotes() {
 
       if (validItems.length > 0) {
         const { error } = await db.from('quote_items').insert(validItems);
-        if (error) throw error;
+        if (error) {
+          console.error('[Quotes.handleSave] Insert items error:', error);
+          throw error;
+        }
       }
 
       toast.success(editingQuote ? 'Orçamento atualizado!' : 'Orçamento criado!');
@@ -369,7 +394,14 @@ export default function Quotes() {
       resetForm();
       loadData();
     } catch (err: any) {
-      toast.error(err.message);
+      console.error('[Quotes.handleSave] Unhandled error:', err);
+      const msg = err?.message || err?.error_description || err?.hint || 'Erro inesperado ao salvar o orçamento.';
+      const code = err?.code ? ` (código: ${err.code})` : '';
+      toast.error('Não foi possível salvar o orçamento.', {
+        description: msg + code,
+      });
+    } finally {
+      setSavingFlag(false);
     }
   };
 
@@ -1055,8 +1087,10 @@ export default function Quotes() {
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-                <Button onClick={handleSave}>Salvar Orçamento</Button>
+                <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>Cancelar</Button>
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? 'Salvando...' : 'Salvar Orçamento'}
+                </Button>
               </div>
             </div>
           </DialogContent>
