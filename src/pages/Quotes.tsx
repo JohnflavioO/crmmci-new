@@ -281,8 +281,27 @@ export default function Quotes() {
     return null;
   };
 
+  // Wraps a promise with a timeout so a stalled network call cannot freeze the UI
+  const withTimeout = async <T,>(p: PromiseLike<T>, ms: number, label: string): Promise<T> => {
+    return await Promise.race([
+      Promise.resolve(p),
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error(`Tempo excedido em ${label}. Verifique sua conexão e tente novamente.`)), ms)
+      ),
+    ]);
+  };
+
   const handleSave = async () => {
     if (saving) return; // prevent double-click
+
+    // Safety net: if anything keeps `saving` true for too long, force-release it
+    const watchdog = setTimeout(() => {
+      console.warn('[Quotes.handleSave] Watchdog fired — forcing saving=false');
+      setSavingFlag(false);
+      toast.error('Tempo excedido ao salvar.', {
+        description: 'A operação demorou mais que o esperado. Tente novamente.',
+      });
+    }, 25000);
 
     try {
       // ---- Validações de pré-requisito (sempre com toast) ----
