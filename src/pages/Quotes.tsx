@@ -178,7 +178,7 @@ export default function Quotes() {
       const [q, c, s, p] = await Promise.all([
         db.from('quotes').select('*, clients(company_name, phone)')
           .order('created_at', { ascending: false }),
-        db.from('clients').select('id, company_name, name').eq('created_by', user.id).order('company_name'),
+        db.from('clients').select('id, company_name, name, is_revenda, contrib_icms').eq('created_by', user.id).order('company_name'),
         db.from('salespeople').select('*').eq('active', true).order('name'),
         db.from('products').select('id, name, brand, code, price, description, image_url').order('name'),
       ]);
