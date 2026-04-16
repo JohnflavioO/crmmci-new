@@ -137,7 +137,26 @@ export default function Clients() {
     c.contact_name?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const validateInscricaoEstadual = (ie: string): boolean => {
+    if (!ie || !ie.trim()) return false;
+    const clean = ie.replace(/[.\-\/\s]/g, '');
+    if (clean.length < 8 || clean.length > 14) return false;
+    if (/^(\d)\1+$/.test(clean)) return false;
+    if (!/^\d+$/.test(clean) && !/^[A-Z0-9]+$/i.test(clean)) return false;
+    return true;
+  };
+
   const handleSave = async () => {
+    if (form.is_revenda) {
+      if (!form.contrib_icms || !form.contrib_icms.trim()) {
+        toast.error('Clientes do tipo revenda precisam ter Inscrição Estadual preenchida.');
+        return;
+      }
+      if (!validateInscricaoEstadual(form.contrib_icms)) {
+        toast.error('Inscrição Estadual inválida. Verifique o formato (8 a 14 caracteres numéricos).');
+        return;
+      }
+    }
     try {
       if (editingClient) {
         const { error } = await db.from('clients').update(form).eq('id', editingClient.id);
