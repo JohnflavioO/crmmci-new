@@ -126,20 +126,50 @@ Deno.serve(async (req) => {
     const gid = gidMatch ? gidMatch[1] : '0';
 
     const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
-    
-    const response = await fetch(csvUrl);
-    if (!response.ok) {
-      return new Response(JSON.stringify({ success: false, error: 'Não foi possível acessar a planilha. Verifique se ela está compartilhada como "Qualquer pessoa com o link".' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    console.log('[import-clients-sheet] Fetching CSV:', csvUrl);
+
+    let response: Response;
+    try {
+      response = await fetch(csvUrl, { redirect: 'follow' });
+    } catch (fetchErr) {
+      console.error('[import-clients-sheet] Fetch error:', fetchErr);
+      return new Response(JSON.stringify({ success: false, error: 'Não foi possível conectar ao Google Sheets. Tente novamente.' }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('[import-clients-sheet] Response status:', response.status, 'Content-Type:', response.headers.get('content-type'));
+
+    // Detect Google login redirect (returns HTML instead of CSV when private)
+    const contentType = response.headers.get('content-type') || '';
+    if (!response.ok || contentType.includes('text/html')) {
+      const sample = (await response.text()).slice(0, 200);
+      console.warn('[import-clients-sheet] Sheet not public. Sample:', sample);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'A planilha precisa estar pública para importação. No Google Sheets, clique em "Compartilhar" e selecione "Qualquer pessoa com o link".',
+      }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const csvText = await response.text();
+
+    // Extra safety: if response body looks like HTML (login page), reject
+    if (csvText.trim().toLowerCase().startsWith('<!doctype') || csvText.trim().toLowerCase().startsWith('<html')) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'A planilha precisa estar pública para importação. Compartilhe como "Qualquer pessoa com o link".',
+      }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const rows = parseCSV(csvText);
-    
+
     if (rows.length < 2) {
       return new Response(JSON.stringify({ success: false, error: 'Planilha vazia ou sem dados.' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -274,9 +304,12 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Import error:', error);
-    return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    console.error('[import-clients-sheet] Internal error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Erro interno ao processar a planilha. Verifique se o link está correto e a planilha é pública.',
+    }), {
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
