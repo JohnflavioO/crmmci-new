@@ -895,6 +895,15 @@ export default function Quotes() {
                   <Store className="h-4 w-4 text-orange-500" />
                   Cliente Revenda
                 </label>
+                {form.is_reseller && (() => {
+                  const sc = clients.find((c: any) => c.id === form.client_id);
+                  const ie = sc?.contrib_icms;
+                  return ie ? (
+                    <span className="text-xs text-muted-foreground ml-auto">IE: {ie}</span>
+                  ) : (
+                    <span className="text-xs text-destructive ml-auto">⚠ IE não cadastrada</span>
+                  );
+                })()}
               </div>
               <div className="space-y-2">
                 <Label>Observações</Label>
