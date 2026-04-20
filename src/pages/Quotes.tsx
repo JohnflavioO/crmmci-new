@@ -92,6 +92,17 @@ const defaultForm = {
   split_date_2: '' as string,
   split_installments_2: 1,
   manual_total: 0,
+  use_alt_shipping_address: false,
+  shipping_recipient: '',
+  shipping_cep: '',
+  shipping_address: '',
+  shipping_address_number: '',
+  shipping_complement: '',
+  shipping_neighborhood: '',
+  shipping_city: '',
+  shipping_state: '',
+  shipping_phone: '',
+  shipping_notes: '',
 };
 
 const QUICK_ENTRY_STATUSES = ['contato_feito', 'sent', 'negociacao'];
@@ -355,6 +366,17 @@ export default function Quotes() {
         split_value_2: form.is_split_payment ? form.split_value_2 : 0,
         split_date_2: form.is_split_payment && form.split_method_2 === 'pix' && form.split_date_2 ? form.split_date_2 : null,
         split_installments_2: form.is_split_payment && (form.split_method_2 === 'boleto' || form.split_method_2 === 'cartao') ? form.split_installments_2 : 1,
+        use_alt_shipping_address: form.use_alt_shipping_address,
+        shipping_recipient: form.use_alt_shipping_address ? (form.shipping_recipient || null) : null,
+        shipping_cep: form.use_alt_shipping_address ? (form.shipping_cep || null) : null,
+        shipping_address: form.use_alt_shipping_address ? (form.shipping_address || null) : null,
+        shipping_address_number: form.use_alt_shipping_address ? (form.shipping_address_number || null) : null,
+        shipping_complement: form.use_alt_shipping_address ? (form.shipping_complement || null) : null,
+        shipping_neighborhood: form.use_alt_shipping_address ? (form.shipping_neighborhood || null) : null,
+        shipping_city: form.use_alt_shipping_address ? (form.shipping_city || null) : null,
+        shipping_state: form.use_alt_shipping_address ? (form.shipping_state || null) : null,
+        shipping_phone: form.use_alt_shipping_address ? (form.shipping_phone || null) : null,
+        shipping_notes: form.use_alt_shipping_address ? (form.shipping_notes || null) : null,
       };
 
       console.log('[Quotes.handleSave] Payload:', { editing: !!editingQuote, quoteData, itemsCount: items.filter(i => i.model).length });
@@ -440,6 +462,17 @@ export default function Quotes() {
       split_date_2: quote.split_date_2 || '',
       split_installments_2: quote.split_installments_2 || 1,
       manual_total: (!qItems || qItems.length === 0) ? (parseFloat(quote.total_amount) || 0) : 0,
+      use_alt_shipping_address: quote.use_alt_shipping_address || false,
+      shipping_recipient: quote.shipping_recipient || '',
+      shipping_cep: quote.shipping_cep || '',
+      shipping_address: quote.shipping_address || '',
+      shipping_address_number: quote.shipping_address_number || '',
+      shipping_complement: quote.shipping_complement || '',
+      shipping_neighborhood: quote.shipping_neighborhood || '',
+      shipping_city: quote.shipping_city || '',
+      shipping_state: quote.shipping_state || '',
+      shipping_phone: quote.shipping_phone || '',
+      shipping_notes: quote.shipping_notes || '',
     });
     setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
     setDialogOpen(true);
