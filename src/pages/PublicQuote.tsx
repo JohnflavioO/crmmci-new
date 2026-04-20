@@ -126,24 +126,42 @@ export default function PublicQuote() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item, i) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{i + 1}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {item.image_url && <img src={item.image_url} alt="" className="w-8 h-8 object-contain rounded" />}
-                        <div>
-                          <p className="font-medium text-sm">{item.model || item.description}</p>
-                          {item.specifications && <p className="text-xs text-muted-foreground">{item.specifications}</p>}
+                {items.map((item, i) => {
+                  const unitPrice = parseFloat(item.unit_price) || 0;
+                  const discount = parseFloat(item.discount_percent) || 0;
+                  const hasDiscount = discount > 0 && unitPrice > 0;
+                  const unitWithDiscount = hasDiscount ? unitPrice * (1 - discount / 100) : unitPrice;
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell>{i + 1}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {item.image_url && <img src={item.image_url} alt="" className="w-8 h-8 object-contain rounded" />}
+                          <div>
+                            <p className="font-medium text-sm">{item.model || item.description}</p>
+                            {item.specifications && <p className="text-xs text-muted-foreground">{item.specifications}</p>}
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{item.brand || '-'}</TableCell>
-                    <TableCell className="text-right">{item.quantity}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(parseFloat(item.unit_price) || 0)}</TableCell>
-                    <TableCell className="text-right font-medium">{formatCurrency(parseFloat(item.line_total) || 0)}</TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell>{item.brand || '-'}</TableCell>
+                      <TableCell className="text-right">{item.quantity}</TableCell>
+                      <TableCell className="text-right">
+                        {hasDiscount ? (
+                          <div className="flex flex-col items-end leading-tight">
+                            <span className="text-xs text-muted-foreground line-through">{formatCurrency(unitPrice)}</span>
+                            <span className="font-semibold text-primary">{formatCurrency(unitWithDiscount)}</span>
+                            <Badge variant="secondary" className="mt-0.5 text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                              -{discount}%
+                            </Badge>
+                          </div>
+                        ) : (
+                          formatCurrency(unitPrice)
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">{formatCurrency(parseFloat(item.line_total) || 0)}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
 
