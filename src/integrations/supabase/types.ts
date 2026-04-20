@@ -667,9 +667,19 @@ export type Database = {
           rejected_at: string | null
           salesperson: string | null
           salesperson_id: string | null
+          shipping_address: string | null
+          shipping_address_number: string | null
+          shipping_cep: string | null
+          shipping_city: string | null
+          shipping_complement: string | null
           shipping_cost: number | null
           shipping_deadline: string | null
           shipping_method: string | null
+          shipping_neighborhood: string | null
+          shipping_notes: string | null
+          shipping_phone: string | null
+          shipping_recipient: string | null
+          shipping_state: string | null
           source: string | null
           split_date_1: string | null
           split_date_2: string | null
@@ -683,6 +693,7 @@ export type Database = {
           total: number | null
           total_amount: number | null
           updated_at: string | null
+          use_alt_shipping_address: boolean
         }
         Insert: {
           approved_at?: string | null
@@ -709,9 +720,19 @@ export type Database = {
           rejected_at?: string | null
           salesperson?: string | null
           salesperson_id?: string | null
+          shipping_address?: string | null
+          shipping_address_number?: string | null
+          shipping_cep?: string | null
+          shipping_city?: string | null
+          shipping_complement?: string | null
           shipping_cost?: number | null
           shipping_deadline?: string | null
           shipping_method?: string | null
+          shipping_neighborhood?: string | null
+          shipping_notes?: string | null
+          shipping_phone?: string | null
+          shipping_recipient?: string | null
+          shipping_state?: string | null
           source?: string | null
           split_date_1?: string | null
           split_date_2?: string | null
@@ -725,6 +746,7 @@ export type Database = {
           total?: number | null
           total_amount?: number | null
           updated_at?: string | null
+          use_alt_shipping_address?: boolean
         }
         Update: {
           approved_at?: string | null
@@ -751,9 +773,19 @@ export type Database = {
           rejected_at?: string | null
           salesperson?: string | null
           salesperson_id?: string | null
+          shipping_address?: string | null
+          shipping_address_number?: string | null
+          shipping_cep?: string | null
+          shipping_city?: string | null
+          shipping_complement?: string | null
           shipping_cost?: number | null
           shipping_deadline?: string | null
           shipping_method?: string | null
+          shipping_neighborhood?: string | null
+          shipping_notes?: string | null
+          shipping_phone?: string | null
+          shipping_recipient?: string | null
+          shipping_state?: string | null
           source?: string | null
           split_date_1?: string | null
           split_date_2?: string | null
@@ -767,6 +799,7 @@ export type Database = {
           total?: number | null
           total_amount?: number | null
           updated_at?: string | null
+          use_alt_shipping_address?: boolean
         }
         Relationships: [
           {
