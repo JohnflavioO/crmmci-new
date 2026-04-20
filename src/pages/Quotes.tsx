@@ -960,7 +960,84 @@ export default function Quotes() {
                 </div>
               </div>
 
-              {/* Revenda + Observações */}
+              {/* Endereço de Entrega Alternativo */}
+              <div className="space-y-3 p-4 rounded-lg border bg-muted/20">
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    id="use_alt_shipping"
+                    checked={form.use_alt_shipping_address}
+                    onCheckedChange={(checked) => setForm(p => ({ ...p, use_alt_shipping_address: !!checked }))}
+                  />
+                  <label htmlFor="use_alt_shipping" className="text-sm font-medium cursor-pointer select-none">
+                    Enviar para endereço diferente do cadastro
+                  </label>
+                </div>
+
+                {form.use_alt_shipping_address && (
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-2">
+                    <div className="space-y-1 md:col-span-6">
+                      <Label className="text-xs">Destinatário</Label>
+                      <Input value={form.shipping_recipient} maxLength={150}
+                        onChange={e => setForm(p => ({ ...p, shipping_recipient: e.target.value }))}
+                        placeholder="Nome de quem vai receber" />
+                    </div>
+                    <div className="space-y-1 md:col-span-3">
+                      <Label className="text-xs">Telefone</Label>
+                      <Input value={form.shipping_phone} maxLength={20}
+                        onChange={e => setForm(p => ({ ...p, shipping_phone: e.target.value }))}
+                        placeholder="(00) 00000-0000" />
+                    </div>
+                    <div className="space-y-1 md:col-span-3">
+                      <Label className="text-xs">CEP</Label>
+                      <Input value={form.shipping_cep} maxLength={10}
+                        onChange={e => setForm(p => ({ ...p, shipping_cep: e.target.value }))}
+                        placeholder="00000-000" />
+                    </div>
+                    <div className="space-y-1 md:col-span-7">
+                      <Label className="text-xs">Logradouro</Label>
+                      <Input value={form.shipping_address} maxLength={200}
+                        onChange={e => setForm(p => ({ ...p, shipping_address: e.target.value }))}
+                        placeholder="Rua / Avenida" />
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                      <Label className="text-xs">Número</Label>
+                      <Input value={form.shipping_address_number} maxLength={20}
+                        onChange={e => setForm(p => ({ ...p, shipping_address_number: e.target.value }))}
+                        placeholder="123" />
+                    </div>
+                    <div className="space-y-1 md:col-span-3">
+                      <Label className="text-xs">Complemento</Label>
+                      <Input value={form.shipping_complement} maxLength={100}
+                        onChange={e => setForm(p => ({ ...p, shipping_complement: e.target.value }))}
+                        placeholder="Sala, andar..." />
+                    </div>
+                    <div className="space-y-1 md:col-span-5">
+                      <Label className="text-xs">Bairro</Label>
+                      <Input value={form.shipping_neighborhood} maxLength={100}
+                        onChange={e => setForm(p => ({ ...p, shipping_neighborhood: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1 md:col-span-5">
+                      <Label className="text-xs">Cidade</Label>
+                      <Input value={form.shipping_city} maxLength={100}
+                        onChange={e => setForm(p => ({ ...p, shipping_city: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                      <Label className="text-xs">UF</Label>
+                      <Input value={form.shipping_state} maxLength={2}
+                        onChange={e => setForm(p => ({ ...p, shipping_state: e.target.value.toUpperCase() }))}
+                        placeholder="SP" />
+                    </div>
+                    <div className="space-y-1 md:col-span-12">
+                      <Label className="text-xs">Observações de Entrega</Label>
+                      <Input value={form.shipping_notes} maxLength={500}
+                        onChange={e => setForm(p => ({ ...p, shipping_notes: e.target.value }))}
+                        placeholder="Ex: entregar no horário comercial, falar com portaria..." />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+
               <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20">
                 <Checkbox
                   id="is_reseller"
