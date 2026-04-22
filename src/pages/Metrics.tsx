@@ -35,7 +35,8 @@ type ChartView = 'bar' | 'table';
 type ChartMetric = 'quantity' | 'value';
 
 export default function Metrics() {
-  const { user } = useAuth();
+  const { user, isGestor, isAdmin } = useAuth();
+  const canSeeAll = isAdmin || isGestor;
   const [quotes, setQuotes] = useState<any[]>([]);
   const [period, setPeriod] = useState<Period>('month');
   const [customFrom, setCustomFrom] = useState<Date | undefined>(startOfMonth(new Date()));
@@ -58,7 +59,9 @@ export default function Metrics() {
         .gte('quote_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('quote_date', format(dateRange.to, 'yyyy-MM-dd'));
 
-      query = query.eq('created_by', user?.id);
+      if (!canSeeAll) {
+        query = query.eq('created_by', user?.id);
+      }
 
       const { data } = await query.order('quote_date', { ascending: true });
       setQuotes(data || []);
@@ -169,13 +172,48 @@ export default function Metrics() {
     );
   };
 
+  const handleExportCSV = () => {
+    if (!quotes.length) {
+      toast.error('Nenhum dado para exportar');
+      return;
+    }
+    const headers = ['Data', 'Numero', 'Cliente', 'Status', 'Pagamento', 'Metodo', 'Vendedor', 'Valor'];
+    const csvContent = [
+      headers.join(';'),
+      ...quotes.map(q => [
+        format(parseISO(q.quote_date), 'dd/MM/yyyy'),
+        q.quote_number,
+        `"${q.client_name}"`,
+        q.status,
+        q.payment_status,
+        q.payment_method,
+        `"${q.salesperson || ''}"`,
+        (q.total_amount || q.total || 0).toString().replace('.', ',')
+      ].join(';'))
+    ].join('\n');
+    
+    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `metricas_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Planilha exportada com sucesso!');
+  };
+
 
   return (
     <AppLayout>
       <div className="mb-4 md:mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <h1 className="text-xl md:text-2xl font-bold font-display">Negociações concluídas</h1>
-          <Button variant="outline" size="sm" className="min-h-[44px] sm:min-h-0">Exportar</Button>
+          <Button variant="outline" size="sm" className="min-h-[44px] sm:min-h-0 gap-2" onClick={handleExportCSV}>
+            <Grid3X3 className="h-4 w-4" />
+            Exportar para Planilha
+          </Button>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
