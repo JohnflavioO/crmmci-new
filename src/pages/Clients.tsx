@@ -476,7 +476,7 @@ export default function Clients() {
             <DialogHeader>
               <DialogTitle className="font-display">{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <form onSubmit={(e) => { e.preventDefault(); console.log('[Form] Submit bloqueado'); }} className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
               <div className="sm:col-span-2 space-y-2">
                 <Label>Razão Social / Nome *</Label>
                 <Input value={form.company_name} onChange={e => updateForm('company_name', e.target.value)} required />
