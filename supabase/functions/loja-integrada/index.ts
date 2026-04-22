@@ -591,28 +591,11 @@ Deno.serve(async (req) => {
     // === AUTO_SYNC (called by cron, uses service role key from Authorization header) ===
     if (action === 'auto_sync') {
       const authHeader = req.headers.get('Authorization');
-      const expectedKey = Deno.env.get('SUPABASE_ANON_KEY');
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
       
-      let isAuthorized = false;
-      if (authHeader && expectedKey && authHeader.includes(expectedKey)) {
-        isAuthorized = true;
-      } else {
-        // Try verifying token via supabase client
-        try {
-          const authHeader = req.headers.get('Authorization');
-          if (authHeader) {
-            const supabase = createClient(
-              Deno.env.get('SUPABASE_URL')!,
-              Deno.env.get('SUPABASE_ANON_KEY')!,
-              { global: { headers: { Authorization: authHeader } } }
-            );
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) isAuthorized = true;
-          }
-        } catch (e) {
-          console.error('[loja-integrada] Auth verification error:', e);
-        }
-      }
+      const isAuthorized = (authHeader && serviceKey && authHeader.includes(serviceKey)) || 
+                           (authHeader && anonKey && authHeader.includes(anonKey));
 
       if (!isAuthorized) {
         console.warn('[loja-integrada] auto_sync: Unauthorized attempt');
