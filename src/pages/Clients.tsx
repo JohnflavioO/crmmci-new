@@ -68,10 +68,10 @@ export default function Clients() {
   const [form, setForm] = useState(emptyClient);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
-  const sellers: SellerInfo[] = [];
+  const [sellers, setSellers] = useState<SellerInfo[]>([]);
+  const { isAdmin, isGestor } = useAuth();
+  const canSeeAll = isAdmin || isGestor;
   const [cnpjLoading, setCnpjLoading] = useState(false);
-
-  const canSeeAll = false;
 
   const loadClients = useCallback(async () => {
     if (!user?.id) return;
