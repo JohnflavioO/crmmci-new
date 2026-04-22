@@ -410,15 +410,21 @@ export default function Clients() {
     
     setImporting(true);
     try {
-      // Validate minimal fields (check against mappings state)
-      const mappedFields = Object.values(mappings);
+      const mappedEntries = Object.entries(mappings).filter(([_, field]) => field !== 'ignore');
+      const mappedFields = mappedEntries.map(([_, field]) => field);
+      
       if (!mappedFields.includes('company_name')) {
-        toast.error('O mapeamento da Razão Social / Nome é obrigatório.');
+        toast.error('Associe uma coluna ao campo "Razão Social / Nome".');
         setImporting(false);
         return;
       }
 
-      // Reverse mappings for easier lookup: colIdx -> fieldName
+      if (!mappedFields.includes('phone') && !mappedFields.includes('email')) {
+        toast.warning('Atenção: Nenhuma coluna de Telefone ou E-mail foi mapeada.', {
+          description: 'Isso pode dificultar o contato com os clientes importados.'
+        });
+      }
+
       const clientsToInsert = importData.rows.map((row: string[]) => {
         const client: any = {
           created_by: user?.id,
@@ -426,7 +432,7 @@ export default function Clients() {
           is_whatsapp: false
         };
 
-        Object.entries(mappings).forEach(([colIdx, field]) => {
+        mappedEntries.forEach(([colIdx, field]) => {
           const idx = parseInt(colIdx);
           if (idx < row.length && row[idx]) {
             client[field] = row[idx].trim();
@@ -436,7 +442,7 @@ export default function Clients() {
         // Ensure name is always set
         client.name = client.company_name || '';
         
-        // Detect WhatsApp
+        // Detect WhatsApp if phone is present
         if (client.phone || client.contact_phone) {
           client.is_whatsapp = detectWhatsApp(client.phone || '') || detectWhatsApp(client.contact_phone || '');
         }
@@ -452,8 +458,8 @@ export default function Clients() {
       
       if (insertErr) throw insertErr;
 
-      toast.success(`${insertData?.length || 0} clientes importados com sucesso!`, {
-        description: "Os dados foram salvos no seu CRM."
+      toast.success(`${insertData?.length || 0} clientes importados!`, {
+        description: "Os dados foram salvos com sucesso."
       });
       
       setImportOpen(false);
