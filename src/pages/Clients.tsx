@@ -391,7 +391,7 @@ export default function Clients() {
           if (c[field]) clean[field] = c[field];
         }
         clean.name = c.company_name || c.name || '';
-        clean.created_by = user?.id || '';
+        clean.created_by = user?.id;
         clean.is_whatsapp = detectWhatsApp(c.phone || '') || detectWhatsApp(c.contact_phone || '');
         return clean;
       });

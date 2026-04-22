@@ -175,6 +175,35 @@ export default function Quotes() {
   const [productSearch, setProductSearch] = useState<Record<number, string>>({});
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
   const [chatQuote, setChatQuote] = useState<{ id: string; number: string } | null>(null);
+  const [cepLoading, setCepLoading] = useState(false);
+
+  const handleShippingCepChange = async (value: string) => {
+    const cleanCep = value.replace(/\D/g, '');
+    setForm(p => ({ ...p, shipping_cep: value }));
+    
+    if (cleanCep.length === 8) {
+      setCepLoading(true);
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        if (!res.ok) throw new Error('Falha na resposta da API');
+        const data = await res.json();
+        if (!data.erro) {
+          setForm(prev => ({
+            ...prev,
+            shipping_address: data.logradouro || prev.shipping_address,
+            shipping_neighborhood: data.bairro || prev.shipping_neighborhood,
+            shipping_city: data.localidade || prev.shipping_city,
+            shipping_state: data.uf || prev.shipping_state,
+          }));
+          toast.success('Endereço de entrega preenchido!');
+        }
+      } catch (err) {
+        console.error('CEP lookup error:', err);
+      } finally {
+        setCepLoading(false);
+      }
+    }
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -993,7 +1022,7 @@ export default function Quotes() {
                     <div className="space-y-1 md:col-span-3">
                       <Label className="text-xs">CEP</Label>
                       <Input value={form.shipping_cep} maxLength={10}
-                        onChange={e => setForm(p => ({ ...p, shipping_cep: e.target.value }))}
+                        onChange={e => handleShippingCepChange(e.target.value)}
                         placeholder="00000-000" />
                     </div>
                     <div className="space-y-1 md:col-span-7">
