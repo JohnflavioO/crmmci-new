@@ -435,7 +435,7 @@ export default function Clients() {
               Excluir {selectedIds.size}
             </Button>
           )}
-          <Button variant="outline" className="gap-2 min-h-[44px] border-primary text-primary hover:bg-primary/5" onClick={() => navigate('/quotes')}>
+          <Button type="button" variant="outline" className="gap-2 min-h-[44px] border-primary text-primary hover:bg-primary/5" onClick={() => { console.log('[Page] Navegando para orçamentos'); navigate('/quotes'); }}>
             <Plus className="h-4 w-4" /> Criar Orçamento
           </Button>
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
