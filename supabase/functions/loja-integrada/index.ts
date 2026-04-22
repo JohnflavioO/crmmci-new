@@ -306,8 +306,8 @@ async function importAllOrders(
   const config = integration?.config || {};
   const lastOrderDate = config.last_order_date;
   
-  // A safety window: we'll check status updates for orders up to 7 days before the last sync
-  const safetyWindow = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+  // A safety window: we'll check status updates for orders up to 24 hours before the last sync
+  const safetyWindow = 24 * 60 * 60 * 1000; // 24 hours in ms
   const stopDate = !isFullImport && lastOrderDate 
     ? new Date(new Date(lastOrderDate).getTime() - safetyWindow)
     : null;
