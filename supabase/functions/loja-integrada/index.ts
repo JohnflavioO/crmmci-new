@@ -323,20 +323,39 @@ async function importAllOrders(
   let updated = 0;
   let skipped = 0;
   let errors = 0;
-  let page = 1;
-  const limit = 50;
-  let hasMore = true;
-  let newestOrderDateFound: string | null = null;
-  let newestOrderIdFound: string | null = null;
+  
+  // Logic update: Since Loja Integrada API might ignore ordering and return oldest first,
+  // we fetch from the end (offset = total_count - limit) and work backwards.
+  
+  // 1. Get total count first
+  const initialResp = await fetch(`${LOJA_INTEGRADA_API}/pedido?limit=1`, {
+    headers: {
+      'Authorization': `chave_api ${apiKey} aplicacao ${applicationKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  if (!initialResp.ok) {
+    console.error(`[loja-integrada] Failed to get total count: ${initialResp.status}`);
+    return { ok: false, error: 'Falha ao obter total de pedidos da Loja Integrada.' };
+  }
+  
+  const initialData = await initialResp.json();
+  const totalCount = initialData.meta?.total_count ?? 0;
+  console.log(`[loja-integrada] Total orders found: ${totalCount}`);
+
+  let offset = Math.max(0, totalCount - limit);
+  let hasMore = totalCount > 0;
+  let newestOrderDateFound: string | null = config.last_order_date || null;
+  let newestOrderIdFound: string | null = config.last_order_id || null;
 
   while (hasMore) {
-    const offset = (page - 1) * limit;
-    console.log(`[loja-integrada] Fetching page ${page} (offset ${offset})...`);
+    console.log(`[loja-integrada] Fetching orders at offset ${offset}...`);
 
     let response: Response;
     try {
       response = await fetch(
-        `${LOJA_INTEGRADA_API}/pedido?limit=${limit}&offset=${offset}&ordering=-data_criacao`,
+        `${LOJA_INTEGRADA_API}/pedido?limit=${limit}&offset=${offset}`,
         {
           headers: {
             'Authorization': `chave_api ${apiKey} aplicacao ${applicationKey}`,
@@ -345,40 +364,44 @@ async function importAllOrders(
         }
       );
     } catch (fetchErr) {
-      console.error(`[loja-integrada] Network error on page ${page}:`, fetchErr);
+      console.error(`[loja-integrada] Network error at offset ${offset}:`, fetchErr);
       errors++;
       break;
     }
 
     if (!response.ok) {
       const text = await response.text();
-      console.error(`[loja-integrada] API error on page ${page}: ${response.status} ${text.slice(0, 200)}`);
+      console.error(`[loja-integrada] API error at offset ${offset}: ${response.status} ${text.slice(0, 200)}`);
       errors++;
       break;
     }
 
     const data = await response.json();
     const orders = data.objects || [];
-    const totalCount = data.meta?.total_count ?? 0;
-
+    
     if (orders.length === 0) {
       hasMore = false;
       break;
     }
 
-    for (const order of orders) {
+    // Process orders in this page (from newest to oldest within the page if we could, 
+    // but here they are oldest to newest, so we process them all)
+    // We reverse them to process newest first if we want to stop early
+    const sortedOrders = [...orders].reverse();
+
+    for (const order of sortedOrders) {
       const externalId = String(order.numero);
       const orderDateStr = order.data_criacao;
       const orderDate = new Date(orderDateStr);
 
       // Stop condition for incremental sync
       if (stopDate && orderDate < stopDate) {
-        console.log(`[loja-integrada] Reached order from ${orderDateStr}, which is older than safety window (${stopDate.toISOString()}). Stopping sync.`);
+        console.log(`[loja-integrada] Reached order ${externalId} from ${orderDateStr}, which is older than safety window (${stopDate.toISOString()}). Stopping sync.`);
         hasMore = false;
         break;
       }
 
-      // Track the newest order found for updating config later
+      // Track the newest order found
       if (!newestOrderDateFound || orderDate > new Date(newestOrderDateFound)) {
         newestOrderDateFound = orderDateStr;
         newestOrderIdFound = externalId;
@@ -415,6 +438,9 @@ async function importAllOrders(
             updated++;
           } else {
             skipped++;
+            // Optimization: if we already have this order and we are doing incremental sync,
+            // we might be able to stop if we are sure no older orders are missing.
+            // But we keep going for now due to the safety window.
           }
           continue;
         }
@@ -449,15 +475,13 @@ async function importAllOrders(
       }
     }
 
-    if (!hasMore) break;
+    if (!hasMore || offset === 0) break;
 
-    hasMore = offset + limit < totalCount;
-    page++;
-
+    // Move to previous page
+    offset = Math.max(0, offset - limit);
+    
     // Rate limiting: small delay between pages
-    if (hasMore) {
-      await new Promise(r => setTimeout(r, 500));
-    }
+    await new Promise(r => setTimeout(r, 500));
   }
 
   // Update integration status and markers
@@ -567,8 +591,14 @@ Deno.serve(async (req) => {
     // === AUTO_SYNC (called by cron, uses service role key from Authorization header) ===
     if (action === 'auto_sync') {
       const authHeader = req.headers.get('Authorization');
-      const expectedKey = Deno.env.get('SUPABASE_ANON_KEY');
-      if (!authHeader || !authHeader.includes(expectedKey || '___none___')) {
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+      
+      const isAuthorized = (authHeader && serviceKey && authHeader.includes(serviceKey)) || 
+                           (authHeader && anonKey && authHeader.includes(anonKey));
+
+      if (!isAuthorized) {
+        console.warn('[loja-integrada] auto_sync: Unauthorized attempt');
         return jsonResponse({ ok: false, error: 'Unauthorized' }, 401);
       }
 
