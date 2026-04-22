@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import { CalendarIcon, Clock, FileDown, BarChart3, Table2 } from 'lucide-react';
 import { format, differenceInDays, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
