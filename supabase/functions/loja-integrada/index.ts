@@ -334,27 +334,40 @@ async function findOrCreateClient(serviceClient: any, orderData: any, userId: st
 
 async function upsertQuoteItems(serviceClient: any, quoteId: string, orderData: any) {
   const itens = orderData.itens || [];
-  if (itens.length === 0) return;
+  if (itens.length === 0) {
+    console.log(`[loja-integrada] No items found for order ${orderData.numero}`);
+    return;
+  }
 
   // Delete old items and re-insert
   await serviceClient.from('quote_items').delete().eq('quote_id', quoteId);
 
-  const quoteItems = itens.map((item: any, idx: number) => ({
-    quote_id: quoteId,
-    item_number: idx + 1,
-    description: item.nome || item.produto?.nome || `Item ${idx + 1}`,
-    model: item.nome || item.produto?.nome || `Item ${idx + 1}`,
-    brand: '',
-    product_code: item.sku || '',
-    quantity: parseInt(item.quantidade) || 1,
-    unit_price: parseFloat(item.preco_venda) || 0,
-    discount_percent: 0,
-    unit_total: parseFloat(item.preco_venda) || 0,
-    line_total: (parseFloat(item.preco_venda) || 0) * (parseInt(item.quantidade) || 1),
-    specifications: '',
-    image_url: '',
-    is_gift: false,
-  }));
+  const quoteItems = itens.map((item: any, idx: number) => {
+    const nome = item.nome || (item.produto && item.produto.nome) || `Item ${idx + 1}`;
+    const sku = item.sku || (item.produto && item.produto.sku) || '';
+    const quantidade = parseInt(item.quantidade) || 1;
+    const precoVenda = parseFloat(item.preco_venda) || 0;
+    const precoCheio = parseFloat(item.preco_cheio) || precoVenda;
+    const descontoItem = precoCheio - precoVenda;
+    const descontoPercent = precoCheio > 0 ? (descontoItem / precoCheio) * 100 : 0;
+    
+    return {
+      quote_id: quoteId,
+      item_number: idx + 1,
+      description: nome,
+      model: nome,
+      brand: '',
+      product_code: sku,
+      quantity: quantidade,
+      unit_price: precoVenda,
+      discount_percent: Math.round(descontoPercent * 100) / 100,
+      unit_total: precoVenda,
+      line_total: precoVenda * quantidade,
+      specifications: item.variacao || '',
+      image_url: item.produto?.imagem?.caminho || '',
+      is_gift: false,
+    };
+  });
 
   const { error: itemsErr } = await serviceClient.from('quote_items').insert(quoteItems);
   if (itemsErr) {
