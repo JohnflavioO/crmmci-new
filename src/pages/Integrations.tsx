@@ -316,8 +316,11 @@ export default function Integrations() {
                   </div>
                 </div>
 
-                <p className="text-xs text-muted-foreground">
-                  A sincronização incremental busca apenas novas vendas. Use o botão acima para atualizar o CRM.
+                <p className="text-xs text-muted-foreground flex justify-between items-center">
+                  <span>A sincronização incremental busca apenas novas vendas. Use o botão acima para atualizar o CRM.</span>
+                  <Button variant="link" size="sm" className="h-auto p-0 text-[10px]" onClick={() => handleImport(true)} disabled={importing || syncing}>
+                    Forçar Importação Completa (Histórico)
+                  </Button>
                 </p>
 
                 {importResult && (
