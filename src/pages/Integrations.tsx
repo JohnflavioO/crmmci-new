@@ -218,11 +218,23 @@ export default function Integrations() {
           </CardHeader>
 
           <CardContent className="space-y-6">
-            {lastSync && (
-              <p className="text-xs text-muted-foreground">
-                Última sincronização: {new Date(lastSync).toLocaleString('pt-BR')}
-              </p>
-            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {lastSync && (
+                <div className="p-3 rounded-lg border bg-muted/30">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Última Sincronização Real</p>
+                  <p className="text-sm font-medium">{new Date(lastSync).toLocaleString('pt-BR')}</p>
+                </div>
+              )}
+              {config?.last_order_id && (
+                <div className="p-3 rounded-lg border bg-muted/30">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Último Pedido Sincronizado</p>
+                  <p className="text-sm font-medium">#{config.last_order_id}</p>
+                  {config.last_order_date && (
+                    <p className="text-[10px] text-muted-foreground">de {new Date(config.last_order_date).toLocaleString('pt-BR')}</p>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Credentials form */}
             <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
@@ -297,26 +309,26 @@ export default function Integrations() {
                       {syncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
                       Visualizar pedidos
                     </Button>
-                    <Button size="sm" onClick={handleImport} disabled={importing || syncing}>
+                    <Button size="sm" onClick={() => handleImport(false)} disabled={importing || syncing} className="bg-primary hover:bg-primary/90">
                       {importing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
-                      Importar para Orçamentos
+                      Sincronizar Novos Pedidos
                     </Button>
                   </div>
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  A sincronização automática roda a cada 30 minutos. Use o botão para importar manualmente.
+                  A sincronização incremental busca apenas novas vendas. Use o botão acima para atualizar o CRM.
                 </p>
 
                 {importResult && (
                   <div className="p-3 rounded-lg border bg-muted/30 text-sm space-y-1">
                     <p className="font-medium">Resultado da última importação:</p>
-                    {importResult.imported > 0 && <p className="text-emerald-600">✓ {importResult.imported} pedidos novos importados</p>}
-                    {importResult.updated > 0 && <p className="text-blue-600">↻ {importResult.updated} pedidos atualizados</p>}
+                    {importResult.imported > 0 && <p className="text-emerald-600">✓ {importResult.imported} novos pedidos importados para Orçamentos</p>}
+                    {importResult.updated > 0 && <p className="text-blue-600">↻ {importResult.updated} pedidos existentes atualizados</p>}
                     {importResult.skipped > 0 && <p className="text-muted-foreground">⊘ {importResult.skipped} sem alteração</p>}
                     {importResult.errors > 0 && <p className="text-destructive">✗ {importResult.errors} com erro</p>}
                     {importResult.imported === 0 && importResult.updated === 0 && importResult.errors === 0 && (
-                      <p className="text-muted-foreground">Todos os pedidos já estão sincronizados.</p>
+                      <p className="text-muted-foreground">Nenhum pedido novo encontrado.</p>
                     )}
                   </div>
                 )}
