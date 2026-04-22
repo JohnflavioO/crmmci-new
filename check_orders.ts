@@ -4,7 +4,7 @@ const apiKey = '12ac635b711ce3b105bc';
 const applicationKey = 'ecdca8a5-487f-46f0-a61d-27eab2cc98f6';
 
 async function fetchOrders() {
-  const url = `${LOJA_INTEGRADA_API}/pedido?limit=10&ordering=-numero`;
+  const url = `${LOJA_INTEGRADA_API}/pedido?limit=10&since_id=940`;
   console.log(`Calling: GET ${url}`);
 
   const response = await fetch(url, {
@@ -22,7 +22,7 @@ async function fetchOrders() {
 
   const data = await response.json();
   console.log(`Total orders in API: ${data.meta?.total_count}`);
-  console.log('Latest orders from Loja Integrada:');
+  console.log('Orders found:');
   data.objects.forEach(order => {
     console.log(`Order #${order.numero} - Date: ${order.data_criacao} - Status: ${order.situacao?.nome || order.situacao} - Total: ${order.valor_total}`);
   });
