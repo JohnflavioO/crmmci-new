@@ -547,6 +547,7 @@ const ActionSchema = z.object({
   api_key: z.string().optional(),
   application_key: z.string().optional(),
   page: z.number().optional(),
+  full: z.boolean().optional(),
 });
 
 Deno.serve(async (req) => {
@@ -561,7 +562,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: false, error: 'Requisição inválida', details: parsed.error.flatten().fieldErrors }, 400);
     }
 
-    const { action, api_key, application_key, page } = parsed.data;
+    const { action, api_key, application_key, page, full } = parsed.data;
 
     // === AUTO_SYNC (called by cron, uses service role key from Authorization header) ===
     if (action === 'auto_sync') {
@@ -578,7 +579,8 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, message: 'No credentials configured, skipping auto-sync.' });
       }
 
-      const result = await importAllOrders(serviceClient, creds.createdBy, creds.apiKey, creds.applicationKey);
+      // Auto-sync is always incremental (full=false)
+      const result = await importAllOrders(serviceClient, creds.createdBy, creds.apiKey, creds.applicationKey, false);
       return jsonResponse(result);
     }
 
@@ -598,6 +600,7 @@ Deno.serve(async (req) => {
         connected: data?.status === 'connected',
         status: data?.status || 'disconnected',
         last_sync_at: data?.last_sync_at,
+        config: data?.config || {},
         has_credentials: !!data,
       });
     }
@@ -652,14 +655,14 @@ Deno.serve(async (req) => {
       return jsonResponse(result);
     }
 
-    // === IMPORT (full upsert) ===
+    // === IMPORT (incremental by default, unless full=true) ===
     if (action === 'import') {
       const serviceClient = getServiceClient();
       const creds = await fetchStoredCredentials(serviceClient);
       if (!creds) {
         return jsonResponse({ ok: false, error: 'Integração não configurada. Salve suas credenciais primeiro.' });
       }
-      const result = await importAllOrders(serviceClient, userId, creds.apiKey, creds.applicationKey);
+      const result = await importAllOrders(serviceClient, userId, creds.apiKey, creds.applicationKey, full || false);
       return jsonResponse(result);
     }
 
