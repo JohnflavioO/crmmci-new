@@ -75,6 +75,7 @@ export default function Integrations() {
       setStatus(data.status as IntegrationStatus || 'disconnected');
       setLastSync(data.last_sync_at);
       setHasCredentials(data.has_credentials);
+      if (data.config) setConfig(data.config);
     } catch {
       // ignore
     } finally {
