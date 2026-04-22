@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import { CalendarIcon, Clock, FileDown, BarChart3, Table2 } from 'lucide-react';
 import { format, differenceInDays, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -283,6 +284,35 @@ export default function Reports() {
     doc.save(`relatorio_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`);
   };
 
+  const handleExportCSV = () => {
+    if (!filteredQuotes.length) {
+      toast.error('Nenhum dado para exportar');
+      return;
+    }
+    const headers = ['Nº Orçamento', 'Cliente', 'Status', 'Valor', 'Data'];
+    const csvContent = [
+      headers.join(';'),
+      ...filteredQuotes.map(q => [
+        q.quote_number || '',
+        `"${q.clients?.company_name || q.client_name || ''}"`,
+        q.status === 'approved' ? 'Vendido' : q.status === 'rejected' ? 'Perdido' : q.status === 'sent' ? 'Enviado' : 'Rascunho',
+        (parseFloat(q.total_amount) || 0).toString().replace('.', ','),
+        q.created_at ? format(new Date(q.created_at), 'dd/MM/yyyy') : ''
+      ].join(';'))
+    ].join('\n');
+    
+    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `relatorio_negociacoes_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Planilha exportada com sucesso!');
+  };
+
   const ViewToggle = ({ view, setView }: { view: ChartView; setView: (v: ChartView) => void }) => (
     <div className="flex border rounded-md overflow-hidden">
       <button onClick={() => setView('chart')}
@@ -303,10 +333,16 @@ export default function Reports() {
           <h1 className="text-xl md:text-2xl font-bold font-display">Relatório de Negociações</h1>
           <p className="text-muted-foreground text-sm">Análise de desempenho de vendas</p>
         </div>
-        <Button onClick={handleExportPdf} variant="outline" className="gap-2 min-h-[44px]">
-          <FileDown className="h-4 w-4" />
-          Exportar PDF
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleExportCSV} variant="outline" className="gap-2 min-h-[44px]">
+            <Table2 className="h-4 w-4" />
+            Planilha (CSV)
+          </Button>
+          <Button onClick={handleExportPdf} variant="outline" className="gap-2 min-h-[44px]">
+            <FileDown className="h-4 w-4" />
+            Exportar PDF
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
