@@ -190,14 +190,18 @@ function buildQuoteData(
   
   const dataCriacao = orderData.data_criacao;
   
-  // Pagamento
-  const primeiroPagamento = orderData.pagamentos?.[0] || {};
+  // Pagamentos
+  const pagamentos = orderData.pagamentos || [];
+  const isSplitPayment = pagamentos.length >= 2;
+  
+  const primeiroPagamento = pagamentos[0] || {};
   const pagamentoNome = primeiroPagamento.forma_pagamento?.nome || '';
   const parcelas = parseInt(primeiroPagamento.numero_parcelas) || 1;
   const pagamentoStatus = primeiroPagamento.situacao?.nome || '';
   
   // Envio
-  const primeiroEnvio = orderData.envios?.[0] || {};
+  const envios = orderData.envios || [];
+  const primeiroEnvio = envios[0] || {};
   const formaEnvio = primeiroEnvio.forma_envio?.nome || '';
   const prazoEnvio = primeiroEnvio.prazo ? `${primeiroEnvio.prazo} dias` : '';
   const transportadora = primeiroEnvio.transportadora || '';
@@ -207,17 +211,27 @@ function buildQuoteData(
 
   const notesParts: string[] = [];
   notesParts.push(`[Importado da Loja Integrada]`);
+  notesParts.push(`Canal: Loja Integrada`);
   if (clienteEmail) notesParts.push(`Email: ${clienteEmail}`);
   if (clienteTelefone) notesParts.push(`Tel: ${clienteTelefone}`);
   if (clienteCpfCnpj) notesParts.push(`CPF/CNPJ: ${clienteCpfCnpj}`);
   if (orderData.numero_pedido_canal) notesParts.push(`Pedido canal: ${orderData.numero_pedido_canal}`);
-  if (pagamentoNome) notesParts.push(`Pagamento: ${pagamentoNome} (${parcelas}x) - ${pagamentoStatus}`);
+  
+  if (isSplitPayment) {
+    notesParts.push(`Pagamentos Mistos:`);
+    pagamentos.forEach((p: any, idx: number) => {
+      notesParts.push(`- Método ${idx + 1}: ${p.forma_pagamento?.nome} (${p.numero_parcelas}x) - R$ ${p.valor}`);
+    });
+  } else if (pagamentoNome) {
+    notesParts.push(`Pagamento: ${pagamentoNome} (${parcelas}x) - ${pagamentoStatus}`);
+  }
+  
   if (formaEnvio) notesParts.push(`Envio: ${formaEnvio} via ${transportadora}`);
   if (orderData.observacao) notesParts.push(`Obs Pedido: ${orderData.observacao}`);
 
   const mappedStatus = mapStatus(situacaoNome);
 
-  return {
+  const quoteData: any = {
     quote_number: quoteNumber || `LI-${externalId}`,
     client_name: clienteNome || `Pedido #${externalId}`,
     client_id: clientId,
@@ -225,13 +239,13 @@ function buildQuoteData(
     salesperson_id: userId,
     status: mappedStatus,
     total_amount: valorTotal,
-    total: valorSubtotal, // Valor sem frete e descontos? Ou subtotal?
+    total: valorSubtotal,
     shipping_cost: valorFrete,
     discount: valorDesconto,
-    payment_method: mapPaymentMethod(pagamentoNome),
+    payment_method: isSplitPayment ? null : mapPaymentMethod(pagamentoNome),
     payment_status: mappedStatus === 'approved' ? 'liquidado' : (mappedStatus === 'rejected' ? 'cancelado' : 'pendente'),
     payment_terms: pagamentoNome || null,
-    installments: parcelas,
+    installments: isSplitPayment ? 1 : parcelas,
     shipping_method: formaEnvio || null,
     shipping_deadline: prazoEnvio || null,
     notes: notesParts.join('\n'),
@@ -241,7 +255,7 @@ function buildQuoteData(
     created_by: userId,
     quote_date: dataCriacao ? new Date(dataCriacao).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     is_reseller: false,
-    is_split_payment: false,
+    is_split_payment: isSplitPayment,
     
     // Dados de endereço de entrega
     shipping_recipient: clienteNome,
@@ -255,6 +269,18 @@ function buildQuoteData(
     shipping_phone: clienteTelefone || null,
     use_alt_shipping_address: !!enderecoEntrega.endereco,
   };
+
+  if (isSplitPayment) {
+    quoteData.split_method_1 = mapPaymentMethod(pagamentos[0]?.forma_pagamento?.nome);
+    quoteData.split_value_1 = parseFloat(pagamentos[0]?.valor) || 0;
+    quoteData.split_installments_1 = parseInt(pagamentos[0]?.numero_parcelas) || 1;
+    
+    quoteData.split_method_2 = mapPaymentMethod(pagamentos[1]?.forma_pagamento?.nome);
+    quoteData.split_value_2 = parseFloat(pagamentos[1]?.valor) || 0;
+    quoteData.split_installments_2 = parseInt(pagamentos[1]?.numero_parcelas) || 1;
+  }
+
+  return quoteData;
 }
 
 async function findOrCreateClient(serviceClient: any, orderData: any, userId: string): Promise<string | null> {
