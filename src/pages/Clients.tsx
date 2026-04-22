@@ -344,77 +344,140 @@ export default function Clients() {
   const [importOpen, setImportOpen] = useState(false);
   const [sheetUrl, setSheetUrl] = useState('');
   const [importing, setImporting] = useState(false);
+  const [importStep, setImportStep] = useState<'url' | 'mapping'>('url');
+  const [importData, setImportData] = useState<any>(null);
+  const [mappings, setMappings] = useState<Record<string, string>>({});
 
-  const handleImportSheet = async () => {
+  const MAPPABLE_FIELDS = [
+    { value: 'company_name', label: 'Razão Social / Nome' },
+    { value: 'cpf_cnpj', label: 'CPF / CNPJ' },
+    { value: 'phone', label: 'Telefone' },
+    { value: 'email', label: 'E-mail' },
+    { value: 'city', label: 'Cidade' },
+    { value: 'state', label: 'Estado (UF)' },
+    { value: 'contact_name', label: 'Nome do Contato' },
+    { value: 'address', label: 'Endereço' },
+    { value: 'address_number', label: 'Número' },
+    { value: 'neighborhood', label: 'Bairro' },
+    { value: 'cep', label: 'CEP' },
+    { value: 'notes', label: 'Observações' },
+  ];
+
+  const handleFetchPreview = async () => {
     const url = sheetUrl.trim();
     if (!url) {
       toast.error('Cole o link da planilha do Google Sheets.');
       return;
     }
-    // Validate URL format before calling backend
-    if (!/^https?:\/\/docs\.google\.com\/spreadsheets\/d\/[A-Za-z0-9_-]+/.test(url)) {
-      toast.error('Link inválido', {
-        description: 'Use um link do Google Sheets no formato: https://docs.google.com/spreadsheets/d/...',
-      });
-      return;
+    
+    // Normalize common mistakes in Google Sheets URLs
+    let normalizedUrl = url;
+    if (url.includes('/edit') && !url.includes('/export')) {
+      // Just check if it's a valid docs link
     }
+
     setImporting(true);
     try {
       const { data, error } = await supabase.functions.invoke('import-clients-sheet', {
-        body: { url },
+        body: { url: normalizedUrl },
       });
-      console.log('[ImportSheet] response:', { data, error });
-      if (error) {
-        // Network/edge error
-        throw new Error(error.message || 'Falha de comunicação com o servidor de importação.');
-      }
-      if (!data?.success) {
-        throw new Error(data?.error || 'Não foi possível importar a planilha.');
-      }
-      if (!Array.isArray(data.clients) || data.clients.length === 0) {
-        toast.warning('Nenhum cliente encontrado na planilha.', {
-          description: 'Verifique se há linhas de dados abaixo do cabeçalho.',
+
+      if (error) throw new Error(error.message || 'Falha na comunicação.');
+      if (!data?.success) throw new Error(data?.error || 'Não foi possível ler a planilha.');
+
+      setImportData(data);
+      
+      // Initialize mappings from automatic detection
+      const initialMappings: Record<string, string> = {};
+      if (data.matched_columns) {
+        Object.entries(data.matched_columns).forEach(([field, colIdx]) => {
+          initialMappings[String(colIdx)] = field;
         });
+      }
+      setMappings(initialMappings);
+      setImportStep('mapping');
+    } catch (err: any) {
+      toast.error(err.message, {
+        description: "Certifique-se que a planilha está pública (Qualquer pessoa com o link)."
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleExecuteImport = async () => {
+    if (!importData || !importData.rows) return;
+    
+    setImporting(true);
+    try {
+      const mappedEntries = Object.entries(mappings).filter(([_, field]) => field !== 'ignore');
+      const mappedFields = mappedEntries.map(([_, field]) => field);
+      
+      if (!mappedFields.includes('company_name')) {
+        toast.error('Associe uma coluna ao campo "Razão Social / Nome".');
         setImporting(false);
         return;
       }
 
-      const validFields = [
-        'company_name', 'cpf_cnpj', 'city', 'state', 'phone', 'email',
-        'contact_name', 'address', 'address_number', 'complement',
-        'neighborhood', 'cep', 'contact_phone', 'contrib_icms', 'notes'
-      ];
-      
-      const clientsToInsert = data.clients.map((c: any) => {
-        const clean: Record<string, any> = {};
-        for (const field of validFields) {
-          if (c[field]) clean[field] = c[field];
+      if (!mappedFields.includes('phone') && !mappedFields.includes('email')) {
+        toast.warning('Atenção: Nenhuma coluna de Telefone ou E-mail foi mapeada.', {
+          description: 'Isso pode dificultar o contato com os clientes importados.'
+        });
+      }
+
+      const clientsToInsert = importData.rows.map((row: string[]) => {
+        const client: any = {
+          created_by: user?.id,
+          is_revenda: false,
+          is_whatsapp: false
+        };
+
+        mappedEntries.forEach(([colIdx, field]) => {
+          const idx = parseInt(colIdx);
+          if (idx < row.length && row[idx]) {
+            client[field] = row[idx].trim();
+          }
+        });
+
+        // Ensure name is always set
+        client.name = client.company_name || '';
+        
+        // Detect WhatsApp if phone is present
+        if (client.phone || client.contact_phone) {
+          client.is_whatsapp = detectWhatsApp(client.phone || '') || detectWhatsApp(client.contact_phone || '');
         }
-        clean.name = c.company_name || c.name || '';
-        clean.created_by = user?.id;
-        clean.is_whatsapp = detectWhatsApp(c.phone || '') || detectWhatsApp(c.contact_phone || '');
-        return clean;
-      });
+
+        return client;
+      }).filter((c: any) => c.company_name || c.phone || c.email);
+
+      if (clientsToInsert.length === 0) {
+        throw new Error('Nenhum dado válido encontrado para importar com o mapeamento atual.');
+      }
 
       const { data: insertData, error: insertErr } = await db.from('clients').insert(clientsToInsert).select('id');
       
-      if (insertErr) {
-        console.error('Erro ao inserir clientes em massa:', insertErr);
-        throw new Error('Falha ao salvar os clientes importados.');
-      }
+      if (insertErr) throw insertErr;
 
-      const inserted = insertData?.length || 0;
-      const matchedFields = Object.keys(data.matched_columns || {});
-      toast.success(`${inserted} clientes importados! Campos mapeados: ${matchedFields.join(', ')}`, { duration: 6000 });
-
+      toast.success(`${insertData?.length || 0} clientes importados!`, {
+        description: "Os dados foram salvos com sucesso."
+      });
+      
       setImportOpen(false);
-      setSheetUrl('');
+      resetImport();
       loadClients();
     } catch (err: any) {
-      toast.error(err.message);
+      console.error('[Import] Execution error:', err);
+      toast.error(err.message || 'Erro ao salvar os clientes.');
     } finally {
       setImporting(false);
     }
+  };
+
+  const resetImport = () => {
+    setImportStep('url');
+    setSheetUrl('');
+    setImportData(null);
+    setMappings({});
   };
 
   useEffect(() => {
@@ -450,30 +513,101 @@ export default function Clients() {
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2 min-h-[44px]"><Upload className="h-4 w-4" /> Importar</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className={importStep === 'mapping' ? "max-w-3xl max-h-[90vh] overflow-y-auto" : ""}>
               <DialogHeader>
-                <DialogTitle>Importar Clientes</DialogTitle>
+                <DialogTitle>{importStep === 'url' ? 'Importar Clientes' : 'Mapear Colunas'}</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 mt-4">
-                <p className="text-sm text-muted-foreground">
-                  Cole o link da sua planilha Google compartilhada.
-                </p>
-                <div className="space-y-2">
-                  <Label>Link da Planilha</Label>
-                  <Input
-                    placeholder="https://docs.google.com/spreadsheets/d/..."
-                    value={sheetUrl}
-                    onChange={e => setSheetUrl(e.target.value)}
-                    inputMode="url"
-                  />
+              
+              {importStep === 'url' ? (
+                <div className="space-y-4 mt-4">
+                  <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-800">
+                    <p className="font-semibold mb-1">Como preparar sua planilha:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>Clique em <strong>Compartilhar</strong> no Google Sheets</li>
+                      <li>Mude para <strong>Qualquer pessoa com o link</strong></li>
+                      <li>Copie o link da aba que deseja importar</li>
+                      <li>Cole o link abaixo</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Link da Planilha Google</Label>
+                    <Input
+                      placeholder="https://docs.google.com/spreadsheets/d/..."
+                      value={sheetUrl}
+                      onChange={e => setSheetUrl(e.target.value)}
+                      inputMode="url"
+                    />
+                  </div>
+                  
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => { setImportOpen(false); resetImport(); }} className="min-h-[44px]">Cancelar</Button>
+                    <Button onClick={handleFetchPreview} disabled={importing || !sheetUrl.trim()} className="min-h-[44px] gap-2">
+                      {importing ? <><Loader2 className="h-4 w-4 animate-spin" /> Analisando...</> : 'Analisar Planilha'}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setImportOpen(false)} className="min-h-[44px]">Cancelar</Button>
-                  <Button onClick={handleImportSheet} disabled={importing || !sheetUrl.trim()} className="min-h-[44px]">
-                    {importing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Importando...</> : 'Importar'}
-                  </Button>
+              ) : (
+                <div className="space-y-6 mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Encontramos {importData?.rows?.length || 0} registros. Associe as colunas da sua planilha aos campos do sistema.
+                  </p>
+                  
+                  <div className="border rounded-md">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[200px]">Coluna na Planilha</TableHead>
+                          <TableHead>Campo no Sistema</TableHead>
+                          <TableHead className="hidden sm:table-cell">Exemplo de dado</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {importData?.headers?.map((header: string, idx: number) => (
+                          <TableRow key={idx}>
+                            <TableCell className="font-medium truncate max-w-[200px]" title={header}>
+                              {header || `(Coluna ${idx + 1})`}
+                            </TableCell>
+                            <TableCell>
+                              <Select 
+                                value={mappings[String(idx)] || "ignore"} 
+                                onValueChange={(val) => setMappings(prev => ({ ...prev, [String(idx)]: val }))}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Ignorar" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="ignore">--- Ignorar coluna ---</SelectItem>
+                                  {MAPPABLE_FIELDS.map(field => (
+                                    <SelectItem key={field.value} value={field.value}>
+                                      {field.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-xs hidden sm:table-cell truncate max-w-[150px]">
+                              {importData.rows[0]?.[idx] || "-"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  <div className="flex justify-between items-center gap-2">
+                    <Button variant="ghost" onClick={() => setImportStep('url')} disabled={importing}>
+                      Voltar
+                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={() => { setImportOpen(false); resetImport(); }} className="min-h-[44px]">Cancelar</Button>
+                      <Button onClick={handleExecuteImport} disabled={importing} className="min-h-[44px] gap-2 bg-green-600 hover:bg-green-700">
+                        {importing ? <><Loader2 className="h-4 w-4 animate-spin" /> Importando...</> : 'Confirmar Importação'}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </DialogContent>
           </Dialog>
           <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingClient(null); setForm(emptyClient); } }}>

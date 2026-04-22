@@ -219,6 +219,42 @@ export type Database = {
           },
         ]
       }
+      import_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string | null
+          metadata: Json | null
+          records_count: number | null
+          source_url: string | null
+          status: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+          records_count?: number | null
+          source_url?: string | null
+          status: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+          records_count?: number | null
+          source_url?: string | null
+          status?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       integrations: {
         Row: {
           api_key: string | null
