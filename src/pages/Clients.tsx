@@ -525,7 +525,8 @@ export default function Clients() {
                     <ul className="list-disc list-inside space-y-1">
                       <li>Clique em <strong>Compartilhar</strong> no Google Sheets</li>
                       <li>Mude para <strong>Qualquer pessoa com o link</strong></li>
-                      <li>Copie o link e cole abaixo</li>
+                      <li>Copie o link da aba que deseja importar</li>
+                      <li>Cole o link abaixo</li>
                     </ul>
                   </div>
                   
