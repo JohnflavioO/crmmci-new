@@ -37,8 +37,10 @@ export default function Integrations() {
   const [showAppKey, setShowAppKey] = useState(false);
   const [status, setStatus] = useState<IntegrationStatus>('disconnected');
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [config, setConfig] = useState<any>({});
   const [hasCredentials, setHasCredentials] = useState(false);
   const [loading, setLoading] = useState(false);
+  
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -47,7 +49,7 @@ export default function Integrations() {
   const [totalOrders, setTotalOrders] = useState(0);
   const [syncPage, setSyncPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
-  const [importResult, setImportResult] = useState<{ imported: number; updated: number; skipped: number; errors: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ imported: number; updated: number; skipped: number; errors: number; last_order_id?: string } | null>(null);
 
   useEffect(() => {
     if (isAdmin) loadStatus();
@@ -74,6 +76,7 @@ export default function Integrations() {
       setStatus(data.status as IntegrationStatus || 'disconnected');
       setLastSync(data.last_sync_at);
       setHasCredentials(data.has_credentials);
+      if (data.config) setConfig(data.config);
     } catch {
       // ignore
     } finally {
@@ -138,19 +141,35 @@ export default function Integrations() {
     }
   };
 
-  const handleImport = async () => {
+  const handleImport = async (full = false) => {
     setImporting(true);
     setStatus('syncing');
     try {
-      const data = await callFunction({ action: 'import' });
-      setImportResult({ imported: data.imported, updated: data.updated || 0, skipped: data.skipped, errors: data.errors });
+      const data = await callFunction({ action: 'import', full });
+      setImportResult({ 
+        imported: data.imported, 
+        updated: data.updated || 0, 
+        skipped: data.skipped, 
+        errors: data.errors,
+        last_order_id: data.last_order_id
+      });
+      
+      // Update local status/config
       setStatus('connected');
       setLastSync(new Date().toISOString());
+      
+      // Refresh status to get updated config
+      await loadStatus();
+
       const parts: string[] = [];
       if (data.imported > 0) parts.push(`${data.imported} novos importados`);
       if (data.updated > 0) parts.push(`${data.updated} atualizados`);
       if (data.skipped > 0) parts.push(`${data.skipped} sem alteração`);
-      toast.success(`Importação concluída! ${parts.join(', ')}.`);
+      
+      toast.success(full ? `Importação completa concluída!` : `Sincronização incremental concluída!`);
+      if (parts.length > 0) {
+        toast.info(parts.join(', '));
+      }
       if (data.errors > 0) {
         toast.warning(`${data.errors} pedidos com erro na importação.`);
       }
@@ -200,11 +219,23 @@ export default function Integrations() {
           </CardHeader>
 
           <CardContent className="space-y-6">
-            {lastSync && (
-              <p className="text-xs text-muted-foreground">
-                Última sincronização: {new Date(lastSync).toLocaleString('pt-BR')}
-              </p>
-            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {lastSync && (
+                <div className="p-3 rounded-lg border bg-muted/30">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Última Sincronização Real</p>
+                  <p className="text-sm font-medium">{new Date(lastSync).toLocaleString('pt-BR')}</p>
+                </div>
+              )}
+              {config?.last_order_id && (
+                <div className="p-3 rounded-lg border bg-muted/30">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Último Pedido Sincronizado</p>
+                  <p className="text-sm font-medium">#{config.last_order_id}</p>
+                  {config.last_order_date && (
+                    <p className="text-[10px] text-muted-foreground">de {new Date(config.last_order_date).toLocaleString('pt-BR')}</p>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Credentials form */}
             <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
@@ -279,26 +310,29 @@ export default function Integrations() {
                       {syncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
                       Visualizar pedidos
                     </Button>
-                    <Button size="sm" onClick={handleImport} disabled={importing || syncing}>
+                    <Button size="sm" onClick={() => handleImport(false)} disabled={importing || syncing} className="bg-primary hover:bg-primary/90">
                       {importing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
-                      Importar para Orçamentos
+                      Sincronizar Novos Pedidos
                     </Button>
                   </div>
                 </div>
 
-                <p className="text-xs text-muted-foreground">
-                  A sincronização automática roda a cada 30 minutos. Use o botão para importar manualmente.
+                <p className="text-xs text-muted-foreground flex justify-between items-center">
+                  <span>A sincronização incremental busca apenas novas vendas. Use o botão acima para atualizar o CRM.</span>
+                  <Button variant="link" size="sm" className="h-auto p-0 text-[10px]" onClick={() => handleImport(true)} disabled={importing || syncing}>
+                    Forçar Importação Completa (Histórico)
+                  </Button>
                 </p>
 
                 {importResult && (
                   <div className="p-3 rounded-lg border bg-muted/30 text-sm space-y-1">
                     <p className="font-medium">Resultado da última importação:</p>
-                    {importResult.imported > 0 && <p className="text-emerald-600">✓ {importResult.imported} pedidos novos importados</p>}
-                    {importResult.updated > 0 && <p className="text-blue-600">↻ {importResult.updated} pedidos atualizados</p>}
+                    {importResult.imported > 0 && <p className="text-emerald-600">✓ {importResult.imported} novos pedidos importados para Orçamentos</p>}
+                    {importResult.updated > 0 && <p className="text-blue-600">↻ {importResult.updated} pedidos existentes atualizados</p>}
                     {importResult.skipped > 0 && <p className="text-muted-foreground">⊘ {importResult.skipped} sem alteração</p>}
                     {importResult.errors > 0 && <p className="text-destructive">✗ {importResult.errors} com erro</p>}
                     {importResult.imported === 0 && importResult.updated === 0 && importResult.errors === 0 && (
-                      <p className="text-muted-foreground">Todos os pedidos já estão sincronizados.</p>
+                      <p className="text-muted-foreground">Nenhum pedido novo encontrado.</p>
                     )}
                   </div>
                 )}
