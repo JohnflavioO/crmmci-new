@@ -140,19 +140,35 @@ export default function Integrations() {
     }
   };
 
-  const handleImport = async () => {
+  const handleImport = async (full = false) => {
     setImporting(true);
     setStatus('syncing');
     try {
-      const data = await callFunction({ action: 'import' });
-      setImportResult({ imported: data.imported, updated: data.updated || 0, skipped: data.skipped, errors: data.errors });
+      const data = await callFunction({ action: 'import', full });
+      setImportResult({ 
+        imported: data.imported, 
+        updated: data.updated || 0, 
+        skipped: data.skipped, 
+        errors: data.errors,
+        last_order_id: data.last_order_id
+      });
+      
+      // Update local status/config
       setStatus('connected');
       setLastSync(new Date().toISOString());
+      
+      // Refresh status to get updated config
+      await loadStatus();
+
       const parts: string[] = [];
       if (data.imported > 0) parts.push(`${data.imported} novos importados`);
       if (data.updated > 0) parts.push(`${data.updated} atualizados`);
       if (data.skipped > 0) parts.push(`${data.skipped} sem alteração`);
-      toast.success(`Importação concluída! ${parts.join(', ')}.`);
+      
+      toast.success(full ? `Importação completa concluída!` : `Sincronização incremental concluída!`);
+      if (parts.length > 0) {
+        toast.info(parts.join(', '));
+      }
       if (data.errors > 0) {
         toast.warning(`${data.errors} pedidos com erro na importação.`);
       }
