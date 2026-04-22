@@ -406,58 +406,62 @@ export default function Clients() {
   };
 
   const handleExecuteImport = async () => {
-    if (!importData) return;
+    if (!importData || !importData.rows) return;
     
     setImporting(true);
     try {
-      // Validate minimal fields
-      const mappedValues = Object.values(mappings);
-      if (!mappedValues.includes('company_name')) {
-        throw new Error('Você precisa mapear pelo menos a coluna de "Razão Social / Nome".');
+      // Validate minimal fields (check against mappings state)
+      const mappedFields = Object.values(mappings);
+      if (!mappedFields.includes('company_name')) {
+        toast.error('O mapeamento da Razão Social / Nome é obrigatório.');
+        setImporting(false);
+        return;
       }
 
-      const clientsToInsert = importData.clients.map((rawClient: any) => {
+      // Reverse mappings for easier lookup: colIdx -> fieldName
+      const clientsToInsert = importData.rows.map((row: string[]) => {
         const client: any = {
           created_by: user?.id,
-          is_revenda: false
+          is_revenda: false,
+          is_whatsapp: false
         };
 
-        // If we have clients pre-mapped from edge function, we might need to re-map based on user choices
-        // Actually, the edge function returns 'clients' already mapped based on its best guess.
-        // If the user changed mappings, we should probably re-extract from rows if available.
-        // But the edge function returns 'clients' which are objects.
-        // If the user changes mapping, we should ideally use the 'rows' from the edge function.
-        
-        // Re-mapping logic using headers and raw data if available, 
-        // but for simplicity, if we trust the edge function's initial mapping + user overrides:
-        
-        // Let's assume we use the raw data if we want full flexibility.
-        // The edge function should return raw rows for this. It returns 'clients' which is already mapped.
-        // Wait, if I want to support user mapping, I should have the raw rows.
-        // The edge function returns 'clients'. Let's see if I can use it.
-      });
+        Object.entries(mappings).forEach(([colIdx, field]) => {
+          const idx = parseInt(colIdx);
+          if (idx < row.length && row[idx]) {
+            client[field] = row[idx].trim();
+          }
+        });
 
-      // Actually, let's simplify: if the user mapping is different, we should re-process.
-      // I'll update the edge function to return the raw rows and headers.
-      // It already returns 'headers' and 'sample_rows'.
-      
-      // For now, let's just use the clients as they came if the user didn't change much,
-      // or implement a more robust re-mapping here.
-      
-      // Let's re-map based on the mapping state and the original clients' raw data if we had it.
-      // Since 'importData.clients' are already objects, it's hard to re-map.
-      // Let's adjust the edge function to return the full rows.
-      
-      const { data: insertData, error: insertErr } = await db.from('clients').insert(importData.clients).select('id');
+        // Ensure name is always set
+        client.name = client.company_name || '';
+        
+        // Detect WhatsApp
+        if (client.phone || client.contact_phone) {
+          client.is_whatsapp = detectWhatsApp(client.phone || '') || detectWhatsApp(client.contact_phone || '');
+        }
+
+        return client;
+      }).filter((c: any) => c.company_name || c.phone || c.email);
+
+      if (clientsToInsert.length === 0) {
+        throw new Error('Nenhum dado válido encontrado para importar com o mapeamento atual.');
+      }
+
+      const { data: insertData, error: insertErr } = await db.from('clients').insert(clientsToInsert).select('id');
       
       if (insertErr) throw insertErr;
 
-      toast.success(`${insertData?.length || 0} clientes importados com sucesso!`);
+      toast.success(`${insertData?.length || 0} clientes importados com sucesso!`, {
+        description: "Os dados foram salvos no seu CRM."
+      });
+      
       setImportOpen(false);
       resetImport();
       loadClients();
     } catch (err: any) {
-      toast.error(err.message);
+      console.error('[Import] Execution error:', err);
+      toast.error(err.message || 'Erro ao salvar os clientes.');
     } finally {
       setImporting(false);
     }
