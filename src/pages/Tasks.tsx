@@ -283,7 +283,7 @@ export default function Tasks() {
   const concluidas = tasks.filter(t => t.status === 'concluida').length;
   const atrasadas = tasks.filter(t => t.status === 'atrasada').length;
 
-  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+  const formatDate = (d: string | null) => d ? new Date(d.includes('T') ? d : d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: d.includes('T') ? '2-digit' : undefined, minute: d.includes('T') ? '2-digit' : undefined }) : '-';
   const formatCurrency = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
   return (
