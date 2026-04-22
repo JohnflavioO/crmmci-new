@@ -175,6 +175,35 @@ export default function Quotes() {
   const [productSearch, setProductSearch] = useState<Record<number, string>>({});
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
   const [chatQuote, setChatQuote] = useState<{ id: string; number: string } | null>(null);
+  const [cepLoading, setCepLoading] = useState(false);
+
+  const handleShippingCepChange = async (value: string) => {
+    const cleanCep = value.replace(/\D/g, '');
+    setForm(p => ({ ...p, shipping_cep: value }));
+    
+    if (cleanCep.length === 8) {
+      setCepLoading(true);
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        if (!res.ok) throw new Error('Falha na resposta da API');
+        const data = await res.json();
+        if (!data.erro) {
+          setForm(prev => ({
+            ...prev,
+            shipping_address: data.logradouro || prev.shipping_address,
+            shipping_neighborhood: data.bairro || prev.shipping_neighborhood,
+            shipping_city: data.localidade || prev.shipping_city,
+            shipping_state: data.uf || prev.shipping_state,
+          }));
+          toast.success('Endereço de entrega preenchido!');
+        }
+      } catch (err) {
+        console.error('CEP lookup error:', err);
+      } finally {
+        setCepLoading(false);
+      }
+    }
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -188,8 +217,9 @@ export default function Quotes() {
       }
 
       const [q, c, s, p] = await Promise.all([
-        db.from('quotes').select('*, clients(company_name, phone)')
-          .order('created_at', { ascending: false }),
+        isAdmin || isGestor
+          ? db.from('quotes').select('*, clients(company_name, phone)').order('created_at', { ascending: false })
+          : db.from('quotes').select('*, clients(company_name, phone)').eq('created_by', user.id).order('created_at', { ascending: false }),
         db.from('clients').select('id, company_name, name, is_revenda, contrib_icms').eq('created_by', user.id).order('company_name'),
         db.from('salespeople').select('*').eq('active', true).order('name'),
         db.from('products').select('id, name, brand, code, price, description, image_url').order('name'),
@@ -293,10 +323,11 @@ export default function Quotes() {
   };
 
   const handleSave = async () => {
-    if (saving) return; // prevent double-click
+    if (saving) {
+      console.log('[Quotes.handleSave] Blocked: already saving');
+      return;
+    }
 
-    // Safety net: if anything keeps `saving` true for too long, force-release it.
-    // This prevents the dialog from staying frozen on "Salvando..." when a network call hangs.
     const watchdog = setTimeout(() => {
       console.warn('[Quotes.handleSave] Watchdog fired — forcing saving=false (network likely stalled)');
       setSavingFlag(false);
@@ -424,7 +455,8 @@ export default function Quotes() {
       toast.success(editingQuote ? 'Orçamento atualizado!' : 'Orçamento criado!');
       setDialogOpen(false);
       resetForm();
-      loadData();
+      // Delay reload slightly to allow DB consistency
+      setTimeout(() => loadData(), 500);
     } catch (err: any) {
       console.error('[Quotes.handleSave] Unhandled error:', err);
       const msg = err?.message || err?.error_description || err?.hint || 'Erro inesperado ao salvar o orçamento.';
@@ -990,7 +1022,7 @@ export default function Quotes() {
                     <div className="space-y-1 md:col-span-3">
                       <Label className="text-xs">CEP</Label>
                       <Input value={form.shipping_cep} maxLength={10}
-                        onChange={e => setForm(p => ({ ...p, shipping_cep: e.target.value }))}
+                        onChange={e => handleShippingCepChange(e.target.value)}
                         placeholder="00000-000" />
                     </div>
                     <div className="space-y-1 md:col-span-7">

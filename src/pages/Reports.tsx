@@ -29,10 +29,10 @@ const formatCurrency = (v: number) =>
 
 export default function Reports() {
   const { user, isGestor, isAdmin } = useAuth();
-  const canSeeAll = false;
+  const canSeeAll = isAdmin || isGestor;
 
 
-  const sellers: SellerInfo[] = [];
+  const [sellers, setSellers] = useState<SellerInfo[]>([]);
   const [selectedSeller, setSelectedSeller] = useState<string>('mine');
   const [quotes, setQuotes] = useState<any[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -49,10 +49,25 @@ export default function Reports() {
   const [dealsView, setDealsView] = useState<ChartView>('chart');
 
   useEffect(() => {
+    const loadSellers = async () => {
+      if (!canSeeAll) return;
+      const { data } = await db.from('profiles').select('user_id, full_name').eq('active', true);
+      setSellers(data || []);
+    };
+    loadSellers();
+  }, [canSeeAll]);
+
+  useEffect(() => {
     const load = async () => {
       let query = db.from('quotes')
-        .select('*, clients(company_name), quote_items(quantity, description, unit_price, line_total)')
-        .eq('created_by', user?.id);
+        .select('*, clients(company_name), quote_items(quantity, description, unit_price, line_total)');
+      
+      if (!canSeeAll || selectedSeller === 'mine') {
+        query = query.eq('created_by', user?.id);
+      } else if (selectedSeller !== 'all') {
+        query = query.eq('created_by', selectedSeller);
+      }
+
       if (dateRange?.from) query = query.gte('created_at', dateRange.from.toISOString());
       if (dateRange?.to) {
         const end = new Date(dateRange.to);
@@ -63,7 +78,7 @@ export default function Reports() {
       setQuotes(data || []);
     };
     load();
-  }, [dateRange, user?.id]);
+  }, [dateRange, user?.id, canSeeAll, selectedSeller]);
 
   const filteredQuotes = useMemo(() => {
     return quotes;

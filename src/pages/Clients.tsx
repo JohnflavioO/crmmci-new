@@ -68,51 +68,64 @@ export default function Clients() {
   const [form, setForm] = useState(emptyClient);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
-  const sellers: SellerInfo[] = [];
+  const [sellers, setSellers] = useState<SellerInfo[]>([]);
+  const { isAdmin, isGestor } = useAuth();
+  const canSeeAll = isAdmin || isGestor;
   const [cnpjLoading, setCnpjLoading] = useState(false);
 
-  const canSeeAll = false;
-
   const loadClients = useCallback(async () => {
-    if (!user?.id) {
-      setAllClients([]);
-      return;
+    if (!user?.id) return;
+    try {
+      let query = db.from('clients').select('*');
+      if (!canSeeAll) {
+        query = query.eq('created_by', user.id);
+      }
+      const { data, error } = await query.order('company_name');
+      if (error) throw error;
+      setAllClients((data as any[]) || []);
+    } catch (err: any) {
+      console.error('loadClients error:', err);
     }
-
-    const { data } = await db
-      .from('clients')
-      .select('*')
-      .eq('created_by', user.id)
-      .order('company_name');
-
-    setAllClients((data as any[]) || []);
-  }, [user?.id]);
+  }, [user?.id, canSeeAll]);
 
   const loadQuotes = useCallback(async () => {
-    if (!user?.id) {
-      setAllQuotes([]);
-      return;
+    if (!user?.id) return;
+    try {
+      let query = db.from('quotes').select('id, client_id, status, created_at');
+      if (!canSeeAll) {
+        query = query.eq('created_by', user.id);
+      }
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (error) throw error;
+      setAllQuotes((data as any[]) || []);
+    } catch (err: any) {
+      console.error('loadQuotes error:', err);
     }
+  }, [user?.id, canSeeAll]);
 
-    const { data } = await db
-      .from('quotes')
-      .select('id, client_id, status, created_at')
-      .eq('created_by', user.id)
-      .order('created_at', { ascending: false });
-
-    setAllQuotes((data as any[]) || []);
-  }, [user?.id]);
+  const loadSellers = useCallback(async () => {
+    if (!canSeeAll) return;
+    try {
+      const { data, error } = await db.from('profiles').select('user_id, full_name').eq('active', true);
+      if (error) throw error;
+      setSellers(data || []);
+    } catch (err: any) {
+      console.error('loadSellers error:', err);
+    }
+  }, [canSeeAll]);
 
   useEffect(() => {
     if (!user?.id) {
       setAllClients([]);
       setAllQuotes([]);
+      setSellers([]);
       return;
     }
 
     loadClients();
     loadQuotes();
-  }, [loadClients, loadQuotes, user?.id]);
+    loadSellers();
+  }, [loadClients, loadQuotes, loadSellers, user?.id]);
 
   // Advanced filters hook
   const {
@@ -287,21 +300,20 @@ export default function Clients() {
   };
 
   const handleCepChange = async (value: string) => {
-    console.log('[CEP] Evento disparado:', value);
-    console.log('[CEP] Rota atual:', window.location.pathname);
     const cleanCep = value.replace(/\D/g, '');
     updateForm('cep', value);
     
-    if (cleanCep.length === 8) {
+    // Only fetch if it's exactly 8 digits and we are still in the dialog
+    if (cleanCep.length === 8 && dialogOpen) {
       console.log('[CEP] Buscando endereço para:', cleanCep);
       try {
         const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
         if (!res.ok) throw new Error('Falha na resposta da API');
         
         const data = await res.json();
-        console.log('[CEP] Retorno da consulta:', data);
         
-        if (!data.erro) {
+        // Safety check: only update if dialog is still open
+        if (!data.erro && dialogOpen) {
           setForm(prev => ({
             ...prev,
             address: data.logradouro || prev.address,
@@ -311,13 +323,13 @@ export default function Clients() {
             complement: data.complemento || prev.complement,
           }));
           toast.success('Endereço preenchido automaticamente!');
-        } else {
+        } else if (data.erro) {
           console.warn('[CEP] CEP não encontrado');
           toast.info('CEP não encontrado. Preencha o endereço manualmente.');
         }
       } catch (err: any) {
         console.error('[CEP] Erro na consulta:', err);
-        toast.error('Erro ao consultar CEP. Preencha manualmente.');
+        // Silent fail if it's just a network issue during typing
       }
     }
   };
@@ -379,26 +391,22 @@ export default function Clients() {
           if (c[field]) clean[field] = c[field];
         }
         clean.name = c.company_name || c.name || '';
-        clean.created_by = user?.id || '';
+        clean.created_by = user?.id;
         clean.is_whatsapp = detectWhatsApp(c.phone || '') || detectWhatsApp(c.contact_phone || '');
         return clean;
       });
 
-      let inserted = 0;
-      let errors = 0;
-      for (const client of clientsToInsert) {
-        const { error: insertErr } = await db.from('clients').insert(client);
-        if (!insertErr) inserted++;
-        else {
-          errors++;
-          console.error('Erro ao inserir cliente:', client.company_name, insertErr);
-        }
+      const { data: insertData, error: insertErr } = await db.from('clients').insert(clientsToInsert).select('id');
+      
+      if (insertErr) {
+        console.error('Erro ao inserir clientes em massa:', insertErr);
+        throw new Error('Falha ao salvar os clientes importados.');
       }
 
+      const inserted = insertData?.length || 0;
       const matchedFields = Object.keys(data.matched_columns || {});
       toast.success(`${inserted} clientes importados! Campos mapeados: ${matchedFields.join(', ')}`, { duration: 6000 });
-      if (errors > 0) toast.warning(`${errors} clientes não puderam ser importados`);
-      
+
       setImportOpen(false);
       setSheetUrl('');
       loadClients();
