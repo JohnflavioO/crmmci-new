@@ -21,6 +21,7 @@ async function fetchOrders() {
   }
 
   const data = await response.json();
+  console.log(`Total orders in API: ${data.meta?.total_count}`);
   console.log('Latest orders from Loja Integrada:');
   data.objects.forEach(order => {
     console.log(`Order #${order.numero} - Date: ${order.data_criacao} - Status: ${order.situacao?.nome || order.situacao} - Total: ${order.valor_total}`);
