@@ -109,10 +109,22 @@ async function testConnection(apiKey: string, applicationKey: string) {
 function mapStatus(situacao: string | undefined): string {
   if (!situacao) return 'draft';
   const s = situacao.toLowerCase();
-  if (s.includes('aprovado') || s.includes('completo') || s.includes('pago')) return 'approved';
-  if (s.includes('cancelado')) return 'rejected';
-  if (s.includes('enviado') || s.includes('entregue')) return 'approved';
-  if (s.includes('aguardando') || s.includes('pendente')) return 'sent';
+  
+  // Mapeamento para o CRM interno (draft, sent, approved, rejected)
+  if (s.includes('aprovado') || s.includes('pago') || s.includes('separação') || 
+      s.includes('enviado') || s.includes('entregue') || s.includes('concluído') || 
+      s.includes('pronto') || s.includes('separado')) {
+    return 'approved';
+  }
+  
+  if (s.includes('cancelado') || s.includes('devolvido') || s.includes('extornado')) {
+    return 'rejected';
+  }
+  
+  if (s.includes('aguardando') || s.includes('pendente') || s.includes('análise')) {
+    return 'sent';
+  }
+  
   return 'draft';
 }
 
@@ -120,7 +132,7 @@ function mapPaymentMethod(method: string | undefined): string | null {
   if (!method) return null;
   const m = method.toLowerCase();
   if (m.includes('pix')) return 'pix';
-  if (m.includes('cart') || m.includes('credito') || m.includes('débito')) return 'cartao';
+  if (m.includes('cart') || m.includes('credito') || m.includes('crédito') || m.includes('débito') || m.includes('debito') || m.includes('visa') || m.includes('master') || m.includes('elo') || m.includes('amex')) return 'cartao';
   if (m.includes('boleto')) return 'boleto';
   return null;
 }
@@ -165,26 +177,61 @@ function buildQuoteData(
   quoteNumber: string | null
 ) {
   const situacaoNome = orderData.situacao?.nome || orderData.situacao || '';
-  const clienteNome = orderData.cliente?.nome || '';
-  const clienteEmail = orderData.cliente?.email || '';
-  const clienteTelefone = orderData.cliente?.telefone_principal || '';
-  const clienteCpfCnpj = orderData.cliente?.cpf || orderData.cliente?.cnpj || '';
+  const cliente = orderData.cliente || {};
+  const clienteNome = cliente.nome || '';
+  const clienteEmail = cliente.email || '';
+  const clienteTelefone = cliente.telefone_principal || cliente.telefone_celular || '';
+  const clienteCpfCnpj = cliente.cpf || cliente.cnpj || '';
+  
   const valorTotal = parseFloat(orderData.valor_total) || 0;
   const valorFrete = parseFloat(orderData.valor_envio) || 0;
   const valorDesconto = parseFloat(orderData.valor_desconto) || 0;
+  const valorSubtotal = parseFloat(orderData.valor_subtotal) || (valorTotal - valorFrete + valorDesconto);
+  
   const dataCriacao = orderData.data_criacao;
-  const pagamento = orderData.pagamentos?.[0]?.forma_pagamento?.nome || '';
+  
+  // Pagamentos
+  const pagamentos = orderData.pagamentos || [];
+  const isSplitPayment = pagamentos.length >= 2;
+  
+  const primeiroPagamento = pagamentos[0] || {};
+  const pagamentoNome = primeiroPagamento.forma_pagamento?.nome || '';
+  const parcelas = parseInt(primeiroPagamento.numero_parcelas) || 1;
+  const pagamentoStatus = primeiroPagamento.situacao?.nome || '';
+  
+  // Envio
+  const envios = orderData.envios || [];
+  const primeiroEnvio = envios[0] || {};
+  const formaEnvio = primeiroEnvio.forma_envio?.nome || '';
+  const prazoEnvio = primeiroEnvio.prazo ? `${primeiroEnvio.prazo} dias` : '';
+  const transportadora = primeiroEnvio.transportadora || '';
+  
+  // Endereço de entrega
+  const enderecoEntrega = orderData.endereco_entrega || {};
 
   const notesParts: string[] = [];
+  notesParts.push(`[Importado da Loja Integrada]`);
+  notesParts.push(`Canal: Loja Integrada`);
   if (clienteEmail) notesParts.push(`Email: ${clienteEmail}`);
   if (clienteTelefone) notesParts.push(`Tel: ${clienteTelefone}`);
   if (clienteCpfCnpj) notesParts.push(`CPF/CNPJ: ${clienteCpfCnpj}`);
   if (orderData.numero_pedido_canal) notesParts.push(`Pedido canal: ${orderData.numero_pedido_canal}`);
-  if (orderData.observacao) notesParts.push(`Obs: ${orderData.observacao}`);
+  
+  if (isSplitPayment) {
+    notesParts.push(`Pagamentos Mistos:`);
+    pagamentos.forEach((p: any, idx: number) => {
+      notesParts.push(`- Método ${idx + 1}: ${p.forma_pagamento?.nome} (${p.numero_parcelas}x) - R$ ${p.valor}`);
+    });
+  } else if (pagamentoNome) {
+    notesParts.push(`Pagamento: ${pagamentoNome} (${parcelas}x) - ${pagamentoStatus}`);
+  }
+  
+  if (formaEnvio) notesParts.push(`Envio: ${formaEnvio} via ${transportadora}`);
+  if (orderData.observacao) notesParts.push(`Obs Pedido: ${orderData.observacao}`);
 
   const mappedStatus = mapStatus(situacaoNome);
 
-  return {
+  const quoteData: any = {
     quote_number: quoteNumber || `LI-${externalId}`,
     client_name: clienteNome || `Pedido #${externalId}`,
     client_id: clientId,
@@ -192,33 +239,67 @@ function buildQuoteData(
     salesperson_id: userId,
     status: mappedStatus,
     total_amount: valorTotal,
-    total: valorTotal - valorFrete,
+    total: valorSubtotal,
     shipping_cost: valorFrete,
     discount: valorDesconto,
-    payment_method: mapPaymentMethod(pagamento),
-    payment_status: mappedStatus === 'approved' ? 'liquidado' : 'pendente',
-    payment_terms: pagamento || null,
-    notes: notesParts.length > 0 ? `[Importado da Loja Integrada]\n${notesParts.join('\n')}` : '[Importado da Loja Integrada]',
+    payment_method: isSplitPayment ? null : mapPaymentMethod(pagamentoNome),
+    payment_status: mappedStatus === 'approved' ? 'liquidado' : (mappedStatus === 'rejected' ? 'cancelado' : 'pendente'),
+    payment_terms: pagamentoNome || null,
+    installments: isSplitPayment ? 1 : parcelas,
+    shipping_method: formaEnvio || null,
+    shipping_deadline: prazoEnvio || null,
+    notes: notesParts.join('\n'),
     source: 'loja_integrada',
     external_order_id: externalId,
     external_status: situacaoNome,
     created_by: userId,
     quote_date: dataCriacao ? new Date(dataCriacao).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     is_reseller: false,
-    is_split_payment: false,
+    is_split_payment: isSplitPayment,
+    
+    // Dados de endereço de entrega
+    shipping_recipient: clienteNome,
+    shipping_cep: enderecoEntrega.cep || null,
+    shipping_address: enderecoEntrega.endereco || null,
+    shipping_address_number: enderecoEntrega.numero || null,
+    shipping_complement: enderecoEntrega.complemento || null,
+    shipping_neighborhood: enderecoEntrega.bairro || null,
+    shipping_city: enderecoEntrega.cidade || null,
+    shipping_state: enderecoEntrega.estado || null,
+    shipping_phone: clienteTelefone || null,
+    use_alt_shipping_address: !!enderecoEntrega.endereco,
   };
+
+  if (isSplitPayment) {
+    quoteData.split_method_1 = mapPaymentMethod(pagamentos[0]?.forma_pagamento?.nome);
+    quoteData.split_value_1 = parseFloat(pagamentos[0]?.valor) || 0;
+    quoteData.split_installments_1 = parseInt(pagamentos[0]?.numero_parcelas) || 1;
+    
+    quoteData.split_method_2 = mapPaymentMethod(pagamentos[1]?.forma_pagamento?.nome);
+    quoteData.split_value_2 = parseFloat(pagamentos[1]?.valor) || 0;
+    quoteData.split_installments_2 = parseInt(pagamentos[1]?.numero_parcelas) || 1;
+  }
+
+  return quoteData;
 }
 
 async function findOrCreateClient(serviceClient: any, orderData: any, userId: string): Promise<string | null> {
-  const clienteNome = orderData.cliente?.nome || '';
-  const clienteEmail = orderData.cliente?.email || '';
-  const clienteTelefone = orderData.cliente?.telefone_principal || '';
-  const clienteCpfCnpj = orderData.cliente?.cpf || orderData.cliente?.cnpj || '';
+  const cliente = orderData.cliente || {};
+  const clienteNome = cliente.nome || '';
+  const clienteEmail = cliente.email || '';
+  const clienteTelefone = cliente.telefone_principal || cliente.telefone_celular || '';
+  const clienteCpfCnpj = cliente.cpf || cliente.cnpj || '';
+  const razaoSocial = cliente.razao_social || '';
+  const tipo = cliente.tipo || (cliente.cnpj ? 'PJ' : 'PF');
+
+  // Endereço de faturamento (mais comum para dados de cadastro do cliente)
+  const endereco = orderData.endereco_faturamento || orderData.endereco_entrega || {};
 
   if (!clienteEmail && !clienteNome) return null;
 
   let clientId: string | null = null;
 
+  // Tentar encontrar por email
   if (clienteEmail) {
     const { data: existingClient } = await serviceClient
       .from('clients')
@@ -228,25 +309,46 @@ async function findOrCreateClient(serviceClient: any, orderData: any, userId: st
     if (existingClient) clientId = existingClient.id;
   }
 
-  if (!clientId && clienteNome) {
+  // Tentar encontrar por CPF/CNPJ se não encontrou por email
+  if (!clientId && clienteCpfCnpj) {
     const { data: existingClient } = await serviceClient
       .from('clients')
       .select('id')
-      .eq('name', clienteNome)
+      .eq('cpf_cnpj', clienteCpfCnpj)
       .maybeSingle();
     if (existingClient) clientId = existingClient.id;
   }
 
-  if (!clientId && clienteNome) {
+  const clientPayload = {
+    name: clienteNome,
+    email: clienteEmail || null,
+    phone: clienteTelefone || null,
+    cpf_cnpj: clienteCpfCnpj || null,
+    company_name: razaoSocial || null,
+    address: endereco.endereco || null,
+    address_number: endereco.numero || null,
+    complement: endereco.complemento || null,
+    neighborhood: endereco.bairro || null,
+    city: endereco.cidade || null,
+    state: endereco.estado || null,
+    cep: endereco.cep || null,
+    updated_at: new Date().toISOString(),
+    pipeline_stage: 'cliente',
+  };
+
+  if (clientId) {
+    // Atualizar dados do cliente existente
+    await serviceClient
+      .from('clients')
+      .update(clientPayload)
+      .eq('id', clientId);
+  } else {
+    // Criar novo cliente
     const { data: newClient } = await serviceClient
       .from('clients')
       .insert({
-        name: clienteNome,
-        email: clienteEmail || null,
-        phone: clienteTelefone || null,
-        cpf_cnpj: clienteCpfCnpj || null,
+        ...clientPayload,
         created_by: userId,
-        pipeline_stage: 'cliente',
       })
       .select('id')
       .single();
@@ -258,27 +360,40 @@ async function findOrCreateClient(serviceClient: any, orderData: any, userId: st
 
 async function upsertQuoteItems(serviceClient: any, quoteId: string, orderData: any) {
   const itens = orderData.itens || [];
-  if (itens.length === 0) return;
+  if (itens.length === 0) {
+    console.log(`[loja-integrada] No items found for order ${orderData.numero}`);
+    return;
+  }
 
   // Delete old items and re-insert
   await serviceClient.from('quote_items').delete().eq('quote_id', quoteId);
 
-  const quoteItems = itens.map((item: any, idx: number) => ({
-    quote_id: quoteId,
-    item_number: idx + 1,
-    description: item.nome || item.produto?.nome || `Item ${idx + 1}`,
-    model: item.nome || item.produto?.nome || `Item ${idx + 1}`,
-    brand: '',
-    product_code: item.sku || '',
-    quantity: parseInt(item.quantidade) || 1,
-    unit_price: parseFloat(item.preco_venda) || 0,
-    discount_percent: 0,
-    unit_total: parseFloat(item.preco_venda) || 0,
-    line_total: (parseFloat(item.preco_venda) || 0) * (parseInt(item.quantidade) || 1),
-    specifications: '',
-    image_url: '',
-    is_gift: false,
-  }));
+  const quoteItems = itens.map((item: any, idx: number) => {
+    const nome = item.nome || (item.produto && item.produto.nome) || `Item ${idx + 1}`;
+    const sku = item.sku || (item.produto && item.produto.sku) || '';
+    const quantidade = parseInt(item.quantidade) || 1;
+    const precoVenda = parseFloat(item.preco_venda) || 0;
+    const precoCheio = parseFloat(item.preco_cheio) || precoVenda;
+    const descontoItem = precoCheio - precoVenda;
+    const descontoPercent = precoCheio > 0 ? (descontoItem / precoCheio) * 100 : 0;
+    
+    return {
+      quote_id: quoteId,
+      item_number: idx + 1,
+      description: nome,
+      model: nome,
+      brand: '',
+      product_code: sku,
+      quantity: quantidade,
+      unit_price: precoVenda,
+      discount_percent: Math.round(descontoPercent * 100) / 100,
+      unit_total: precoVenda,
+      line_total: precoVenda * quantidade,
+      specifications: item.variacao || '',
+      image_url: item.produto?.imagem?.caminho || '',
+      is_gift: false,
+    };
+  });
 
   const { error: itemsErr } = await serviceClient.from('quote_items').insert(quoteItems);
   if (itemsErr) {
