@@ -323,6 +323,7 @@ async function importAllOrders(
   let updated = 0;
   let skipped = 0;
   let errors = 0;
+  const limit = 20;
   
   // Logic update: Since Loja Integrada API might ignore ordering and return oldest first,
   // we fetch from the end (offset = total_count - limit) and work backwards.
