@@ -132,7 +132,7 @@ function mapPaymentMethod(method: string | undefined): string | null {
   if (!method) return null;
   const m = method.toLowerCase();
   if (m.includes('pix')) return 'pix';
-  if (m.includes('cart') || m.includes('credito') || m.includes('débito')) return 'cartao';
+  if (m.includes('cart') || m.includes('credito') || m.includes('crédito') || m.includes('débito') || m.includes('debito') || m.includes('visa') || m.includes('master') || m.includes('elo') || m.includes('amex')) return 'cartao';
   if (m.includes('boleto')) return 'boleto';
   return null;
 }
