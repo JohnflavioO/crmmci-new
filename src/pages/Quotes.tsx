@@ -188,8 +188,9 @@ export default function Quotes() {
       }
 
       const [q, c, s, p] = await Promise.all([
-        db.from('quotes').select('*, clients(company_name, phone)')
-          .order('created_at', { ascending: false }),
+        isAdmin || isGestor
+          ? db.from('quotes').select('*, clients(company_name, phone)').order('created_at', { ascending: false })
+          : db.from('quotes').select('*, clients(company_name, phone)').eq('created_by', user.id).order('created_at', { ascending: false }),
         db.from('clients').select('id, company_name, name, is_revenda, contrib_icms').eq('created_by', user.id).order('company_name'),
         db.from('salespeople').select('*').eq('active', true).order('name'),
         db.from('products').select('id, name, brand, code, price, description, image_url').order('name'),
@@ -293,10 +294,11 @@ export default function Quotes() {
   };
 
   const handleSave = async () => {
-    if (saving) return; // prevent double-click
+    if (saving) {
+      console.log('[Quotes.handleSave] Blocked: already saving');
+      return;
+    }
 
-    // Safety net: if anything keeps `saving` true for too long, force-release it.
-    // This prevents the dialog from staying frozen on "Salvando..." when a network call hangs.
     const watchdog = setTimeout(() => {
       console.warn('[Quotes.handleSave] Watchdog fired — forcing saving=false (network likely stalled)');
       setSavingFlag(false);
@@ -424,7 +426,8 @@ export default function Quotes() {
       toast.success(editingQuote ? 'Orçamento atualizado!' : 'Orçamento criado!');
       setDialogOpen(false);
       resetForm();
-      loadData();
+      // Delay reload slightly to allow DB consistency
+      setTimeout(() => loadData(), 500);
     } catch (err: any) {
       console.error('[Quotes.handleSave] Unhandled error:', err);
       const msg = err?.message || err?.error_description || err?.hint || 'Erro inesperado ao salvar o orçamento.';
