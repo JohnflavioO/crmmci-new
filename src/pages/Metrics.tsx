@@ -5,6 +5,7 @@ import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -67,7 +68,7 @@ export default function Metrics() {
       setQuotes(data || []);
     };
     load();
-  }, [dateRange, user?.id]);
+  }, [dateRange, user?.id, canSeeAll]);
 
 
   const totalQuotes = quotes.length;
