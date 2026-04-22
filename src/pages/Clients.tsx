@@ -287,12 +287,20 @@ export default function Clients() {
   };
 
   const handleCepChange = async (value: string) => {
+    console.log('[CEP] Evento disparado:', value);
+    console.log('[CEP] Rota atual:', window.location.pathname);
     const cleanCep = value.replace(/\D/g, '');
     updateForm('cep', value);
+    
     if (cleanCep.length === 8) {
+      console.log('[CEP] Buscando endereço para:', cleanCep);
       try {
         const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        if (!res.ok) throw new Error('Falha na resposta da API');
+        
         const data = await res.json();
+        console.log('[CEP] Retorno da consulta:', data);
+        
         if (!data.erro) {
           setForm(prev => ({
             ...prev,
@@ -303,9 +311,13 @@ export default function Clients() {
             complement: data.complemento || prev.complement,
           }));
           toast.success('Endereço preenchido automaticamente!');
+        } else {
+          console.warn('[CEP] CEP não encontrado');
+          toast.info('CEP não encontrado. Preencha o endereço manualmente.');
         }
-      } catch {
-        // silently fail
+      } catch (err: any) {
+        console.error('[CEP] Erro na consulta:', err);
+        toast.error('Erro ao consultar CEP. Preencha manualmente.');
       }
     }
   };
