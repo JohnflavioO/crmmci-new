@@ -177,22 +177,43 @@ function buildQuoteData(
   quoteNumber: string | null
 ) {
   const situacaoNome = orderData.situacao?.nome || orderData.situacao || '';
-  const clienteNome = orderData.cliente?.nome || '';
-  const clienteEmail = orderData.cliente?.email || '';
-  const clienteTelefone = orderData.cliente?.telefone_principal || '';
-  const clienteCpfCnpj = orderData.cliente?.cpf || orderData.cliente?.cnpj || '';
+  const cliente = orderData.cliente || {};
+  const clienteNome = cliente.nome || '';
+  const clienteEmail = cliente.email || '';
+  const clienteTelefone = cliente.telefone_principal || cliente.telefone_celular || '';
+  const clienteCpfCnpj = cliente.cpf || cliente.cnpj || '';
+  
   const valorTotal = parseFloat(orderData.valor_total) || 0;
   const valorFrete = parseFloat(orderData.valor_envio) || 0;
   const valorDesconto = parseFloat(orderData.valor_desconto) || 0;
+  const valorSubtotal = parseFloat(orderData.valor_subtotal) || (valorTotal - valorFrete + valorDesconto);
+  
   const dataCriacao = orderData.data_criacao;
-  const pagamento = orderData.pagamentos?.[0]?.forma_pagamento?.nome || '';
+  
+  // Pagamento
+  const primeiroPagamento = orderData.pagamentos?.[0] || {};
+  const pagamentoNome = primeiroPagamento.forma_pagamento?.nome || '';
+  const parcelas = parseInt(primeiroPagamento.numero_parcelas) || 1;
+  const pagamentoStatus = primeiroPagamento.situacao?.nome || '';
+  
+  // Envio
+  const primeiroEnvio = orderData.envios?.[0] || {};
+  const formaEnvio = primeiroEnvio.forma_envio?.nome || '';
+  const prazoEnvio = primeiroEnvio.prazo ? `${primeiroEnvio.prazo} dias` : '';
+  const transportadora = primeiroEnvio.transportadora || '';
+  
+  // Endereço de entrega
+  const enderecoEntrega = orderData.endereco_entrega || {};
 
   const notesParts: string[] = [];
+  notesParts.push(`[Importado da Loja Integrada]`);
   if (clienteEmail) notesParts.push(`Email: ${clienteEmail}`);
   if (clienteTelefone) notesParts.push(`Tel: ${clienteTelefone}`);
   if (clienteCpfCnpj) notesParts.push(`CPF/CNPJ: ${clienteCpfCnpj}`);
   if (orderData.numero_pedido_canal) notesParts.push(`Pedido canal: ${orderData.numero_pedido_canal}`);
-  if (orderData.observacao) notesParts.push(`Obs: ${orderData.observacao}`);
+  if (pagamentoNome) notesParts.push(`Pagamento: ${pagamentoNome} (${parcelas}x) - ${pagamentoStatus}`);
+  if (formaEnvio) notesParts.push(`Envio: ${formaEnvio} via ${transportadora}`);
+  if (orderData.observacao) notesParts.push(`Obs Pedido: ${orderData.observacao}`);
 
   const mappedStatus = mapStatus(situacaoNome);
 
@@ -204,13 +225,16 @@ function buildQuoteData(
     salesperson_id: userId,
     status: mappedStatus,
     total_amount: valorTotal,
-    total: valorTotal - valorFrete,
+    total: valorSubtotal, // Valor sem frete e descontos? Ou subtotal?
     shipping_cost: valorFrete,
     discount: valorDesconto,
-    payment_method: mapPaymentMethod(pagamento),
-    payment_status: mappedStatus === 'approved' ? 'liquidado' : 'pendente',
-    payment_terms: pagamento || null,
-    notes: notesParts.length > 0 ? `[Importado da Loja Integrada]\n${notesParts.join('\n')}` : '[Importado da Loja Integrada]',
+    payment_method: mapPaymentMethod(pagamentoNome),
+    payment_status: mappedStatus === 'approved' ? 'liquidado' : (mappedStatus === 'rejected' ? 'cancelado' : 'pendente'),
+    payment_terms: pagamentoNome || null,
+    installments: parcelas,
+    shipping_method: formaEnvio || null,
+    shipping_deadline: prazoEnvio || null,
+    notes: notesParts.join('\n'),
     source: 'loja_integrada',
     external_order_id: externalId,
     external_status: situacaoNome,
@@ -218,6 +242,18 @@ function buildQuoteData(
     quote_date: dataCriacao ? new Date(dataCriacao).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     is_reseller: false,
     is_split_payment: false,
+    
+    // Dados de endereço de entrega
+    shipping_recipient: clienteNome,
+    shipping_cep: enderecoEntrega.cep || null,
+    shipping_address: enderecoEntrega.endereco || null,
+    shipping_address_number: enderecoEntrega.numero || null,
+    shipping_complement: enderecoEntrega.complemento || null,
+    shipping_neighborhood: enderecoEntrega.bairro || null,
+    shipping_city: enderecoEntrega.cidade || null,
+    shipping_state: enderecoEntrega.estado || null,
+    shipping_phone: clienteTelefone || null,
+    use_alt_shipping_address: !!enderecoEntrega.endereco,
   };
 }
 
