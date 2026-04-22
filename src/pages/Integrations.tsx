@@ -39,7 +39,7 @@ export default function Integrations() {
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [config, setConfig] = useState<any>({});
   const [hasCredentials, setHasCredentials] = useState(false);
-  const [loading, setLoading] = useState(false);
+  
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
