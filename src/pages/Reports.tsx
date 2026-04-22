@@ -29,10 +29,10 @@ const formatCurrency = (v: number) =>
 
 export default function Reports() {
   const { user, isGestor, isAdmin } = useAuth();
-  const canSeeAll = false;
+  const canSeeAll = isAdmin || isGestor;
 
 
-  const sellers: SellerInfo[] = [];
+  const [sellers, setSellers] = useState<SellerInfo[]>([]);
   const [selectedSeller, setSelectedSeller] = useState<string>('mine');
   const [quotes, setQuotes] = useState<any[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
