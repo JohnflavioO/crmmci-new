@@ -109,10 +109,22 @@ async function testConnection(apiKey: string, applicationKey: string) {
 function mapStatus(situacao: string | undefined): string {
   if (!situacao) return 'draft';
   const s = situacao.toLowerCase();
-  if (s.includes('aprovado') || s.includes('completo') || s.includes('pago')) return 'approved';
-  if (s.includes('cancelado')) return 'rejected';
-  if (s.includes('enviado') || s.includes('entregue')) return 'approved';
-  if (s.includes('aguardando') || s.includes('pendente')) return 'sent';
+  
+  // Mapeamento para o CRM interno (draft, sent, approved, rejected)
+  if (s.includes('aprovado') || s.includes('pago') || s.includes('separação') || 
+      s.includes('enviado') || s.includes('entregue') || s.includes('concluído') || 
+      s.includes('pronto') || s.includes('separado')) {
+    return 'approved';
+  }
+  
+  if (s.includes('cancelado') || s.includes('devolvido') || s.includes('extornado')) {
+    return 'rejected';
+  }
+  
+  if (s.includes('aguardando') || s.includes('pendente') || s.includes('análise')) {
+    return 'sent';
+  }
+  
   return 'draft';
 }
 
