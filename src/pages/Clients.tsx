@@ -507,30 +507,100 @@ export default function Clients() {
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2 min-h-[44px]"><Upload className="h-4 w-4" /> Importar</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className={importStep === 'mapping' ? "max-w-3xl max-h-[90vh] overflow-y-auto" : ""}>
               <DialogHeader>
-                <DialogTitle>Importar Clientes</DialogTitle>
+                <DialogTitle>{importStep === 'url' ? 'Importar Clientes' : 'Mapear Colunas'}</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 mt-4">
-                <p className="text-sm text-muted-foreground">
-                  Cole o link da sua planilha Google compartilhada.
-                </p>
-                <div className="space-y-2">
-                  <Label>Link da Planilha</Label>
-                  <Input
-                    placeholder="https://docs.google.com/spreadsheets/d/..."
-                    value={sheetUrl}
-                    onChange={e => setSheetUrl(e.target.value)}
-                    inputMode="url"
-                  />
+              
+              {importStep === 'url' ? (
+                <div className="space-y-4 mt-4">
+                  <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-800">
+                    <p className="font-semibold mb-1">Como preparar sua planilha:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>Clique em <strong>Compartilhar</strong> no Google Sheets</li>
+                      <li>Mude para <strong>Qualquer pessoa com o link</strong></li>
+                      <li>Copie o link e cole abaixo</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Link da Planilha Google</Label>
+                    <Input
+                      placeholder="https://docs.google.com/spreadsheets/d/..."
+                      value={sheetUrl}
+                      onChange={e => setSheetUrl(e.target.value)}
+                      inputMode="url"
+                    />
+                  </div>
+                  
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => { setImportOpen(false); resetImport(); }} className="min-h-[44px]">Cancelar</Button>
+                    <Button onClick={handleFetchPreview} disabled={importing || !sheetUrl.trim()} className="min-h-[44px] gap-2">
+                      {importing ? <><Loader2 className="h-4 w-4 animate-spin" /> Analisando...</> : 'Analisar Planilha'}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setImportOpen(false)} className="min-h-[44px]">Cancelar</Button>
-                  <Button onClick={handleImportSheet} disabled={importing || !sheetUrl.trim()} className="min-h-[44px]">
-                    {importing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Importando...</> : 'Importar'}
-                  </Button>
+              ) : (
+                <div className="space-y-6 mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Encontramos {importData?.rows?.length || 0} registros. Associe as colunas da sua planilha aos campos do sistema.
+                  </p>
+                  
+                  <div className="border rounded-md">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[200px]">Coluna na Planilha</TableHead>
+                          <TableHead>Campo no Sistema</TableHead>
+                          <TableHead className="hidden sm:table-cell">Exemplo de dado</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {importData?.headers?.map((header: string, idx: number) => (
+                          <TableRow key={idx}>
+                            <TableCell className="font-medium truncate max-w-[200px]" title={header}>
+                              {header || `(Coluna ${idx + 1})`}
+                            </TableCell>
+                            <TableCell>
+                              <Select 
+                                value={mappings[String(idx)] || "ignore"} 
+                                onValueChange={(val) => setMappings(prev => ({ ...prev, [String(idx)]: val }))}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Ignorar" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="ignore">--- Ignorar coluna ---</SelectItem>
+                                  {MAPPABLE_FIELDS.map(field => (
+                                    <SelectItem key={field.value} value={field.value}>
+                                      {field.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-xs hidden sm:table-cell truncate max-w-[150px]">
+                              {importData.rows[0]?.[idx] || "-"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  <div className="flex justify-between items-center gap-2">
+                    <Button variant="ghost" onClick={() => setImportStep('url')} disabled={importing}>
+                      Voltar
+                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={() => { setImportOpen(false); resetImport(); }} className="min-h-[44px]">Cancelar</Button>
+                      <Button onClick={handleExecuteImport} disabled={importing} className="min-h-[44px] gap-2 bg-green-600 hover:bg-green-700">
+                        {importing ? <><Loader2 className="h-4 w-4 animate-spin" /> Importando...</> : 'Confirmar Importação'}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </DialogContent>
           </Dialog>
           <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingClient(null); setForm(emptyClient); } }}>
