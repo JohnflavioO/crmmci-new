@@ -37,6 +37,7 @@ export default function Integrations() {
   const [showAppKey, setShowAppKey] = useState(false);
   const [status, setStatus] = useState<IntegrationStatus>('disconnected');
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [config, setConfig] = useState<any>({});
   const [hasCredentials, setHasCredentials] = useState(false);
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -47,7 +48,7 @@ export default function Integrations() {
   const [totalOrders, setTotalOrders] = useState(0);
   const [syncPage, setSyncPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
-  const [importResult, setImportResult] = useState<{ imported: number; updated: number; skipped: number; errors: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ imported: number; updated: number; skipped: number; errors: number; last_order_id?: string } | null>(null);
 
   useEffect(() => {
     if (isAdmin) loadStatus();
