@@ -287,12 +287,20 @@ export default function Clients() {
   };
 
   const handleCepChange = async (value: string) => {
+    console.log('[CEP] Evento disparado:', value);
+    console.log('[CEP] Rota atual:', window.location.pathname);
     const cleanCep = value.replace(/\D/g, '');
     updateForm('cep', value);
+    
     if (cleanCep.length === 8) {
+      console.log('[CEP] Buscando endereço para:', cleanCep);
       try {
         const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        if (!res.ok) throw new Error('Falha na resposta da API');
+        
         const data = await res.json();
+        console.log('[CEP] Retorno da consulta:', data);
+        
         if (!data.erro) {
           setForm(prev => ({
             ...prev,
@@ -303,9 +311,13 @@ export default function Clients() {
             complement: data.complemento || prev.complement,
           }));
           toast.success('Endereço preenchido automaticamente!');
+        } else {
+          console.warn('[CEP] CEP não encontrado');
+          toast.info('CEP não encontrado. Preencha o endereço manualmente.');
         }
-      } catch {
-        // silently fail
+      } catch (err: any) {
+        console.error('[CEP] Erro na consulta:', err);
+        toast.error('Erro ao consultar CEP. Preencha manualmente.');
       }
     }
   };
@@ -423,7 +435,7 @@ export default function Clients() {
               Excluir {selectedIds.size}
             </Button>
           )}
-          <Button variant="outline" className="gap-2 min-h-[44px] border-primary text-primary hover:bg-primary/5" onClick={() => navigate('/quotes')}>
+          <Button type="button" variant="outline" className="gap-2 min-h-[44px] border-primary text-primary hover:bg-primary/5" onClick={() => { console.log('[Page] Navegando para orçamentos'); navigate('/quotes'); }}>
             <Plus className="h-4 w-4" /> Criar Orçamento
           </Button>
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
@@ -464,7 +476,7 @@ export default function Clients() {
             <DialogHeader>
               <DialogTitle className="font-display">{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <form onSubmit={(e) => { e.preventDefault(); console.log('[Form] Submit bloqueado'); }} className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
               <div className="sm:col-span-2 space-y-2">
                 <Label>Razão Social / Nome *</Label>
                 <Input value={form.company_name} onChange={e => updateForm('company_name', e.target.value)} required />
@@ -544,7 +556,19 @@ export default function Clients() {
               </div>
               <div className="space-y-2">
                 <Label>CEP</Label>
-                <Input value={form.cep} onChange={e => handleCepChange(e.target.value)} placeholder="00000-000" inputMode="numeric" />
+                <Input 
+                  value={form.cep} 
+                  onChange={e => handleCepChange(e.target.value)} 
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('[CEP] Enter bloqueado no campo CEP');
+                    }
+                  }}
+                  placeholder="00000-000" 
+                  inputMode="numeric" 
+                />
               </div>
               <div className="space-y-2">
                 <Label>Celular</Label>
@@ -578,10 +602,10 @@ export default function Clients() {
                 <Label>Observações</Label>
                 <Input value={form.notes} onChange={e => updateForm('notes', e.target.value)} />
               </div>
-            </div>
+            </form>
             <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setDialogOpen(false)} className="min-h-[44px]">Cancelar</Button>
-              <Button onClick={handleSave} disabled={!form.company_name} className="min-h-[44px]">Salvar</Button>
+              <Button type="button" variant="outline" onClick={() => { console.log('[Dialog] Cancelar clicado'); setDialogOpen(false); }} className="min-h-[44px]">Cancelar</Button>
+              <Button type="button" onClick={() => { console.log('[Dialog] Salvar clicado'); handleSave(); }} disabled={!form.company_name} className="min-h-[44px]">Salvar</Button>
             </div>
           </DialogContent>
         </Dialog>
