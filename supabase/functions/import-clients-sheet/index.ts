@@ -91,20 +91,23 @@ Deno.serve(async (req) => {
 
   const logImport = async (status: string, message: string, count: number = 0, metadata: any = {}) => {
     if (userId) {
-      await supabase.from('import_logs').insert({
-        user_id: userId,
-        type: 'clients',
-        source_url: receivedUrl,
-        status,
-        message,
-        records_count: count,
-        metadata
-      });
+      try {
+        await supabase.from('import_logs').insert({
+          user_id: userId,
+          type: 'clients',
+          source_url: receivedUrl,
+          status,
+          message,
+          records_count: count,
+          metadata
+        });
+      } catch (e) {
+        console.error('Failed to log import:', e);
+      }
     }
   };
 
   try {
-    // Auth check
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ success: false, error: 'Não autorizado' }), {
@@ -154,7 +157,7 @@ Deno.serve(async (req) => {
       response = await fetch(csvUrl, { redirect: 'follow' });
     } catch (fetchErr) {
       console.error('[import-clients-sheet] Fetch error:', fetchErr);
-      const msg = 'Não foi possível conectar ao Google Sheets. Verifique sua internet.';
+      const msg = 'Não foi possível conectar ao Google Sheets. Verifique se a planilha é pública.';
       await logImport('error', msg);
       return new Response(JSON.stringify({ success: false, error: msg }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -163,7 +166,7 @@ Deno.serve(async (req) => {
 
     const contentType = response.headers.get('content-type') || '';
     if (!response.ok || contentType.includes('text/html')) {
-      const msg = "Essa planilha não está compartilhada. No Google Sheets, clique em 'Compartilhar' e selecione 'Qualquer pessoa com o link'.";
+      const msg = "Essa planilha não está compartilhada corretamente. Ative 'Qualquer pessoa com o link' nas configurações de compartilhamento.";
       await logImport('error', msg);
       return new Response(JSON.stringify({ success: false, error: msg }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -173,7 +176,7 @@ Deno.serve(async (req) => {
     const csvText = await response.text();
 
     if (csvText.trim().toLowerCase().startsWith('<!doctype') || csvText.trim().toLowerCase().startsWith('<html')) {
-      const msg = "Essa planilha não está compartilhada. No Google Sheets, clique em 'Compartilhar' e selecione 'Qualquer pessoa com o link'.";
+      const msg = "Essa planilha não está compartilhada corretamente. Ative 'Qualquer pessoa com o link'.";
       await logImport('error', msg);
       return new Response(JSON.stringify({ success: false, error: msg }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -269,36 +272,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    const clients = [];
-    const dataStartIdx = headerRowIdx + 1;
-    
-    for (let i = dataStartIdx; i < rows.length; i++) {
-      const row = rows[i];
-      const client: Record<string, string> = {};
-      
-      for (const [field, idx] of Object.entries(colMap)) {
-        if (idx < row.length && row[idx] && row[idx].trim()) {
-          client[field] = row[idx].trim();
-        }
-      }
-      
-      if (client.company_name || client.phone || client.email) {
-        clients.push(client);
-      }
-    }
-
-    await logImport('success', 'Planilha processada com sucesso', clients.length, {
+    await logImport('success', 'Planilha analisada com sucesso', rows.length - 1, {
       colMap,
       headers
     });
 
     return new Response(JSON.stringify({ 
       success: true, 
-      clients, 
-      count: clients.length,
       headers,
       matched_columns: colMap,
-      sample_rows: rows.slice(headerRowIdx + 1, headerRowIdx + 6)
+      rows: rows.slice(headerRowIdx + 1)
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -308,7 +291,7 @@ Deno.serve(async (req) => {
     await logImport('error', `Erro interno: ${error.message}`);
     return new Response(JSON.stringify({
       success: false,
-      error: 'Erro interno ao processar a planilha. Verifique o link e tente novamente.',
+      error: 'Erro interno ao processar a planilha.',
     }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
