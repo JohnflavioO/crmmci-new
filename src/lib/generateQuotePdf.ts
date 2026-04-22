@@ -99,7 +99,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     doc.setTextColor(0);
   }
 
-  doc.text(`Data: ${new Date(quote.quote_date).toLocaleDateString('pt-BR')}`, W - margin, y, { align: 'right' });
+  doc.text(`Data: ${quote.quote_date ? quote.quote_date.split('-').reverse().join('/') : '-'}`, W - margin, y, { align: 'right' });
   y += 5;
 
   if (quote.proposal_validity) {
