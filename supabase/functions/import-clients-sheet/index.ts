@@ -45,6 +45,7 @@ function parseCSV(text: string): string[][] {
 }
 
 function normalize(s: string): string {
+  if (!s) return '';
   return s.toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]/g, ' ')
@@ -80,49 +81,69 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  );
+
+  let userId: string | null = null;
+  let receivedUrl: string = '';
+
+  const logImport = async (status: string, message: string, count: number = 0, metadata: any = {}) => {
+    if (userId) {
+      await supabase.from('import_logs').insert({
+        user_id: userId,
+        type: 'clients',
+        source_url: receivedUrl,
+        status,
+        message,
+        records_count: count,
+        metadata
+      });
+    }
+  };
+
   try {
     // Auth check
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+      return new Response(JSON.stringify({ success: false, error: 'Não autorizado' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: claims, error: authErr } = await supabase.auth.getClaims(authHeader.replace('Bearer ', ''));
-    if (authErr || !claims?.claims) {
-      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+    
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    
+    if (authErr || !user) {
+      return new Response(JSON.stringify({ success: false, error: 'Não autorizado' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    userId = user.id;
 
-    const { url } = await req.json();
-    if (!url || typeof url !== 'string' || !url.includes('docs.google.com/spreadsheets')) {
-      return new Response(JSON.stringify({ success: false, error: 'URL inválida. Use um link de planilha Google.' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    const body = await req.json();
+    receivedUrl = body.url || '';
+
+    if (!receivedUrl || typeof receivedUrl !== 'string' || !receivedUrl.includes('docs.google.com/spreadsheets')) {
+      const msg = 'URL inválida. Use um link de planilha Google.';
+      await logImport('error', msg);
+      return new Response(JSON.stringify({ success: false, error: msg }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Validate URL length
-    if (url.length > 500) {
-      return new Response(JSON.stringify({ success: false, error: 'URL muito longa.' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    const match = receivedUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
     if (!match) {
-      return new Response(JSON.stringify({ success: false, error: 'Não foi possível extrair o ID da planilha.' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      const msg = 'Não foi possível extrair o ID da planilha.';
+      await logImport('error', msg);
+      return new Response(JSON.stringify({ success: false, error: msg }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const sheetId = match[1];
-    const gidMatch = url.match(/gid=(\d+)/);
+    const gidMatch = receivedUrl.match(/gid=(\d+)/);
     const gid = gidMatch ? gidMatch[1] : '0';
 
     const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
@@ -133,34 +154,28 @@ Deno.serve(async (req) => {
       response = await fetch(csvUrl, { redirect: 'follow' });
     } catch (fetchErr) {
       console.error('[import-clients-sheet] Fetch error:', fetchErr);
-      return new Response(JSON.stringify({ success: false, error: 'Não foi possível conectar ao Google Sheets. Tente novamente.' }), {
+      const msg = 'Não foi possível conectar ao Google Sheets. Verifique sua internet.';
+      await logImport('error', msg);
+      return new Response(JSON.stringify({ success: false, error: msg }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log('[import-clients-sheet] Response status:', response.status, 'Content-Type:', response.headers.get('content-type'));
-
-    // Detect Google login redirect (returns HTML instead of CSV when private)
     const contentType = response.headers.get('content-type') || '';
     if (!response.ok || contentType.includes('text/html')) {
-      const sample = (await response.text()).slice(0, 200);
-      console.warn('[import-clients-sheet] Sheet not public. Sample:', sample);
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'A planilha precisa estar pública para importação. No Google Sheets, clique em "Compartilhar" e selecione "Qualquer pessoa com o link".',
-      }), {
+      const msg = "Essa planilha não está compartilhada. No Google Sheets, clique em 'Compartilhar' e selecione 'Qualquer pessoa com o link'.";
+      await logImport('error', msg);
+      return new Response(JSON.stringify({ success: false, error: msg }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const csvText = await response.text();
 
-    // Extra safety: if response body looks like HTML (login page), reject
     if (csvText.trim().toLowerCase().startsWith('<!doctype') || csvText.trim().toLowerCase().startsWith('<html')) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'A planilha precisa estar pública para importação. Compartilhe como "Qualquer pessoa com o link".',
-      }), {
+      const msg = "Essa planilha não está compartilhada. No Google Sheets, clique em 'Compartilhar' e selecione 'Qualquer pessoa com o link'.";
+      await logImport('error', msg);
+      return new Response(JSON.stringify({ success: false, error: msg }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -168,23 +183,18 @@ Deno.serve(async (req) => {
     const rows = parseCSV(csvText);
 
     if (rows.length < 2) {
-      return new Response(JSON.stringify({ success: false, error: 'Planilha vazia ou sem dados.' }), {
+      const msg = 'A planilha parece estar vazia ou sem dados válidos.';
+      await logImport('error', msg);
+      return new Response(JSON.stringify({ success: false, error: msg }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // Identify header row
     let headerRowIdx = 0;
     const allFieldAliases = [
       'razao social', 'razão social', 'empresa', 'cliente', 'nome', 'company',
-      'cnpj', 'cpf', 'documento',
-      'cidade', 'city', 'municipio',
-      'telefone', 'phone', 'tel', 'fone', 'celular',
-      'email', 'e-mail',
-      'endereco', 'endereço', 'address',
-      'bairro', 'neighborhood',
-      'cep', 'zip',
-      'uf', 'estado', 'state',
-      'contato', 'responsavel', 'responsável',
+      'cnpj', 'cpf', 'documento', 'cidade', 'telefone', 'email', 'endereço', 'bairro', 'cep', 'uf', 'contato'
     ];
     
     for (let i = 0; i < Math.min(rows.length, 5); i++) {
@@ -204,26 +214,27 @@ Deno.serve(async (req) => {
     const headers = rows[headerRowIdx];
 
     const fieldMap: Record<string, string[]> = {
-      company_name: ['razao social', 'razão social', 'empresa', 'company_name', 'nome da empresa', 'nome empresa', 'cliente', 'company', 'nome fantasia', 'nome', 'razao', 'razão', 'name', 'nome razao social', 'fantasia'],
-      cpf_cnpj: ['cpf cnpj', 'cpf/cnpj', 'cpf_cnpj', 'cnpj', 'cpf', 'documento', 'cnpj cpf', 'doc', 'cnpj/cpf'],
-      city: ['cidade', 'city', 'municipio', 'município', 'mun', 'localidade'],
-      state: ['uf', 'estado', 'state', 'sigla uf', 'sigla estado', 'sigla'],
-      phone: ['telefone', 'phone', 'tel', 'fone', 'celular', 'whatsapp', 'wpp', 'tel comercial', 'telefone comercial', 'contato tel', 'telefone 1', 'tel 1', 'fone 1'],
-      email: ['email', 'e-mail', 'e mail', 'e_mail', 'mail', 'correio eletronico', 'email comercial'],
-      contact_name: ['contato', 'contact_name', 'responsável', 'responsavel', 'nome do contato', 'pessoa contato', 'nome contato', 'representante', 'pessoa de contato'],
-      address: ['endereço', 'endereco', 'address', 'rua', 'logradouro', 'av', 'avenida', 'end', 'endereco completo', 'endereço completo', 'logr'],
-      address_number: ['número', 'numero', 'nº', 'n°', 'address_number', 'num', 'no', 'nr', 'nro'],
-      complement: ['complemento', 'complement', 'comp', 'compl'],
-      neighborhood: ['bairro', 'neighborhood', 'setor', 'distrito'],
-      cep: ['cep', 'zip', 'codigo postal', 'código postal', 'cod postal', 'zip code', 'cod post'],
-      contact_phone: ['tel contato', 'tel. contato', 'telefone contato', 'contact_phone', 'celular contato', 'fone contato', 'telefone do contato', 'tel do contato'],
-      contrib_icms: ['contrib icms', 'contrib. icms', 'contribuinte icms', 'inscricao estadual', 'inscrição estadual', 'ie', 'insc estadual', 'inscr estadual', 'inscricao', 'insc est'],
-      notes: ['observações', 'observacoes', 'obs', 'notes', 'notas', 'observação', 'nota', 'info', 'informacoes', 'informações'],
+      company_name: ['razao social', 'razão social', 'empresa', 'company_name', 'nome da empresa', 'cliente', 'company', 'nome fantasia', 'nome', 'name', 'fantasia'],
+      cpf_cnpj: ['cpf cnpj', 'cpf/cnpj', 'cpf_cnpj', 'cnpj', 'cpf', 'documento', 'doc'],
+      city: ['cidade', 'city', 'municipio', 'localidade'],
+      state: ['uf', 'estado', 'state', 'sigla'],
+      phone: ['telefone', 'phone', 'tel', 'fone', 'celular', 'whatsapp', 'wpp'],
+      email: ['email', 'e-mail', 'mail'],
+      contact_name: ['contato', 'contact_name', 'responsável', 'responsavel', 'nome do contato', 'pessoa contato'],
+      address: ['endereço', 'endereco', 'address', 'rua', 'logradouro', 'av', 'avenida', 'end'],
+      address_number: ['número', 'numero', 'nº', 'n°', 'num', 'nr'],
+      complement: ['complemento', 'complement', 'comp'],
+      neighborhood: ['bairro', 'neighborhood', 'setor'],
+      cep: ['cep', 'zip', 'codigo postal'],
+      contact_phone: ['tel contato', 'telefone contato', 'celular contato'],
+      contrib_icms: ['contrib icms', 'contribuinte icms', 'inscricao estadual', 'inscrição estadual', 'ie'],
+      notes: ['observações', 'observacoes', 'obs', 'notes', 'notas', 'info'],
     };
 
     const colMap: Record<string, number> = {};
     const usedColumns = new Set<number>();
     
+    // Exact matches
     for (const [field, aliases] of Object.entries(fieldMap)) {
       for (let idx = 0; idx < headers.length; idx++) {
         if (usedColumns.has(idx)) continue;
@@ -236,6 +247,7 @@ Deno.serve(async (req) => {
       }
     }
     
+    // Fuzzy matches
     for (const [field, aliases] of Object.entries(fieldMap)) {
       if (colMap[field] !== undefined) continue;
       
@@ -257,24 +269,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (colMap.company_name === undefined) {
-      for (let idx = 0; idx < headers.length; idx++) {
-        if (!usedColumns.has(idx) && headers[idx].trim()) {
-          colMap.company_name = idx;
-          usedColumns.add(idx);
-          break;
-        }
-      }
-      if (colMap.company_name === undefined) {
-        colMap.company_name = 0;
-      }
-    }
-
-    const matchedColumns: Record<string, string> = {};
-    for (const [field, idx] of Object.entries(colMap)) {
-      matchedColumns[field] = `[${idx}] ${headers[idx]}`;
-    }
-
     const clients = [];
     const dataStartIdx = headerRowIdx + 1;
     
@@ -288,26 +282,33 @@ Deno.serve(async (req) => {
         }
       }
       
-      if (client.company_name) {
+      if (client.company_name || client.phone || client.email) {
         clients.push(client);
       }
     }
+
+    await logImport('success', 'Planilha processada com sucesso', clients.length, {
+      colMap,
+      headers
+    });
 
     return new Response(JSON.stringify({ 
       success: true, 
       clients, 
       count: clients.length,
-      matched_columns: matchedColumns,
-      total_columns: headers.length,
-      headers: headers,
+      headers,
+      matched_columns: colMap,
+      sample_rows: rows.slice(headerRowIdx + 1, headerRowIdx + 6)
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+
   } catch (error) {
     console.error('[import-clients-sheet] Internal error:', error);
+    await logImport('error', `Erro interno: ${error.message}`);
     return new Response(JSON.stringify({
       success: false,
-      error: 'Erro interno ao processar a planilha. Verifique se o link está correto e a planilha é pública.',
+      error: 'Erro interno ao processar a planilha. Verifique o link e tente novamente.',
     }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
