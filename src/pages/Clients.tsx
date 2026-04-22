@@ -556,7 +556,19 @@ export default function Clients() {
               </div>
               <div className="space-y-2">
                 <Label>CEP</Label>
-                <Input value={form.cep} onChange={e => handleCepChange(e.target.value)} placeholder="00000-000" inputMode="numeric" />
+                <Input 
+                  value={form.cep} 
+                  onChange={e => handleCepChange(e.target.value)} 
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('[CEP] Enter bloqueado no campo CEP');
+                    }
+                  }}
+                  placeholder="00000-000" 
+                  inputMode="numeric" 
+                />
               </div>
               <div className="space-y-2">
                 <Label>Celular</Label>
@@ -590,10 +602,10 @@ export default function Clients() {
                 <Label>Observações</Label>
                 <Input value={form.notes} onChange={e => updateForm('notes', e.target.value)} />
               </div>
-            </div>
+            </form>
             <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setDialogOpen(false)} className="min-h-[44px]">Cancelar</Button>
-              <Button onClick={handleSave} disabled={!form.company_name} className="min-h-[44px]">Salvar</Button>
+              <Button type="button" variant="outline" onClick={() => { console.log('[Dialog] Cancelar clicado'); setDialogOpen(false); }} className="min-h-[44px]">Cancelar</Button>
+              <Button type="button" onClick={() => { console.log('[Dialog] Salvar clicado'); handleSave(); }} disabled={!form.company_name} className="min-h-[44px]">Salvar</Button>
             </div>
           </DialogContent>
         </Dialog>
