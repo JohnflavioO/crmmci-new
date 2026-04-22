@@ -4,7 +4,7 @@ const apiKey = '12ac635b711ce3b105bc';
 const applicationKey = 'ecdca8a5-487f-46f0-a61d-27eab2cc98f6';
 
 async function fetchOrders() {
-  const url = `${LOJA_INTEGRADA_API}/pedido?limit=10&offset=0&ordering=data_criacao`;
+  const url = `${LOJA_INTEGRADA_API}/pedido?limit=10&offset=935&ordering=data_criacao`;
   console.log(`Calling: GET ${url}`);
 
   const response = await fetch(url, {
