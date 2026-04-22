@@ -592,7 +592,30 @@ Deno.serve(async (req) => {
     if (action === 'auto_sync') {
       const authHeader = req.headers.get('Authorization');
       const expectedKey = Deno.env.get('SUPABASE_ANON_KEY');
-      if (!authHeader || !authHeader.includes(expectedKey || '___none___')) {
+      
+      let isAuthorized = false;
+      if (authHeader && expectedKey && authHeader.includes(expectedKey)) {
+        isAuthorized = true;
+      } else {
+        // Try verifying token via supabase client
+        try {
+          const authHeader = req.headers.get('Authorization');
+          if (authHeader) {
+            const supabase = createClient(
+              Deno.env.get('SUPABASE_URL')!,
+              Deno.env.get('SUPABASE_ANON_KEY')!,
+              { global: { headers: { Authorization: authHeader } } }
+            );
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) isAuthorized = true;
+          }
+        } catch (e) {
+          console.error('[loja-integrada] Auth verification error:', e);
+        }
+      }
+
+      if (!isAuthorized) {
+        console.warn('[loja-integrada] auto_sync: Unauthorized attempt');
         return jsonResponse({ ok: false, error: 'Unauthorized' }, 401);
       }
 
