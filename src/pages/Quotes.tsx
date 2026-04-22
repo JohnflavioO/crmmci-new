@@ -428,6 +428,7 @@ export default function Quotes() {
           ...quoteData,
           quote_number: numData || `ORC-${Date.now()}`,
           created_by: user?.id,
+          quote_date: format(new Date(), 'yyyy-MM-dd'),
         }).select('id').single();
         if (error) {
           console.error('[Quotes.handleSave] Insert error:', error);
@@ -1290,7 +1291,7 @@ export default function Quotes() {
                       <div>
                         <p className="font-medium text-sm">{q.quote_number}</p>
                         <p className="text-xs text-muted-foreground">{q.clients?.company_name || '-'}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(q.quote_date).toLocaleDateString('pt-BR')}</p>
+                        <p className="text-xs text-muted-foreground">{format(new Date(q.quote_date + 'T12:00:00'), 'dd/MM/yyyy')}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-sm">{formatCurrency((parseFloat(q.total_amount) || 0))}</p>
@@ -1389,7 +1390,7 @@ export default function Quotes() {
                       </div>
                     </TableCell>
                     <TableCell>{q.clients?.company_name || '-'}</TableCell>
-                    <TableCell>{new Date(q.quote_date).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell>{format(new Date(q.quote_date + 'T12:00:00'), 'dd/MM/yyyy')}</TableCell>
                     <TableCell>
                       {parseFloat(q.shipping_cost) > 0 ? (
                         <span className="text-xs font-medium text-muted-foreground">{formatCurrency(parseFloat(q.shipping_cost))}</span>

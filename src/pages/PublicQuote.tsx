@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { format } from 'date-fns';
 import { useParams } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -88,7 +89,7 @@ export default function PublicQuote() {
           <img src="/mci-logo.png" alt="MCI Store" className="h-12 mx-auto mb-4" />
           <h1 className="text-2xl font-bold font-display">Orçamento {quote.quote_number}</h1>
           <p className="text-muted-foreground">
-            Data: {quote.quote_date ? new Date(quote.quote_date).toLocaleDateString('pt-BR') : '-'}
+            Data: {quote.quote_date ? format(new Date(quote.quote_date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}
           </p>
           {alreadyActed && (
             <Badge className={`mt-3 text-sm ${quote.status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-destructive text-white'}`}>

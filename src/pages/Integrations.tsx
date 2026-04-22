@@ -365,7 +365,7 @@ export default function Integrations() {
                                   : order.total}
                               </TableCell>
                               <TableCell className="text-xs">
-                                {order.date ? new Date(order.date).toLocaleDateString('pt-BR') : '-'}
+                                {order.date ? new Date(order.date.includes('T') ? order.date : order.date + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}
                               </TableCell>
                             </TableRow>
                           ))}

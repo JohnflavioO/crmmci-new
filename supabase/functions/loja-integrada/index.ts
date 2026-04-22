@@ -253,7 +253,9 @@ function buildQuoteData(
     external_order_id: externalId,
     external_status: situacaoNome,
     created_by: userId,
-    quote_date: dataCriacao ? new Date(dataCriacao).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    quote_date: dataCriacao 
+      ? new Date(new Date(dataCriacao).getTime() - 3 * 60 * 60 * 1000).toISOString().split('T')[0] 
+      : new Date(new Date().getTime() - 3 * 60 * 60 * 1000).toISOString().split('T')[0],
     is_reseller: false,
     is_split_payment: isSplitPayment,
     
