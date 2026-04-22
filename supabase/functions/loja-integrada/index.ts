@@ -222,15 +222,22 @@ function buildQuoteData(
 }
 
 async function findOrCreateClient(serviceClient: any, orderData: any, userId: string): Promise<string | null> {
-  const clienteNome = orderData.cliente?.nome || '';
-  const clienteEmail = orderData.cliente?.email || '';
-  const clienteTelefone = orderData.cliente?.telefone_principal || '';
-  const clienteCpfCnpj = orderData.cliente?.cpf || orderData.cliente?.cnpj || '';
+  const cliente = orderData.cliente || {};
+  const clienteNome = cliente.nome || '';
+  const clienteEmail = cliente.email || '';
+  const clienteTelefone = cliente.telefone_principal || cliente.telefone_celular || '';
+  const clienteCpfCnpj = cliente.cpf || cliente.cnpj || '';
+  const razaoSocial = cliente.razao_social || '';
+  const tipo = cliente.tipo || (cliente.cnpj ? 'PJ' : 'PF');
+
+  // Endereço de faturamento (mais comum para dados de cadastro do cliente)
+  const endereco = orderData.endereco_faturamento || orderData.endereco_entrega || {};
 
   if (!clienteEmail && !clienteNome) return null;
 
   let clientId: string | null = null;
 
+  // Tentar encontrar por email
   if (clienteEmail) {
     const { data: existingClient } = await serviceClient
       .from('clients')
@@ -240,25 +247,46 @@ async function findOrCreateClient(serviceClient: any, orderData: any, userId: st
     if (existingClient) clientId = existingClient.id;
   }
 
-  if (!clientId && clienteNome) {
+  // Tentar encontrar por CPF/CNPJ se não encontrou por email
+  if (!clientId && clienteCpfCnpj) {
     const { data: existingClient } = await serviceClient
       .from('clients')
       .select('id')
-      .eq('name', clienteNome)
+      .eq('cpf_cnpj', clienteCpfCnpj)
       .maybeSingle();
     if (existingClient) clientId = existingClient.id;
   }
 
-  if (!clientId && clienteNome) {
+  const clientPayload = {
+    name: clienteNome,
+    email: clienteEmail || null,
+    phone: clienteTelefone || null,
+    cpf_cnpj: clienteCpfCnpj || null,
+    company_name: razaoSocial || null,
+    address: endereco.endereco || null,
+    address_number: endereco.numero || null,
+    complement: endereco.complemento || null,
+    neighborhood: endereco.bairro || null,
+    city: endereco.cidade || null,
+    state: endereco.estado || null,
+    cep: endereco.cep || null,
+    updated_at: new Date().toISOString(),
+    pipeline_stage: 'cliente',
+  };
+
+  if (clientId) {
+    // Atualizar dados do cliente existente
+    await serviceClient
+      .from('clients')
+      .update(clientPayload)
+      .eq('id', clientId);
+  } else {
+    // Criar novo cliente
     const { data: newClient } = await serviceClient
       .from('clients')
       .insert({
-        name: clienteNome,
-        email: clienteEmail || null,
-        phone: clienteTelefone || null,
-        cpf_cnpj: clienteCpfCnpj || null,
+        ...clientPayload,
         created_by: userId,
-        pipeline_stage: 'cliente',
       })
       .select('id')
       .single();
