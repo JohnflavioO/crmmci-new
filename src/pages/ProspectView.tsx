@@ -357,7 +357,7 @@ export default function ProspectView() {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todos Status</SelectItem>
+                    <SelectItem value="all">Fases Ativas</SelectItem>
                     {Object.entries(statusLabels)
                       .filter(([key], index, self) => self.findIndex(t => statusLabels[t[0]] === statusLabels[key]) === index)
                       .map(([val, label]) => (
