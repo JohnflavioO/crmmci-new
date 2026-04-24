@@ -154,7 +154,7 @@ export default function ProspectView() {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, user?.id]);
 
   const getPriority = (updatedAt: string, createdAt: string) => {
     const referenceDate = updatedAt || createdAt;
