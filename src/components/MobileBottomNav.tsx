@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Users, Kanban, Banknote, Clock, ArrowDownCircle, Truck, ClipboardList, MapPin } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Kanban, Banknote, Clock, ArrowDownCircle, Truck, ClipboardList, MapPin, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -7,6 +7,7 @@ const commercialItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/quotes', icon: FileText, label: 'Orçamentos' },
   { to: '/clients', icon: Users, label: 'Clientes' },
+  { to: '/prospect', icon: Target, label: 'Prospect' },
   { to: '/pipeline', icon: Kanban, label: 'Funil' },
 ];
 
