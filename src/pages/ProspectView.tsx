@@ -465,8 +465,8 @@ export default function ProspectView() {
                         <p className="text-xs font-medium truncate">{quote.salesperson || 'N/A'}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground uppercase font-semibold">Origem</p>
-                        <p className="text-xs font-medium truncate">{quote.clients?.origin || 'Direto'}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-semibold">Código</p>
+                        <p className="text-xs font-medium truncate">{quote.quote_number}</p>
                       </div>
                     </div>
 
