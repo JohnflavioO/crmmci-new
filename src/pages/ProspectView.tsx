@@ -106,7 +106,8 @@ export default function ProspectView() {
       setLoading(true);
       let query = db.from('quotes')
         .select('*, clients(company_name, name, origin)')
-        .not('status', 'in', '("Venda Realizada","Perdido","Cancelado","approved")');
+        .not('status', 'in', '("Venda Realizada","Perdido","Cancelado","approved")')
+        .order('created_at', { ascending: false });
 
       // Rule: Vendedor and Admin only see their own. Gestor sees based on filter.
       if (!isGestor) {
