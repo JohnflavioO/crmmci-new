@@ -90,6 +90,7 @@ interface ProspectQuote {
   salesperson: string | null;
   client_id: string;
   salesperson_id: string | null;
+  created_by: string | null;
   proposal_validity?: string;
   clients: {
     company_name: string;
