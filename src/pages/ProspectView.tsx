@@ -43,7 +43,9 @@ const PROSPECT_STATUSES = [
   'sent', 
   'negociacao',
   'em_negociacao',
-  'lancamento_rapido'
+  'lancamento_rapido',
+  'waiting_approval',
+  'draft'
 ];
 
 const statusLabels: Record<string, string> = {
@@ -53,6 +55,8 @@ const statusLabels: Record<string, string> = {
   negociacao: 'Negociação',
   em_negociacao: 'Em Negociação',
   lancamento_rapido: 'Lançamento Rápido',
+  waiting_approval: 'Aguardando Aprovação',
+  draft: 'Rascunho'
 };
 
 const statusColors: Record<string, string> = {
@@ -62,6 +66,8 @@ const statusColors: Record<string, string> = {
   negociacao: 'bg-purple-100 text-purple-800 border-purple-200',
   em_negociacao: 'bg-indigo-100 text-indigo-800 border-indigo-200',
   lancamento_rapido: 'bg-orange-100 text-orange-800 border-orange-200',
+  waiting_approval: 'bg-slate-100 text-slate-800 border-slate-200',
+  draft: 'bg-gray-100 text-gray-800 border-gray-200'
 };
 
 const formatCurrency = (v: number) =>
@@ -100,7 +106,8 @@ export default function ProspectView() {
       setLoading(true);
       let query = db.from('quotes')
         .select('*, clients(company_name, name, origin)')
-        .or(`status.in.(${PROSPECT_STATUSES.join(',')}),external_status.in.(${PROSPECT_STATUSES.join(',')})`);
+        .not('status', 'in', '("Venda Realizada","Perdido","Cancelado","approved")')
+        .order('created_at', { ascending: false });
 
       // Rule: Vendedor and Admin only see their own. Gestor sees based on filter.
       if (!isGestor) {
@@ -121,7 +128,6 @@ export default function ProspectView() {
 
       const mapped = (data || []).map((q: any) => ({
         ...q,
-        status: PROSPECT_STATUSES.includes(q.status) ? q.status : (PROSPECT_STATUSES.includes(q.external_status) ? q.external_status : q.status),
         client_name: q.clients?.company_name || q.clients?.name || q.client_name || 'Sem cliente',
       }));
 
@@ -131,7 +137,7 @@ export default function ProspectView() {
       if (isGestor) {
         const { data: sellersData } = await db.from('quotes')
           .select('salesperson')
-          .or(`status.in.(${PROSPECT_STATUSES.join(',')}),external_status.in.(${PROSPECT_STATUSES.join(',')})`)
+          .not('status', 'in', '("Venda Realizada","Perdido","Cancelado","approved")')
           .not('salesperson', 'is', null);
         
         const uniqueSellers = Array.from(new Set((sellersData || []).map((q: any) => q.salesperson).filter(Boolean))) as string[];
@@ -147,11 +153,11 @@ export default function ProspectView() {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, user?.id]);
 
   const getPriority = (updatedAt: string, createdAt: string) => {
     const referenceDate = updatedAt || createdAt;
-    const daysSinceInteraction = referenceDate ? differenceInDays(new Date(), new Date(referenceDate)) : 999;
+    const daysSinceInteraction = referenceDate ? Math.max(0, differenceInDays(new Date(), new Date(referenceDate))) : 999;
     
     if (daysSinceInteraction > 5) return { label: 'Urgente', color: 'bg-red-500', icon: AlertCircle, days: daysSinceInteraction, level: 'urgent' };
     if (daysSinceInteraction >= 2) return { label: 'Atenção', color: 'bg-yellow-500', icon: Clock, days: daysSinceInteraction, level: 'attention' };
@@ -187,8 +193,10 @@ export default function ProspectView() {
     // 2. Maior Valor
     // 3. Mais Recente (criação)
     return result.sort((a, b) => {
-      const daysA = differenceInDays(new Date(), new Date(a.updated_at || a.created_at));
-      const daysB = differenceInDays(new Date(), new Date(b.updated_at || b.created_at));
+      const dateA = a.updated_at || a.created_at;
+      const dateB = b.updated_at || b.created_at;
+      const daysA = dateA ? Math.max(0, differenceInDays(new Date(), new Date(dateA))) : 999;
+      const daysB = dateB ? Math.max(0, differenceInDays(new Date(), new Date(dateB))) : 999;
       
       if (daysA !== daysB) return daysB - daysA;
       
@@ -288,8 +296,8 @@ export default function ProspectView() {
                 </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos Status</SelectItem>
-                    {PROSPECT_STATUSES.map(s => (
-                      <SelectItem key={s} value={s}>{statusLabels[s] || s}</SelectItem>
+                    {Object.entries(statusLabels).map(([val, label]) => (
+                      <SelectItem key={val} value={val}>{label}</SelectItem>
                     ))}
                   </SelectContent>
               </Select>
@@ -340,7 +348,7 @@ export default function ProspectView() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-mono text-muted-foreground">{quote.quote_number}</span>
-                        <Badge variant="outline" className={cn("text-[10px] font-medium px-1.5 py-0 h-4", statusColors[quote.status])}>
+                        <Badge variant="outline" className={cn("text-[10px] font-medium px-1.5 py-0 h-4", statusColors[quote.status] || 'bg-slate-100 text-slate-800 border-slate-200')}>
                           {statusLabels[quote.status] || quote.status}
                         </Badge>
                       </div>
@@ -370,9 +378,9 @@ export default function ProspectView() {
                         </DropdownMenuItem>
                         <div className="h-px bg-muted my-1" />
                         <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mudar Status</div>
-                        {PROSPECT_STATUSES.filter(s => s !== quote.status).map(s => (
+                        {Object.entries(statusLabels).filter(([s]) => s !== quote.status).map(([s, label]) => (
                           <DropdownMenuItem key={s} onClick={() => updateQuoteStatus(quote.id, s)}>
-                            Mover para {statusLabels[s] || s}
+                            Mover para {label}
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
