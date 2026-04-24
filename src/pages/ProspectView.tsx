@@ -120,51 +120,48 @@ export default function ProspectView() {
       
       const statusFilters = [
         'pre_venda', 'pre-venda', 'pre_venda', 'Pré Venda', 'Pré-venda',
-        'contato_feito', 'contato_realizado', 'contato-feito', 'Contato Feito',
-        'sent', 'proposta_enviada', 'proposta-enviada', 'Proposta Enviada',
-        'negociacao', 'em_negociacao', 'em-negociacao', 'Em Negociação', 'Negociação',
-        'lancamento_rapido', 'lancamento-rapido', 'Lançamento Rápido', 'lançamento rápido',
-        'waiting_approval', 'draft', 'negociação'
+        'contato_feito', 'contato_realizado', 'contato-feito', 'Contato Feito', 'Contato realizado',
+        'sent', 'proposta_enviada', 'proposta-enviada', 'Proposta Enviada', 'proposta enviada',
+        'negociacao', 'em_negociacao', 'em-negociacao', 'Em Negociação', 'Negociação', 'negociação', 'Em negociação',
+        'lancamento_rapido', 'lancamento-rapido', 'Lançamento Rápido', 'lançamento rápido', 'Lançamento rápido',
+        'waiting_approval', 'draft', 'Rascunho'
       ];
       
-      console.log('ProspectVision: Loading data for user', user?.id, 'role:', isAdmin ? 'admin' : isGestor ? 'gestor' : 'comercial');
+      console.log('ProspectVision Debug:', {
+        userId: user?.id,
+        role: isAdmin ? 'admin' : isGestor ? 'gestor' : 'comercial',
+        sellerFilter
+      });
 
       let query = db.from('quotes')
         .select('*, clients(company_name, name, origin)')
-        .not('status', 'in', `(${excludedStatus.map(s => `"${s}"`).join(',')})`)
+        .in('status', statusFilters)
         .order('created_at', { ascending: false });
-      
-      query = query.in('status', statusFilters);
-
 
       // Permission Rules
-      if (isAdmin) {
-        // Admin acts as salesperson, sees only their own or those where they are the creator
-        // If gestor filter is active, it will refine this later in frontend
-        query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
-      } else if (isGestor) {
-        // Gestor logic: 
+      if (isGestor) {
         if (sellerFilter === 'meus') {
           query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
-        } else if (sellerFilter === 'all') {
-          // No additional salesperson filter for "all"
-        } else {
-          // Filter by specific salesperson id selected in dropdown
+        } else if (sellerFilter !== 'all') {
           query = query.eq('salesperson_id', sellerFilter);
         }
+        // If 'all', no salesperson filter (Gestor sees everything)
       } else {
-        // Default commercial/salesperson role
+        // Vendedor/Admin sees only their own
         query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
       }
 
       const { data, error } = await query;
       
-      if (error) throw error;
-
-      console.log(`ProspectVision: Returned ${data?.length || 0} records`);
-      if (data && data.length > 0) {
-        console.log('ProspectVision Sample:', data.slice(0, 3).map((q: any) => ({ id: q.id, status: q.status, salesperson: q.salesperson })));
+      if (error) {
+        console.error('ProspectVision Fetch Error:', error);
+        throw error;
       }
+
+      console.log('ProspectVision Results:', {
+        count: data?.length || 0,
+        sample: data?.slice(0, 2).map((q: any) => ({ id: q.id, status: q.status, sid: q.salesperson_id }))
+      });
 
       const mapped = (data || []).map((q: any) => ({
         ...q,
@@ -225,12 +222,13 @@ export default function ProspectView() {
       );
     }
 
-    // Filter handled by query, but we ensure consistency here
+    // Filter consistency for frontend UI state
     if (isGestor && sellerFilter !== 'all' && sellerFilter !== 'meus') {
       result = result.filter(q => q.salesperson_id === sellerFilter);
-    } else if ((!isGestor && !isAdmin) || sellerFilter === 'meus' || (isAdmin && sellerFilter === 'meus')) {
+    } else if (sellerFilter === 'meus' || (!isGestor && !isAdmin)) {
       result = result.filter(q => q.salesperson_id === user?.id || q.created_by === user?.id);
     }
+
 
 
     if (statusFilter !== 'all') {
