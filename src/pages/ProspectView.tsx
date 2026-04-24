@@ -108,10 +108,10 @@ export default function ProspectView() {
       
       const statusFilters = [
         'pre_venda', 'pre-venda', 'Pré Venda', 'Pré-venda',
-        'contato_feito', 'contato_realizado', 'contato-feito', 'Contato Feito', 'Contato realizado',
-        'sent', 'proposta_enviada', 'proposta-enviada', 'Proposta Enviada', 'proposta enviada',
-        'negociacao', 'em_negociacao', 'em-negociacao', 'Em Negociação', 'Negociação', 'negociação', 'Em negociação',
-        'lancamento_rapido', 'lancamento-rapido', 'Lançamento Rápido', 'lançamento rápido', 'Lançamento rápido'
+        'contato_feito', 'contato_realizado', 'contato-feito', 'Contato Feito', 'Contato realizado', 'contato feito',
+        'sent', 'proposta_enviada', 'proposta-enviada', 'Proposta Enviada', 'proposta enviada', 'Proposta enviada',
+        'negociacao', 'em_negociacao', 'em-negociacao', 'Em Negociação', 'Negociação', 'negociação', 'Em negociação', 'negociacao',
+        'lancamento_rapido', 'lancamento-rapido', 'Lançamento Rápido', 'lançamento rápido', 'Lançamento rápido', 'lancamento rapido'
       ];
       
       console.log('ProspectVision Log [INIT]:', {
