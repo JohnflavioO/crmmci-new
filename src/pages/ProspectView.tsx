@@ -157,7 +157,7 @@ export default function ProspectView() {
 
   const getPriority = (updatedAt: string, createdAt: string) => {
     const referenceDate = updatedAt || createdAt;
-    const daysSinceInteraction = referenceDate ? differenceInDays(new Date(), new Date(referenceDate)) : 999;
+    const daysSinceInteraction = referenceDate ? Math.max(0, differenceInDays(new Date(), new Date(referenceDate))) : 999;
     
     if (daysSinceInteraction > 5) return { label: 'Urgente', color: 'bg-red-500', icon: AlertCircle, days: daysSinceInteraction, level: 'urgent' };
     if (daysSinceInteraction >= 2) return { label: 'Atenção', color: 'bg-yellow-500', icon: Clock, days: daysSinceInteraction, level: 'attention' };
