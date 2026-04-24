@@ -37,13 +37,22 @@ import { toast } from 'sonner';
 
 const db = supabase as any;
 
-const PROSPECT_STATUSES = ['pre_venda', 'contato_feito', 'sent', 'negociacao'];
+const PROSPECT_STATUSES = [
+  'pre_venda', 
+  'contato_feito', 
+  'sent', 
+  'negociacao',
+  'em_negociacao',
+  'lancamento_rapido'
+];
 
 const statusLabels: Record<string, string> = {
   pre_venda: 'Pré-venda',
   contato_feito: 'Contato Feito',
   sent: 'Proposta Enviada',
   negociacao: 'Negociação',
+  em_negociacao: 'Em Negociação',
+  lancamento_rapido: 'Lançamento Rápido',
 };
 
 const statusColors: Record<string, string> = {
@@ -51,6 +60,8 @@ const statusColors: Record<string, string> = {
   contato_feito: 'bg-blue-100 text-blue-800 border-blue-200',
   sent: 'bg-amber-100 text-amber-800 border-amber-200',
   negociacao: 'bg-purple-100 text-purple-800 border-purple-200',
+  em_negociacao: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  lancamento_rapido: 'bg-orange-100 text-orange-800 border-orange-200',
 };
 
 const formatCurrency = (v: number) =>
@@ -79,7 +90,7 @@ export default function ProspectView() {
   const [quotes, setQuotes] = useState<ProspectQuote[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [sellerFilter, setSellerFilter] = useState('all');
+  const [sellerFilter, setSellerFilter] = useState<string>('meus');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [sellers, setSellers] = useState<string[]>([]);
@@ -89,10 +100,19 @@ export default function ProspectView() {
       setLoading(true);
       let query = db.from('quotes')
         .select('*, clients(company_name, name, origin)')
-        .in('status', PROSPECT_STATUSES);
+        .or(`status.in.(${PROSPECT_STATUSES.join(',')}),external_status.in.(${PROSPECT_STATUSES.join(',')})`);
 
-      if (!isAdmin && !isGestor) {
-        query = query.eq('created_by', user?.id);
+      // Rule: Vendedor and Admin only see their own. Gestor sees based on filter.
+      if (!isGestor) {
+        query = query.eq('salesperson_id', user?.id);
+      } else {
+        // Gestor logic: if filter is 'meus', filter by user.id
+        if (sellerFilter === 'meus') {
+          query = query.eq('salesperson_id', user?.id);
+        } else if (sellerFilter !== 'all') {
+          // Filter by specific salesperson name (current implementation uses name for the select)
+          query = query.eq('salesperson', sellerFilter);
+        }
       }
 
       const { data, error } = await query;
@@ -101,28 +121,38 @@ export default function ProspectView() {
 
       const mapped = (data || []).map((q: any) => ({
         ...q,
+        status: PROSPECT_STATUSES.includes(q.status) ? q.status : (PROSPECT_STATUSES.includes(q.external_status) ? q.external_status : q.status),
         client_name: q.clients?.company_name || q.clients?.name || q.client_name || 'Sem cliente',
       }));
 
       setQuotes(mapped);
 
-      // Extract unique sellers for filter
-      const uniqueSellers = Array.from(new Set(mapped.map((q: any) => q.salesperson).filter(Boolean))) as string[];
-      setSellers(uniqueSellers);
+      // Extract unique sellers for filter (only for Gestor)
+      if (isGestor) {
+        const { data: sellersData } = await db.from('quotes')
+          .select('salesperson')
+          .or(`status.in.(${PROSPECT_STATUSES.join(',')}),external_status.in.(${PROSPECT_STATUSES.join(',')})`)
+          .not('salesperson', 'is', null);
+        
+        const uniqueSellers = Array.from(new Set((sellersData || []).map((q: any) => q.salesperson).filter(Boolean))) as string[];
+        setSellers(uniqueSellers);
+      }
     } catch (err) {
       console.error('ProspectView load error:', err);
       toast.error('Erro ao carregar dados do Prospect');
     } finally {
       setLoading(false);
     }
-  }, [user?.id, isAdmin, isGestor]);
+  }, [user?.id, isAdmin, isGestor, sellerFilter]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  const getPriority = (updatedAt: string) => {
-    const daysSinceInteraction = differenceInDays(new Date(), new Date(updatedAt));
+  const getPriority = (updatedAt: string, createdAt: string) => {
+    const referenceDate = updatedAt || createdAt;
+    const daysSinceInteraction = referenceDate ? differenceInDays(new Date(), new Date(referenceDate)) : 999;
+    
     if (daysSinceInteraction > 5) return { label: 'Urgente', color: 'bg-red-500', icon: AlertCircle, days: daysSinceInteraction, level: 'urgent' };
     if (daysSinceInteraction >= 2) return { label: 'Atenção', color: 'bg-yellow-500', icon: Clock, days: daysSinceInteraction, level: 'attention' };
     return { label: 'Saudável', color: 'bg-emerald-500', icon: CheckCircle2, days: daysSinceInteraction, level: 'healthy' };
@@ -135,20 +165,21 @@ export default function ProspectView() {
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(quote => 
-        quote.client_name.toLowerCase().includes(q) || 
-        quote.quote_number.toLowerCase().includes(q)
+        (quote.client_name && quote.client_name.toLowerCase().includes(q)) || 
+        (quote.quote_number && quote.quote_number.toLowerCase().includes(q))
       );
     }
 
-    // Filters
-    if (sellerFilter !== 'all') {
+    // Filters are now partially handled by the query for permissions, 
+    // but seller specific names for gestor are better handled here if query doesn't handle all cases
+    if (sellerFilter !== 'all' && sellerFilter !== 'meus' && isGestor) {
       result = result.filter(q => q.salesperson === sellerFilter);
     }
     if (statusFilter !== 'all') {
       result = result.filter(q => q.status === statusFilter);
     }
     if (priorityFilter !== 'all') {
-      result = result.filter(q => getPriority(q.updated_at).level === priorityFilter);
+      result = result.filter(q => getPriority(q.updated_at, q.created_at).level === priorityFilter);
     }
 
     // Default Sorting:
@@ -156,8 +187,8 @@ export default function ProspectView() {
     // 2. Maior Valor
     // 3. Mais Recente (criação)
     return result.sort((a, b) => {
-      const daysA = differenceInDays(new Date(), new Date(a.updated_at));
-      const daysB = differenceInDays(new Date(), new Date(b.updated_at));
+      const daysA = differenceInDays(new Date(), new Date(a.updated_at || a.created_at));
+      const daysB = differenceInDays(new Date(), new Date(b.updated_at || b.created_at));
       
       if (daysA !== daysB) return daysB - daysA;
       
@@ -173,7 +204,7 @@ export default function ProspectView() {
   const metrics = useMemo(() => {
     const totalOpen = filteredAndSortedQuotes.length;
     const totalValue = filteredAndSortedQuotes.reduce((sum, q) => sum + (parseFloat(String(q.total_amount)) || 0), 0);
-    const urgentCount = filteredAndSortedQuotes.filter(q => getPriority(q.updated_at).level === 'urgent').length;
+    const urgentCount = filteredAndSortedQuotes.filter(q => getPriority(q.updated_at, q.created_at).level === 'urgent').length;
     const avgTicket = totalOpen > 0 ? totalValue / totalOpen : 0;
 
     return { totalOpen, totalValue, urgentCount, avgTicket };
@@ -255,22 +286,23 @@ export default function ProspectView() {
                   <Filter className="h-3.5 w-3.5 mr-2" />
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos Status</SelectItem>
-                  {PROSPECT_STATUSES.map(s => (
-                    <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
-                  ))}
-                </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="all">Todos Status</SelectItem>
+                    {PROSPECT_STATUSES.map(s => (
+                      <SelectItem key={s} value={s}>{statusLabels[s] || s}</SelectItem>
+                    ))}
+                  </SelectContent>
               </Select>
 
-              {(isAdmin || isGestor) && (
+              {isGestor && (
                 <Select value={sellerFilter} onValueChange={setSellerFilter}>
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="w-[160px]">
                     <User className="h-3.5 w-3.5 mr-2" />
                     <SelectValue placeholder="Vendedor" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Vendedores</SelectItem>
+                    <SelectItem value="meus">Meus Prospects</SelectItem>
+                    <SelectItem value="all">Equipe Toda</SelectItem>
                     {sellers.map(s => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))}
@@ -297,7 +329,7 @@ export default function ProspectView() {
         {/* Opportunities List */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAndSortedQuotes.map((quote) => {
-            const priority = getPriority(quote.updated_at);
+            const priority = getPriority(quote.updated_at, quote.created_at);
             const PriorityIcon = priority.icon;
             
             return (
@@ -309,7 +341,7 @@ export default function ProspectView() {
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-mono text-muted-foreground">{quote.quote_number}</span>
                         <Badge variant="outline" className={cn("text-[10px] font-medium px-1.5 py-0 h-4", statusColors[quote.status])}>
-                          {statusLabels[quote.status]}
+                          {statusLabels[quote.status] || quote.status}
                         </Badge>
                       </div>
                       <h3 className="font-bold text-base truncate pr-2">{quote.client_name}</h3>
@@ -340,7 +372,7 @@ export default function ProspectView() {
                         <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mudar Status</div>
                         {PROSPECT_STATUSES.filter(s => s !== quote.status).map(s => (
                           <DropdownMenuItem key={s} onClick={() => updateQuoteStatus(quote.id, s)}>
-                            Mover para {statusLabels[s]}
+                            Mover para {statusLabels[s] || s}
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -349,7 +381,7 @@ export default function ProspectView() {
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Valor da Negociação</span>
+                      <span className="text-xs text-muted-foreground">Valor</span>
                       <span className="text-sm font-bold text-primary">{formatCurrency(quote.total_amount)}</span>
                     </div>
 
