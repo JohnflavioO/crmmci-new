@@ -285,12 +285,12 @@ export default function ProspectView() {
                   <Filter className="h-3.5 w-3.5 mr-2" />
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos Status</SelectItem>
-                  {PROSPECT_STATUSES.map(s => (
-                    <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
-                  ))}
-                </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="all">Todos Status</SelectItem>
+                    {PROSPECT_STATUSES.map(s => (
+                      <SelectItem key={s} value={s}>{statusLabels[s] || s}</SelectItem>
+                    ))}
+                  </SelectContent>
               </Select>
 
               {isGestor && (
@@ -369,9 +369,8 @@ export default function ProspectView() {
                         </DropdownMenuItem>
                         <div className="h-px bg-muted my-1" />
                         <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mudar Status</div>
-                        {PROSPECT_STATUSES.filter(s => s !== quote.status).map(s => (
                           <DropdownMenuItem key={s} onClick={() => updateQuoteStatus(quote.id, s)}>
-                            Mover para {statusLabels[s]}
+                            Mover para {statusLabels[s] || s}
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
