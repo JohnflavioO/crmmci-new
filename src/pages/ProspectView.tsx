@@ -172,7 +172,8 @@ export default function ProspectView() {
       // Extract unique sellers for filter (only for Gestor)
       if (isGestor) {
         const { data: sellersData, error: sellersError } = await db.from('quotes')
-          .select('salesperson, salesperson_id');
+          .select('salesperson, salesperson_id')
+          .in('status', statusFilters);
         
         if (sellersError) {
           console.error('ProspectVision Sellers Fetch Error:', sellersError);
