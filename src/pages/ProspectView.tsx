@@ -195,8 +195,8 @@ export default function ProspectView() {
     return result.sort((a, b) => {
       const dateA = a.updated_at || a.created_at;
       const dateB = b.updated_at || b.created_at;
-      const daysA = dateA ? differenceInDays(new Date(), new Date(dateA)) : 999;
-      const daysB = dateB ? differenceInDays(new Date(), new Date(dateB)) : 999;
+      const daysA = dateA ? Math.max(0, differenceInDays(new Date(), new Date(dateA))) : 999;
+      const daysB = dateB ? Math.max(0, differenceInDays(new Date(), new Date(dateB))) : 999;
       
       if (daysA !== daysB) return daysB - daysA;
       
