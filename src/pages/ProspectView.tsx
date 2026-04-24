@@ -134,15 +134,6 @@ export default function ProspectView() {
         .not('status', 'in', `(${excludedStatus.map(s => `"${s}"`).join(',')})`)
         .order('created_at', { ascending: false });
       
-      const statusFilters = [
-        'pre_venda', 'pre-venda', 'pre_venda', 'Pré Venda', 'Pré-venda',
-        'contato_feito', 'contato_realizado', 'contato-feito',
-        'sent', 'proposta_enviada', 'proposta-enviada', 'Proposta Enviada',
-        'negociacao', 'em_negociacao', 'em-negociacao', 'Em Negociação', 'Negociação',
-        'lancamento_rapido', 'lancamento-rapido', 'Lançamento Rápido', 'lançamento rápido',
-        'waiting_approval', 'draft'
-      ];
-      
       query = query.in('status', statusFilters);
 
 
