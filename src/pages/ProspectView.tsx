@@ -40,42 +40,33 @@ import { toast } from 'sonner';
 const db = supabase as any;
 
 const PROSPECT_STATUSES = [
-  'pre_venda', 
-  'contato_feito', 
-  'sent', 
+  'pre_venda',
+  'contato_feito',
+  'sent',
+  'proposta_enviada',
   'negociacao',
   'em_negociacao',
-  'lancamento_rapido',
-  'waiting_approval',
-  'draft',
-  'proposta_enviada',
-  'contato_realizado'
+  'lancamento_rapido'
 ];
 
 const statusLabels: Record<string, string> = {
   pre_venda: 'Pré-venda',
   contato_feito: 'Contato Feito',
-  contato_realizado: 'Contato Feito',
   sent: 'Proposta Enviada',
   proposta_enviada: 'Proposta Enviada',
   negociacao: 'Negociação',
   em_negociacao: 'Em Negociação',
-  lancamento_rapido: 'Lançamento Rápido',
-  waiting_approval: 'Aguardando Aprovação',
-  draft: 'Rascunho'
+  lancamento_rapido: 'Lançamento Rápido'
 };
 
 const statusColors: Record<string, string> = {
   pre_venda: 'bg-sky-100 text-sky-800 border-sky-200',
   contato_feito: 'bg-blue-100 text-blue-800 border-blue-200',
-  contato_realizado: 'bg-blue-100 text-blue-800 border-blue-200',
   sent: 'bg-amber-100 text-amber-800 border-amber-200',
   proposta_enviada: 'bg-amber-100 text-amber-800 border-amber-200',
   negociacao: 'bg-purple-100 text-purple-800 border-purple-200',
   em_negociacao: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-  lancamento_rapido: 'bg-orange-100 text-orange-800 border-orange-200',
-  waiting_approval: 'bg-slate-100 text-slate-800 border-slate-200',
-  draft: 'bg-gray-100 text-gray-800 border-gray-200'
+  lancamento_rapido: 'bg-orange-100 text-orange-800 border-orange-200'
 };
 
 const formatCurrency = (v: number) =>
