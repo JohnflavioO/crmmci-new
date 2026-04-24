@@ -43,7 +43,9 @@ const PROSPECT_STATUSES = [
   'sent', 
   'negociacao',
   'em_negociacao',
-  'lancamento_rapido'
+  'lancamento_rapido',
+  'waiting_approval',
+  'draft'
 ];
 
 const statusLabels: Record<string, string> = {
@@ -53,6 +55,8 @@ const statusLabels: Record<string, string> = {
   negociacao: 'Negociação',
   em_negociacao: 'Em Negociação',
   lancamento_rapido: 'Lançamento Rápido',
+  waiting_approval: 'Aguardando Aprovação',
+  draft: 'Rascunho'
 };
 
 const statusColors: Record<string, string> = {
@@ -62,6 +66,8 @@ const statusColors: Record<string, string> = {
   negociacao: 'bg-purple-100 text-purple-800 border-purple-200',
   em_negociacao: 'bg-indigo-100 text-indigo-800 border-indigo-200',
   lancamento_rapido: 'bg-orange-100 text-orange-800 border-orange-200',
+  waiting_approval: 'bg-slate-100 text-slate-800 border-slate-200',
+  draft: 'bg-gray-100 text-gray-800 border-gray-200'
 };
 
 const formatCurrency = (v: number) =>
