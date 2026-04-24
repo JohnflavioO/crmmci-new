@@ -115,7 +115,16 @@ export default function ProspectView() {
       
       const excludedStatus = [
         'Venda Realizada', 'Perdido', 'Cancelado', 'approved', 
-        'Aprovado', 'Rejeitado', 'Concluído', 'Pago', 'Entregue'
+        'Aprovado', 'Rejeitado', 'Concluído', 'Pago', 'Entregue', 'finalizado'
+      ];
+      
+      const statusFilters = [
+        'pre_venda', 'pre-venda', 'pre_venda', 'Pré Venda', 'Pré-venda',
+        'contato_feito', 'contato_realizado', 'contato-feito', 'Contato Feito',
+        'sent', 'proposta_enviada', 'proposta-enviada', 'Proposta Enviada',
+        'negociacao', 'em_negociacao', 'em-negociacao', 'Em Negociação', 'Negociação',
+        'lancamento_rapido', 'lancamento-rapido', 'Lançamento Rápido', 'lançamento rápido',
+        'waiting_approval', 'draft', 'negociação'
       ];
       
       console.log('ProspectVision: Loading data for user', user?.id, 'role:', isAdmin ? 'admin' : isGestor ? 'gestor' : 'comercial');
