@@ -45,13 +45,17 @@ const PROSPECT_STATUSES = [
   'em_negociacao',
   'lancamento_rapido',
   'waiting_approval',
-  'draft'
+  'draft',
+  'proposta_enviada',
+  'contato_realizado'
 ];
 
 const statusLabels: Record<string, string> = {
   pre_venda: 'Pré-venda',
   contato_feito: 'Contato Feito',
+  contato_realizado: 'Contato Feito',
   sent: 'Proposta Enviada',
+  proposta_enviada: 'Proposta Enviada',
   negociacao: 'Negociação',
   em_negociacao: 'Em Negociação',
   lancamento_rapido: 'Lançamento Rápido',
@@ -62,7 +66,9 @@ const statusLabels: Record<string, string> = {
 const statusColors: Record<string, string> = {
   pre_venda: 'bg-sky-100 text-sky-800 border-sky-200',
   contato_feito: 'bg-blue-100 text-blue-800 border-blue-200',
+  contato_realizado: 'bg-blue-100 text-blue-800 border-blue-200',
   sent: 'bg-amber-100 text-amber-800 border-amber-200',
+  proposta_enviada: 'bg-amber-100 text-amber-800 border-amber-200',
   negociacao: 'bg-purple-100 text-purple-800 border-purple-200',
   em_negociacao: 'bg-indigo-100 text-indigo-800 border-indigo-200',
   lancamento_rapido: 'bg-orange-100 text-orange-800 border-orange-200',
@@ -83,6 +89,8 @@ interface ProspectQuote {
   updated_at: string;
   salesperson: string | null;
   client_id: string;
+  salesperson_id: string | null;
+  created_by: string | null;
   proposal_validity?: string;
   clients: {
     company_name: string;
@@ -99,32 +107,64 @@ export default function ProspectView() {
   const [sellerFilter, setSellerFilter] = useState<string>('meus');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
-  const [sellers, setSellers] = useState<string[]>([]);
+  const [sellers, setSellers] = useState<{id: string, name: string}[]>([]);
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
+      
+      const excludedStatus = [
+        'Venda Realizada', 'Perdido', 'Cancelado', 'approved', 
+        'Aprovado', 'Rejeitado', 'Concluído', 'Pago', 'Entregue', 'finalizado'
+      ];
+      
+      const statusFilters = [
+        'pre_venda', 'pre-venda', 'pre_venda', 'Pré Venda', 'Pré-venda',
+        'contato_feito', 'contato_realizado', 'contato-feito', 'Contato Feito',
+        'sent', 'proposta_enviada', 'proposta-enviada', 'Proposta Enviada',
+        'negociacao', 'em_negociacao', 'em-negociacao', 'Em Negociação', 'Negociação',
+        'lancamento_rapido', 'lancamento-rapido', 'Lançamento Rápido', 'lançamento rápido',
+        'waiting_approval', 'draft', 'negociação'
+      ];
+      
+      console.log('ProspectVision: Loading data for user', user?.id, 'role:', isAdmin ? 'admin' : isGestor ? 'gestor' : 'comercial');
+
       let query = db.from('quotes')
         .select('*, clients(company_name, name, origin)')
-        .not('status', 'in', '("Venda Realizada","Perdido","Cancelado","approved")')
+        .not('status', 'in', `(${excludedStatus.map(s => `"${s}"`).join(',')})`)
         .order('created_at', { ascending: false });
+      
+      query = query.in('status', statusFilters);
 
-      // Rule: Vendedor and Admin only see their own. Gestor sees based on filter.
-      if (!isGestor) {
-        query = query.eq('salesperson_id', user?.id);
-      } else {
-        // Gestor logic: if filter is 'meus', filter by user.id
+
+      // Permission Rules
+      if (isAdmin) {
+        // Admin acts as salesperson, sees only their own or those where they are the creator
+        // If gestor filter is active, it will refine this later in frontend
+        query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
+      } else if (isGestor) {
+        // Gestor logic: 
         if (sellerFilter === 'meus') {
-          query = query.eq('salesperson_id', user?.id);
-        } else if (sellerFilter !== 'all') {
-          // Filter by specific salesperson name (current implementation uses name for the select)
-          query = query.eq('salesperson', sellerFilter);
+          query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
+        } else if (sellerFilter === 'all') {
+          // No additional salesperson filter for "all"
+        } else {
+          // Filter by specific salesperson id selected in dropdown
+          query = query.eq('salesperson_id', sellerFilter);
         }
+      } else {
+        // Default commercial/salesperson role
+        query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
       }
 
       const { data, error } = await query;
       
       if (error) throw error;
+
+      console.log(`ProspectVision: Returned ${data?.length || 0} records`);
+      if (data && data.length > 0) {
+        console.log('ProspectVision Sample:', data.slice(0, 3).map((q: any) => ({ id: q.id, status: q.status, salesperson: q.salesperson })));
+      }
 
       const mapped = (data || []).map((q: any) => ({
         ...q,
@@ -136,11 +176,18 @@ export default function ProspectView() {
       // Extract unique sellers for filter (only for Gestor)
       if (isGestor) {
         const { data: sellersData } = await db.from('quotes')
-          .select('salesperson')
-          .not('status', 'in', '("Venda Realizada","Perdido","Cancelado","approved")')
-          .not('salesperson', 'is', null);
+          .select('salesperson, salesperson_id, status')
+          .in('status', statusFilters)
+          .not('salesperson_id', 'is', null);
         
-        const uniqueSellers = Array.from(new Set((sellersData || []).map((q: any) => q.salesperson).filter(Boolean))) as string[];
+        const sellerMap = new Map();
+        (sellersData || []).forEach((q: any) => {
+          if (q.salesperson_id && q.salesperson) {
+            sellerMap.set(q.salesperson_id, q.salesperson);
+          }
+        });
+        
+        const uniqueSellers = Array.from(sellerMap.entries()).map(([id, name]) => ({ id, name }));
         setSellers(uniqueSellers);
       }
     } catch (err) {
@@ -152,7 +199,9 @@ export default function ProspectView() {
   }, [user?.id, isAdmin, isGestor, sellerFilter]);
 
   useEffect(() => {
-    loadData();
+    if (user?.id) {
+      loadData();
+    }
   }, [loadData, user?.id]);
 
   const getPriority = (updatedAt: string, createdAt: string) => {
@@ -176,11 +225,14 @@ export default function ProspectView() {
       );
     }
 
-    // Filters are now partially handled by the query for permissions, 
-    // but seller specific names for gestor are better handled here if query doesn't handle all cases
-    if (sellerFilter !== 'all' && sellerFilter !== 'meus' && isGestor) {
-      result = result.filter(q => q.salesperson === sellerFilter);
+    // Filter handled by query, but we ensure consistency here
+    if (isGestor && sellerFilter !== 'all' && sellerFilter !== 'meus') {
+      result = result.filter(q => q.salesperson_id === sellerFilter);
+    } else if ((!isGestor && !isAdmin) || sellerFilter === 'meus' || (isAdmin && sellerFilter === 'meus')) {
+      result = result.filter(q => q.salesperson_id === user?.id || q.created_by === user?.id);
     }
+
+
     if (statusFilter !== 'all') {
       result = result.filter(q => q.status === statusFilter);
     }
@@ -296,9 +348,12 @@ export default function ProspectView() {
                 </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos Status</SelectItem>
-                    {Object.entries(statusLabels).map(([val, label]) => (
-                      <SelectItem key={val} value={val}>{label}</SelectItem>
-                    ))}
+                    {Object.entries(statusLabels)
+                      .filter(([key], index, self) => self.findIndex(t => statusLabels[t[0]] === statusLabels[key]) === index)
+                      .map(([val, label]) => (
+                        <SelectItem key={val} value={val}>{label}</SelectItem>
+                      ))
+                    }
                   </SelectContent>
               </Select>
 
@@ -312,7 +367,7 @@ export default function ProspectView() {
                     <SelectItem value="meus">Meus Prospects</SelectItem>
                     <SelectItem value="all">Equipe Toda</SelectItem>
                     {sellers.map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
