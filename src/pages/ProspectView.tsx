@@ -222,12 +222,13 @@ export default function ProspectView() {
       );
     }
 
-    // Filter handled by query, but we ensure consistency here
+    // Filter consistency for frontend UI state
     if (isGestor && sellerFilter !== 'all' && sellerFilter !== 'meus') {
       result = result.filter(q => q.salesperson_id === sellerFilter);
-    } else if ((!isGestor && !isAdmin) || sellerFilter === 'meus' || (isAdmin && sellerFilter === 'meus')) {
+    } else if (sellerFilter === 'meus' || (!isGestor && !isAdmin)) {
       result = result.filter(q => q.salesperson_id === user?.id || q.created_by === user?.id);
     }
+
 
 
     if (statusFilter !== 'all') {
