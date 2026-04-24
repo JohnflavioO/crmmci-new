@@ -40,42 +40,33 @@ import { toast } from 'sonner';
 const db = supabase as any;
 
 const PROSPECT_STATUSES = [
-  'pre_venda', 
-  'contato_feito', 
-  'sent', 
+  'pre_venda',
+  'contato_feito',
+  'sent',
+  'proposta_enviada',
   'negociacao',
   'em_negociacao',
-  'lancamento_rapido',
-  'waiting_approval',
-  'draft',
-  'proposta_enviada',
-  'contato_realizado'
+  'lancamento_rapido'
 ];
 
 const statusLabels: Record<string, string> = {
   pre_venda: 'Pré-venda',
   contato_feito: 'Contato Feito',
-  contato_realizado: 'Contato Feito',
   sent: 'Proposta Enviada',
   proposta_enviada: 'Proposta Enviada',
   negociacao: 'Negociação',
   em_negociacao: 'Em Negociação',
-  lancamento_rapido: 'Lançamento Rápido',
-  waiting_approval: 'Aguardando Aprovação',
-  draft: 'Rascunho'
+  lancamento_rapido: 'Lançamento Rápido'
 };
 
 const statusColors: Record<string, string> = {
   pre_venda: 'bg-sky-100 text-sky-800 border-sky-200',
   contato_feito: 'bg-blue-100 text-blue-800 border-blue-200',
-  contato_realizado: 'bg-blue-100 text-blue-800 border-blue-200',
   sent: 'bg-amber-100 text-amber-800 border-amber-200',
   proposta_enviada: 'bg-amber-100 text-amber-800 border-amber-200',
   negociacao: 'bg-purple-100 text-purple-800 border-purple-200',
   em_negociacao: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-  lancamento_rapido: 'bg-orange-100 text-orange-800 border-orange-200',
-  waiting_approval: 'bg-slate-100 text-slate-800 border-slate-200',
-  draft: 'bg-gray-100 text-gray-800 border-gray-200'
+  lancamento_rapido: 'bg-orange-100 text-orange-800 border-orange-200'
 };
 
 const formatCurrency = (v: number) =>
@@ -117,55 +108,63 @@ export default function ProspectView() {
       
       const statusFilters = [
         'pre_venda', 'pre-venda', 'Pré Venda', 'Pré-venda',
-        'contato_feito', 'contato_realizado', 'contato-feito', 'Contato Feito', 'Contato realizado',
-        'sent', 'proposta_enviada', 'proposta-enviada', 'Proposta Enviada', 'proposta enviada',
-        'negociacao', 'em_negociacao', 'em-negociacao', 'Em Negociação', 'Negociação', 'negociação', 'Em negociação',
-        'lancamento_rapido', 'lancamento-rapido', 'Lançamento Rápido', 'lançamento rápido', 'Lançamento rápido',
-        'waiting_approval', 'draft', 'Rascunho'
+        'contato_feito', 'contato_realizado', 'contato-feito', 'Contato Feito', 'Contato realizado', 'contato feito',
+        'sent', 'proposta_enviada', 'proposta-enviada', 'Proposta Enviada', 'proposta enviada', 'Proposta enviada',
+        'negociacao', 'em_negociacao', 'em-negociacao', 'Em Negociação', 'Negociação', 'negociação', 'Em negociação', 'negociacao',
+        'lancamento_rapido', 'lancamento-rapido', 'Lançamento Rápido', 'lançamento rápido', 'Lançamento rápido', 'lancamento rapido'
       ];
       
-      console.log('ProspectVision Debug - Filter Start:', {
+      console.log('ProspectVision Log [INIT]:', {
         userId: user?.id,
+        role: isAdmin ? 'admin' : isGestor ? 'gestor' : 'sales',
         sellerFilter
       });
 
+      // Simple query to avoid join errors, we already have client_name in quotes
       let query = db.from('quotes')
-        .select('*, clients(company_name, name, origin)');
+        .select(`
+          id, 
+          quote_number, 
+          client_name, 
+          status, 
+          total_amount, 
+          created_at, 
+          updated_at, 
+          salesperson, 
+          salesperson_id, 
+          created_by,
+          client_id
+        `)
+        .in('status', statusFilters)
+        .order('created_at', { ascending: false });
 
-      // If NOT Gestor or Gestor selecting 'meus', filter by user identity
-      if (!isGestor || sellerFilter === 'meus') {
+      // Apply Role-based filtering
+      if (isGestor) {
+        if (sellerFilter === 'meus') {
+          query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
+        } else if (sellerFilter !== 'all') {
+          query = query.eq('salesperson_id', sellerFilter);
+        }
+      } else {
+        // Admin or Seller: Only their own
         query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
-      } else if (sellerFilter !== 'all') {
-        // Gestor filtering for a specific seller
-        query = query.eq('salesperson_id', sellerFilter);
       }
-      // If Gestor and 'all', no salesperson filter
 
       const { data, error } = await query;
       
       if (error) {
         console.error('ProspectVision Fetch Error:', error);
-        toast.error('Erro ao buscar dados: ' + error.message);
         throw error;
       }
 
-      // Client-side filtering for status to be 100% sure we don't miss variants
-      const normalizedFilters = statusFilters.map(s => s.toLowerCase().trim());
-      const filteredData = (data || []).filter((q: any) => {
-        if (!q.status) return false;
-        const s = q.status.toLowerCase().trim();
-        return normalizedFilters.includes(s);
+      console.log('ProspectVision Log [SUCCESS]:', {
+        count: data?.length || 0,
+        sample: data?.slice(0, 1)
       });
 
-      console.log('ProspectVision Debug - Filter End:', {
-        dbCount: data?.length || 0,
-        filteredCount: filteredData.length,
-        userId: user?.id
-      });
-
-      const mapped = filteredData.map((q: any) => ({
+      const mapped = (data || []).map((q: any) => ({
         ...q,
-        client_name: q.clients?.company_name || q.clients?.name || q.client_name || 'Sem cliente',
+        client_name: q.client_name || 'Sem cliente',
       }));
 
       setQuotes(mapped);
@@ -173,7 +172,8 @@ export default function ProspectView() {
       // Extract unique sellers for filter (only for Gestor)
       if (isGestor) {
         const { data: sellersData, error: sellersError } = await db.from('quotes')
-          .select('salesperson, salesperson_id');
+          .select('salesperson, salesperson_id')
+          .in('status', statusFilters);
         
         if (sellersError) {
           console.error('ProspectVision Sellers Fetch Error:', sellersError);
@@ -358,7 +358,7 @@ export default function ProspectView() {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todos Status</SelectItem>
+                    <SelectItem value="all">Fases Ativas</SelectItem>
                     {Object.entries(statusLabels)
                       .filter(([key], index, self) => self.findIndex(t => statusLabels[t[0]] === statusLabels[key]) === index)
                       .map(([val, label]) => (
@@ -465,8 +465,8 @@ export default function ProspectView() {
                         <p className="text-xs font-medium truncate">{quote.salesperson || 'N/A'}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground uppercase font-semibold">Origem</p>
-                        <p className="text-xs font-medium truncate">{quote.clients?.origin || 'Direto'}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-semibold">Código</p>
+                        <p className="text-xs font-medium truncate">{quote.quote_number}</p>
                       </div>
                     </div>
 
