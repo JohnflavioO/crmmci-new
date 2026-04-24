@@ -173,8 +173,8 @@ export default function ProspectView() {
       // Extract unique sellers for filter (only for Gestor)
       if (isGestor) {
         const { data: sellersData } = await db.from('quotes')
-          .select('salesperson, salesperson_id')
-          .not('status', 'in', `(${excludedStatus.map(s => `"${s}"`).join(',')})`)
+          .select('salesperson, salesperson_id, status')
+          .in('status', statusFilters)
           .not('salesperson_id', 'is', null);
         
         const sellerMap = new Map();
