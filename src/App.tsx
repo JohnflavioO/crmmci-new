@@ -27,7 +27,8 @@ import NotFound from "./pages/NotFound";
 import ForcePasswordChange from "./pages/ForcePasswordChange";
 import EstoqueSC from "./pages/EstoqueSC";
 import { useState, useEffect } from "react";
-import { RefreshCw, AlertTriangle } from "lucide-react";
+import { RefreshCw, AlertTriangle, Target } from "lucide-react";
+import ProspectView from "./pages/ProspectView";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -128,6 +129,7 @@ function AppRoutes() {
       <Route path="/pipeline" element={<Pipeline />} />
       <Route path="/quote/:token" element={<PublicQuote />} />
       <Route path="/negociacoes" element={<Negociacoes />} />
+      <Route path="/prospect" element={<ProspectView />} />
       <Route path="/reports" element={<Reports />} />
       <Route path="/logistics" element={<Logistics />} />
       <Route path="/estoque-sc" element={<EstoqueSC />} />
