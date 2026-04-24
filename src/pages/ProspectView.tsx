@@ -346,7 +346,7 @@ export default function ProspectView() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-mono text-muted-foreground">{quote.quote_number}</span>
-                        <Badge variant="outline" className={cn("text-[10px] font-medium px-1.5 py-0 h-4", statusColors[quote.status])}>
+                        <Badge variant="outline" className={cn("text-[10px] font-medium px-1.5 py-0 h-4", statusColors[quote.status] || 'bg-slate-100 text-slate-800 border-slate-200')}>
                           {statusLabels[quote.status] || quote.status}
                         </Badge>
                       </div>
