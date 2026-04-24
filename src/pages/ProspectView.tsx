@@ -232,6 +232,8 @@ export default function ProspectView() {
     } else if (sellerFilter === 'meus' || (!isGestor && !isAdmin)) {
       result = result.filter(q => q.salesperson_id === user?.id || q.created_by === user?.id);
     }
+    // If isGestor and sellerFilter is 'all', we don't filter by salesperson
+
 
 
 
