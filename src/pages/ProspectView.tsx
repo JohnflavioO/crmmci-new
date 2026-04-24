@@ -301,8 +301,14 @@ export default function ProspectView() {
             <p className="text-muted-foreground text-sm">Acompanhamento estratégico de oportunidades abertas</p>
           </div>
           <div className="flex items-center gap-2">
-             <Button variant="outline" size="sm" onClick={loadData} className="gap-2">
-               <Calendar className="h-4 w-4" />
+             <Button 
+               variant="outline" 
+               size="sm" 
+               onClick={loadData} 
+               disabled={loading}
+               className="gap-2"
+             >
+               <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
                Sincronizar
              </Button>
           </div>
