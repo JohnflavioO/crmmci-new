@@ -127,7 +127,7 @@ export default function ProspectView() {
 
       const mapped = (data || []).map((q: any) => ({
         ...q,
-        status: PROSPECT_STATUSES.includes(q.status) ? q.status : (PROSPECT_STATUSES.includes(q.external_status) ? q.external_status : q.status),
+        status: q.status,
         client_name: q.clients?.company_name || q.clients?.name || q.client_name || 'Sem cliente',
       }));
 
@@ -137,7 +137,7 @@ export default function ProspectView() {
       if (isGestor) {
         const { data: sellersData } = await db.from('quotes')
           .select('salesperson')
-          .or(`status.in.(${PROSPECT_STATUSES.join(',')}),external_status.in.(${PROSPECT_STATUSES.join(',')})`)
+          .not('status', 'in', '("Venda Realizada","Perdido","Cancelado","approved")')
           .not('salesperson', 'is', null);
         
         const uniqueSellers = Array.from(new Set((sellersData || []).map((q: any) => q.salesperson).filter(Boolean))) as string[];
@@ -294,8 +294,8 @@ export default function ProspectView() {
                 </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos Status</SelectItem>
-                    {PROSPECT_STATUSES.map(s => (
-                      <SelectItem key={s} value={s}>{statusLabels[s] || s}</SelectItem>
+                    {Object.entries(statusLabels).map(([val, label]) => (
+                      <SelectItem key={val} value={val}>{label}</SelectItem>
                     ))}
                   </SelectContent>
               </Select>
