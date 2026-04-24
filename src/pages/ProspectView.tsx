@@ -380,7 +380,7 @@ export default function ProspectView() {
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Valor da Negociação</span>
+                      <span className="text-xs text-muted-foreground">Valor</span>
                       <span className="text-sm font-bold text-primary">{formatCurrency(quote.total_amount)}</span>
                     </div>
 
