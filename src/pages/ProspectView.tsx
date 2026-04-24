@@ -37,13 +37,22 @@ import { toast } from 'sonner';
 
 const db = supabase as any;
 
-const PROSPECT_STATUSES = ['pre_venda', 'contato_feito', 'sent', 'negociacao'];
+const PROSPECT_STATUSES = [
+  'pre_venda', 
+  'contato_feito', 
+  'sent', 
+  'negociacao',
+  'em_negociacao',
+  'lancamento_rapido'
+];
 
 const statusLabels: Record<string, string> = {
   pre_venda: 'Pré-venda',
   contato_feito: 'Contato Feito',
   sent: 'Proposta Enviada',
   negociacao: 'Negociação',
+  em_negociacao: 'Em Negociação',
+  lancamento_rapido: 'Lançamento Rápido',
 };
 
 const statusColors: Record<string, string> = {
@@ -51,6 +60,8 @@ const statusColors: Record<string, string> = {
   contato_feito: 'bg-blue-100 text-blue-800 border-blue-200',
   sent: 'bg-amber-100 text-amber-800 border-amber-200',
   negociacao: 'bg-purple-100 text-purple-800 border-purple-200',
+  em_negociacao: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  lancamento_rapido: 'bg-orange-100 text-orange-800 border-orange-200',
 };
 
 const formatCurrency = (v: number) =>
@@ -79,7 +90,7 @@ export default function ProspectView() {
   const [quotes, setQuotes] = useState<ProspectQuote[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [sellerFilter, setSellerFilter] = useState('all');
+  const [sellerFilter, setSellerFilter] = useState<string>('meus');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [sellers, setSellers] = useState<string[]>([]);
@@ -91,8 +102,17 @@ export default function ProspectView() {
         .select('*, clients(company_name, name, origin)')
         .in('status', PROSPECT_STATUSES);
 
-      if (!isAdmin && !isGestor) {
-        query = query.eq('created_by', user?.id);
+      // Rule: Vendedor and Admin only see their own. Gestor sees based on filter.
+      if (!isGestor) {
+        query = query.eq('salesperson_id', user?.id);
+      } else {
+        // Gestor logic: if filter is 'meus', filter by user.id
+        if (sellerFilter === 'meus') {
+          query = query.eq('salesperson_id', user?.id);
+        } else if (sellerFilter !== 'all') {
+          // Filter by specific salesperson name (current implementation uses name for the select)
+          query = query.eq('salesperson', sellerFilter);
+        }
       }
 
       const { data, error } = await query;
@@ -106,16 +126,23 @@ export default function ProspectView() {
 
       setQuotes(mapped);
 
-      // Extract unique sellers for filter
-      const uniqueSellers = Array.from(new Set(mapped.map((q: any) => q.salesperson).filter(Boolean))) as string[];
-      setSellers(uniqueSellers);
+      // Extract unique sellers for filter (only for Gestor)
+      if (isGestor) {
+        const { data: sellersData } = await db.from('quotes')
+          .select('salesperson')
+          .in('status', PROSPECT_STATUSES)
+          .not('salesperson', 'is', null);
+        
+        const uniqueSellers = Array.from(new Set((sellersData || []).map((q: any) => q.salesperson).filter(Boolean))) as string[];
+        setSellers(uniqueSellers);
+      }
     } catch (err) {
       console.error('ProspectView load error:', err);
       toast.error('Erro ao carregar dados do Prospect');
     } finally {
       setLoading(false);
     }
-  }, [user?.id, isAdmin, isGestor]);
+  }, [user?.id, isAdmin, isGestor, sellerFilter]);
 
   useEffect(() => {
     loadData();
@@ -140,8 +167,9 @@ export default function ProspectView() {
       );
     }
 
-    // Filters
-    if (sellerFilter !== 'all') {
+    // Filters are now partially handled by the query for permissions, 
+    // but seller specific names for gestor are better handled here if query doesn't handle all cases
+    if (sellerFilter !== 'all' && sellerFilter !== 'meus' && isGestor) {
       result = result.filter(q => q.salesperson === sellerFilter);
     }
     if (statusFilter !== 'all') {
@@ -263,14 +291,15 @@ export default function ProspectView() {
                 </SelectContent>
               </Select>
 
-              {(isAdmin || isGestor) && (
+              {isGestor && (
                 <Select value={sellerFilter} onValueChange={setSellerFilter}>
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="w-[160px]">
                     <User className="h-3.5 w-3.5 mr-2" />
                     <SelectValue placeholder="Vendedor" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Vendedores</SelectItem>
+                    <SelectItem value="meus">Meus Prospects</SelectItem>
+                    <SelectItem value="all">Equipe Toda</SelectItem>
                     {sellers.map(s => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))}
