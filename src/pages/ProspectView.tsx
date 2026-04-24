@@ -100,7 +100,7 @@ export default function ProspectView() {
       setLoading(true);
       let query = db.from('quotes')
         .select('*, clients(company_name, name, origin)')
-        .in('status', PROSPECT_STATUSES);
+        .or(`status.in.(${PROSPECT_STATUSES.join(',')}),external_status.in.(${PROSPECT_STATUSES.join(',')})`);
 
       // Rule: Vendedor and Admin only see their own. Gestor sees based on filter.
       if (!isGestor) {
@@ -121,6 +121,7 @@ export default function ProspectView() {
 
       const mapped = (data || []).map((q: any) => ({
         ...q,
+        status: PROSPECT_STATUSES.includes(q.status) ? q.status : (PROSPECT_STATUSES.includes(q.external_status) ? q.external_status : q.status),
         client_name: q.clients?.company_name || q.clients?.name || q.client_name || 'Sem cliente',
       }));
 
@@ -130,7 +131,7 @@ export default function ProspectView() {
       if (isGestor) {
         const { data: sellersData } = await db.from('quotes')
           .select('salesperson')
-          .in('status', PROSPECT_STATUSES)
+          .or(`status.in.(${PROSPECT_STATUSES.join(',')}),external_status.in.(${PROSPECT_STATUSES.join(',')})`)
           .not('salesperson', 'is', null);
         
         const uniqueSellers = Array.from(new Set((sellersData || []).map((q: any) => q.salesperson).filter(Boolean))) as string[];
