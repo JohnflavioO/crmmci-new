@@ -148,8 +148,10 @@ export default function ProspectView() {
     loadData();
   }, [loadData]);
 
-  const getPriority = (updatedAt: string) => {
-    const daysSinceInteraction = differenceInDays(new Date(), new Date(updatedAt));
+  const getPriority = (updatedAt: string, createdAt: string) => {
+    const referenceDate = updatedAt || createdAt;
+    const daysSinceInteraction = referenceDate ? differenceInDays(new Date(), new Date(referenceDate)) : 999;
+    
     if (daysSinceInteraction > 5) return { label: 'Urgente', color: 'bg-red-500', icon: AlertCircle, days: daysSinceInteraction, level: 'urgent' };
     if (daysSinceInteraction >= 2) return { label: 'Atenção', color: 'bg-yellow-500', icon: Clock, days: daysSinceInteraction, level: 'attention' };
     return { label: 'Saudável', color: 'bg-emerald-500', icon: CheckCircle2, days: daysSinceInteraction, level: 'healthy' };
@@ -176,7 +178,7 @@ export default function ProspectView() {
       result = result.filter(q => q.status === statusFilter);
     }
     if (priorityFilter !== 'all') {
-      result = result.filter(q => getPriority(q.updated_at).level === priorityFilter);
+      result = result.filter(q => getPriority(q.updated_at, q.created_at).level === priorityFilter);
     }
 
     // Default Sorting:
@@ -184,8 +186,8 @@ export default function ProspectView() {
     // 2. Maior Valor
     // 3. Mais Recente (criação)
     return result.sort((a, b) => {
-      const daysA = differenceInDays(new Date(), new Date(a.updated_at));
-      const daysB = differenceInDays(new Date(), new Date(b.updated_at));
+      const daysA = differenceInDays(new Date(), new Date(a.updated_at || a.created_at));
+      const daysB = differenceInDays(new Date(), new Date(b.updated_at || b.created_at));
       
       if (daysA !== daysB) return daysB - daysA;
       
@@ -201,7 +203,7 @@ export default function ProspectView() {
   const metrics = useMemo(() => {
     const totalOpen = filteredAndSortedQuotes.length;
     const totalValue = filteredAndSortedQuotes.reduce((sum, q) => sum + (parseFloat(String(q.total_amount)) || 0), 0);
-    const urgentCount = filteredAndSortedQuotes.filter(q => getPriority(q.updated_at).level === 'urgent').length;
+    const urgentCount = filteredAndSortedQuotes.filter(q => getPriority(q.updated_at, q.created_at).level === 'urgent').length;
     const avgTicket = totalOpen > 0 ? totalValue / totalOpen : 0;
 
     return { totalOpen, totalValue, urgentCount, avgTicket };
@@ -326,7 +328,7 @@ export default function ProspectView() {
         {/* Opportunities List */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAndSortedQuotes.map((quote) => {
-            const priority = getPriority(quote.updated_at);
+            const priority = getPriority(quote.updated_at, quote.created_at);
             const PriorityIcon = priority.icon;
             
             return (
