@@ -209,11 +209,13 @@ export default function ProspectView() {
       );
     }
 
-    // Filters are now partially handled by the query for permissions, 
-    // but seller specific names for gestor are better handled here if query doesn't handle all cases
-    if (sellerFilter !== 'all' && sellerFilter !== 'meus' && isGestor) {
-      result = result.filter(q => q.salesperson === sellerFilter);
+    // Filter handled by query, but we ensure consistency here
+    if (isGestor && sellerFilter !== 'all' && sellerFilter !== 'meus') {
+      result = result.filter(q => q.salesperson_id === sellerFilter);
+    } else if (!isGestor || sellerFilter === 'meus') {
+      result = result.filter(q => q.salesperson_id === user?.id || q.created_by === user?.id);
     }
+
     if (statusFilter !== 'all') {
       result = result.filter(q => q.status === statusFilter);
     }
