@@ -106,7 +106,7 @@ export default function ProspectView() {
       setLoading(true);
       let query = db.from('quotes')
         .select('*, clients(company_name, name, origin)')
-        .or(`status.in.(${PROSPECT_STATUSES.join(',')}),external_status.in.(${PROSPECT_STATUSES.join(',')})`);
+        .not('status', 'in', '("Venda Realizada","Perdido","Cancelado","approved")');
 
       // Rule: Vendedor and Admin only see their own. Gestor sees based on filter.
       if (!isGestor) {
