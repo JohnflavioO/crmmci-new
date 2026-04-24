@@ -113,11 +113,6 @@ export default function ProspectView() {
     try {
       setLoading(true);
       
-      const excludedStatus = [
-        'Venda Realizada', 'Perdido', 'Cancelado', 'approved', 
-        'Aprovado', 'Rejeitado', 'Concluído', 'Pago', 'Entregue', 'finalizado'
-      ];
-      
       const statusFilters = [
         'pre_venda', 'pre-venda', 'pre_venda', 'Pré Venda', 'Pré-venda',
         'contato_feito', 'contato_realizado', 'contato-feito', 'Contato Feito', 'Contato realizado',
@@ -139,15 +134,18 @@ export default function ProspectView() {
         .order('created_at', { ascending: false });
 
       // Permission Rules
+      // If NOT Gestor, always filter by user
+      // If Gestor and filter is 'meus', filter by user
+      // If Gestor and filter is specific ID, filter by that ID
+      // If Gestor and filter is 'all', NO salesperson filter
+      
       if (isGestor) {
         if (sellerFilter === 'meus') {
           query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
         } else if (sellerFilter !== 'all') {
           query = query.eq('salesperson_id', sellerFilter);
         }
-        // If 'all', no salesperson filter (Gestor sees everything)
       } else {
-        // Vendedor/Admin sees only their own
         query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
       }
 
@@ -155,6 +153,7 @@ export default function ProspectView() {
       
       if (error) {
         console.error('ProspectVision Fetch Error:', error);
+        toast.error('Erro técnico ao buscar dados: ' + error.message);
         throw error;
       }
 
