@@ -376,9 +376,9 @@ export default function ProspectView() {
                         </DropdownMenuItem>
                         <div className="h-px bg-muted my-1" />
                         <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mudar Status</div>
-                        {PROSPECT_STATUSES.filter(s => s !== quote.status).map(s => (
+                        {Object.entries(statusLabels).filter(([s]) => s !== quote.status).map(([s, label]) => (
                           <DropdownMenuItem key={s} onClick={() => updateQuoteStatus(quote.id, s)}>
-                            Mover para {statusLabels[s] || s}
+                            Mover para {label}
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
