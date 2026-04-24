@@ -21,7 +21,8 @@ import {
   Calendar,
   Filter,
   User,
-  ArrowUpDown
+  ArrowUpDown,
+  RefreshCw
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -34,6 +35,7 @@ import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
 
 const db = supabase as any;
 
@@ -113,11 +115,6 @@ export default function ProspectView() {
     try {
       setLoading(true);
       
-      const excludedStatus = [
-        'Venda Realizada', 'Perdido', 'Cancelado', 'approved', 
-        'Aprovado', 'Rejeitado', 'Concluído', 'Pago', 'Entregue', 'finalizado'
-      ];
-      
       const statusFilters = [
         'pre_venda', 'pre-venda', 'pre_venda', 'Pré Venda', 'Pré-venda',
         'contato_feito', 'contato_realizado', 'contato-feito', 'Contato Feito', 'Contato realizado',
@@ -139,15 +136,18 @@ export default function ProspectView() {
         .order('created_at', { ascending: false });
 
       // Permission Rules
+      // If NOT Gestor, always filter by user
+      // If Gestor and filter is 'meus', filter by user
+      // If Gestor and filter is specific ID, filter by that ID
+      // If Gestor and filter is 'all', NO salesperson filter
+      
       if (isGestor) {
         if (sellerFilter === 'meus') {
           query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
         } else if (sellerFilter !== 'all') {
           query = query.eq('salesperson_id', sellerFilter);
         }
-        // If 'all', no salesperson filter (Gestor sees everything)
       } else {
-        // Vendedor/Admin sees only their own
         query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
       }
 
@@ -155,6 +155,7 @@ export default function ProspectView() {
       
       if (error) {
         console.error('ProspectVision Fetch Error:', error);
+        toast.error('Erro técnico ao buscar dados: ' + error.message);
         throw error;
       }
 
@@ -172,10 +173,14 @@ export default function ProspectView() {
 
       // Extract unique sellers for filter (only for Gestor)
       if (isGestor) {
-        const { data: sellersData } = await db.from('quotes')
-          .select('salesperson, salesperson_id, status')
+        const { data: sellersData, error: sellersError } = await db.from('quotes')
+          .select('salesperson, salesperson_id')
           .in('status', statusFilters)
           .not('salesperson_id', 'is', null);
+        
+        if (sellersError) {
+          console.error('ProspectVision Sellers Fetch Error:', sellersError);
+        }
         
         const sellerMap = new Map();
         (sellersData || []).forEach((q: any) => {
@@ -187,13 +192,14 @@ export default function ProspectView() {
         const uniqueSellers = Array.from(sellerMap.entries()).map(([id, name]) => ({ id, name }));
         setSellers(uniqueSellers);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('ProspectView load error:', err);
-      toast.error('Erro ao carregar dados do Prospect');
+      toast.error('Erro ao carregar dados: ' + (err.message || 'Erro desconhecido'));
     } finally {
       setLoading(false);
     }
   }, [user?.id, isAdmin, isGestor, sellerFilter]);
+
 
   useEffect(() => {
     if (user?.id) {
@@ -228,6 +234,8 @@ export default function ProspectView() {
     } else if (sellerFilter === 'meus' || (!isGestor && !isAdmin)) {
       result = result.filter(q => q.salesperson_id === user?.id || q.created_by === user?.id);
     }
+    // If isGestor and sellerFilter is 'all', we don't filter by salesperson
+
 
 
 
@@ -293,8 +301,14 @@ export default function ProspectView() {
             <p className="text-muted-foreground text-sm">Acompanhamento estratégico de oportunidades abertas</p>
           </div>
           <div className="flex items-center gap-2">
-             <Button variant="outline" size="sm" onClick={loadData} className="gap-2">
-               <Calendar className="h-4 w-4" />
+             <Button 
+               variant="outline" 
+               size="sm" 
+               onClick={loadData} 
+               disabled={loading}
+               className="gap-2"
+             >
+               <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
                Sincronizar
              </Button>
           </div>
