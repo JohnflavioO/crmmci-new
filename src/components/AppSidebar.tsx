@@ -2,7 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake, Plug,
-  Clock, ArrowDownCircle, AlertTriangle, FileBarChart, Truck, ClipboardList, TriangleAlert, MapPin, RefreshCw, Warehouse,
+  Clock, ArrowDownCircle, AlertTriangle, FileBarChart, Truck, ClipboardList, TriangleAlert, MapPin, RefreshCw, Warehouse, Target,
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/quotes', icon: FileText, label: 'Orçamentos' },
   { to: '/clients', icon: Users, label: 'Clientes' },
+  { to: '/prospect', icon: Target, label: 'Visão Prospect' },
   { to: '/pipeline', icon: Filter, label: 'Funil' },
   { to: '/negociacoes', icon: Handshake, label: 'Negociações' },
   { to: '/tasks', icon: ListChecks, label: 'Tarefas' },
