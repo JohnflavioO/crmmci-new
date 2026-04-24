@@ -229,9 +229,10 @@ export default function ProspectView() {
     // Filter consistency for frontend UI state
     if (isGestor && sellerFilter !== 'all' && sellerFilter !== 'meus') {
       result = result.filter(q => q.salesperson_id === sellerFilter);
-    } else if (sellerFilter === 'meus' || (!isGestor && !isAdmin)) {
+    } else if (!isGestor || (isGestor && sellerFilter === 'meus')) {
       result = result.filter(q => q.salesperson_id === user?.id || q.created_by === user?.id);
     }
+
     // If isGestor and sellerFilter is 'all', we don't filter by salesperson
 
 
