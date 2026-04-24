@@ -111,52 +111,60 @@ export default function ProspectView() {
         'contato_feito', 'contato_realizado', 'contato-feito', 'Contato Feito', 'Contato realizado',
         'sent', 'proposta_enviada', 'proposta-enviada', 'Proposta Enviada', 'proposta enviada',
         'negociacao', 'em_negociacao', 'em-negociacao', 'Em Negociação', 'Negociação', 'negociação', 'Em negociação',
-        'lancamento_rapido', 'lancamento-rapido', 'Lançamento Rápido', 'lançamento rápido', 'Lançamento rápido',
-        'waiting_approval', 'draft', 'Rascunho'
+        'lancamento_rapido', 'lancamento-rapido', 'Lançamento Rápido', 'lançamento rápido', 'Lançamento rápido'
       ];
       
-      console.log('ProspectVision Debug - Filter Start:', {
+      console.log('ProspectVision Log [INIT]:', {
         userId: user?.id,
+        role: isAdmin ? 'admin' : isGestor ? 'gestor' : 'sales',
         sellerFilter
       });
 
+      // Simple query to avoid join errors, we already have client_name in quotes
       let query = db.from('quotes')
-        .select('*, clients(company_name, name, origin)');
+        .select(`
+          id, 
+          quote_number, 
+          client_name, 
+          status, 
+          total_amount, 
+          created_at, 
+          updated_at, 
+          salesperson, 
+          salesperson_id, 
+          created_by,
+          client_id
+        `)
+        .in('status', statusFilters)
+        .order('created_at', { ascending: false });
 
-      // If NOT Gestor or Gestor selecting 'meus', filter by user identity
-      if (!isGestor || sellerFilter === 'meus') {
+      // Apply Role-based filtering
+      if (isGestor) {
+        if (sellerFilter === 'meus') {
+          query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
+        } else if (sellerFilter !== 'all') {
+          query = query.eq('salesperson_id', sellerFilter);
+        }
+      } else {
+        // Admin or Seller: Only their own
         query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
-      } else if (sellerFilter !== 'all') {
-        // Gestor filtering for a specific seller
-        query = query.eq('salesperson_id', sellerFilter);
       }
-      // If Gestor and 'all', no salesperson filter
 
       const { data, error } = await query;
       
       if (error) {
         console.error('ProspectVision Fetch Error:', error);
-        toast.error('Erro ao buscar dados: ' + error.message);
         throw error;
       }
 
-      // Client-side filtering for status to be 100% sure we don't miss variants
-      const normalizedFilters = statusFilters.map(s => s.toLowerCase().trim());
-      const filteredData = (data || []).filter((q: any) => {
-        if (!q.status) return false;
-        const s = q.status.toLowerCase().trim();
-        return normalizedFilters.includes(s);
+      console.log('ProspectVision Log [SUCCESS]:', {
+        count: data?.length || 0,
+        sample: data?.slice(0, 1)
       });
 
-      console.log('ProspectVision Debug - Filter End:', {
-        dbCount: data?.length || 0,
-        filteredCount: filteredData.length,
-        userId: user?.id
-      });
-
-      const mapped = filteredData.map((q: any) => ({
+      const mapped = (data || []).map((q: any) => ({
         ...q,
-        client_name: q.clients?.company_name || q.clients?.name || q.client_name || 'Sem cliente',
+        client_name: q.client_name || 'Sem cliente',
       }));
 
       setQuotes(mapped);
