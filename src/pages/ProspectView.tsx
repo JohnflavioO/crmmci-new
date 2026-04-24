@@ -164,8 +164,8 @@ export default function ProspectView() {
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(quote => 
-        quote.client_name.toLowerCase().includes(q) || 
-        quote.quote_number.toLowerCase().includes(q)
+        (quote.client_name && quote.client_name.toLowerCase().includes(q)) || 
+        (quote.quote_number && quote.quote_number.toLowerCase().includes(q))
       );
     }
 
