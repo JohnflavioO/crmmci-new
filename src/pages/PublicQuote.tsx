@@ -86,7 +86,7 @@ export default function PublicQuote() {
       <Sonner />
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="text-center mb-8">
-          <img src="/mci-logo.png" alt="MCI Store" className="h-12 mx-auto mb-4" />
+          <img src="/src/assets/mci-logo.png" alt="MCI Store" className="h-12 mx-auto mb-4" />
           <h1 className="text-2xl font-bold font-display">Orçamento {quote.quote_number}</h1>
           <p className="text-muted-foreground">
             Data: {quote.quote_date ? format(new Date(quote.quote_date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}
