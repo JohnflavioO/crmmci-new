@@ -140,13 +140,16 @@ export default function ProspectView() {
       // Permission Rules
       if (isAdmin) {
         // Admin acts as salesperson, sees only their own or those where they are the creator
+        // If gestor filter is active, it will refine this later in frontend
         query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
       } else if (isGestor) {
-        // Gestor logic: filter applied in frontend but query can be restricted if needed
+        // Gestor logic: 
         if (sellerFilter === 'meus') {
           query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
-        } else if (sellerFilter !== 'all') {
-          // Filter by specific salesperson id
+        } else if (sellerFilter === 'all') {
+          // No additional salesperson filter for "all"
+        } else {
+          // Filter by specific salesperson id selected in dropdown
           query = query.eq('salesperson_id', sellerFilter);
         }
       } else {
