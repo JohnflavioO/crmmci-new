@@ -116,7 +116,7 @@ export default function ProspectView() {
       setLoading(true);
       
       const statusFilters = [
-        'pre_venda', 'pre-venda', 'pre_venda', 'Pré Venda', 'Pré-venda',
+        'pre_venda', 'pre-venda', 'Pré Venda', 'Pré-venda',
         'contato_feito', 'contato_realizado', 'contato-feito', 'Contato Feito', 'Contato realizado',
         'sent', 'proposta_enviada', 'proposta-enviada', 'Proposta Enviada', 'proposta enviada',
         'negociacao', 'em_negociacao', 'em-negociacao', 'Em Negociação', 'Negociação', 'negociação', 'Em negociação',
@@ -124,47 +124,46 @@ export default function ProspectView() {
         'waiting_approval', 'draft', 'Rascunho'
       ];
       
-      console.log('ProspectVision Debug:', {
+      console.log('ProspectVision Debug - Filter Start:', {
         userId: user?.id,
-        role: isAdmin ? 'admin' : isGestor ? 'gestor' : 'comercial',
         sellerFilter
       });
 
       let query = db.from('quotes')
-        .select('*, clients(company_name, name, origin)')
-        .in('status', statusFilters)
-        .order('created_at', { ascending: false });
+        .select('*, clients(company_name, name, origin)');
 
-      // Permission Rules
-      // If NOT Gestor, always filter by user
-      // If Gestor and filter is 'meus', filter by user
-      // If Gestor and filter is specific ID, filter by that ID
-      // If Gestor and filter is 'all', NO salesperson filter
-      
-      if (isGestor) {
-        if (sellerFilter === 'meus') {
-          query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
-        } else if (sellerFilter !== 'all') {
-          query = query.eq('salesperson_id', sellerFilter);
-        }
-      } else {
+      // If NOT Gestor or Gestor selecting 'meus', filter by user identity
+      if (!isGestor || sellerFilter === 'meus') {
         query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
+      } else if (sellerFilter !== 'all') {
+        // Gestor filtering for a specific seller
+        query = query.eq('salesperson_id', sellerFilter);
       }
+      // If Gestor and 'all', no salesperson filter
 
       const { data, error } = await query;
       
       if (error) {
         console.error('ProspectVision Fetch Error:', error);
-        toast.error('Erro técnico ao buscar dados: ' + error.message);
+        toast.error('Erro ao buscar dados: ' + error.message);
         throw error;
       }
 
-      console.log('ProspectVision Results:', {
-        count: data?.length || 0,
-        sample: data?.slice(0, 2).map((q: any) => ({ id: q.id, status: q.status, sid: q.salesperson_id }))
+      // Client-side filtering for status to be 100% sure we don't miss variants
+      const normalizedFilters = statusFilters.map(s => s.toLowerCase().trim());
+      const filteredData = (data || []).filter((q: any) => {
+        if (!q.status) return false;
+        const s = q.status.toLowerCase().trim();
+        return normalizedFilters.includes(s);
       });
 
-      const mapped = (data || []).map((q: any) => ({
+      console.log('ProspectVision Debug - Filter End:', {
+        dbCount: data?.length || 0,
+        filteredCount: filteredData.length,
+        userId: user?.id
+      });
+
+      const mapped = filteredData.map((q: any) => ({
         ...q,
         client_name: q.clients?.company_name || q.clients?.name || q.client_name || 'Sem cliente',
       }));
@@ -174,9 +173,7 @@ export default function ProspectView() {
       // Extract unique sellers for filter (only for Gestor)
       if (isGestor) {
         const { data: sellersData, error: sellersError } = await db.from('quotes')
-          .select('salesperson, salesperson_id')
-          .in('status', statusFilters)
-          .not('salesperson_id', 'is', null);
+          .select('salesperson, salesperson_id');
         
         if (sellersError) {
           console.error('ProspectVision Sellers Fetch Error:', sellersError);
@@ -199,6 +196,7 @@ export default function ProspectView() {
       setLoading(false);
     }
   }, [user?.id, isAdmin, isGestor, sellerFilter]);
+
 
 
   useEffect(() => {
@@ -231,9 +229,10 @@ export default function ProspectView() {
     // Filter consistency for frontend UI state
     if (isGestor && sellerFilter !== 'all' && sellerFilter !== 'meus') {
       result = result.filter(q => q.salesperson_id === sellerFilter);
-    } else if (sellerFilter === 'meus' || (!isGestor && !isAdmin)) {
+    } else if (!isGestor || (isGestor && sellerFilter === 'meus')) {
       result = result.filter(q => q.salesperson_id === user?.id || q.created_by === user?.id);
     }
+
     // If isGestor and sellerFilter is 'all', we don't filter by salesperson
 
 
