@@ -21,7 +21,8 @@ import {
   Calendar,
   Filter,
   User,
-  ArrowUpDown
+  ArrowUpDown,
+  RefreshCw
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -34,6 +35,7 @@ import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
 
 const db = supabase as any;
 
