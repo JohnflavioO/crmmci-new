@@ -128,7 +128,6 @@ export default function ProspectView() {
 
       const mapped = (data || []).map((q: any) => ({
         ...q,
-        status: q.status,
         client_name: q.clients?.company_name || q.clients?.name || q.client_name || 'Sem cliente',
       }));
 
