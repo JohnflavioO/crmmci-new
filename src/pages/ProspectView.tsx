@@ -228,9 +228,10 @@ export default function ProspectView() {
     // Filter handled by query, but we ensure consistency here
     if (isGestor && sellerFilter !== 'all' && sellerFilter !== 'meus') {
       result = result.filter(q => q.salesperson_id === sellerFilter);
-    } else if (!isGestor || sellerFilter === 'meus') {
+    } else if ((!isGestor && !isAdmin) || sellerFilter === 'meus' || (isAdmin && sellerFilter === 'meus')) {
       result = result.filter(q => q.salesperson_id === user?.id || q.created_by === user?.id);
     }
+
 
     if (statusFilter !== 'all') {
       result = result.filter(q => q.status === statusFilter);
