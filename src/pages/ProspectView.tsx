@@ -171,10 +171,14 @@ export default function ProspectView() {
 
       // Extract unique sellers for filter (only for Gestor)
       if (isGestor) {
-        const { data: sellersData } = await db.from('quotes')
-          .select('salesperson, salesperson_id, status')
+        const { data: sellersData, error: sellersError } = await db.from('quotes')
+          .select('salesperson, salesperson_id')
           .in('status', statusFilters)
           .not('salesperson_id', 'is', null);
+        
+        if (sellersError) {
+          console.error('ProspectVision Sellers Fetch Error:', sellersError);
+        }
         
         const sellerMap = new Map();
         (sellersData || []).forEach((q: any) => {
@@ -186,13 +190,14 @@ export default function ProspectView() {
         const uniqueSellers = Array.from(sellerMap.entries()).map(([id, name]) => ({ id, name }));
         setSellers(uniqueSellers);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('ProspectView load error:', err);
-      toast.error('Erro ao carregar dados do Prospect');
+      toast.error('Erro ao carregar dados: ' + (err.message || 'Erro desconhecido'));
     } finally {
       setLoading(false);
     }
   }, [user?.id, isAdmin, isGestor, sellerFilter]);
+
 
   useEffect(() => {
     if (user?.id) {
