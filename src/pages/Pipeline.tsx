@@ -5,10 +5,12 @@ import AppLayout from '@/components/AppLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { GripVertical, FileText, Users, X } from 'lucide-react';
+import { GripVertical, FileText, Users, X, Filter, User } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const db = supabase as any;
+// Use the typed client from integrations
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
 
 const STAGES = [
   { key: 'pre_venda', label: 'Pré-venda', color: 'bg-sky-500' },
@@ -39,30 +41,104 @@ interface SellerProfile {
 }
 
 export default function Pipeline() {
-  const { user } = useAuth();
+  const { user, isAdmin, isGestor } = useAuth();
   const isMobile = useIsMobile();
   const [quotes, setQuotes] = useState<PipelineQuote[]>([]);
+  const [loading, setLoading] = useState(true);
   const [draggedQuote, setDraggedQuote] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
-  const sellers: SellerProfile[] = [];
+  const [sellerFilter, setSellerFilter] = useState<string>('meus');
+  const [sellers, setSellers] = useState<{id: string, name: string}[]>([]);
+
+  const loadSellers = useCallback(async () => {
+    if (!isGestor) return;
+    
+    try {
+      // Fetch unique salespersons from quotes that are NOT in draft/rejected
+      const { data, error } = await supabaseClient.from('quotes')
+        .select('salesperson, salesperson_id')
+        .not('status', 'in', '("draft","rejected")')
+        .not('salesperson_id', 'is', null);
+        
+      if (error) throw error;
+      
+      const sellerMap = new Map();
+      (data || []).forEach((q: any) => {
+        if (q.salesperson_id && q.salesperson) {
+          sellerMap.set(q.salesperson_id, q.salesperson);
+        }
+      });
+      
+      const uniqueSellers = Array.from(sellerMap.entries())
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+        
+      setSellers(uniqueSellers);
+    } catch (err) {
+      console.error('Error loading sellers:', err);
+    }
+  }, [isGestor]);
 
   const loadData = useCallback(async () => {
-    const { data } = await db.from('quotes')
-      .select('id, quote_number, client_name, status, total_amount, shipping_cost, created_at, created_by, salesperson, clients(name, company_name)')
-      .eq('created_by', user?.id);
-    const mapped = (data || [])
-      .filter((q: any) => q.status && q.status !== 'draft' && q.status !== 'rejected')
-      .map((q: any) => ({
-        ...q,
-        client_name: q.clients?.company_name || q.clients?.name || q.client_name || '',
-      }));
-    setQuotes(mapped);
-  }, [user?.id]);
+    if (!user?.id) return;
+    
+    try {
+      setLoading(true);
+      let query = supabaseClient.from('quotes')
+        .select('id, quote_number, client_name, status, total_amount, shipping_cost, created_at, created_by, salesperson, salesperson_id');
 
-  useEffect(() => { loadData(); }, [loadData]);
+      // Apply filtering based on role and sellerFilter
+      if (isGestor) {
+        if (sellerFilter === 'meus') {
+          query = query.or(`salesperson_id.eq.${user.id},created_by.eq.${user.id}`);
+        } else if (sellerFilter === 'all') {
+          // No specific salesperson filter for "all" for gestor
+          // In some implementations, gestor might only see a subset, but usually "all" means all active prospects
+        } else {
+          query = query.eq('salesperson_id', sellerFilter);
+        }
+      } else if (isAdmin) {
+        // Admin logic usually sees everything or follows existing rule
+        // Based on the code, it seems it was restricted to 'created_by'
+        // Keeping admin rule as is if not specified, but usually admin sees all.
+        // The prompt says: "Admin continua seguindo a regra atual dele."
+        query = query.eq('created_by', user.id);
+      } else {
+        // Vendedor
+        query = query.eq('created_by', user.id);
+      }
+
+      const { data, error } = await query;
+      
+      if (error) throw error;
+
+      const mapped = (data || [])
+        .filter((q: any) => q.status && q.status !== 'draft' && q.status !== 'rejected')
+        .map((q: any) => ({
+          ...q,
+          client_name: q.client_name || '',
+        }));
+      setQuotes(mapped);
+    } catch (err) {
+      console.error('Error loading pipeline data:', err);
+      toast.error('Erro ao carregar dados do funil');
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, isGestor, isAdmin, sellerFilter]);
+
+  useEffect(() => { 
+    loadData(); 
+  }, [loadData]);
+
+  useEffect(() => {
+    if (isGestor) {
+      loadSellers();
+    }
+  }, [isGestor, loadSellers]);
 
   const moveQuote = async (quoteId: string, newStatus: string) => {
-    const { error } = await db.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', quoteId);
+    const { error } = await supabaseClient.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', quoteId);
     if (error) { toast.error('Erro ao mover orçamento'); return; }
     setQuotes(prev => prev.map(q => q.id === quoteId ? { ...q, status: newStatus } : q));
     toast.success('Orçamento movido com sucesso');
@@ -124,13 +200,31 @@ export default function Pipeline() {
 
   return (
     <AppLayout>
-      <div className="mb-4 md:mb-6 flex items-start justify-between gap-3">
+      <div className="mb-4 md:mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl md:text-2xl font-bold font-display">Funil de Vendas</h1>
           <p className="text-muted-foreground text-sm">Arraste orçamentos entre as etapas do funil</p>
         </div>
 
-        {/* Comparar vendedores removido - cada usuário vê apenas própria carteira */}
+        {isGestor && (
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select value={sellerFilter} onValueChange={setSellerFilter}>
+              <SelectTrigger className="w-[200px] bg-card">
+                <SelectValue placeholder="Filtrar por vendedor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="meus">Meus funis</SelectItem>
+                <SelectItem value="all">Todos da equipe</SelectItem>
+                {sellers.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* Summary cards */}
@@ -178,8 +272,14 @@ export default function Pipeline() {
                   {stageQuotes.map(q => renderQuoteCard(q, stageIdx))}
                   {stageQuotes.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-8 text-muted-foreground/60">
-                      <FileText className="h-8 w-8 mb-2" />
-                      <p className="text-xs">Nenhum orçamento</p>
+                      {loading ? (
+                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-2" />
+                      ) : (
+                        <>
+                          <FileText className="h-8 w-8 mb-2" />
+                          <p className="text-xs">Nenhum orçamento</p>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
