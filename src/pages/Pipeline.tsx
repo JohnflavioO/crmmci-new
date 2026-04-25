@@ -53,7 +53,7 @@ export default function Pipeline() {
     if (!isGestor) return;
     
     try {
-      // Step 1: Get all active users with role 'comercial' or those that should be visible
+      console.log("Loading sellers for Gestor...");
       const { data: usersData, error: usersError } = await supabaseClient
         .from('profiles')
         .select(`
@@ -68,15 +68,18 @@ export default function Pipeline() {
         .eq('commercial_visible', true)
         .eq('user_approvals.status', 'approved');
 
-      if (usersError) throw usersError;
+      if (usersError) {
+        console.error("Supabase error loading sellers:", usersError);
+        throw usersError;
+      }
 
-      // Step 2: Filter only commercial/sales users
-      // We prioritize the 'role' field from the profile if it exists
+      console.log("Raw users data fetched:", usersData);
+
       const filteredSellers = (usersData || [])
         .filter((u: any) => {
-          // Keep only users with commercial/vendedor role or similar
-          // Excluding specifically non-sales roles just in case
-          return u.role === 'comercial' || !['admin', 'financeiro', 'logistica'].includes(u.role);
+          // Keep only users with commercial role or roles that are NOT management/admin/ops
+          const isSeller = u.role === 'comercial' || (!u.role || u.role === '');
+          return isSeller;
         })
         .map((u: any) => ({
           id: u.user_id,
@@ -84,9 +87,10 @@ export default function Pipeline() {
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
+      console.log("Filtered sellers for select:", filteredSellers);
       setSellers(filteredSellers);
     } catch (err) {
-      console.error('Error loading sellers:', err);
+      console.error('Exception in loadSellers:', err);
     }
   }, [isGestor]);
 
