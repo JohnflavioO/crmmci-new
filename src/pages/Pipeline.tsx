@@ -76,21 +76,21 @@ export default function Pipeline() {
 
       const filteredSellers = (profilesData || [])
         .filter((u: any) => {
-          // Explicitly remove Abnolia as requested
-          if (u.full_name?.toLowerCase().includes('abnolia')) return false;
-
-          // If explicitly commercial_visible or is John Flavio, we include them
-          if (u.commercial_visible === true) {
-            // But still check if they are in non-seller roles (except John Flavio)
-            if (u.full_name?.toLowerCase().includes('john flavio')) return true;
-            return !['financeiro', 'logistica'].includes(u.role);
+          const name = u.full_name?.toLowerCase() || '';
+          
+          // Usuários de teste e outros explicitamente solicitados para remoção
+          if (name.includes('teste') || name.includes('testa') || name.includes('abnolia')) {
+            return false;
           }
-          
-          if (u.full_name?.toLowerCase().includes('john flavio')) return true;
-          
-          // Otherwise, only include if approved and not in excluded roles
-          if (!approvedIds.has(u.user_id)) return false;
-          return !['financeiro', 'logistica'].includes(u.role);
+
+          // John Flavio é admin mas deve aparecer como vendedor
+          if (name.includes('john flavio')) return true;
+
+          // Se for financeiro ou logistica, não listar
+          if (['financeiro', 'logistica'].includes(u.role)) return false;
+
+          // Deve ser comercial_visible ou estar aprovado
+          return u.commercial_visible === true || approvedIds.has(u.user_id);
         })
         .map((u: any) => ({
           id: u.user_id,
@@ -118,7 +118,17 @@ export default function Pipeline() {
         if (sellerFilter === 'meus') {
           query = query.or(`salesperson_id.eq.${user.id},created_by.eq.${user.id}`);
         } else if (sellerFilter === 'all') {
-          // Show everything for team view
+          // Filtrar para não mostrar orçamentos dos usuários de teste quando estiver em "Todos"
+          const testUserIdsRes = await supabase
+            .from('profiles')
+            .select('user_id')
+            .or('full_name.ilike.%teste%,full_name.ilike.%testa%,full_name.ilike.%abinolia%');
+          
+          if (testUserIdsRes.data && testUserIdsRes.data.length > 0) {
+            const ids = testUserIdsRes.data.map(u => u.user_id);
+            query = query.not('created_by', 'in', `(${ids.join(',')})`);
+            query = query.not('salesperson_id', 'in', `(${ids.join(',')})`);
+          }
         } else {
           query = query.or(`salesperson_id.eq.${sellerFilter},created_by.eq.${sellerFilter}`);
         }
