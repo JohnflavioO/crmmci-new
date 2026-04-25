@@ -147,11 +147,12 @@ export default function Pipeline() {
   }, [loadData]);
 
   useEffect(() => {
-    if (isGestor) {
-      console.log("Effect: isGestor is true, loading sellers");
+    console.log("Pipeline: Checking permissions", { isGestor, isAdmin, userId: user?.id });
+    if (isGestor || isAdmin) {
+      console.log("Effect: User has management role, loading sellers");
       loadSellers();
     } else {
-      console.log("Effect: isGestor is false", { isGestor, isAdmin });
+      console.log("Effect: User does not have management role", { isGestor, isAdmin });
     }
   }, [isGestor, loadSellers]);
 
