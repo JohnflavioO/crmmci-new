@@ -390,6 +390,7 @@ export default function Dashboard() {
             <p className="text-muted-foreground text-sm">Visão geral de toda a equipe</p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            {/* O botão de relatórios agora está em Meus Resultados e Dashboard do Time (conforme solicitado para estar próximo ao filtro) */}
             <Button variant="outline" onClick={() => navigate('/reports')} className="gap-2 min-h-[44px] border-primary text-primary hover:bg-primary/5">
               <ClipboardList className="h-4 w-4" /> Relatórios
             </Button>
