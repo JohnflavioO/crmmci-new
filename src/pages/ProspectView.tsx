@@ -167,6 +167,8 @@ export default function ProspectView() {
       const mapped = (data || []).map((q: any) => ({
         ...q,
         client_name: q.client_name || 'Sem cliente',
+        total_amount: parseFloat(String(q.total_amount || 0)) || 0,
+        created_at: q.created_at || new Date().toISOString()
       }));
 
       setQuotes(mapped);
