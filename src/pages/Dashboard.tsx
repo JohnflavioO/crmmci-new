@@ -328,6 +328,9 @@ export default function Dashboard() {
           <p className="text-muted-foreground text-sm">Visão geral dos seus resultados e do time</p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <Button variant="outline" onClick={() => navigate('/reports')} className="gap-2 min-h-[44px] border-primary text-primary hover:bg-primary/5">
+            <ClipboardList className="h-4 w-4" /> Relatórios
+          </Button>
           <Button onClick={() => navigate('/quotes')} className="gap-2 min-h-[44px]">
             <Plus className="h-4 w-4" /> Criar Proposta
           </Button>
