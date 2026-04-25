@@ -227,7 +227,7 @@ export default function Pipeline() {
           <p className="text-muted-foreground text-sm">Arraste orçamentos entre as etapas do funil</p>
         </div>
 
-        {isGestor && (
+        {(isGestor || isAdmin) && (
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={sellerFilter} onValueChange={setSellerFilter}>
