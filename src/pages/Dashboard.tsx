@@ -327,24 +327,10 @@ export default function Dashboard() {
           <h1 className="text-xl md:text-2xl font-bold font-display">Dashboard</h1>
           <p className="text-muted-foreground text-sm">Visão geral dos seus resultados e do time</p>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <Button variant="outline" onClick={() => navigate('/reports')} className="gap-2 min-h-[44px] border-primary text-primary hover:bg-primary/5">
-            <ClipboardList className="h-4 w-4" /> Relatórios
-          </Button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <Button onClick={() => navigate('/quotes')} className="gap-2 min-h-[44px]">
             <Plus className="h-4 w-4" /> Criar Proposta
           </Button>
-          <div className="w-full sm:w-56">
-            <Select value={teamFilter} onValueChange={setTeamFilter}>
-              <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Filtrar Time" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os Vendedores</SelectItem>
-                {sellers.map(s => (
-                  <SelectItem key={s.user_id} value={s.user_id}>{s.full_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
       </div>
 
@@ -390,12 +376,28 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
-
-      {/* Dashboard do Time - agora abaixo */}
       <div className="border-t pt-6 md:pt-8">
-        <div className="mb-4 md:mb-6">
-          <h2 className="text-lg md:text-xl font-bold font-display">Dashboard do Time</h2>
-          <p className="text-muted-foreground text-sm">Visão geral de toda a equipe</p>
+        <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg md:text-xl font-bold font-display">Dashboard do Time</h2>
+            <p className="text-muted-foreground text-sm">Visão geral de toda a equipe</p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <Button variant="outline" onClick={() => navigate('/reports')} className="gap-2 min-h-[44px] border-primary text-primary hover:bg-primary/5">
+              <ClipboardList className="h-4 w-4" /> Relatórios
+            </Button>
+            <div className="w-full sm:w-56">
+              <Select value={teamFilter} onValueChange={setTeamFilter}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Filtrar Time" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os Vendedores</SelectItem>
+                  {sellers.map(s => (
+                    <SelectItem key={s.user_id} value={s.user_id}>{s.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
 
         {renderStatsBlock(teamStats, teamClientsCount)}
