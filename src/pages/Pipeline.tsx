@@ -113,7 +113,7 @@ export default function Pipeline() {
         } else if (sellerFilter === 'all') {
           // Show everything for team view
         } else {
-          query = query.eq('salesperson_id', sellerFilter);
+          query = query.or(`salesperson_id.eq.${sellerFilter},created_by.eq.${sellerFilter}`);
         }
       } else {
         // Vendedor regular
