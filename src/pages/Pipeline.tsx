@@ -50,10 +50,11 @@ export default function Pipeline() {
   const [sellers, setSellers] = useState<{id: string, name: string}[]>([]);
 
   const loadSellers = useCallback(async () => {
-    if (!isGestor) return;
+    // Both Gestor and Admin can see the filter to manage team views
+    if (!isGestor && !isAdmin) return;
     
     try {
-      console.log("Loading sellers for Gestor...");
+      console.log("Loading sellers for team filter...");
       const { data: usersData, error: usersError } = await supabaseClient
         .from('profiles')
         .select(`
@@ -77,9 +78,10 @@ export default function Pipeline() {
 
       const filteredSellers = (usersData || [])
         .filter((u: any) => {
-          // Keep only users with commercial role or roles that are NOT management/admin/ops
-          const isSeller = u.role === 'comercial' || (!u.role || u.role === '');
-          return isSeller;
+          // A seller usually has 'comercial' role or no specific role (default)
+          // We exclude administrative roles from the seller selection list
+          const nonSellerRoles = ['admin', 'financeiro', 'logistica'];
+          return u.role === 'comercial' || !nonSellerRoles.includes(u.role);
         })
         .map((u: any) => ({
           id: u.user_id,
@@ -92,7 +94,7 @@ export default function Pipeline() {
     } catch (err) {
       console.error('Exception in loadSellers:', err);
     }
-  }, [isGestor]);
+  }, [isGestor, isAdmin]);
 
   const loadData = useCallback(async () => {
     if (!user?.id) return;
