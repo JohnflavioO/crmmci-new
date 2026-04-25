@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
 import { Badge } from '@/components/ui/badge';
@@ -9,8 +9,7 @@ import { GripVertical, FileText, Users, X, Filter, User } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-// Use the typed client from integrations
-import { supabase as supabaseClient } from '@/integrations/supabase/client';
+// Using typed client from integrations
 
 const STAGES = [
   { key: 'pre_venda', label: 'Pré-venda', color: 'bg-sky-500' },
