@@ -57,8 +57,7 @@ export default function Pipeline() {
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('user_id, full_name, role, active, commercial_visible')
-        .eq('active', true)
-        .eq('commercial_visible', true);
+        .eq('active', true);
 
       if (profilesError) throw profilesError;
       console.log('[Pipeline] profiles fetched:', profilesData?.length, profilesData);
