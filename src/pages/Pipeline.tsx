@@ -105,23 +105,16 @@ export default function Pipeline() {
         .select('id, quote_number, client_name, status, total_amount, shipping_cost, created_at, created_by, salesperson, salesperson_id');
 
       // Apply filtering based on role and sellerFilter
-      if (isGestor) {
+      if (isGestor || isAdmin) {
         if (sellerFilter === 'meus') {
           query = query.or(`salesperson_id.eq.${user.id},created_by.eq.${user.id}`);
         } else if (sellerFilter === 'all') {
-          // No specific salesperson filter for "all" for gestor
-          // In some implementations, gestor might only see a subset, but usually "all" means all active prospects
+          // Show everything for team view
         } else {
           query = query.eq('salesperson_id', sellerFilter);
         }
-      } else if (isAdmin) {
-        // Admin logic usually sees everything or follows existing rule
-        // Based on the code, it seems it was restricted to 'created_by'
-        // Keeping admin rule as is if not specified, but usually admin sees all.
-        // The prompt says: "Admin continua seguindo a regra atual dele."
-        query = query.eq('created_by', user.id);
       } else {
-        // Vendedor
+        // Vendedor regular
         query = query.eq('created_by', user.id);
       }
 
