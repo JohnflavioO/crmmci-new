@@ -50,11 +50,9 @@ export default function Pipeline() {
   const [sellers, setSellers] = useState<{id: string, name: string}[]>([]);
 
   const loadSellers = useCallback(async () => {
-    // Both Gestor and Admin can see the filter to manage team views
     if (!isGestor && !isAdmin) return;
     
     try {
-      console.log("Loading sellers for team filter...");
       const { data: usersData, error: usersError } = await supabaseClient
         .from('profiles')
         .select(`
@@ -69,17 +67,10 @@ export default function Pipeline() {
         .eq('commercial_visible', true)
         .eq('user_approvals.status', 'approved');
 
-      if (usersError) {
-        console.error("Supabase error loading sellers:", usersError);
-        throw usersError;
-      }
-
-      console.log("Raw users data fetched:", usersData);
+      if (usersError) throw usersError;
 
       const filteredSellers = (usersData || [])
         .filter((u: any) => {
-          // A seller usually has 'comercial' role or no specific role (default)
-          // We exclude administrative roles from the seller selection list
           const nonSellerRoles = ['admin', 'financeiro', 'logistica'];
           return u.role === 'comercial' || !nonSellerRoles.includes(u.role);
         })
@@ -89,10 +80,9 @@ export default function Pipeline() {
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
-      console.log("Filtered sellers for select:", filteredSellers);
       setSellers(filteredSellers);
     } catch (err) {
-      console.error('Exception in loadSellers:', err);
+      console.error('Error loading sellers:', err);
     }
   }, [isGestor, isAdmin]);
 
