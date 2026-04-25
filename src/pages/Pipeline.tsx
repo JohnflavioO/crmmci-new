@@ -280,13 +280,17 @@ export default function Pipeline() {
                 <div className="space-y-2">
                   {stageQuotes.map(q => renderQuoteCard(q, stageIdx))}
                   {stageQuotes.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground/60">
+                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground/60 text-center px-2">
                       {loading ? (
                         <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-2" />
                       ) : (
                         <>
-                          <FileText className="h-8 w-8 mb-2" />
-                          <p className="text-xs">Nenhum orçamento</p>
+                          <FileText className="h-8 w-8 mb-2 opacity-20" />
+                          <p className="text-xs">
+                            {sellerFilter !== 'meus' && sellerFilter !== 'all' 
+                              ? "Este vendedor ainda não possui orçamentos no funil."
+                              : "Nenhum orçamento nesta etapa"}
+                          </p>
                         </>
                       )}
                     </div>
