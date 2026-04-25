@@ -57,8 +57,7 @@ export default function Pipeline() {
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('user_id, full_name, role, active, commercial_visible')
-        .eq('active', true)
-        .eq('commercial_visible', true);
+        .eq('active', true);
 
       if (profilesError) throw profilesError;
       console.log('[Pipeline] profiles fetched:', profilesData?.length, profilesData);
@@ -76,11 +75,13 @@ export default function Pipeline() {
       const nonSellerRoles = ['admin', 'financeiro', 'logistica'];
 
       const filteredSellers = (profilesData || [])
-        .filter((u: any) => approvedIds.has(u.user_id))
-        // Se o usuário for John Flavio (admin mas vendedor), incluímos explicitamente.
-        // Para os demais, removemos financeiro e logistica, mas mantemos comercial e admins/gestores que devem ver o funil.
         .filter((u: any) => {
+          // If explicitly commercial_visible or is John Flavio, we always want them
+          if (u.commercial_visible === true) return true;
           if (u.full_name?.toLowerCase().includes('john flavio')) return true;
+          
+          // Otherwise, only include if approved and not in excluded roles
+          if (!approvedIds.has(u.user_id)) return false;
           return !['financeiro', 'logistica'].includes(u.role);
         })
         .map((u: any) => ({
@@ -111,7 +112,7 @@ export default function Pipeline() {
         } else if (sellerFilter === 'all') {
           // Show everything for team view
         } else {
-          query = query.eq('salesperson_id', sellerFilter);
+          query = query.or(`salesperson_id.eq.${sellerFilter},created_by.eq.${sellerFilter}`);
         }
       } else {
         // Vendedor regular
