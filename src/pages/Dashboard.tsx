@@ -340,8 +340,42 @@ export default function Dashboard() {
           <h2 className="text-lg md:text-xl font-bold font-display">Meus Resultados</h2>
           <p className="text-muted-foreground text-sm">Seus números pessoais</p>
         </div>
-... keep existing code
-      {/* Dashboard do Time - agora abaixo */}
+
+        {renderStatsBlock(myStats, myClientsCount)}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+          <Card className="shadow-card lg:col-span-2">
+            <CardHeader><CardTitle className="font-display text-lg">Meus Últimos Orçamentos</CardTitle></CardHeader>
+            <CardContent>
+              {myRecent.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-8 text-center">Nenhum orçamento criado ainda</p>
+              ) : (
+                <div className="space-y-2">{myRecent.map(q => renderQuoteRow(q))}</div>
+              )}
+            </CardContent>
+          </Card>
+          <Card className="shadow-card">
+            <CardHeader><CardTitle className="font-display text-lg">Meus Top Clientes</CardTitle></CardHeader>
+            <CardContent>
+              {myTopClients.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-8 text-center">Sem dados</p>
+              ) : (
+                <div className="space-y-3">
+                  {myTopClients.map((c, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">{c.name || 'Sem nome'}</p>
+                        <p className="text-xs text-muted-foreground">{c.count} orçamento(s)</p>
+                      </div>
+                      <span className="text-sm font-semibold text-primary">{formatCurrency(c.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
       <div className="border-t pt-6 md:pt-8">
         <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
