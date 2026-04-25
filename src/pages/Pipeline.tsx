@@ -54,26 +54,35 @@ export default function Pipeline() {
     if (!isGestor) return;
     
     try {
-      // Fetch unique salespersons from quotes that are NOT in draft/rejected
-      const { data, error } = await supabaseClient.from('quotes')
-        .select('salesperson, salesperson_id')
-        .not('status', 'in', '("draft","rejected")')
-        .not('salesperson_id', 'is', null);
-        
-      if (error) throw error;
-      
-      const sellerMap = new Map();
-      (data || []).forEach((q: any) => {
-        if (q.salesperson_id && q.salesperson) {
-          sellerMap.set(q.salesperson_id, q.salesperson);
-        }
-      });
-      
-      const uniqueSellers = Array.from(sellerMap.entries())
-        .map(([id, name]) => ({ id, name }))
+      // Step 1: Get all approved users with their roles
+      const { data: usersData, error: usersError } = await supabaseClient
+        .from('profiles')
+        .select(`
+          user_id,
+          full_name,
+          user_approvals!inner(status),
+          user_roles(role)
+        `)
+        .eq('user_approvals.status', 'approved');
+
+      if (usersError) throw usersError;
+
+      // Step 2: Filter only commercial/sales users
+      // We exclude 'admin', 'gestor', 'financeiro', 'logistica' and only keep active sellers
+      // Note: role being null usually means default seller/vendedor in this system
+      const filteredSellers = (usersData || [])
+        .filter((u: any) => {
+          const role = u.user_roles?.[0]?.role;
+          // Inhibit finance, logistics, admin, gestor from the seller filter
+          return !['admin', 'gestor', 'financeiro', 'logistica'].includes(role);
+        })
+        .map((u: any) => ({
+          id: u.user_id,
+          name: u.full_name || 'Vendedor Sem Nome'
+        }))
         .sort((a, b) => a.name.localeCompare(b.name));
-        
-      setSellers(uniqueSellers);
+
+      setSellers(filteredSellers);
     } catch (err) {
       console.error('Error loading sellers:', err);
     }
