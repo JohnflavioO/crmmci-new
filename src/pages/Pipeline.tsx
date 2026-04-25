@@ -76,8 +76,16 @@ export default function Pipeline() {
 
       const filteredSellers = (profilesData || [])
         .filter((u: any) => {
-          // If explicitly commercial_visible or is John Flavio, we always want them
-          if (u.commercial_visible === true) return true;
+          // Explicitly remove Abnolia as requested
+          if (u.full_name?.toLowerCase().includes('abnolia')) return false;
+
+          // If explicitly commercial_visible or is John Flavio, we include them
+          if (u.commercial_visible === true) {
+            // But still check if they are in non-seller roles (except John Flavio)
+            if (u.full_name?.toLowerCase().includes('john flavio')) return true;
+            return !['financeiro', 'logistica'].includes(u.role);
+          }
+          
           if (u.full_name?.toLowerCase().includes('john flavio')) return true;
           
           // Otherwise, only include if approved and not in excluded roles
