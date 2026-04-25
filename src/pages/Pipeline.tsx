@@ -148,7 +148,10 @@ export default function Pipeline() {
 
   useEffect(() => {
     if (isGestor) {
+      console.log("Effect: isGestor is true, loading sellers");
       loadSellers();
+    } else {
+      console.log("Effect: isGestor is false", { isGestor, isAdmin });
     }
   }, [isGestor, loadSellers]);
 
