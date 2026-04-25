@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { supabase as supabaseClient } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
 import { Badge } from '@/components/ui/badge';
@@ -54,7 +54,7 @@ export default function Pipeline() {
 
     try {
       // 1) Buscar perfis ativos e visíveis no comercial
-      const { data: profilesData, error: profilesError } = await supabaseClient
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('user_id, full_name, role, active, commercial_visible')
         .eq('active', true)
@@ -64,7 +64,7 @@ export default function Pipeline() {
       console.log('[Pipeline] profiles fetched:', profilesData?.length, profilesData);
 
       // 2) Buscar aprovações para cruzar (sem depender de FK no PostgREST)
-      const { data: approvalsData, error: approvalsError } = await supabaseClient
+      const { data: approvalsData, error: approvalsError } = await supabase
         .from('user_approvals')
         .select('user_id, status')
         .eq('status', 'approved');
@@ -101,7 +101,7 @@ export default function Pipeline() {
     
     try {
       setLoading(true);
-      let query = supabaseClient.from('quotes')
+      let query = supabase.from('quotes')
         .select('id, quote_number, client_name, status, total_amount, shipping_cost, created_at, created_by, salesperson, salesperson_id');
 
       // Apply filtering based on role and sellerFilter
@@ -148,7 +148,7 @@ export default function Pipeline() {
   }, [isGestor, loadSellers]);
 
   const moveQuote = async (quoteId: string, newStatus: string) => {
-    const { error } = await supabaseClient.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', quoteId);
+    const { error } = await supabase.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', quoteId);
     if (error) { toast.error('Erro ao mover orçamento'); return; }
     setQuotes(prev => prev.map(q => q.id === quoteId ? { ...q, status: newStatus } : q));
     toast.success('Orçamento movido com sucesso');
