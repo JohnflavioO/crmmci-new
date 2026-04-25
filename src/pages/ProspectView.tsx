@@ -37,7 +37,8 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 
-const db = supabase as any;
+// Re-importing supabase to use typed version
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
 
 const PROSPECT_STATUSES = [
   'pre_venda',
@@ -104,6 +105,7 @@ export default function ProspectView() {
 
   const loadData = useCallback(async () => {
     try {
+      if (!user?.id) return;
       setLoading(true);
       
       const statusFilters = [
@@ -115,13 +117,13 @@ export default function ProspectView() {
       ];
       
       console.log('ProspectVision Log [INIT]:', {
-        userId: user?.id,
+        userId: user.id,
         role: isAdmin ? 'admin' : isGestor ? 'gestor' : 'sales',
         sellerFilter
       });
 
       // Simple query to avoid join errors, we already have client_name in quotes
-      let query = db.from('quotes')
+      let query = supabaseClient.from('quotes')
         .select(`
           id, 
           quote_number, 
@@ -139,15 +141,16 @@ export default function ProspectView() {
         .order('created_at', { ascending: false });
 
       // Apply Role-based filtering
-      if (isGestor) {
+      if (isAdmin || isGestor) {
         if (sellerFilter === 'meus') {
-          query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
+          query = query.or(`salesperson_id.eq.${user.id},created_by.eq.${user.id}`);
         } else if (sellerFilter !== 'all') {
           query = query.eq('salesperson_id', sellerFilter);
         }
+        // if 'all', no extra filters
       } else {
-        // Admin or Seller: Only their own
-        query = query.or(`salesperson_id.eq.${user?.id},created_by.eq.${user?.id}`);
+        // Regular Seller: Only their own
+        query = query.or(`salesperson_id.eq.${user.id},created_by.eq.${user.id}`);
       }
 
       const { data, error } = await query;
@@ -165,13 +168,15 @@ export default function ProspectView() {
       const mapped = (data || []).map((q: any) => ({
         ...q,
         client_name: q.client_name || 'Sem cliente',
+        total_amount: parseFloat(String(q.total_amount || 0)) || 0,
+        created_at: q.created_at || new Date().toISOString()
       }));
 
       setQuotes(mapped);
 
-      // Extract unique sellers for filter (only for Gestor)
-      if (isGestor) {
-        const { data: sellersData, error: sellersError } = await db.from('quotes')
+      // Extract unique sellers for filter (for Gestor and Admin)
+      if (isAdmin || isGestor) {
+        const { data: sellersData, error: sellersError } = await supabaseClient.from('quotes')
           .select('salesperson, salesperson_id')
           .in('status', statusFilters);
         
@@ -227,9 +232,9 @@ export default function ProspectView() {
     }
 
     // Filter consistency for frontend UI state
-    if (isGestor && sellerFilter !== 'all' && sellerFilter !== 'meus') {
+    if ((isAdmin || isGestor) && sellerFilter !== 'all' && sellerFilter !== 'meus') {
       result = result.filter(q => q.salesperson_id === sellerFilter);
-    } else if (!isGestor || (isGestor && sellerFilter === 'meus')) {
+    } else if (!(isAdmin || isGestor) || ((isAdmin || isGestor) && sellerFilter === 'meus')) {
       result = result.filter(q => q.salesperson_id === user?.id || q.created_by === user?.id);
     }
 
@@ -277,7 +282,7 @@ export default function ProspectView() {
 
   const updateQuoteStatus = async (id: string, newStatus: string) => {
     try {
-      const { error } = await db.from('quotes').update({ 
+      const { error } = await supabaseClient.from('quotes').update({ 
         status: newStatus, 
         updated_at: new Date().toISOString() 
       }).eq('id', id);
@@ -368,7 +373,7 @@ export default function ProspectView() {
                   </SelectContent>
               </Select>
 
-              {isGestor && (
+              {(isAdmin || isGestor) && (
                 <Select value={sellerFilter} onValueChange={setSellerFilter}>
                   <SelectTrigger className="w-[160px]">
                     <User className="h-3.5 w-3.5 mr-2" />
