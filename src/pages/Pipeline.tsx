@@ -53,27 +53,30 @@ export default function Pipeline() {
     if (!isGestor) return;
     
     try {
-      // Step 1: Get all approved users with their roles
+      // Step 1: Get all active users with role 'comercial' or those that should be visible
       const { data: usersData, error: usersError } = await supabaseClient
         .from('profiles')
         .select(`
           user_id,
           full_name,
-          user_approvals!inner(status),
-          user_roles(role)
+          role,
+          active,
+          commercial_visible,
+          user_approvals!inner(status)
         `)
+        .eq('active', true)
+        .eq('commercial_visible', true)
         .eq('user_approvals.status', 'approved');
 
       if (usersError) throw usersError;
 
       // Step 2: Filter only commercial/sales users
-      // We exclude 'admin', 'gestor', 'financeiro', 'logistica' and only keep active sellers
-      // Note: role being null usually means default seller/vendedor in this system
+      // We prioritize the 'role' field from the profile if it exists
       const filteredSellers = (usersData || [])
         .filter((u: any) => {
-          const role = u.user_roles?.[0]?.role;
-          // Inhibit finance, logistics, admin, gestor from the seller filter
-          return !['admin', 'gestor', 'financeiro', 'logistica'].includes(role);
+          // Keep only users with commercial/vendedor role or similar
+          // Excluding specifically non-sales roles just in case
+          return u.role === 'comercial' || !['admin', 'financeiro', 'logistica'].includes(u.role);
         })
         .map((u: any) => ({
           id: u.user_id,
@@ -222,8 +225,8 @@ export default function Pipeline() {
                 <SelectValue placeholder="Filtrar por vendedor" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="meus">Meus funis</SelectItem>
-                <SelectItem value="all">Todos da equipe</SelectItem>
+                <SelectItem value="meus">Meus Orçamentos</SelectItem>
+                <SelectItem value="all">Todos os Vendedores</SelectItem>
                 {sellers.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.name}
