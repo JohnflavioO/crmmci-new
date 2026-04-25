@@ -50,10 +50,9 @@ export default function Pipeline() {
   const [sellers, setSellers] = useState<{id: string, name: string}[]>([]);
 
   const loadSellers = useCallback(async () => {
-    if (!isGestor) return;
+    if (!isGestor && !isAdmin) return;
     
     try {
-      // Step 1: Get all active users with role 'comercial' or those that should be visible
       const { data: usersData, error: usersError } = await supabaseClient
         .from('profiles')
         .select(`
@@ -70,13 +69,10 @@ export default function Pipeline() {
 
       if (usersError) throw usersError;
 
-      // Step 2: Filter only commercial/sales users
-      // We prioritize the 'role' field from the profile if it exists
       const filteredSellers = (usersData || [])
         .filter((u: any) => {
-          // Keep only users with commercial/vendedor role or similar
-          // Excluding specifically non-sales roles just in case
-          return u.role === 'comercial' || !['admin', 'financeiro', 'logistica'].includes(u.role);
+          const nonSellerRoles = ['admin', 'financeiro', 'logistica'];
+          return u.role === 'comercial' || !nonSellerRoles.includes(u.role);
         })
         .map((u: any) => ({
           id: u.user_id,
@@ -88,7 +84,7 @@ export default function Pipeline() {
     } catch (err) {
       console.error('Error loading sellers:', err);
     }
-  }, [isGestor]);
+  }, [isGestor, isAdmin]);
 
   const loadData = useCallback(async () => {
     if (!user?.id) return;
@@ -99,23 +95,16 @@ export default function Pipeline() {
         .select('id, quote_number, client_name, status, total_amount, shipping_cost, created_at, created_by, salesperson, salesperson_id');
 
       // Apply filtering based on role and sellerFilter
-      if (isGestor) {
+      if (isGestor || isAdmin) {
         if (sellerFilter === 'meus') {
           query = query.or(`salesperson_id.eq.${user.id},created_by.eq.${user.id}`);
         } else if (sellerFilter === 'all') {
-          // No specific salesperson filter for "all" for gestor
-          // In some implementations, gestor might only see a subset, but usually "all" means all active prospects
+          // Show everything for team view
         } else {
           query = query.eq('salesperson_id', sellerFilter);
         }
-      } else if (isAdmin) {
-        // Admin logic usually sees everything or follows existing rule
-        // Based on the code, it seems it was restricted to 'created_by'
-        // Keeping admin rule as is if not specified, but usually admin sees all.
-        // The prompt says: "Admin continua seguindo a regra atual dele."
-        query = query.eq('created_by', user.id);
       } else {
-        // Vendedor
+        // Vendedor regular
         query = query.eq('created_by', user.id);
       }
 
@@ -143,7 +132,7 @@ export default function Pipeline() {
   }, [loadData]);
 
   useEffect(() => {
-    if (isGestor) {
+    if (isGestor || isAdmin) {
       loadSellers();
     }
   }, [isGestor, loadSellers]);
@@ -217,7 +206,7 @@ export default function Pipeline() {
           <p className="text-muted-foreground text-sm">Arraste orçamentos entre as etapas do funil</p>
         </div>
 
-        {isGestor && (
+        {(isGestor || isAdmin) && (
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={sellerFilter} onValueChange={setSellerFilter}>
