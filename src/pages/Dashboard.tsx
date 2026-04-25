@@ -324,8 +324,8 @@ export default function Dashboard() {
     <AppLayout>
       <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold font-display">Dashboard do Time</h1>
-          <p className="text-muted-foreground text-sm">Visão geral de toda a equipe</p>
+          <h1 className="text-xl md:text-2xl font-bold font-display">Dashboard</h1>
+          <p className="text-muted-foreground text-sm">Visão geral dos seus resultados e do time</p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <Button variant="outline" onClick={() => navigate('/reports')} className="gap-2 min-h-[44px] border-primary text-primary hover:bg-primary/5">
@@ -336,7 +336,7 @@ export default function Dashboard() {
           </Button>
           <div className="w-full sm:w-56">
             <Select value={teamFilter} onValueChange={setTeamFilter}>
-              <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Filtrar" /></SelectTrigger>
+              <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Filtrar Time" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os Vendedores</SelectItem>
                 {sellers.map(s => (
@@ -348,52 +348,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {renderStatsBlock(teamStats, teamClientsCount)}
-
-      <div className="mb-4 md:mb-6">
-        <h2 className="text-lg font-bold font-display mb-3">Previsão de Faturamento</h2>
-        <RevenueForecasting quotes={teamQuotes} />
-      </div>
-
-      <div className="mb-4 md:mb-6">
-        <FollowUpAlerts />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-10">
-        <Card className="shadow-card lg:col-span-2">
-          <CardHeader><CardTitle className="font-display text-lg">Últimos Orçamentos — Time</CardTitle></CardHeader>
-          <CardContent>
-            {teamRecent.length === 0 ? (
-              <p className="text-muted-foreground text-sm py-8 text-center">Nenhum orçamento encontrado</p>
-            ) : (
-              <div className="space-y-2">{teamRecent.map(q => renderQuoteRow(q, true))}</div>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="shadow-card">
-          <CardHeader><CardTitle className="font-display text-lg">Top Clientes — Time</CardTitle></CardHeader>
-          <CardContent>
-            {teamTopClients.length === 0 ? (
-              <p className="text-muted-foreground text-sm py-8 text-center">Sem dados</p>
-            ) : (
-              <div className="space-y-3">
-                {teamTopClients.map((c, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">{c.name || 'Sem nome'}</p>
-                      <p className="text-xs text-muted-foreground">{c.count} orçamento(s)</p>
-                    </div>
-                    <span className="text-sm font-semibold text-primary">{formatCurrency(c.total)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Meus Resultados - separated */}
-      <div className="border-t pt-6 md:pt-8">
+      {/* Meus Resultados - agora no topo */}
+      <div className="mb-8">
         <div className="mb-4 md:mb-6">
           <h2 className="text-lg md:text-xl font-bold font-display">Meus Resultados</h2>
           <p className="text-muted-foreground text-sm">Seus números pessoais</p>
@@ -420,6 +376,58 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-3">
                   {myTopClients.map((c, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">{c.name || 'Sem nome'}</p>
+                        <p className="text-xs text-muted-foreground">{c.count} orçamento(s)</p>
+                      </div>
+                      <span className="text-sm font-semibold text-primary">{formatCurrency(c.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Dashboard do Time - agora abaixo */}
+      <div className="border-t pt-6 md:pt-8">
+        <div className="mb-4 md:mb-6">
+          <h2 className="text-lg md:text-xl font-bold font-display">Dashboard do Time</h2>
+          <p className="text-muted-foreground text-sm">Visão geral de toda a equipe</p>
+        </div>
+
+        {renderStatsBlock(teamStats, teamClientsCount)}
+
+        <div className="mb-4 md:mb-6">
+          <h2 className="text-lg font-bold font-display mb-3">Previsão de Faturamento (Time)</h2>
+          <RevenueForecasting quotes={teamQuotes} />
+        </div>
+
+        <div className="mb-4 md:mb-6">
+          <FollowUpAlerts />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-10">
+          <Card className="shadow-card lg:col-span-2">
+            <CardHeader><CardTitle className="font-display text-lg">Últimos Orçamentos — Time</CardTitle></CardHeader>
+            <CardContent>
+              {teamRecent.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-8 text-center">Nenhum orçamento encontrado</p>
+              ) : (
+                <div className="space-y-2">{teamRecent.map(q => renderQuoteRow(q, true))}</div>
+              )}
+            </CardContent>
+          </Card>
+          <Card className="shadow-card">
+            <CardHeader><CardTitle className="font-display text-lg">Top Clientes — Time</CardTitle></CardHeader>
+            <CardContent>
+              {teamTopClients.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-8 text-center">Sem dados</p>
+              ) : (
+                <div className="space-y-3">
+                  {teamTopClients.map((c, i) => (
                     <div key={i} className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium">{c.name || 'Sem nome'}</p>
