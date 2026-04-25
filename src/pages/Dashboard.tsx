@@ -336,9 +336,16 @@ export default function Dashboard() {
 
       {/* Meus Resultados - agora no topo */}
       <div className="mb-8">
-        <div className="mb-4 md:mb-6">
-          <h2 className="text-lg md:text-xl font-bold font-display">Meus Resultados</h2>
-          <p className="text-muted-foreground text-sm">Seus números pessoais</p>
+        <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg md:text-xl font-bold font-display">Meus Resultados</h2>
+            <p className="text-muted-foreground text-sm">Seus números pessoais</p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <Button variant="outline" onClick={() => navigate('/reports')} className="gap-2 min-h-[44px] border-primary text-primary hover:bg-primary/5">
+              <ClipboardList className="h-4 w-4" /> Relatórios
+            </Button>
+          </div>
         </div>
 
         {renderStatsBlock(myStats, myClientsCount)}
