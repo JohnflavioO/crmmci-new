@@ -51,38 +51,43 @@ export default function Pipeline() {
 
   const loadSellers = useCallback(async () => {
     if (!isGestor && !isAdmin) return;
-    
+
     try {
-      const { data: usersData, error: usersError } = await supabaseClient
+      // 1) Buscar perfis ativos e visíveis no comercial
+      const { data: profilesData, error: profilesError } = await supabaseClient
         .from('profiles')
-        .select(`
-          user_id,
-          full_name,
-          role,
-          active,
-          commercial_visible,
-          user_approvals!inner(status)
-        `)
+        .select('user_id, full_name, role, active, commercial_visible')
         .eq('active', true)
-        .eq('commercial_visible', true)
-        .eq('user_approvals.status', 'approved');
+        .eq('commercial_visible', true);
 
-      if (usersError) throw usersError;
+      if (profilesError) throw profilesError;
+      console.log('[Pipeline] profiles fetched:', profilesData?.length, profilesData);
 
-      const filteredSellers = (usersData || [])
-        .filter((u: any) => {
-          const nonSellerRoles = ['admin', 'financeiro', 'logistica'];
-          return u.role === 'comercial' || !nonSellerRoles.includes(u.role);
-        })
+      // 2) Buscar aprovações para cruzar (sem depender de FK no PostgREST)
+      const { data: approvalsData, error: approvalsError } = await supabaseClient
+        .from('user_approvals')
+        .select('user_id, status')
+        .eq('status', 'approved');
+
+      if (approvalsError) throw approvalsError;
+      console.log('[Pipeline] approvals fetched:', approvalsData?.length);
+
+      const approvedIds = new Set((approvalsData || []).map((a: any) => a.user_id));
+      const nonSellerRoles = ['admin', 'financeiro', 'logistica'];
+
+      const filteredSellers = (profilesData || [])
+        .filter((u: any) => approvedIds.has(u.user_id))
+        .filter((u: any) => !nonSellerRoles.includes(u.role))
         .map((u: any) => ({
           id: u.user_id,
-          name: u.full_name || 'Vendedor Sem Nome'
+          name: u.full_name || 'Vendedor Sem Nome',
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
+      console.log('[Pipeline] sellers final:', filteredSellers);
       setSellers(filteredSellers);
     } catch (err) {
-      console.error('Error loading sellers:', err);
+      console.error('[Pipeline] Error loading sellers:', err);
     }
   }, [isGestor, isAdmin]);
 
