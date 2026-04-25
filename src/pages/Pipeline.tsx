@@ -77,7 +77,12 @@ export default function Pipeline() {
 
       const filteredSellers = (profilesData || [])
         .filter((u: any) => approvedIds.has(u.user_id))
-        .filter((u: any) => !nonSellerRoles.includes(u.role))
+        // Se o usuário for John Flavio (admin mas vendedor), incluímos explicitamente.
+        // Para os demais, removemos financeiro e logistica, mas mantemos comercial e admins/gestores que devem ver o funil.
+        .filter((u: any) => {
+          if (u.full_name?.toLowerCase().includes('john flavio')) return true;
+          return !['financeiro', 'logistica'].includes(u.role);
+        })
         .map((u: any) => ({
           id: u.user_id,
           name: u.full_name || 'Vendedor Sem Nome',
