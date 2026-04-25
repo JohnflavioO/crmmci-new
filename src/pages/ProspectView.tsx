@@ -105,6 +105,7 @@ export default function ProspectView() {
 
   const loadData = useCallback(async () => {
     try {
+      if (!user?.id) return;
       setLoading(true);
       
       const statusFilters = [
