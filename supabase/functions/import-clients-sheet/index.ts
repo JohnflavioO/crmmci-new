@@ -287,8 +287,9 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     console.error('[import-clients-sheet] Internal error:', error);
-    await logImport('error', `Erro interno: ${error.message}`);
+    await logImport('error', `Erro interno: ${errorMessage}`);
     return new Response(JSON.stringify({
       success: false,
       error: 'Erro interno ao processar a planilha.',
