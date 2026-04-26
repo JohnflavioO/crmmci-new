@@ -508,6 +508,7 @@ export default function Quotes() {
       shipping_state: quote.shipping_state || '',
       shipping_phone: quote.shipping_phone || '',
       shipping_notes: quote.shipping_notes || '',
+      followup_date: quote.followup_date ? format(new Date(quote.followup_date + 'T12:00:00'), 'yyyy-MM-dd') : '',
     });
     setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
     setDialogOpen(true);
