@@ -1002,6 +1002,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_push_tokens: {
+        Row: {
+          browser: string | null
+          company_id: string | null
+          created_at: string
+          device_type: string | null
+          fcm_token: string
+          id: string
+          is_active: boolean | null
+          last_seen_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          browser?: string | null
+          company_id?: string | null
+          created_at?: string
+          device_type?: string | null
+          fcm_token: string
+          id?: string
+          is_active?: boolean | null
+          last_seen_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          browser?: string | null
+          company_id?: string | null
+          created_at?: string
+          device_type?: string | null
+          fcm_token?: string
+          id?: string
+          is_active?: boolean | null
+          last_seen_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
