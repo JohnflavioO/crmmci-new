@@ -19,15 +19,20 @@ export function useFollowUpScanner() {
       const { data: quotes, error: quotesError } = await db
         .from('quotes')
         .select('id, quote_number, status, followup_date, updated_at, created_at, client_name, total_amount')
-        .in('status', ACTIVE_STATUSES)
-        .eq('created_by', user.id);
+        .in('status', ACTIVE_STATUSES);
 
-      if (quotesError || !quotes) return;
+      // Filtering in JS if needed, but RLS usually handles this.
+      // However, the previous query used .eq('created_by', user.id) which might be redundant or restrictive for admins/gestores.
+      const filteredQuotes = isAdmin || isGestor 
+        ? quotes 
+        : quotes?.filter((q: any) => q.created_by === user.id);
+
+      if (quotesError || !filteredQuotes) return;
 
       const now = new Date();
       const today = startOfDay(now);
 
-      for (const quote of quotes) {
+      for (const quote of filteredQuotes) {
         let alertType: 'today' | 'overdue' | 'forgotten' | 'no_return' | null = null;
         let title = '';
         let message = '';
