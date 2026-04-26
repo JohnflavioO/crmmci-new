@@ -219,6 +219,41 @@ export type Database = {
           },
         ]
       }
+      followup_notification_logs: {
+        Row: {
+          created_at: string
+          id: string
+          notification_type: string
+          notified_at: string
+          quote_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notification_type: string
+          notified_at?: string
+          quote_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notification_type?: string
+          notified_at?: string
+          quote_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followup_notification_logs_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_logs: {
         Row: {
           created_at: string | null
@@ -687,6 +722,7 @@ export type Database = {
           discount: number | null
           external_order_id: string | null
           external_status: string | null
+          followup_date: string | null
           id: string
           installments: number | null
           is_reseller: boolean
@@ -740,6 +776,7 @@ export type Database = {
           discount?: number | null
           external_order_id?: string | null
           external_status?: string | null
+          followup_date?: string | null
           id?: string
           installments?: number | null
           is_reseller?: boolean
@@ -793,6 +830,7 @@ export type Database = {
           discount?: number | null
           external_order_id?: string | null
           external_status?: string | null
+          followup_date?: string | null
           id?: string
           installments?: number | null
           is_reseller?: boolean
