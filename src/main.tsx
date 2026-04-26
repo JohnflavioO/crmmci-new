@@ -13,18 +13,29 @@ const isPreviewHost =
 
 if (isPreviewHost || isInIframe) {
   console.log('[Preview] Preview environment detected, cleaning up...');
+  
+  // Try to unregister service workers more aggressively
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then((regs) => {
       for (const reg of regs) {
-        reg.unregister();
+        reg.unregister().then(() => {
+          console.log('[Preview] SW unregistered');
+        });
       }
     });
   }
-  // Clear caches to prevent SW interference
-  if ('caches' in window) {
-    caches.keys().then((names) => {
-      for (const name of names) caches.delete(name);
-    });
+
+  // Use a shorter approach to clear everything
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+    if ('caches' in window) {
+      caches.keys().then((names) => {
+        names.forEach(n => caches.delete(n));
+      });
+    }
+  } catch (e) {
+    console.error('[Preview] Cleanup error:', e);
   }
 }
 
