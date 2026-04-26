@@ -17,7 +17,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend
 } from 'recharts';
-import jsPDF from 'jspdf';
+// jsPDF will be imported dynamically to avoid bundle issues
 
 const db = supabase as any;
 
@@ -204,7 +204,8 @@ export default function Reports() {
   const updatedAt = format(new Date(), "dd/MM/yyyy, HH:mm:ss");
 
   // PDF Export
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
+    const { default: jsPDF } = await import('jspdf');
     const doc = new jsPDF('p', 'mm', 'a4');
     const w = 190;
     let y = 15;
