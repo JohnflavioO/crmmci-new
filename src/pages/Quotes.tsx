@@ -1098,6 +1098,36 @@ export default function Quotes() {
                 <Textarea rows={4} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Observações gerais do orçamento..." />
               </div>
 
+              {/* Follow-up Date */}
+              <div className="space-y-2 p-4 rounded-lg border bg-amber-50/30 border-amber-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <CalendarIcon className="h-4 w-4 text-amber-600" />
+                  <Label className="font-semibold text-amber-900">Data do Próximo Follow-up</Label>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full sm:w-[240px] justify-start text-left font-normal bg-white", !form.followup_date && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {form.followup_date ? format(new Date(form.followup_date + 'T12:00:00'), "dd/MM/yyyy") : 'Selecionar data'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={form.followup_date ? new Date(form.followup_date + 'T12:00:00') : undefined}
+                        onSelect={(d) => setForm(p => ({ ...p, followup_date: d ? format(d, 'yyyy-MM-dd') : '' }))}
+                        locale={ptBR}
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <p className="text-xs text-amber-700/70">
+                    Defina uma data para ser lembrado de retomar o contato com este cliente.
+                  </p>
+                </div>
+              </div>
+
               {/* Items */}
               <div>
                 <div className="flex items-center justify-between mb-3">
