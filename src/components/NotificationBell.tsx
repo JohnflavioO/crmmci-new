@@ -125,9 +125,14 @@ export default function NotificationBell() {
             {notifications.map(n => (
               <div
                 key={n.id}
-                className={`relative p-3 rounded-lg border transition-colors ${
+                className={`relative p-3 rounded-lg border transition-colors cursor-pointer ${
                   n.is_read ? 'bg-muted/30 border-border opacity-70' : (typeColor[n.type] || 'bg-accent/50 border-accent')
                 }`}
+                onClick={() => {
+                  if (n.related_quote_id) {
+                    window.location.href = `/quotes?id=${n.related_quote_id}`;
+                  }
+                }}
               >
                 <button
                   onClick={() => deleteNotification(n.id)}
