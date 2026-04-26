@@ -12,14 +12,18 @@ const isPreviewHost =
   window.location.hostname.includes("lovable.app");
 
 if (isPreviewHost || isInIframe) {
-  console.log('[Preview] Preview environment detected, cleaning up service workers...');
+  console.log('[Preview] Preview environment detected, cleaning up...');
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then((regs) => {
       for (const reg of regs) {
-        reg.unregister().then((success) => {
-          if (success) console.log('[Preview] Service worker unregistered successfully');
-        });
+        reg.unregister();
       }
+    });
+  }
+  // Clear caches to prevent SW interference
+  if ('caches' in window) {
+    caches.keys().then((names) => {
+      for (const name of names) caches.delete(name);
     });
   }
 }
