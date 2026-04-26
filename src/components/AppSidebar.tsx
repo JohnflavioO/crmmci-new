@@ -142,7 +142,7 @@ export default function AppSidebar({ onNavigate }: Props) {
       <aside className="w-full md:w-64 h-full md:h-screen md:fixed md:left-0 md:top-0 flex flex-col border-r border-sidebar-border"
         style={{ background: 'var(--gradient-sidebar)' }}>
         <div className="p-4 flex items-center gap-3">
-          <img src="/src/assets/mci-logo.png" alt="MCI Store" className="h-10 w-auto" />
+          <img src="/mci-logo.png" alt="MCI Store" className="h-10 w-auto" />
           <div>
             <h1 className="text-sm font-bold font-display text-sidebar-primary-foreground">MCI Store</h1>
             <p className="text-[10px] text-sidebar-foreground/60">Setor Logística</p>
