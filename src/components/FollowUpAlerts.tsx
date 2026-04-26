@@ -26,6 +26,7 @@ interface FollowUpOpportunity {
   quoteStatus: string;
   quoteId: string;
   clientId: string;
+  alertType: 'today' | 'overdue' | 'forgotten' | 'no_return';
 }
 
 const stageLabels: Record<string, string> = {
@@ -144,11 +145,12 @@ export default function FollowUpAlerts() {
     setModalOpen(true);
   };
 
-  const getUrgencyBadge = (days: number) => {
-    if (days >= 15) return <Badge variant="destructive" className="text-[10px]">Crítico</Badge>;
-    if (days >= 7) return <Badge className="bg-orange-100 text-orange-800 border-orange-200 text-[10px]">Urgente</Badge>;
-    if (days >= 3) return <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px]">Atenção</Badge>;
-    return <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-[10px]">Recente</Badge>;
+  const getUrgencyBadge = (opp: FollowUpOpportunity) => {
+    if (opp.alertType === 'overdue') return <Badge variant="destructive" className="text-[10px]">Vencido</Badge>;
+    if (opp.alertType === 'today') return <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px]">Hoje</Badge>;
+    if (opp.alertType === 'no_return') return <Badge className="bg-orange-100 text-orange-800 border-orange-200 text-[10px]">Sem Retorno</Badge>;
+    if (opp.daysAgo >= 5) return <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-[10px]">Esquecido</Badge>;
+    return <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-[10px]">Pendente</Badge>;
   };
 
   const formatCurrency = (v: number) =>
@@ -172,7 +174,7 @@ export default function FollowUpAlerts() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-medium truncate">{opp.company_name}</p>
-                    {getUrgencyBadge(opp.daysAgo)}
+                    {getUrgencyBadge(opp)}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
                     <span className="flex items-center gap-1">
