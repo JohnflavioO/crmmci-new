@@ -44,6 +44,7 @@ const queryClient = new QueryClient({
 
 function LoadingScreen() {
   const [slow, setSlow] = useState(false);
+  const { user, loading } = useAuth();
 
   useEffect(() => {
     const t = setTimeout(() => setSlow(true), 6000);
@@ -62,7 +63,7 @@ function LoadingScreen() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4 p-6 text-center">
       {!slow ? (
         <>
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -73,9 +74,18 @@ function LoadingScreen() {
           <div className="w-14 h-14 rounded-2xl bg-yellow-500/20 flex items-center justify-center">
             <AlertTriangle className="h-7 w-7 text-yellow-400" />
           </div>
-          <p className="text-sm text-muted-foreground text-center max-w-xs">
-            Estamos tendo dificuldade para carregar o sistema.
-          </p>
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold">Dificuldade no carregamento</h2>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              O sistema está demorando mais que o esperado para carregar dados de autenticação.
+            </p>
+            {user && (
+              <div className="bg-muted p-3 rounded-lg text-[10px] font-mono text-left overflow-auto max-w-xs mt-2">
+                User ID: {user.id}<br/>
+                Status: {loading ? 'Carregando perfil...' : 'Perfil carregado'}
+              </div>
+            )}
+          </div>
           <div className="flex flex-col gap-2 w-full max-w-xs">
             <button
               onClick={handleReload}
