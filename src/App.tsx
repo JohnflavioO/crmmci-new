@@ -110,7 +110,7 @@ function AppRoutes() {
   const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange } = useAuth();
   useFollowUpScanner();
 
-  if (loading) return <LoadingScreen />;
+  if (loading && !user) return <LoadingScreen />;
 
   if (!user) {
     return (
