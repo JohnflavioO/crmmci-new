@@ -55,7 +55,7 @@ function AppRoutes() {
   const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange } = useAuth();
   useFollowUpScanner();
 
-  if (loading && !user) return <LoadingScreen />;
+  if (loading) return <LoadingScreen />;
 
   if (!user) {
     return (
@@ -65,6 +65,8 @@ function AppRoutes() {
       </Routes>
     );
   }
+
+  // Se chegou aqui, temos usuário e terminou de carregar o perfil
   if (!isApproved) return <PendingApproval />;
   if (forcePasswordChange) return <ForcePasswordChange />;
 
