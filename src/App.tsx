@@ -43,65 +43,10 @@ const queryClient = new QueryClient({
 });
 
 function LoadingScreen() {
-  const [slow, setSlow] = useState(false);
-  const { user, loading } = useAuth();
-
-  useEffect(() => {
-    const t = setTimeout(() => setSlow(true), 6000);
-    return () => clearTimeout(t);
-  }, []);
-
-  const handleReload = () => window.location.reload();
-  const handleClear = () => {
-    try {
-      localStorage.clear();
-      sessionStorage.clear();
-      if ('caches' in window) caches.keys().then(ns => ns.forEach(n => caches.delete(n)));
-      navigator.serviceWorker?.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
-    } catch { /* ignore */ }
-    setTimeout(() => window.location.reload(), 300);
-  };
-
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4 p-6 text-center">
-      {!slow ? (
-        <>
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-muted-foreground">Carregando sistema...</p>
-        </>
-      ) : (
-        <>
-          <div className="w-14 h-14 rounded-2xl bg-yellow-500/20 flex items-center justify-center">
-            <AlertTriangle className="h-7 w-7 text-yellow-400" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold">Dificuldade no carregamento</h2>
-            <p className="text-sm text-muted-foreground max-w-xs">
-              O sistema está demorando mais que o esperado para carregar dados de autenticação.
-            </p>
-            {user && (
-              <div className="bg-muted p-3 rounded-lg text-[10px] font-mono text-left overflow-auto max-w-xs mt-2">
-                User ID: {user.id}<br/>
-                Status: {loading ? 'Carregando perfil...' : 'Perfil carregado'}
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col gap-2 w-full max-w-xs">
-            <button
-              onClick={handleReload}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm"
-            >
-              <RefreshCw className="h-4 w-4" /> Tentar novamente
-            </button>
-            <button
-              onClick={handleClear}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-muted text-muted-foreground font-medium text-sm"
-            >
-              Limpar dados e recarregar
-            </button>
-          </div>
-        </>
-      )}
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <p className="text-sm text-muted-foreground animate-pulse">Carregando sistema...</p>
     </div>
   );
 }
@@ -110,7 +55,7 @@ function AppRoutes() {
   const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange } = useAuth();
   useFollowUpScanner();
 
-  if (loading && !user) return <LoadingScreen />;
+  if (loading) return <LoadingScreen />;
 
   if (!user) {
     return (
@@ -120,6 +65,8 @@ function AppRoutes() {
       </Routes>
     );
   }
+
+  // Se chegou aqui, temos usuário e terminou de carregar o perfil
   if (!isApproved) return <PendingApproval />;
   if (forcePasswordChange) return <ForcePasswordChange />;
 
