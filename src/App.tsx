@@ -29,6 +29,7 @@ import ForcePasswordChange from "./pages/ForcePasswordChange";
 import EstoqueSC from "./pages/EstoqueSC";
 import { useState, useEffect } from "react";
 import { RefreshCw, AlertTriangle, Target } from "lucide-react";
+import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
 import ProspectView from "./pages/ProspectView";
 
 const queryClient = new QueryClient({
@@ -97,6 +98,7 @@ function LoadingScreen() {
 
 function AppRoutes() {
   const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange } = useAuth();
+  useFollowUpScanner();
 
   if (loading) return <LoadingScreen />;
 
