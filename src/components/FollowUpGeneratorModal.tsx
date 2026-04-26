@@ -28,6 +28,7 @@ interface FollowUpClientData {
   quoteValue: number;
   quoteNumber: string;
   quoteStatus: string;
+  quoteId?: string;
 }
 
 interface Props {
