@@ -26,6 +26,7 @@ interface FollowUpOpportunity {
   quoteStatus: string;
   quoteId: string;
   clientId: string;
+  alertType: 'today' | 'overdue' | 'forgotten' | 'no_return';
 }
 
 const stageLabels: Record<string, string> = {
@@ -49,48 +50,53 @@ export default function FollowUpAlerts() {
     const load = async () => {
       if (!user?.id) return;
 
-      // Fetch quotes with active statuses (open opportunities only)
+      // 1. Fetch quotes for today or overdue follow-ups
+      // 2. Fetch forgotten quotes (no interaction for 3+ days and no future follow-up)
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+
       const { data: quotesData, error: quotesError } = await db
         .from('quotes')
-        .select('id, quote_number, status, total_amount, total, client_id, client_name, created_by, updated_at, created_at, salesperson')
+        .select('*')
         .in('status', ACTIVE_STATUSES)
-        .eq('created_by', user.id)
-        .order('updated_at', { ascending: true });
+        .eq('created_by', user.id);
 
-      if (quotesError) {
-        console.error('[FollowUpAlerts] Quotes error:', quotesError);
+      if (quotesError || !quotesData) {
         setOpportunities([]);
         return;
       }
 
-      if (!quotesData || quotesData.length === 0) {
-        setOpportunities([]);
-        return;
-      }
-
-      const filtered = quotesData;
-
-      // Get client details for enrichment
-      const clientIds = [...new Set(filtered.map((q: any) => q.client_id).filter(Boolean))];
+      const clientIds = [...new Set(quotesData.map((q: any) => q.client_id).filter(Boolean))];
       let clientsMap: Record<string, any> = {};
       if (clientIds.length > 0) {
         const { data: clientsData } = await db
           .from('clients')
-          .select('id, company_name, contact_name, phone, last_interaction_at, pipeline_stage')
+          .select('id, company_name, contact_name, phone, last_interaction_at')
           .in('id', clientIds);
-        (clientsData || []).forEach((c: any) => {
-          clientsMap[c.id] = c;
-        });
+        (clientsData || []).forEach((c: any) => { clientsMap[c.id] = c; });
       }
 
-      const now = new Date();
-
-      const items: FollowUpOpportunity[] = filtered
+      const items: FollowUpOpportunity[] = quotesData
         .map((q: any) => {
           const client = q.client_id ? clientsMap[q.client_id] : null;
           const lastActivity = client?.last_interaction_at || q.updated_at || q.created_at;
           const daysAgo = differenceInDays(now, new Date(lastActivity));
           const value = parseFloat(q.total_amount) || parseFloat(q.total) || 0;
+          
+          let alertType: 'today' | 'overdue' | 'forgotten' | 'no_return' | null = null;
+          
+          if (q.followup_date) {
+            const fDateStr = q.followup_date.split('T')[0];
+            if (fDateStr === todayStr) alertType = 'today';
+            else if (fDateStr < todayStr) alertType = 'overdue';
+          }
+
+          if (!alertType) {
+            if (q.status === 'sent' && daysAgo >= 3) alertType = 'no_return';
+            else if (daysAgo >= 5) alertType = 'forgotten';
+          }
+
+          if (!alertType) return null;
 
           return {
             id: q.id,
@@ -105,14 +111,15 @@ export default function FollowUpAlerts() {
             quoteStatus: q.status || '',
             quoteId: q.id,
             clientId: q.client_id || '',
+            alertType
           };
         })
-        // Only show quotes with at least 1 day without interaction
-        .filter((o: FollowUpOpportunity) => o.daysAgo >= 1)
-        // Sort: most days without contact first, then by value desc
-        .sort((a: FollowUpOpportunity, b: FollowUpOpportunity) => {
-          if (b.daysAgo !== a.daysAgo) return b.daysAgo - a.daysAgo;
-          return b.quoteValue - a.quoteValue;
+        .filter(Boolean)
+        .sort((a: any, b: any) => {
+          // Priority: Overdue > Today > No Return > Forgotten
+          const p: Record<string, number> = { overdue: 4, today: 3, no_return: 2, forgotten: 1 };
+          if (p[b.alertType] !== p[a.alertType]) return p[b.alertType] - p[a.alertType];
+          return b.daysAgo - a.daysAgo;
         })
         .slice(0, 10);
 
@@ -138,11 +145,12 @@ export default function FollowUpAlerts() {
     setModalOpen(true);
   };
 
-  const getUrgencyBadge = (days: number) => {
-    if (days >= 15) return <Badge variant="destructive" className="text-[10px]">Crítico</Badge>;
-    if (days >= 7) return <Badge className="bg-orange-100 text-orange-800 border-orange-200 text-[10px]">Urgente</Badge>;
-    if (days >= 3) return <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px]">Atenção</Badge>;
-    return <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-[10px]">Recente</Badge>;
+  const getUrgencyBadge = (opp: FollowUpOpportunity) => {
+    if (opp.alertType === 'overdue') return <Badge variant="destructive" className="text-[10px]">Vencido</Badge>;
+    if (opp.alertType === 'today') return <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px]">Hoje</Badge>;
+    if (opp.alertType === 'no_return') return <Badge className="bg-orange-100 text-orange-800 border-orange-200 text-[10px]">Sem Retorno</Badge>;
+    if (opp.daysAgo >= 5) return <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-[10px]">Esquecido</Badge>;
+    return <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-[10px]">Pendente</Badge>;
   };
 
   const formatCurrency = (v: number) =>
@@ -166,7 +174,7 @@ export default function FollowUpAlerts() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-medium truncate">{opp.company_name}</p>
-                    {getUrgencyBadge(opp.daysAgo)}
+                    {getUrgencyBadge(opp)}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
                     <span className="flex items-center gap-1">

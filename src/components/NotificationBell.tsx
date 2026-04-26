@@ -84,6 +84,7 @@ export default function NotificationBell() {
   const typeColor: Record<string, string> = {
     quote_status: 'bg-blue-100 border-blue-200',
     new_client: 'bg-emerald-100 border-emerald-200',
+    followup: 'bg-amber-100 border-amber-200',
     info: 'bg-muted',
   };
 
@@ -124,9 +125,14 @@ export default function NotificationBell() {
             {notifications.map(n => (
               <div
                 key={n.id}
-                className={`relative p-3 rounded-lg border transition-colors ${
+                className={`relative p-3 rounded-lg border transition-colors cursor-pointer ${
                   n.is_read ? 'bg-muted/30 border-border opacity-70' : (typeColor[n.type] || 'bg-accent/50 border-accent')
                 }`}
+                onClick={() => {
+                  if (n.related_quote_id) {
+                    window.location.href = `/quotes?id=${n.related_quote_id}`;
+                  }
+                }}
               >
                 <button
                   onClick={() => deleteNotification(n.id)}

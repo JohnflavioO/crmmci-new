@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { isToday, isBefore, startOfDay } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -320,6 +321,11 @@ export default function Dashboard() {
   }
 
   // Team dashboard for gestor
+  const teamPendingFollowUps = teamRecentQuotes.filter(q => 
+    q.followup_date && 
+    (isToday(new Date(q.followup_date + 'T12:00:00')) || isBefore(new Date(q.followup_date + 'T12:00:00'), startOfDay(new Date())))
+  ).length;
+
   return (
     <AppLayout>
       <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -386,6 +392,11 @@ export default function Dashboard() {
           <div>
             <h2 className="text-lg md:text-xl font-bold font-display">Dashboard do Time</h2>
             <p className="text-muted-foreground text-sm">Visão geral de toda a equipe</p>
+            {teamPendingFollowUps > 0 && (
+              <Badge variant="destructive" className="mt-1">
+                {teamPendingFollowUps} follow-ups pendentes no time
+              </Badge>
+            )}
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             {/* O botão de relatórios agora está no topo para acesso rápido e também próximo ao filtro do time */}

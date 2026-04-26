@@ -28,6 +28,7 @@ interface FollowUpClientData {
   quoteValue: number;
   quoteNumber: string;
   quoteStatus: string;
+  quoteId?: string;
 }
 
 interface Props {
@@ -343,8 +344,20 @@ export default function FollowUpGeneratorModal({ open, onOpenChange, client, sel
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 {copied ? 'Copiado!' : 'Copiar mensagem'}
               </Button>
-              <Button variant="outline" className="gap-2" onClick={onMarkContacted}>
-                <Phone className="h-4 w-4" /> Contatado
+              <Button variant="outline" className="gap-2" onClick={async () => {
+                // Update followup_date in DB to today + 3 days as a default reschedule
+                if (client.quoteId) {
+                  const nextDate = new Date();
+                  nextDate.setDate(nextDate.getDate() + 3);
+                  await supabase.from('quotes').update({ 
+                    followup_date: nextDate.toISOString().split('T')[0],
+                    updated_at: new Date().toISOString()
+                  }).eq('id', client.quoteId);
+                  toast.success('Follow-up reagendado para daqui a 3 dias');
+                }
+                onMarkContacted();
+              }}>
+                <Phone className="h-4 w-4" /> Registrado
               </Button>
             </div>
           </div>

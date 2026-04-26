@@ -103,6 +103,7 @@ const defaultForm = {
   shipping_state: '',
   shipping_phone: '',
   shipping_notes: '',
+  followup_date: '' as string,
 };
 
 const QUICK_ENTRY_STATUSES = ['contato_feito', 'sent', 'negociacao'];
@@ -383,6 +384,7 @@ export default function Quotes() {
         payment_terms: form.payment_terms, shipping_deadline: form.shipping_deadline,
         shipping_method: form.shipping_method, shipping_cost: form.shipping_cost,
         proposal_validity: form.proposal_validity,
+        followup_date: form.followup_date || null,
         payment_method: form.is_split_payment ? null : (form.payment_method || null),
         payment_status: form.payment_status,
         is_reseller: form.is_reseller,
@@ -506,6 +508,7 @@ export default function Quotes() {
       shipping_state: quote.shipping_state || '',
       shipping_phone: quote.shipping_phone || '',
       shipping_notes: quote.shipping_notes || '',
+      followup_date: quote.followup_date ? format(new Date(quote.followup_date + 'T12:00:00'), 'yyyy-MM-dd') : '',
     });
     setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
     setDialogOpen(true);
@@ -1094,6 +1097,36 @@ export default function Quotes() {
               <div className="space-y-2">
                 <Label>Observações</Label>
                 <Textarea rows={4} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Observações gerais do orçamento..." />
+              </div>
+
+              {/* Follow-up Date */}
+              <div className="space-y-2 p-4 rounded-lg border bg-amber-50/30 border-amber-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <CalendarIcon className="h-4 w-4 text-amber-600" />
+                  <Label className="font-semibold text-amber-900">Data do Próximo Follow-up</Label>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full sm:w-[240px] justify-start text-left font-normal bg-white", !form.followup_date && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {form.followup_date ? format(new Date(form.followup_date + 'T12:00:00'), "dd/MM/yyyy") : 'Selecionar data'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={form.followup_date ? new Date(form.followup_date + 'T12:00:00') : undefined}
+                        onSelect={(d) => setForm(p => ({ ...p, followup_date: d ? format(d, 'yyyy-MM-dd') : '' }))}
+                        locale={ptBR}
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <p className="text-xs text-amber-700/70">
+                    Defina uma data para ser lembrado de retomar o contato com este cliente.
+                  </p>
+                </div>
               </div>
 
               {/* Items */}
