@@ -6,8 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const FCM_URL = "https://fcm.googleapis.com/v1/projects/push-mci-crm/messages:send";
-
 // Interface for the notification
 interface PushNotification {
   userId: string;
@@ -26,16 +24,13 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const authHeader = req.headers.get("Authorization");
-    // Only allow service role or authenticated requests for the scanner part
-    // But this function will mostly be called by a CRON job or another edge function
-
-    const { action } = await req.json();
+    const body = await req.json();
+    const { action } = body;
 
     if (action === "scan_followups") {
       return await handleScanFollowups(supabase);
     } else if (action === "send_push") {
-      const { notification } = await req.json();
+      const { notification } = body;
       return await handleSendPush(supabase, notification);
     }
 
@@ -43,7 +38,7 @@ serve(async (req) => {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro na edge function send-push-notifications:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
@@ -128,7 +123,6 @@ async function handleSendPush(supabase: any, notification: PushNotification) {
 }
 
 async function sendPushToUser(supabase: any, notification: PushNotification): Promise<boolean> {
-  // Get active tokens for the user
   const { data: tokens, error } = await supabase
     .from('user_push_tokens')
     .select('fcm_token')
@@ -140,24 +134,12 @@ async function sendPushToUser(supabase: any, notification: PushNotification): Pr
     return false;
   }
 
-  const results = await Promise.all(tokens.map(t => sendToFcm(t.fcm_token, notification)));
-  
-  // Se todos falharem, retornar false
+  const results = await Promise.all(tokens.map((t: any) => sendToFcm(t.fcm_token, notification)));
   return results.some(r => r === true);
 }
 
 async function sendToFcm(token: string, notification: PushNotification): Promise<boolean> {
-  // ATENÇÃO: Para enviar via FCM v1, precisamos de um Access Token do Google.
-  // Isso requer uma Service Account Key (JSON).
-  // Como não temos isso configurado agora, usaremos um log para simular
-  // ou o desenvolvedor precisará adicionar o GOOGLE_APPLICATION_CREDENTIALS
-  
   console.log(`Enviando push para token: ${token.substring(0, 10)}...`);
   console.log(`Título: ${notification.title}`);
-  
-  // TODO: Implementar a troca do token da conta de serviço pelo access token do Google
-  // Por enquanto, apenas registramos a intenção.
-  // O ideal seria usar a API legada do FCM (que usa Server Key) ou configurar OAuth2.
-  
   return true; 
 }

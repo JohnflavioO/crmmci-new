@@ -46,7 +46,6 @@ export default function NotificationBell() {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // Realtime subscription
   useEffect(() => {
     if (!user || !canSee) return;
     const channel = supabase
@@ -62,6 +61,16 @@ export default function NotificationBell() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user, canSee, fetchNotifications]);
+
+  const handleEnablePush = async () => {
+    const token = await requestNotificationPermission();
+    if (token) {
+      setIsPushEnabled(true);
+      toast.success("Notificações push ativadas com sucesso!");
+    } else if (Notification.permission === 'denied') {
+      toast.error("As notificações foram bloqueadas no seu navegador. Por favor, habilite-as nas configurações do site.");
+    }
+  };
 
   if (!canSee) return null;
 
