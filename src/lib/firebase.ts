@@ -13,7 +13,16 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
+const messaging = (() => {
+  try {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      return getMessaging(app);
+    }
+  } catch (e) {
+    console.warn('[Firebase] Failed to initialize messaging:', e);
+  }
+  return null;
+})();
 
 export const requestNotificationPermission = async () => {
   if (!messaging) return;
