@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Bell, Check, X } from 'lucide-react';
+import { Bell, Check, X, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { requestNotificationPermission } from '@/lib/firebase';
+import { toast } from 'sonner';
 
 const db = supabase as any;
 
@@ -25,6 +27,7 @@ export default function NotificationBell() {
   const { user, isAdmin, isGestor } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  const [isPushEnabled, setIsPushEnabled] = useState('Notification' in window && Notification.permission === 'granted');
 
   const canSee = isAdmin || isGestor;
 
@@ -113,8 +116,13 @@ export default function NotificationBell() {
           </div>
         )}
 
-        <div className="px-4 py-2 text-sm text-muted-foreground">
-          {unreadCount > 0 ? `${unreadCount} notificação(ões) nova(s)` : 'Nenhuma notificação nova'}
+        <div className="px-4 py-2 text-sm text-muted-foreground flex items-center justify-between">
+          <span>{unreadCount > 0 ? `${unreadCount} notificação(ões) nova(s)` : 'Nenhuma notificação nova'}</span>
+          {!isPushEnabled && 'Notification' in window && (
+            <Button variant="ghost" size="sm" onClick={handleEnablePush} className="h-7 text-xs gap-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50">
+              <ShieldCheck className="h-3 w-3" /> Ativar Push
+            </Button>
+          )}
         </div>
 
         <ScrollArea className="flex-1 px-4 pb-4">
