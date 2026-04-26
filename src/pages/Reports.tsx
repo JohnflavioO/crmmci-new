@@ -17,7 +17,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend
 } from 'recharts';
-import jsPDF from 'jspdf';
+// jsPDF will be imported dynamically to avoid bundle issues
 
 const db = supabase as any;
 
