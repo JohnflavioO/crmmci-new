@@ -103,6 +103,7 @@ const defaultForm = {
   shipping_state: '',
   shipping_phone: '',
   shipping_notes: '',
+  followup_date: '' as string,
 };
 
 const QUICK_ENTRY_STATUSES = ['contato_feito', 'sent', 'negociacao'];
@@ -383,6 +384,7 @@ export default function Quotes() {
         payment_terms: form.payment_terms, shipping_deadline: form.shipping_deadline,
         shipping_method: form.shipping_method, shipping_cost: form.shipping_cost,
         proposal_validity: form.proposal_validity,
+        followup_date: form.followup_date || null,
         payment_method: form.is_split_payment ? null : (form.payment_method || null),
         payment_status: form.payment_status,
         is_reseller: form.is_reseller,
