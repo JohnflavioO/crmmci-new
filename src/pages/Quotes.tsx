@@ -27,6 +27,29 @@ import { cn } from '@/lib/utils';
 
 const db = supabase as any;
 
+// Helper seguro para validar e formatar datas
+const safeFormatDate = (value: any, formatStr: string = 'dd/MM/yyyy') => {
+  if (!value) return '';
+  // Se já for uma string no formato yyyy-MM-dd, adicionamos o T12:00:00 para evitar problemas de fuso
+  const dateStr = typeof value === 'string' && value.includes('-') && !value.includes('T') 
+    ? `${value}T12:00:00` 
+    : value;
+    
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    console.warn('[Quotes] Data inválida detectada:', value);
+    return '';
+  }
+  return format(date, formatStr, { locale: ptBR });
+};
+
+const safeDateValue = (value: any) => {
+  if (!value) return '';
+  const date = new Date(value.includes('-') && !value.includes('T') ? `${value}T12:00:00` : value);
+  if (isNaN(date.getTime())) return '';
+  return format(date, 'yyyy-MM-dd');
+};
+
 const statusLabels: Record<string, string> = {
   draft: 'Rascunho', pre_venda: 'Pré-venda', contato_feito: 'Contato Feito',
   sent: 'Proposta Enviada', negociacao: 'Negociação', approved: 'Aprovado', rejected: 'Rejeitado',
@@ -117,6 +140,9 @@ function PaymentMethodFields({ method, date, onDateChange, installments, onInsta
   label?: string;
 }) {
   if (method === 'pix') {
+    const displayDate = date ? safeFormatDate(date) : 'Selecionar data';
+    const selectedDate = date ? new Date(date + 'T12:00:00') : undefined;
+
     return (
       <div className="space-y-2">
         <Label className="text-xs">{label || 'Data do Pagamento'}</Label>
@@ -124,13 +150,13 @@ function PaymentMethodFields({ method, date, onDateChange, installments, onInsta
           <PopoverTrigger asChild>
             <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}>
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {date ? format(new Date(date + 'T12:00:00'), "dd/MM/yyyy") : 'Selecionar data'}
+              {displayDate}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
-              selected={date ? new Date(date + 'T12:00:00') : undefined}
+              selected={selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : undefined}
               onSelect={(d) => onDateChange(d ? format(d, 'yyyy-MM-dd') : '')}
               locale={ptBR}
               className="p-3 pointer-events-auto"
@@ -204,6 +230,10 @@ export default function Quotes() {
         setCepLoading(false);
       }
     }
+  };
+
+  const handleFollowupDateChange = (date: Date | undefined) => {
+    setForm(prev => ({ ...prev, followup_date: date ? format(date, 'yyyy-MM-dd') : '' }));
   };
 
   const loadData = useCallback(async () => {
@@ -412,6 +442,13 @@ export default function Quotes() {
         shipping_notes: form.use_alt_shipping_address ? (form.shipping_notes || null) : null,
       };
 
+      // Garantir que campos de data nulos ou vazios sejam salvos como null e não strings inválidas
+      ['followup_date', 'payment_date', 'split_date_1', 'split_date_2'].forEach(key => {
+        if (quoteData[key] === '' || quoteData[key] === undefined) {
+          quoteData[key] = null;
+        }
+      });
+
       console.log('[Quotes.handleSave] Payload:', { editing: !!editingQuote, quoteData, itemsCount: items.filter(i => i.model).length });
 
       if (editingQuote) {
@@ -498,7 +535,18 @@ export default function Quotes() {
         });
       }
 
-      // Preparação dos dados do formulário com validação de tipos
+      // Log dos campos de data recebidos para depuração
+      console.log('[Quotes.handleEdit] Payload recebido para edição:', {
+        id: quote.id,
+        quote_date: quote.quote_date,
+        payment_date: quote.payment_date,
+        split_date_1: quote.split_date_1,
+        split_date_2: quote.split_date_2,
+        followup_date: quote.followup_date,
+        created_at: quote.created_at
+      });
+
+      // Preparação dos dados do formulário com validação de tipos e datas seguras
       const formData = {
         client_id: quote.client_id || '', 
         salesperson: quote.salesperson || '',
@@ -535,12 +583,13 @@ export default function Quotes() {
         shipping_state: quote.shipping_state || '',
         shipping_phone: quote.shipping_phone || '',
         shipping_notes: quote.shipping_notes || '',
-        followup_date: quote.followup_date ? format(new Date(quote.followup_date + 'T12:00:00'), 'yyyy-MM-dd') : '',
+        followup_date: safeDateValue(quote.followup_date),
       };
 
       console.log('[Quotes.handleEdit] Sucesso no processamento dos dados:', {
         itemsCount: qItems?.length || 0,
-        quoteId: quote.id
+        quoteId: quote.id,
+        parsedFollowup: formData.followup_date
       });
 
       setEditingQuote(quote);
@@ -1152,14 +1201,14 @@ export default function Quotes() {
                     <PopoverTrigger asChild>
                       <Button variant="outline" className={cn("w-full sm:w-[240px] justify-start text-left font-normal bg-white", !form.followup_date && "text-muted-foreground")}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {form.followup_date ? format(new Date(form.followup_date + 'T12:00:00'), "dd/MM/yyyy") : 'Selecionar data'}
+                        {form.followup_date ? safeFormatDate(form.followup_date) : 'Selecionar data'}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={form.followup_date ? new Date(form.followup_date + 'T12:00:00') : undefined}
-                        onSelect={(d) => setForm(p => ({ ...p, followup_date: d ? format(d, 'yyyy-MM-dd') : '' }))}
+                        selected={form.followup_date ? (new Date(form.followup_date + 'T12:00:00')) : undefined}
+                        onSelect={handleFollowupDateChange}
                         locale={ptBR}
                         className="p-3 pointer-events-auto"
                       />
@@ -1366,7 +1415,7 @@ export default function Quotes() {
                       <div>
                         <p className="font-medium text-sm">{q.quote_number}</p>
                         <p className="text-xs text-muted-foreground">{q.clients?.company_name || '-'}</p>
-                        <p className="text-xs text-muted-foreground">{format(new Date(q.quote_date + 'T12:00:00'), 'dd/MM/yyyy')}</p>
+                        <p className="text-xs text-muted-foreground">{safeFormatDate(q.quote_date)}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-sm">{formatCurrency((parseFloat(q.total_amount) || 0))}</p>
@@ -1465,7 +1514,7 @@ export default function Quotes() {
                       </div>
                     </TableCell>
                     <TableCell>{q.clients?.company_name || '-'}</TableCell>
-                    <TableCell>{format(new Date(q.quote_date + 'T12:00:00'), 'dd/MM/yyyy')}</TableCell>
+                    <TableCell>{safeFormatDate(q.quote_date)}</TableCell>
                     <TableCell>
                       {parseFloat(q.shipping_cost) > 0 ? (
                         <span className="text-xs font-medium text-muted-foreground">{formatCurrency(parseFloat(q.shipping_cost))}</span>
