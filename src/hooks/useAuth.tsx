@@ -108,11 +108,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         console.log('[Auth] Fetching user data for:', user.id);
         const [approvedRes, adminRes, gestorRes, financeiroRes, logisticaRes, profileRes] = await Promise.all([
-          supabase.rpc('is_approved'),
-          supabase.rpc('is_admin'),
-          supabase.rpc('is_gestor'),
-          supabase.rpc('is_financeiro'),
-          supabase.rpc('is_logistica' as any),
+          supabase.rpc('is_approved').catch(() => ({ data: false })),
+          supabase.rpc('is_admin').catch(() => ({ data: false })),
+          supabase.rpc('is_gestor').catch(() => ({ data: false })),
+          supabase.rpc('is_financeiro').catch(() => ({ data: false })),
+          supabase.rpc('is_logistica' as any).catch(() => ({ data: false })),
           supabase.from('profiles').select('full_name, phone, role, avatar_url, force_password_change').eq('user_id', user.id).maybeSingle(),
         ]);
 
