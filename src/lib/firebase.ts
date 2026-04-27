@@ -13,13 +13,19 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
 const messaging = (() => {
   try {
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    // Only attempt to initialize messaging in non-preview environments or if explicitly supported
+    const isPreview = window.location.hostname.includes('lovable.app') || window.location.hostname.includes('lovableproject.com');
+    
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'Notification' in window && !isPreview) {
       return getMessaging(app);
+    } else if (isPreview) {
+      console.log('[Firebase] Messaging initialization skipped in Preview environment');
     }
   } catch (e) {
-    console.warn('[Firebase] Failed to initialize messaging:', e);
+    console.warn('[Firebase] Messaging initialization failed (expected in some environments):', e);
   }
   return null;
 })();
