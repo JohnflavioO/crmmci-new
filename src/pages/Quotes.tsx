@@ -27,6 +27,29 @@ import { cn } from '@/lib/utils';
 
 const db = supabase as any;
 
+// Helper seguro para validar e formatar datas
+const safeFormatDate = (value: any, formatStr: string = 'dd/MM/yyyy') => {
+  if (!value) return '';
+  // Se já for uma string no formato yyyy-MM-dd, adicionamos o T12:00:00 para evitar problemas de fuso
+  const dateStr = typeof value === 'string' && value.includes('-') && !value.includes('T') 
+    ? `${value}T12:00:00` 
+    : value;
+    
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    console.warn('[Quotes] Data inválida detectada:', value);
+    return '';
+  }
+  return format(date, formatStr, { locale: ptBR });
+};
+
+const safeDateValue = (value: any) => {
+  if (!value) return '';
+  const date = new Date(value.includes('-') && !value.includes('T') ? `${value}T12:00:00` : value);
+  if (isNaN(date.getTime())) return '';
+  return format(date, 'yyyy-MM-dd');
+};
+
 const statusLabels: Record<string, string> = {
   draft: 'Rascunho', pre_venda: 'Pré-venda', contato_feito: 'Contato Feito',
   sent: 'Proposta Enviada', negociacao: 'Negociação', approved: 'Aprovado', rejected: 'Rejeitado',
