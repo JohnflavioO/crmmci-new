@@ -477,28 +477,29 @@ export default function Quotes() {
     try {
       console.log('[Quotes.handleEdit] Loading items for quote:', quote.id);
       
-      // Clear current state to avoid leftovers
-      setEditingQuote(null);
-      setItems([emptyItem()]);
-
+      // Load items first
       const { data: qItems, error } = await db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number');
       
       if (error) {
         console.error('[Quotes.handleEdit] Error loading items:', error);
         toast.error('Erro ao carregar itens do orçamento');
-        // We still allow opening the form with the main quote data if items fail,
-        // but it's safer to alert the user.
       }
 
+      // Update state all at once to trigger a single re-render and open dialog
       setEditingQuote(quote);
+      setItems(qItems && qItems.length > 0 ? qItems : [emptyItem()]);
       setForm({
-        client_id: quote.client_id || '', salesperson: quote.salesperson || '',
-        status: quote.status, notes: quote.notes || '',
-        payment_terms: quote.payment_terms || '', shipping_deadline: quote.shipping_deadline || '',
+        client_id: quote.client_id || '', 
+        salesperson: quote.salesperson || '',
+        status: quote.status, 
+        notes: quote.notes || '',
+        payment_terms: quote.payment_terms || '', 
+        shipping_deadline: quote.shipping_deadline || '',
         shipping_method: quote.shipping_method || '',
         shipping_cost: parseFloat(quote.shipping_cost) || 0,
         proposal_validity: quote.proposal_validity || '15 dias',
-        payment_method: quote.payment_method || '', payment_status: quote.payment_status || 'pendente',
+        payment_method: quote.payment_method || '', 
+        payment_status: quote.payment_status || 'pendente',
         is_reseller: quote.is_reseller || false,
         payment_date: quote.payment_date || '',
         installments: quote.installments || 1,
@@ -525,7 +526,8 @@ export default function Quotes() {
         shipping_notes: quote.shipping_notes || '',
         followup_date: quote.followup_date ? format(new Date(quote.followup_date + 'T12:00:00'), 'yyyy-MM-dd') : '',
       });
-      setItems(qItems && qItems.length > 0 ? qItems : [emptyItem()]);
+      
+      // Force dialog open after state is set
       setDialogOpen(true);
     } catch (err: any) {
       console.error('[Quotes.handleEdit] Unhandled error:', err);
