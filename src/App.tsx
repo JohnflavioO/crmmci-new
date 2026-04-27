@@ -44,9 +44,12 @@ const queryClient = new QueryClient({
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
-      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      <p className="text-sm text-muted-foreground animate-pulse">Carregando sistema...</p>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#0f2b26] gap-4">
+      <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      <div className="text-center space-y-2">
+        <p className="text-lg font-bold text-white font-display">MCI Store</p>
+        <p className="text-sm text-emerald-400/80 animate-pulse">Carregando sistema...</p>
+      </div>
     </div>
   );
 }
