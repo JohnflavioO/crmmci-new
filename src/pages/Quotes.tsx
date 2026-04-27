@@ -1507,7 +1507,7 @@ export default function Quotes() {
                       </div>
                     </TableCell>
                     <TableCell>{q.clients?.company_name || '-'}</TableCell>
-                    <TableCell>{format(new Date(q.quote_date + 'T12:00:00'), 'dd/MM/yyyy')}</TableCell>
+                    <TableCell>{safeFormatDate(q.quote_date)}</TableCell>
                     <TableCell>
                       {parseFloat(q.shipping_cost) > 0 ? (
                         <span className="text-xs font-medium text-muted-foreground">{formatCurrency(parseFloat(q.shipping_cost))}</span>
