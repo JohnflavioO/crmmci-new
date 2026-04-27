@@ -1194,14 +1194,14 @@ export default function Quotes() {
                     <PopoverTrigger asChild>
                       <Button variant="outline" className={cn("w-full sm:w-[240px] justify-start text-left font-normal bg-white", !form.followup_date && "text-muted-foreground")}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {form.followup_date ? format(new Date(form.followup_date + 'T12:00:00'), "dd/MM/yyyy") : 'Selecionar data'}
+                        {form.followup_date ? safeFormatDate(form.followup_date) : 'Selecionar data'}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={form.followup_date ? new Date(form.followup_date + 'T12:00:00') : undefined}
-                        onSelect={(d) => setForm(p => ({ ...p, followup_date: d ? format(d, 'yyyy-MM-dd') : '' }))}
+                        selected={form.followup_date ? (new Date(form.followup_date + 'T12:00:00')) : undefined}
+                        onSelect={handleFollowupDateChange}
                         locale={ptBR}
                         className="p-3 pointer-events-auto"
                       />
