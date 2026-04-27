@@ -56,15 +56,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Safety timeout: never stay loading forever
   useEffect(() => {
+    const isPreview = window.location.hostname.includes('lovable.app') || window.location.hostname.includes('lovableproject.com');
+    const timeoutDuration = isPreview ? 8000 : MAX_LOADING_MS; // Shorter timeout in preview
+
     const timer = setTimeout(() => {
       setLoading(prev => {
         if (prev) {
-          console.warn('[Auth] Loading timeout reached, forcing loaded state');
+          console.warn(`[Auth] Loading timeout reached after ${timeoutDuration}ms, forcing loaded state. Env: ${import.meta.env.MODE}`);
           return false;
         }
         return prev;
       });
-    }, MAX_LOADING_MS);
+    }, timeoutDuration);
     return () => clearTimeout(timer);
   }, []);
 
