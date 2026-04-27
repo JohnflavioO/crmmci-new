@@ -16,6 +16,22 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
+type BooleanRpcResult = {
+  data: boolean;
+  error: { message?: string; code?: string } | null;
+};
+
+const safeBooleanRpc = async (functionName: string): Promise<BooleanRpcResult> => {
+  try {
+    const { data, error } = await (supabase.rpc(functionName as any) as any);
+    if (error) console.error(`[Auth] ${functionName} RPC error:`, error);
+    return { data: data === true, error: error ?? null };
+  } catch (error: any) {
+    console.error(`[Auth] ${functionName} RPC exception:`, error);
+    return { data: false, error };
+  }
+};
+
 const AuthContext = createContext<AuthContextType>({
   user: null, session: null, loading: true,
   isApproved: false, isAdmin: false, isGestor: false, isFinanceiro: false, isLogistica: false, profile: null, forcePasswordChange: false,
@@ -35,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isGestor, setIsGestor] = useState(false);
   const [isFinanceiro, setIsFinanceiro] = useState(false);
   const [isLogistica, setIsLogistica] = useState(false);
-  const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string } | null>(null);
+  const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string; avatar_url?: string; force_password_change?: boolean } | null>(null);
   const [forcePasswordChange, setForcePasswordChange] = useState(false);
 
   // Safety timeout: never stay loading forever
@@ -108,11 +124,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         console.log('[Auth] Fetching user data for:', user.id);
         const [approvedRes, adminRes, gestorRes, financeiroRes, logisticaRes, profileRes] = await Promise.all([
-          (supabase.rpc('is_approved') as any).catch((e: any) => { console.error('[Auth] is_approved RPC error:', e); return { data: false }; }),
-          (supabase.rpc('is_admin') as any).catch((e: any) => { console.error('[Auth] is_admin RPC error:', e); return { data: false }; }),
-          (supabase.rpc('is_gestor') as any).catch((e: any) => { console.error('[Auth] is_gestor RPC error:', e); return { data: false }; }),
-          (supabase.rpc('is_financeiro') as any).catch((e: any) => { console.error('[Auth] is_financeiro RPC error:', e); return { data: false }; }),
-          (supabase.rpc('is_logistica') as any).catch((e: any) => { console.error('[Auth] is_logistica RPC error:', e); return { data: false }; }),
+          safeBooleanRpc('is_approved'),
+          safeBooleanRpc('is_admin'),
+          safeBooleanRpc('is_gestor'),
+          safeBooleanRpc('is_financeiro'),
+          safeBooleanRpc('is_logistica'),
           supabase.from('profiles').select('full_name, phone, role, avatar_url, force_password_change').eq('user_id', user.id).maybeSingle(),
         ]);
 
@@ -138,11 +154,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        setIsApproved(approvedRes.data === true);
-        setIsAdmin(adminRes.data === true);
-        setIsGestor(gestorRes.data === true);
-        setIsFinanceiro(financeiroRes.data === true);
-        setIsLogistica(logisticaRes.data === true);
+        const normalizedRole = profileRes.data?.role?.toLowerCase();
+        const approvedByRole = !!normalizedRole && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica'].includes(normalizedRole);
+
+        setIsApproved(approvedRes.data === true || approvedByRole);
+        setIsAdmin(adminRes.data === true || normalizedRole === 'admin');
+        setIsGestor(gestorRes.data === true || normalizedRole === 'gestor');
+        setIsFinanceiro(financeiroRes.data === true || normalizedRole === 'financeiro');
+        setIsLogistica(logisticaRes.data === true || normalizedRole === 'logistica');
         setProfile(profileRes.data as any);
         setForcePasswordChange(profileRes.data?.force_password_change === true);
         
