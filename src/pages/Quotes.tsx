@@ -442,6 +442,13 @@ export default function Quotes() {
         shipping_notes: form.use_alt_shipping_address ? (form.shipping_notes || null) : null,
       };
 
+      // Garantir que campos de data nulos ou vazios sejam salvos como null e não strings inválidas
+      ['followup_date', 'payment_date', 'split_date_1', 'split_date_2'].forEach(key => {
+        if (quoteData[key] === '' || quoteData[key] === undefined) {
+          quoteData[key] = null;
+        }
+      });
+
       console.log('[Quotes.handleSave] Payload:', { editing: !!editingQuote, quoteData, itemsCount: items.filter(i => i.model).length });
 
       if (editingQuote) {
