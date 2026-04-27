@@ -475,20 +475,31 @@ export default function Quotes() {
 
   const handleEdit = async (quote: any) => {
     try {
-      console.log('[Quotes.handleEdit] Loading items for quote:', quote.id);
+      console.log('[Quotes.handleEdit] Iniciando carregamento do orçamento:', { 
+        id: quote.id, 
+        number: quote.quote_number,
+        timestamp: new Date().toISOString() 
+      });
       
-      // Load items first
-      const { data: qItems, error } = await db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number');
+      const { data: qItems, error: itemsError } = await db.from('quote_items')
+        .select('*')
+        .eq('quote_id', quote.id)
+        .order('item_number');
       
-      if (error) {
-        console.error('[Quotes.handleEdit] Error loading items:', error);
-        toast.error('Erro ao carregar itens do orçamento');
+      if (itemsError) {
+        console.error('[Quotes.handleEdit] Erro detalhado ao buscar itens:', {
+          code: itemsError.code,
+          message: itemsError.message,
+          details: itemsError.details,
+          hint: itemsError.hint
+        });
+        toast.error('Erro ao carregar itens do banco de dados', {
+          description: `Causa: ${itemsError.message} (Código: ${itemsError.code})`
+        });
       }
 
-      // Update state all at once to trigger a single re-render and open dialog
-      setEditingQuote(quote);
-      setItems(qItems && qItems.length > 0 ? qItems : [emptyItem()]);
-      setForm({
+      // Preparação dos dados do formulário com validação de tipos
+      const formData = {
         client_id: quote.client_id || '', 
         salesperson: quote.salesperson || '',
         status: quote.status, 
@@ -525,13 +536,23 @@ export default function Quotes() {
         shipping_phone: quote.shipping_phone || '',
         shipping_notes: quote.shipping_notes || '',
         followup_date: quote.followup_date ? format(new Date(quote.followup_date + 'T12:00:00'), 'yyyy-MM-dd') : '',
+      };
+
+      console.log('[Quotes.handleEdit] Sucesso no processamento dos dados:', {
+        itemsCount: qItems?.length || 0,
+        quoteId: quote.id
       });
-      
-      // Force dialog open after state is set
+
+      setEditingQuote(quote);
+      setItems(qItems && qItems.length > 0 ? qItems : [emptyItem()]);
+      setForm(formData);
       setDialogOpen(true);
+      
     } catch (err: any) {
-      console.error('[Quotes.handleEdit] Unhandled error:', err);
-      toast.error('Ocorreu um erro inesperado ao abrir o editor');
+      console.error('[Quotes.handleEdit] Erro crítico não tratado:', err);
+      toast.error('Não foi possível abrir o editor', {
+        description: `Erro: ${err.message || 'Falha na renderização dos dados do orçamento'}`
+      });
     }
   };
 
