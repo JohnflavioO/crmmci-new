@@ -272,53 +272,39 @@ export default function Clients() {
       setCnpjLoading(true);
       try {
         console.log('[CNPJ] Buscando dados para:', cleanCnpj);
-        
-        // Use a timeout to avoid waiting too long
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-        
-        const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`, {
-          signal: controller.signal
+        const { data: result, error } = await supabase.functions.invoke('lookup-cnpj', {
+          body: { cnpj: cleanCnpj },
         });
-        
-        clearTimeout(timeoutId);
-        
-        if (!res.ok) {
-          if (res.status === 404) {
-            toast.info('CNPJ não encontrado na base de dados');
-          } else if (res.status === 429) {
-            toast.error('Muitas consultas em pouco tempo. Tente novamente em alguns segundos.');
-          } else {
-            console.error('[CNPJ] Erro na API BrasilAPI:', res.status);
-            toast.error('Erro ao consultar CNPJ. Preencha manualmente.');
-          }
+
+        if (error) {
+          console.error('[CNPJ] Erro na função de consulta:', error);
+          throw new Error('Erro ao conectar com o serviço de busca de CNPJ.');
+        }
+
+        if (!result?.success || !result?.data) {
+          toast.error(result?.error || 'Não foi possível consultar este CNPJ.');
           return;
         }
-        
-        const data = await res.json();
-        
+
+        const data = result.data;
         setForm(prev => ({
           ...prev,
-          company_name: data.razao_social || data.nome_fantasia || prev.company_name,
-          phone: data.ddd_telefone_1 ? `(${data.ddd_telefone_1.substring(0,2)}) ${data.ddd_telefone_1.substring(2)}` : prev.phone,
-          email: data.email && data.email !== 'null' ? data.email.toLowerCase() : prev.email,
-          cep: data.cep ? data.cep.replace(/(\d{5})(\d{3})/, '$1-$2') : prev.cep,
-          address: data.logradouro || prev.address,
-          address_number: data.numero || prev.address_number,
-          complement: data.complemento || prev.complement,
-          neighborhood: data.bairro || prev.neighborhood,
-          city: data.municipio || prev.city,
-          state: data.uf || prev.state,
+          company_name: data.company_name || prev.company_name,
+          phone: data.phone || prev.phone,
+          email: data.email || prev.email,
+          cep: data.cep || prev.cep,
+          address: data.address || prev.address,
+          address_number: data.address_number || prev.address_number,
+          complement: data.complement || prev.complement,
+          neighborhood: data.neighborhood || prev.neighborhood,
+          city: data.city || prev.city,
+          state: data.state || prev.state,
         }));
         
         toast.success('Dados da empresa preenchidos!');
       } catch (err: any) {
         console.error('[CNPJ] Erro na consulta:', err);
-        if (err.name === 'AbortError') {
-          toast.error('A consulta demorou muito. Verifique sua conexão.');
-        } else {
-          toast.error('Erro ao conectar com o serviço de busca de CNPJ.');
-        }
+        toast.error(err.message || 'Erro ao consultar CNPJ.');
       } finally {
         setCnpjLoading(false);
       }
