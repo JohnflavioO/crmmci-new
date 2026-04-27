@@ -27,8 +27,7 @@ import Logistics from "./pages/Logistics";
 import NotFound from "./pages/NotFound";
 import ForcePasswordChange from "./pages/ForcePasswordChange";
 import EstoqueSC from "./pages/EstoqueSC";
-import { useState, useEffect } from "react";
-import { RefreshCw, AlertTriangle, Target } from "lucide-react";
+import { useEffect } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
 import ProspectView from "./pages/ProspectView";
 
@@ -80,7 +79,7 @@ function AppRoutes() {
   // Se chegou aqui, temos usuário e terminou de carregar o perfil
   // Consideramos aprovado se a flag isApproved for true OU se o perfil tiver uma role válida (gestor, admin, etc)
   const isApprovedUser = isApproved || 
-    (profile?.role && ['admin', 'gestor', 'vendedor', 'financeiro', 'logistica'].includes(profile.role.toLowerCase())) ||
+    (profile?.role && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica'].includes(profile.role.toLowerCase())) ||
     isAdmin || isGestor || isFinanceiro || isLogistica;
 
   if (!isApprovedUser) return <PendingApproval />;
