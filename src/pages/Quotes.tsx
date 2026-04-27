@@ -1408,7 +1408,7 @@ export default function Quotes() {
                       <div>
                         <p className="font-medium text-sm">{q.quote_number}</p>
                         <p className="text-xs text-muted-foreground">{q.clients?.company_name || '-'}</p>
-                        <p className="text-xs text-muted-foreground">{format(new Date(q.quote_date + 'T12:00:00'), 'dd/MM/yyyy')}</p>
+                        <p className="text-xs text-muted-foreground">{safeFormatDate(q.quote_date)}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-sm">{formatCurrency((parseFloat(q.total_amount) || 0))}</p>
