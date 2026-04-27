@@ -56,6 +56,14 @@ function LoadingScreen() {
 
 function AppRoutes() {
   const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange } = useAuth();
+  
+  // Only scan for follow-ups if we have a user and are not loading
+  useEffect(() => {
+    if (user && !loading) {
+      console.log('[App] Starting follow-up scanner');
+    }
+  }, [user, loading]);
+
   useFollowUpScanner();
 
   if (loading) return <LoadingScreen />;
