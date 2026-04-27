@@ -476,12 +476,18 @@ export default function Quotes() {
   const handleEdit = async (quote: any) => {
     try {
       console.log('[Quotes.handleEdit] Loading items for quote:', quote.id);
+      
+      // Clear current state to avoid leftovers
+      setEditingQuote(null);
+      setItems([emptyItem()]);
+
       const { data: qItems, error } = await db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number');
       
       if (error) {
         console.error('[Quotes.handleEdit] Error loading items:', error);
         toast.error('Erro ao carregar itens do orçamento');
-        return;
+        // We still allow opening the form with the main quote data if items fail,
+        // but it's safer to alert the user.
       }
 
       setEditingQuote(quote);
@@ -519,7 +525,7 @@ export default function Quotes() {
         shipping_notes: quote.shipping_notes || '',
         followup_date: quote.followup_date ? format(new Date(quote.followup_date + 'T12:00:00'), 'yyyy-MM-dd') : '',
       });
-      setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
+      setItems(qItems && qItems.length > 0 ? qItems : [emptyItem()]);
       setDialogOpen(true);
     } catch (err: any) {
       console.error('[Quotes.handleEdit] Unhandled error:', err);
