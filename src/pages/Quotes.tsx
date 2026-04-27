@@ -474,44 +474,57 @@ export default function Quotes() {
   };
 
   const handleEdit = async (quote: any) => {
-    const { data: qItems } = await db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number');
-    setEditingQuote(quote);
-    setForm({
-      client_id: quote.client_id || '', salesperson: quote.salesperson || '',
-      status: quote.status, notes: quote.notes || '',
-      payment_terms: quote.payment_terms || '', shipping_deadline: quote.shipping_deadline || '',
-      shipping_method: quote.shipping_method || '',
-      shipping_cost: parseFloat(quote.shipping_cost) || 0,
-      proposal_validity: quote.proposal_validity || '15 dias',
-      payment_method: quote.payment_method || '', payment_status: quote.payment_status || 'pendente',
-      is_reseller: quote.is_reseller || false,
-      payment_date: quote.payment_date || '',
-      installments: quote.installments || 1,
-      is_split_payment: quote.is_split_payment || false,
-      split_method_1: quote.split_method_1 || '',
-      split_value_1: parseFloat(quote.split_value_1) || 0,
-      split_date_1: quote.split_date_1 || '',
-      split_installments_1: quote.split_installments_1 || 1,
-      split_method_2: quote.split_method_2 || '',
-      split_value_2: parseFloat(quote.split_value_2) || 0,
-      split_date_2: quote.split_date_2 || '',
-      split_installments_2: quote.split_installments_2 || 1,
-      manual_total: (!qItems || qItems.length === 0) ? (parseFloat(quote.total_amount) || 0) : 0,
-      use_alt_shipping_address: quote.use_alt_shipping_address || false,
-      shipping_recipient: quote.shipping_recipient || '',
-      shipping_cep: quote.shipping_cep || '',
-      shipping_address: quote.shipping_address || '',
-      shipping_address_number: quote.shipping_address_number || '',
-      shipping_complement: quote.shipping_complement || '',
-      shipping_neighborhood: quote.shipping_neighborhood || '',
-      shipping_city: quote.shipping_city || '',
-      shipping_state: quote.shipping_state || '',
-      shipping_phone: quote.shipping_phone || '',
-      shipping_notes: quote.shipping_notes || '',
-      followup_date: quote.followup_date ? format(new Date(quote.followup_date + 'T12:00:00'), 'yyyy-MM-dd') : '',
-    });
-    setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
-    setDialogOpen(true);
+    try {
+      console.log('[Quotes.handleEdit] Loading items for quote:', quote.id);
+      const { data: qItems, error } = await db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number');
+      
+      if (error) {
+        console.error('[Quotes.handleEdit] Error loading items:', error);
+        toast.error('Erro ao carregar itens do orçamento');
+        return;
+      }
+
+      setEditingQuote(quote);
+      setForm({
+        client_id: quote.client_id || '', salesperson: quote.salesperson || '',
+        status: quote.status, notes: quote.notes || '',
+        payment_terms: quote.payment_terms || '', shipping_deadline: quote.shipping_deadline || '',
+        shipping_method: quote.shipping_method || '',
+        shipping_cost: parseFloat(quote.shipping_cost) || 0,
+        proposal_validity: quote.proposal_validity || '15 dias',
+        payment_method: quote.payment_method || '', payment_status: quote.payment_status || 'pendente',
+        is_reseller: quote.is_reseller || false,
+        payment_date: quote.payment_date || '',
+        installments: quote.installments || 1,
+        is_split_payment: quote.is_split_payment || false,
+        split_method_1: quote.split_method_1 || '',
+        split_value_1: parseFloat(quote.split_value_1) || 0,
+        split_date_1: quote.split_date_1 || '',
+        split_installments_1: quote.split_installments_1 || 1,
+        split_method_2: quote.split_method_2 || '',
+        split_value_2: parseFloat(quote.split_value_2) || 0,
+        split_date_2: quote.split_date_2 || '',
+        split_installments_2: quote.split_installments_2 || 1,
+        manual_total: (!qItems || qItems.length === 0) ? (parseFloat(quote.total_amount) || 0) : 0,
+        use_alt_shipping_address: quote.use_alt_shipping_address || false,
+        shipping_recipient: quote.shipping_recipient || '',
+        shipping_cep: quote.shipping_cep || '',
+        shipping_address: quote.shipping_address || '',
+        shipping_address_number: quote.shipping_address_number || '',
+        shipping_complement: quote.shipping_complement || '',
+        shipping_neighborhood: quote.shipping_neighborhood || '',
+        shipping_city: quote.shipping_city || '',
+        shipping_state: quote.shipping_state || '',
+        shipping_phone: quote.shipping_phone || '',
+        shipping_notes: quote.shipping_notes || '',
+        followup_date: quote.followup_date ? format(new Date(quote.followup_date + 'T12:00:00'), 'yyyy-MM-dd') : '',
+      });
+      setItems(qItems?.length > 0 ? qItems : [emptyItem()]);
+      setDialogOpen(true);
+    } catch (err: any) {
+      console.error('[Quotes.handleEdit] Unhandled error:', err);
+      toast.error('Ocorreu um erro inesperado ao abrir o editor');
+    }
   };
 
   const handleDelete = async (id: string) => {
