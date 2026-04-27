@@ -145,8 +145,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLogistica(logisticaRes.data === true);
         setProfile(profileRes.data as any);
         setForcePasswordChange(profileRes.data?.force_password_change === true);
+        
+        // Garante que o loading seja encerrado IMEDIATAMENTE após receber os dados
+        setLoading(false);
       } catch (e) {
         console.error('[Auth] fetchUserData error:', e);
+        setLoading(false);
       } finally {
         if (!cancelled) setLoading(false);
       }
