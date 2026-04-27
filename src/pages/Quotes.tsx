@@ -140,6 +140,9 @@ function PaymentMethodFields({ method, date, onDateChange, installments, onInsta
   label?: string;
 }) {
   if (method === 'pix') {
+    const displayDate = date ? safeFormatDate(date) : 'Selecionar data';
+    const selectedDate = date ? new Date(date + 'T12:00:00') : undefined;
+
     return (
       <div className="space-y-2">
         <Label className="text-xs">{label || 'Data do Pagamento'}</Label>
@@ -147,13 +150,13 @@ function PaymentMethodFields({ method, date, onDateChange, installments, onInsta
           <PopoverTrigger asChild>
             <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}>
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {date ? format(new Date(date + 'T12:00:00'), "dd/MM/yyyy") : 'Selecionar data'}
+              {displayDate}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
-              selected={date ? new Date(date + 'T12:00:00') : undefined}
+              selected={selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : undefined}
               onSelect={(d) => onDateChange(d ? format(d, 'yyyy-MM-dd') : '')}
               locale={ptBR}
               className="p-3 pointer-events-auto"
