@@ -108,11 +108,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         console.log('[Auth] Fetching user data for:', user.id);
         const [approvedRes, adminRes, gestorRes, financeiroRes, logisticaRes, profileRes] = await Promise.all([
-          (supabase.rpc('is_approved') as any).catch(() => ({ data: false })),
-          (supabase.rpc('is_admin') as any).catch(() => ({ data: false })),
-          (supabase.rpc('is_gestor') as any).catch(() => ({ data: false })),
-          (supabase.rpc('is_financeiro') as any).catch(() => ({ data: false })),
-          (supabase.rpc('is_logistica' as any) as any).catch(() => ({ data: false })),
+          (supabase.rpc('is_approved') as any).catch((e: any) => { console.error('[Auth] is_approved RPC error:', e); return { data: false }; }),
+          (supabase.rpc('is_admin') as any).catch((e: any) => { console.error('[Auth] is_admin RPC error:', e); return { data: false }; }),
+          (supabase.rpc('is_gestor') as any).catch((e: any) => { console.error('[Auth] is_gestor RPC error:', e); return { data: false }; }),
+          (supabase.rpc('is_financeiro') as any).catch((e: any) => { console.error('[Auth] is_financeiro RPC error:', e); return { data: false }; }),
+          (supabase.rpc('is_logistica') as any).catch((e: any) => { console.error('[Auth] is_logistica RPC error:', e); return { data: false }; }),
           supabase.from('profiles').select('full_name, phone, role, avatar_url, force_password_change').eq('user_id', user.id).maybeSingle(),
         ]);
 
