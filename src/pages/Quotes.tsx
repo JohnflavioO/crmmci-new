@@ -528,7 +528,18 @@ export default function Quotes() {
         });
       }
 
-      // Preparação dos dados do formulário com validação de tipos
+      // Log dos campos de data recebidos para depuração
+      console.log('[Quotes.handleEdit] Payload recebido para edição:', {
+        id: quote.id,
+        quote_date: quote.quote_date,
+        payment_date: quote.payment_date,
+        split_date_1: quote.split_date_1,
+        split_date_2: quote.split_date_2,
+        followup_date: quote.followup_date,
+        created_at: quote.created_at
+      });
+
+      // Preparação dos dados do formulário com validação de tipos e datas seguras
       const formData = {
         client_id: quote.client_id || '', 
         salesperson: quote.salesperson || '',
@@ -565,12 +576,13 @@ export default function Quotes() {
         shipping_state: quote.shipping_state || '',
         shipping_phone: quote.shipping_phone || '',
         shipping_notes: quote.shipping_notes || '',
-        followup_date: quote.followup_date ? format(new Date(quote.followup_date + 'T12:00:00'), 'yyyy-MM-dd') : '',
+        followup_date: safeDateValue(quote.followup_date),
       };
 
       console.log('[Quotes.handleEdit] Sucesso no processamento dos dados:', {
         itemsCount: qItems?.length || 0,
-        quoteId: quote.id
+        quoteId: quote.id,
+        parsedFollowup: formData.followup_date
       });
 
       setEditingQuote(quote);
