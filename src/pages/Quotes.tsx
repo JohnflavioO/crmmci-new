@@ -232,6 +232,10 @@ export default function Quotes() {
     }
   };
 
+  const handleFollowupDateChange = (date: Date | undefined) => {
+    setForm(prev => ({ ...prev, followup_date: date ? format(date, 'yyyy-MM-dd') : '' }));
+  };
+
   const loadData = useCallback(async () => {
     try {
       if (!user?.id) {
