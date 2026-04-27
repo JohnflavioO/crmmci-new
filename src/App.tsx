@@ -55,14 +55,14 @@ function LoadingScreen() {
 }
 
 function AppRoutes() {
-  const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange } = useAuth();
+  const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange, profile } = useAuth();
   
   // Only scan for follow-ups if we have a user and are not loading
   useEffect(() => {
-    if (user && !loading) {
+    if (user && !loading && isApproved) {
       console.log('[App] Starting follow-up scanner');
     }
-  }, [user, loading]);
+  }, [user, loading, isApproved]);
 
   useFollowUpScanner();
 
@@ -78,7 +78,11 @@ function AppRoutes() {
   }
 
   // Se chegou aqui, temos usuário e terminou de carregar o perfil
-  if (!isApproved) return <PendingApproval />;
+  // Consideramos aprovado se a flag isApproved for true OU se o perfil tiver uma role válida (gestor, admin, etc)
+  const effectiveApproved = isApproved || 
+    (profile?.role && ['admin', 'gestor', 'vendedor', 'financeiro', 'logistica'].includes(profile.role.toLowerCase()));
+
+  if (!effectiveApproved) return <PendingApproval />;
   if (forcePasswordChange) return <ForcePasswordChange />;
 
   const isLogisticaOnly = isLogistica && !isAdmin && !isGestor && !isFinanceiro;
