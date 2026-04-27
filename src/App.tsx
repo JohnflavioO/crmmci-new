@@ -79,10 +79,11 @@ function AppRoutes() {
 
   // Se chegou aqui, temos usuário e terminou de carregar o perfil
   // Consideramos aprovado se a flag isApproved for true OU se o perfil tiver uma role válida (gestor, admin, etc)
-  const effectiveApproved = isApproved || 
-    (profile?.role && ['admin', 'gestor', 'vendedor', 'financeiro', 'logistica'].includes(profile.role.toLowerCase()));
+  const isApprovedUser = isApproved || 
+    (profile?.role && ['admin', 'gestor', 'vendedor', 'financeiro', 'logistica'].includes(profile.role.toLowerCase())) ||
+    isAdmin || isGestor || isFinanceiro || isLogistica;
 
-  if (!effectiveApproved) return <PendingApproval />;
+  if (!isApprovedUser) return <PendingApproval />;
   if (forcePasswordChange) return <ForcePasswordChange />;
 
   const isLogisticaOnly = isLogistica && !isAdmin && !isGestor && !isFinanceiro;
