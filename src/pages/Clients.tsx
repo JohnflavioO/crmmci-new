@@ -261,41 +261,53 @@ export default function Clients() {
   const handleCnpjChange = async (value: string) => {
     updateForm('cpf_cnpj', value);
     const cleanCnpj = value.replace(/\D/g, '');
-    if (cleanCnpj.length !== 14) return;
-    if (!validateCnpj(cleanCnpj)) {
-      toast.error('CNPJ inválido');
-      return;
-    }
-    setCnpjLoading(true);
-    try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`);
-      if (!res.ok) {
-        if (res.status === 404) {
-          toast.info('CNPJ não encontrado na base de dados');
-        } else {
-          toast.error('Erro ao consultar CNPJ. Preencha manualmente.');
-        }
+    
+    // Auto-fill CNPJ logic
+    if (cleanCnpj.length === 14) {
+      if (!validateCnpj(cleanCnpj)) {
+        toast.error('CNPJ inválido');
         return;
       }
-      const data = await res.json();
-      setForm(prev => ({
-        ...prev,
-        company_name: data.razao_social || prev.company_name,
-        phone: data.ddd_telefone_1 ? `(${data.ddd_telefone_1.substring(0,2)}) ${data.ddd_telefone_1.substring(2)}` : prev.phone,
-        email: data.email && data.email !== 'null' ? data.email : prev.email,
-        cep: data.cep ? data.cep.replace(/(\d{5})(\d{3})/, '$1-$2') : prev.cep,
-        address: data.logradouro || prev.address,
-        address_number: data.numero || prev.address_number,
-        complement: data.complemento || prev.complement,
-        neighborhood: data.bairro || prev.neighborhood,
-        city: data.municipio || prev.city,
-        state: data.uf || prev.state,
-      }));
-      toast.success('Dados da empresa preenchidos automaticamente!');
-    } catch {
-      toast.error('Erro ao consultar CNPJ. Preencha manualmente.');
-    } finally {
-      setCnpjLoading(false);
+      
+      setCnpjLoading(true);
+      try {
+        console.log('[CNPJ] Buscando dados para:', cleanCnpj);
+        const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`);
+        
+        if (!res.ok) {
+          if (res.status === 404) {
+            toast.info('CNPJ não encontrado na base de dados');
+          } else {
+            console.error('[CNPJ] Erro na API BrasilAPI:', res.status);
+            // Se a BrasilAPI falhar, tentamos a ReceitaWS como fallback (opcional, mas aqui vamos apenas notificar)
+            toast.error('Erro ao consultar CNPJ. Preencha manualmente.');
+          }
+          return;
+        }
+        
+        const data = await res.json();
+        
+        setForm(prev => ({
+          ...prev,
+          company_name: data.razao_social || prev.company_name,
+          phone: data.ddd_telefone_1 ? `(${data.ddd_telefone_1.substring(0,2)}) ${data.ddd_telefone_1.substring(2)}` : prev.phone,
+          email: data.email && data.email !== 'null' ? data.email : prev.email,
+          cep: data.cep ? data.cep.replace(/(\d{5})(\d{3})/, '$1-$2') : prev.cep,
+          address: data.logradouro || prev.address,
+          address_number: data.numero || prev.address_number,
+          complement: data.complemento || prev.complement,
+          neighborhood: data.bairro || prev.neighborhood,
+          city: data.municipio || prev.city,
+          state: data.uf || prev.state,
+        }));
+        
+        toast.success('Dados da empresa preenchidos automaticamente!');
+      } catch (err) {
+        console.error('[CNPJ] Erro na consulta:', err);
+        toast.error('Erro de conexão ao consultar CNPJ.');
+      } finally {
+        setCnpjLoading(false);
+      }
     }
   };
 
