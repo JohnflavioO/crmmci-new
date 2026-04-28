@@ -247,10 +247,12 @@ export default function Quotes() {
         return;
       }
 
+      // SEGURANÇA: Sempre filtrar orçamentos pelo created_by do usuário atual.
+      // Admins/Gestores podem ter acesso amplo via RLS, mas a tela de orçamentos
+      // sempre mostra apenas os orçamentos do próprio usuário para evitar confusão
+      // com orçamentos criados por outros vendedores.
       const [q, c, s, p] = await Promise.all([
-        isAdmin || isGestor
-          ? db.from('quotes').select('*, clients(company_name, phone)').order('created_at', { ascending: false })
-          : db.from('quotes').select('*, clients(company_name, phone)').eq('created_by', user.id).order('created_at', { ascending: false }),
+        db.from('quotes').select('*, clients(company_name, phone)').eq('created_by', user.id).order('created_at', { ascending: false }),
         db.from('clients').select('id, company_name, name, is_revenda, contrib_icms').eq('created_by', user.id).order('company_name'),
         db.from('salespeople').select('*').eq('active', true).order('name'),
         db.from('products').select('id, name, brand, code, price, description, image_url').order('name'),
