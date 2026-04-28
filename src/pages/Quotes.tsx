@@ -323,12 +323,27 @@ export default function Quotes() {
     setShowProductDropdown(null);
   };
 
+  const filteredProductsBySearch = useMemo(() => {
+    const searchMap: Record<number, any[]> = {};
+    Object.keys(productSearch).forEach(idxStr => {
+      const idx = parseInt(idxStr);
+      const q = (productSearch[idx] || '').toLowerCase().trim();
+      if (!q) {
+        searchMap[idx] = [];
+        return;
+      }
+      searchMap[idx] = products.filter((p: any) =>
+        (p.name?.toLowerCase().includes(q) || 
+         p.brand?.toLowerCase().includes(q) || 
+         p.code?.toLowerCase().includes(q) ||
+         p.description?.toLowerCase().includes(q))
+      ).slice(0, 8);
+    });
+    return searchMap;
+  }, [products, productSearch]);
+
   const getFilteredProducts = (idx: number) => {
-    const q = (productSearch[idx] || '').toLowerCase();
-    if (!q) return [];
-    return products.filter((p: any) =>
-      p.name?.toLowerCase().includes(q) || p.brand?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q)
-    ).slice(0, 8);
+    return filteredProductsBySearch[idx] || [];
   };
 
   const hasItems = items.some(i => !!i.model);
