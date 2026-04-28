@@ -27,7 +27,7 @@ import Logistics from "./pages/Logistics";
 import NotFound from "./pages/NotFound";
 import ForcePasswordChange from "./pages/ForcePasswordChange";
 import EstoqueSC from "./pages/EstoqueSC";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
 import ProspectView from "./pages/ProspectView";
 
