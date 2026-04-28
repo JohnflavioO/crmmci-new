@@ -312,37 +312,46 @@ export default function Clients() {
   };
 
   const handleCepChange = async (value: string) => {
-    const cleanCep = value.replace(/\D/g, '');
-    updateForm('cep', value);
-    
-    // Only fetch if it's exactly 8 digits and we are still in the dialog
-    if (cleanCep.length === 8 && dialogOpen) {
+    try {
+      const cleanCep = value.replace(/\D/g, '');
+      updateForm('cep', value);
+
+      if (cleanCep.length !== 8) return;
+
       console.log('[CEP] Buscando endereço para:', cleanCep);
       try {
-        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
-        if (!res.ok) throw new Error('Falha na resposta da API');
-        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          console.warn('[CEP] Resposta não OK:', res.status);
+          return;
+        }
+
         const data = await res.json();
-        
-        // Safety check: only update if dialog is still open
-        if (!data.erro && dialogOpen) {
-          setForm(prev => ({
-            ...prev,
-            address: data.logradouro || prev.address,
-            neighborhood: data.bairro || prev.neighborhood,
-            city: data.localidade || prev.city,
-            state: data.uf || prev.state,
-            complement: data.complemento || prev.complement,
-          }));
-          toast.success('Endereço preenchido automaticamente!');
-        } else if (data.erro) {
+        if (data?.erro) {
           console.warn('[CEP] CEP não encontrado');
           toast.info('CEP não encontrado. Preencha o endereço manualmente.');
+          return;
         }
+
+        setForm(prev => ({
+          ...prev,
+          address: data.logradouro || prev.address,
+          neighborhood: data.bairro || prev.neighborhood,
+          city: data.localidade || prev.city,
+          state: data.uf || prev.state,
+          complement: data.complemento || prev.complement,
+        }));
+        toast.success('Endereço preenchido automaticamente!');
       } catch (err: any) {
-        console.error('[CEP] Erro na consulta:', err);
-        // Silent fail if it's just a network issue during typing
+        console.error('[CEP] Erro na consulta (silencioso):', err?.message || err);
+        // Não exibe toast de erro nem fecha tela — fallback para preenchimento manual.
       }
+    } catch (outerErr) {
+      console.error('[CEP] Erro inesperado no handler:', outerErr);
     }
   };
 
@@ -622,15 +631,40 @@ export default function Clients() {
               )}
             </DialogContent>
           </Dialog>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingClient(null); setForm(emptyClient); } }}>
+          <Dialog open={dialogOpen} onOpenChange={(o) => {
+            // Só permitir fechar via botões Cancelar/Salvar (controlados explicitamente).
+            // Bloqueia fechamento acidental por click-outside / Escape para não perder dados.
+            if (!o) {
+              console.log('[ClientDialog] Tentativa de fechamento bloqueada (use Cancelar/Salvar).');
+              return;
+            }
+            setDialogOpen(true);
+          }}>
             <DialogTrigger asChild>
-              <Button className="gap-2 min-h-[44px]"><Plus className="h-4 w-4" /> Novo Cliente</Button>
+              <Button
+                className="gap-2 min-h-[44px]"
+                onClick={() => { setEditingClient(null); setForm(emptyClient); setDialogOpen(true); }}
+              ><Plus className="h-4 w-4" /> Novo Cliente</Button>
             </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogContent
+            className="max-w-2xl max-h-[85vh] overflow-y-auto"
+            onPointerDownOutside={(e) => { e.preventDefault(); console.log('[ClientDialog] PointerDownOutside bloqueado'); }}
+            onInteractOutside={(e) => { e.preventDefault(); console.log('[ClientDialog] InteractOutside bloqueado'); }}
+            onEscapeKeyDown={(e) => { e.preventDefault(); console.log('[ClientDialog] Escape bloqueado'); }}
+          >
             <DialogHeader>
               <DialogTitle className="font-display">{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); console.log('[Form] Submit bloqueado'); }} className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <form
+              onSubmit={(e) => { e.preventDefault(); console.log('[Form] Submit bloqueado'); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+                  e.preventDefault();
+                  console.log('[Form] Enter bloqueado no formulário');
+                }
+              }}
+              className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4"
+            >
               <div className="sm:col-span-2 space-y-2">
                 <Label>Razão Social / Nome *</Label>
                 <Input value={form.company_name} onChange={e => updateForm('company_name', e.target.value)} required />
@@ -758,7 +792,7 @@ export default function Clients() {
               </div>
             </form>
             <div className="flex justify-end gap-2 mt-4">
-              <Button type="button" variant="outline" onClick={() => { console.log('[Dialog] Cancelar clicado'); setDialogOpen(false); }} className="min-h-[44px]">Cancelar</Button>
+              <Button type="button" variant="outline" onClick={() => { console.log('[Dialog] Cancelar clicado'); setDialogOpen(false); setEditingClient(null); setForm(emptyClient); }} className="min-h-[44px]">Cancelar</Button>
               <Button type="button" onClick={() => { console.log('[Dialog] Salvar clicado'); handleSave(); }} disabled={!form.company_name} className="min-h-[44px]">Salvar</Button>
             </div>
           </DialogContent>
