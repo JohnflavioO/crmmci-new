@@ -2,6 +2,20 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
+// 1. Detecção e limpeza de Service Worker problemático no Preview
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  const isPreview = window.location.hostname.includes('lovable.app') || 
+                   window.location.hostname.includes('lovableproject.com');
+  
+  if (isPreview) {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for (const registration of registrations) {
+        registration.unregister();
+        console.log('[App] ServiceWorker removido no ambiente de Preview para evitar conflitos de cache.');
+      }
+    });
+  }
+}
 
 // 2. Renderização segura com log de inicialização
 console.log('[App] Inicializando aplicação...', {

@@ -27,7 +27,7 @@ import Logistics from "./pages/Logistics";
 import NotFound from "./pages/NotFound";
 import ForcePasswordChange from "./pages/ForcePasswordChange";
 import EstoqueSC from "./pages/EstoqueSC";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
 import ProspectView from "./pages/ProspectView";
 
@@ -42,12 +42,36 @@ const queryClient = new QueryClient({
 });
 
 function LoadingScreen() {
+  const [showRetry, setShowRetry] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowRetry(true), 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#0f2b26] gap-4">
-      <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-      <div className="text-center space-y-2">
-        <p className="text-lg font-bold text-white font-display">MCI Store</p>
-        <p className="text-sm text-emerald-400/80 animate-pulse">Carregando sistema...</p>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#0f2b26] gap-6 p-6">
+      <div className="relative">
+        <div className="w-16 h-16 border-4 border-emerald-500/20 rounded-full" />
+        <div className="absolute top-0 left-0 w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+      <div className="text-center space-y-4 max-w-xs animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-1">
+          <p className="text-xl font-bold text-white font-display tracking-tight">MCI Store CRM</p>
+          <p className="text-sm text-emerald-400/80 animate-pulse">Iniciando módulos do sistema...</p>
+        </div>
+        
+        {showRetry && (
+          <div className="pt-4 space-y-3 animate-in zoom-in duration-300">
+            <p className="text-xs text-white/40">O carregamento está demorando mais que o esperado.</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full text-sm font-medium transition-all shadow-lg shadow-emerald-900/20"
+            >
+              Recarregar Página
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
