@@ -10,29 +10,57 @@ export function useFollowUpScanner() {
   const { user, isAdmin, isGestor, isFinanceiro, isLogistica } = useAuth();
 
   const scan = useCallback(async () => {
-    // Only Seller, Admin, Gestor
+    // Only Seller, Admin, Gestor should run the scanner
     if (!user || isFinanceiro || isLogistica) return;
 
     try {
-      // 1. Fetch active quotes for the user
-      // Vendedor: own only. Admin/Gestor: own by default (system usually filters by created_by = auth.uid() in standard policies)
-      const { data: quotes, error: quotesError } = await db
+      console.log('[FollowUpScanner] Starting scan...');
+      
+      // 1. Fetch active quotes for the user directly with filter for performance
+      let query = db
         .from('quotes')
-        .select('id, quote_number, status, followup_date, updated_at, created_at, client_name, total_amount')
+        .select('id, quote_number, status, followup_date, updated_at, created_at, client_name, total_amount, created_by')
         .in('status', ACTIVE_STATUSES);
 
-      // Filtering in JS if needed, but RLS usually handles this.
-      // However, the previous query used .eq('created_by', user.id) which might be redundant or restrictive for admins/gestores.
-      const filteredQuotes = isAdmin || isGestor 
-        ? quotes 
-        : quotes?.filter((q: any) => q.created_by === user.id);
+      // Security/Performance: Filter by user unless they are privileged
+      if (!isAdmin && !isGestor) {
+        query = query.eq('created_by', user.id);
+      } else {
+        // For Admins/Gestors, we still might want to limit to 100 most recent active ones to avoid freezing
+        query = query.order('updated_at', { ascending: false }).limit(100);
+      }
 
-      if (quotesError || !filteredQuotes) return;
+      const { data: quotes, error: quotesError } = await query;
+
+      if (quotesError) {
+        console.error('[FollowUpScanner] Quotes fetch error:', quotesError);
+        return;
+      }
+
+      if (!quotes || quotes.length === 0) {
+        console.log('[FollowUpScanner] No active quotes to scan.');
+        return;
+      }
 
       const now = new Date();
       const today = startOfDay(now);
+      const todayStr = now.toISOString().split('T')[0];
 
-      for (const quote of filteredQuotes) {
+      // 2. Optimization: Get all notifications for these quotes today in one go
+      const quoteIds = quotes.map(q => q.id);
+      const { data: existingLogs } = await db
+        .from('followup_notification_logs')
+        .select('quote_id, notification_type')
+        .in('quote_id', quoteIds)
+        .eq('user_id', user.id)
+        .eq('notified_at', todayStr);
+
+      const logsMap = new Set(existingLogs?.map(l => `${l.quote_id}_${l.notification_type}`) || []);
+
+      const notificationsToInsert = [];
+      const logsToInsert = [];
+
+      for (const quote of quotes) {
         let alertType: 'today' | 'overdue' | 'forgotten' | 'no_return' | null = null;
         let title = '';
         let message = '';
@@ -41,21 +69,19 @@ export function useFollowUpScanner() {
         const lastUpdate = parseISO(quote.updated_at || quote.created_at);
         const daysSinceLastUpdate = differenceInDays(now, lastUpdate);
 
-        // Logic for alerts
         if (followupDateStr) {
           const fDate = parseISO(followupDateStr);
           if (isToday(fDate)) {
             alertType = 'today';
             title = '📌 Follow-up para hoje';
-            message = `O orçamento ${quote.quote_number} (${quote.client_name}) tem follow-up agendado para hoje.`;
+            message = `O orçamento ${quote.quote_number} (${quote.client_name || 'Sem nome'}) tem follow-up agendado para hoje.`;
           } else if (isBefore(fDate, today)) {
             alertType = 'overdue';
             title = '⚠ Follow-up atrasado';
-            message = `O follow-up do orçamento ${quote.quote_number} (${quote.client_name}) está vencido desde ${new Date(fDate).toLocaleDateString('pt-BR')}.`;
+            message = `O follow-up do orçamento ${quote.quote_number} (${quote.client_name || 'Sem nome'}) está vencido desde ${new Date(fDate).toLocaleDateString('pt-BR')}.`;
           }
         } 
         
-        // If no follow-up date or interaction is old
         if (!alertType) {
           if (quote.status === 'sent' && daysSinceLastUpdate >= 3) {
             alertType = 'no_return';
@@ -68,40 +94,37 @@ export function useFollowUpScanner() {
           }
         }
 
-        if (alertType) {
-          // Check if already notified today for this type
-          const { data: existingLogs } = await db
-            .from('followup_notification_logs')
-            .select('id')
-            .eq('quote_id', quote.id)
-            .eq('user_id', user.id)
-            .eq('notification_type', alertType)
-            .eq('notified_at', now.toISOString().split('T')[0]);
-
-          if (!existingLogs || existingLogs.length === 0) {
-            // Create notification
-            await Promise.all([
-              db.from('notifications').insert({
-                user_id: user.id,
-                title,
-                message,
-                type: 'followup',
-                related_quote_id: quote.id
-              }),
-              db.from('followup_notification_logs').insert({
-                quote_id: quote.id,
-                user_id: user.id,
-                notification_type: alertType,
-                notified_at: now.toISOString().split('T')[0]
-              })
-            ]);
-          }
+        if (alertType && !logsMap.has(`${quote.id}_${alertType}`)) {
+          notificationsToInsert.push({
+            user_id: user.id,
+            title,
+            message,
+            type: 'followup',
+            related_quote_id: quote.id
+          });
+          logsToInsert.push({
+            quote_id: quote.id,
+            user_id: user.id,
+            notification_type: alertType,
+            notified_at: todayStr
+          });
         }
       }
+
+      // 3. Batch insert for efficiency
+      if (notificationsToInsert.length > 0) {
+        console.log(`[FollowUpScanner] Inserting ${notificationsToInsert.length} new notifications.`);
+        await Promise.all([
+          db.from('notifications').insert(notificationsToInsert),
+          db.from('followup_notification_logs').insert(logsToInsert)
+        ]);
+      }
+      
+      console.log('[FollowUpScanner] Scan completed successfully.');
     } catch (err) {
-      console.error('[FollowUpScanner] Error during scan:', err);
+      console.error('[FollowUpScanner] Fatal error during scan:', err);
     }
-  }, [user, isFinanceiro, isLogistica]);
+  }, [user, isFinanceiro, isLogistica, isAdmin, isGestor]);
 
   useEffect(() => {
     // Initial scan on load
