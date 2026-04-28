@@ -783,7 +783,7 @@ export default function Clients() {
               </div>
             </form>
             <div className="flex justify-end gap-2 mt-4">
-              <Button type="button" variant="outline" onClick={() => { console.log('[Dialog] Cancelar clicado'); setDialogOpen(false); }} className="min-h-[44px]">Cancelar</Button>
+              <Button type="button" variant="outline" onClick={() => { console.log('[Dialog] Cancelar clicado'); setDialogOpen(false); setEditingClient(null); setForm(emptyClient); }} className="min-h-[44px]">Cancelar</Button>
               <Button type="button" onClick={() => { console.log('[Dialog] Salvar clicado'); handleSave(); }} disabled={!form.company_name} className="min-h-[44px]">Salvar</Button>
             </div>
           </DialogContent>
