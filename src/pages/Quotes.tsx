@@ -247,12 +247,24 @@ export default function Quotes() {
         return;
       }
 
-      // SEGURANÇA: Sempre filtrar orçamentos pelo created_by do usuário atual.
-      // Admins/Gestores podem ter acesso amplo via RLS, mas a tela de orçamentos
-      // sempre mostra apenas os orçamentos do próprio usuário para evitar confusão
-      // com orçamentos criados por outros vendedores.
+      // SEGURANÇA: Admins e Gestores podem ver tudo via RLS, mas na interface 
+      // aplicamos o filtro de responsável para evitar confusão.
+      // Por padrão, mostramos apenas os orçamentos do usuário atual.
+      let quotesQuery = db.from('quotes').select('*, clients(company_name, phone)').order('created_at', { ascending: false });
+      
+      if (!isAdmin && !isGestor) {
+        // Vendedor comum: sempre apenas os seus
+        quotesQuery = quotesQuery.eq('created_by', user.id);
+      } else if (responsibleFilter === 'me') {
+        // Admin/Gestor vendo apenas os seus
+        quotesQuery = quotesQuery.eq('created_by', user.id);
+      } else if (responsibleFilter !== 'all') {
+        // Admin/Gestor filtrando por um vendedor específico
+        quotesQuery = quotesQuery.eq('created_by', responsibleFilter);
+      }
+
       const [q, c, s, p] = await Promise.all([
-        db.from('quotes').select('*, clients(company_name, phone)').eq('created_by', user.id).order('created_at', { ascending: false }),
+        quotesQuery,
         db.from('clients').select('id, company_name, name, is_revenda, contrib_icms').eq('created_by', user.id).order('company_name'),
         db.from('salespeople').select('*').eq('active', true).order('name'),
         db.from('products').select('id, name, brand, code, price, description, image_url').order('name'),
@@ -262,8 +274,8 @@ export default function Quotes() {
       setSalespeople(s.data || []);
       setProducts(p.data || []);
 
-      if (isGestor && !isAdmin) {
-        const { data: profiles } = await db.from('profiles').select('user_id, full_name').eq('active', true).eq('commercial_visible', true);
+      if (isGestor || isAdmin) {
+        const { data: profiles } = await db.from('profiles').select('user_id, full_name').eq('active', true);
         setSellerProfiles((profiles || []).filter((p: any) => p.full_name));
       }
     } catch (err) {
@@ -736,7 +748,7 @@ export default function Quotes() {
   };
 
   const filtered = quotes.filter((q: any) => {
-    if (isGestor && !isAdmin) {
+    if (isAdmin || isGestor) {
       if (responsibleFilter === 'me') {
         if (q.created_by !== user?.id) return false;
       } else if (responsibleFilter !== 'all') {
@@ -1384,7 +1396,7 @@ export default function Quotes() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Buscar orçamento..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
             </div>
-            {isGestor && !isAdmin && (
+            {(isGestor || isAdmin) && (
               <Select value={responsibleFilter} onValueChange={setResponsibleFilter}>
                 <SelectTrigger className="w-[200px] min-h-[44px]">
                   <SelectValue placeholder="Responsável" />
