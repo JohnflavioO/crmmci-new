@@ -312,37 +312,46 @@ export default function Clients() {
   };
 
   const handleCepChange = async (value: string) => {
-    const cleanCep = value.replace(/\D/g, '');
-    updateForm('cep', value);
-    
-    // Only fetch if it's exactly 8 digits and we are still in the dialog
-    if (cleanCep.length === 8 && dialogOpen) {
+    try {
+      const cleanCep = value.replace(/\D/g, '');
+      updateForm('cep', value);
+
+      if (cleanCep.length !== 8) return;
+
       console.log('[CEP] Buscando endereço para:', cleanCep);
       try {
-        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
-        if (!res.ok) throw new Error('Falha na resposta da API');
-        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          console.warn('[CEP] Resposta não OK:', res.status);
+          return;
+        }
+
         const data = await res.json();
-        
-        // Safety check: only update if dialog is still open
-        if (!data.erro && dialogOpen) {
-          setForm(prev => ({
-            ...prev,
-            address: data.logradouro || prev.address,
-            neighborhood: data.bairro || prev.neighborhood,
-            city: data.localidade || prev.city,
-            state: data.uf || prev.state,
-            complement: data.complemento || prev.complement,
-          }));
-          toast.success('Endereço preenchido automaticamente!');
-        } else if (data.erro) {
+        if (data?.erro) {
           console.warn('[CEP] CEP não encontrado');
           toast.info('CEP não encontrado. Preencha o endereço manualmente.');
+          return;
         }
+
+        setForm(prev => ({
+          ...prev,
+          address: data.logradouro || prev.address,
+          neighborhood: data.bairro || prev.neighborhood,
+          city: data.localidade || prev.city,
+          state: data.uf || prev.state,
+          complement: data.complemento || prev.complement,
+        }));
+        toast.success('Endereço preenchido automaticamente!');
       } catch (err: any) {
-        console.error('[CEP] Erro na consulta:', err);
-        // Silent fail if it's just a network issue during typing
+        console.error('[CEP] Erro na consulta (silencioso):', err?.message || err);
+        // Não exibe toast de erro nem fecha tela — fallback para preenchimento manual.
       }
+    } catch (outerErr) {
+      console.error('[CEP] Erro inesperado no handler:', outerErr);
     }
   };
 
