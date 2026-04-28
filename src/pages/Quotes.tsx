@@ -1,5 +1,252 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-// ... keep existing code
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { generateQuotePdf } from '@/lib/generateQuotePdf';
+import AppLayout from '@/components/AppLayout';
+import QuoteHeader from '@/components/QuoteHeader';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
+import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift, Store, CalendarIcon, SplitSquareVertical, ShoppingBag } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
+import QuoteChat from '@/components/QuoteChat';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+
+const db = supabase as any;
+
+// Helper seguro para validar e formatar datas
+const safeFormatDate = (value: any, formatStr: string = 'dd/MM/yyyy') => {
+  if (!value) return '';
+  // Se já for uma string no formato yyyy-MM-dd, adicionamos o T12:00:00 para evitar problemas de fuso
+  const dateStr = typeof value === 'string' && value.includes('-') && !value.includes('T') 
+    ? `${value}T12:00:00` 
+    : value;
+    
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    console.warn('[Quotes] Data inválida detectada:', value);
+    return '';
+  }
+  return format(date, formatStr, { locale: ptBR });
+};
+
+const safeDateValue = (value: any) => {
+  if (!value) return '';
+  const date = new Date(value.includes('-') && !value.includes('T') ? `${value}T12:00:00` : value);
+  if (isNaN(date.getTime())) return '';
+  return format(date, 'yyyy-MM-dd');
+};
+
+const statusLabels: Record<string, string> = {
+  draft: 'Rascunho', pre_venda: 'Pré-venda', contato_feito: 'Contato Feito',
+  sent: 'Proposta Enviada', negociacao: 'Negociação', approved: 'Aprovado', rejected: 'Rejeitado',
+};
+
+const paymentMethodLabels: Record<string, { label: string; icon: any }> = {
+  pix: { label: 'PIX', icon: QrCode },
+  cartao: { label: 'Cartão', icon: CreditCard },
+  boleto: { label: 'Boleto', icon: FileBarChart },
+};
+
+const paymentStatusLabels: Record<string, { label: string; icon: any; className: string }> = {
+  pendente: { label: 'Pendente', icon: Clock, className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  em_andamento: { label: 'Em andamento', icon: CircleDot, className: 'bg-blue-100 text-blue-800 border-blue-200' },
+  liquidado: { label: 'Liquidado', icon: CheckCircle2, className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+};
+
+const installmentOptions = Array.from({ length: 10 }, (_, i) => i + 1);
+
+interface QuoteItem {
+  id?: string;
+  item_number: number;
+  product_code: string;
+  quantity: number;
+  model: string;
+  brand: string;
+  specifications: string;
+  unit_price: number;
+  discount_percent: number;
+  unit_total: number;
+  line_total: number;
+  image_url: string;
+  is_gift: boolean;
+}
+
+const emptyItem = (): QuoteItem => ({
+  item_number: 1, product_code: '', quantity: 1, model: '', brand: '',
+  specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0, image_url: '', is_gift: false,
+});
+
+const shippingMethods = [
+  { value: 'correios', label: 'Correios' },
+  { value: 'mao_propria', label: 'Mão Própria' },
+  { value: 'retirada', label: 'Retirada' },
+  { value: 'transportadora', label: 'Transportadora' },
+];
+
+const defaultForm = {
+  client_id: '', salesperson: '', status: 'draft', notes: '',
+  payment_terms: '', shipping_deadline: '', shipping_method: '',
+  shipping_cost: 0, proposal_validity: '15 dias',
+  payment_method: '', payment_status: 'pendente',
+  is_reseller: false,
+  payment_date: '' as string,
+  installments: 1,
+  is_split_payment: false,
+  split_method_1: '',
+  split_value_1: 0,
+  split_date_1: '' as string,
+  split_installments_1: 1,
+  split_method_2: '',
+  split_value_2: 0,
+  split_date_2: '' as string,
+  split_installments_2: 1,
+  manual_total: 0,
+  use_alt_shipping_address: false,
+  shipping_recipient: '',
+  shipping_cep: '',
+  shipping_address: '',
+  shipping_address_number: '',
+  shipping_complement: '',
+  shipping_neighborhood: '',
+  shipping_city: '',
+  shipping_state: '',
+  shipping_phone: '',
+  shipping_notes: '',
+  followup_date: '' as string,
+};
+
+const QUICK_ENTRY_STATUSES = ['contato_feito', 'sent', 'negociacao'];
+
+function PaymentMethodFields({ method, date, onDateChange, installments, onInstallmentsChange, label }: {
+  method: string;
+  date: string;
+  onDateChange: (v: string) => void;
+  installments: number;
+  onInstallmentsChange: (v: number) => void;
+  label?: string;
+}) {
+  if (method === 'pix') {
+    const displayDate = date ? safeFormatDate(date) : 'Selecionar data';
+    const selectedDate = date ? new Date(date + 'T12:00:00') : undefined;
+
+    return (
+      <div className="space-y-2">
+        <Label className="text-xs">{label || 'Data do Pagamento'}</Label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}>
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {displayDate}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : undefined}
+              onSelect={(d) => onDateChange(d ? format(d, 'yyyy-MM-dd') : '')}
+              locale={ptBR}
+              className="p-3 pointer-events-auto"
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+    );
+  }
+  if (method === 'boleto' || method === 'cartao') {
+    return (
+      <div className="space-y-2">
+        <Label className="text-xs">Parcelas</Label>
+        <Select value={String(installments)} onValueChange={v => onInstallmentsChange(parseInt(v))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {installmentOptions.map(n => (
+              <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }
+  return null;
+}
+
+export default function Quotes() {
+  const { user, profile, isGestor, isAdmin } = useAuth();
+  const isMobile = useIsMobile();
+  const [quotes, setQuotes] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [responsibleFilter, setResponsibleFilter] = useState('me');
+  const [sellerProfiles, setSellerProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [saving, setSavingFlag] = useState(false);
+  const [editingQuote, setEditingQuote] = useState<any | null>(null);
+  const [form, setForm] = useState({ ...defaultForm });
+  const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
+  const [salespeople, setSalespeople] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [productSearch, setProductSearch] = useState<Record<number, string>>({});
+  const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
+  const [chatQuote, setChatQuote] = useState<{ id: string; number: string } | null>(null);
+  const [cepLoading, setCepLoading] = useState(false);
+
+  const handleShippingCepChange = async (value: string) => {
+    const cleanCep = value.replace(/\D/g, '');
+    setForm(p => ({ ...p, shipping_cep: value }));
+    
+    if (cleanCep.length === 8) {
+      setCepLoading(true);
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        if (!res.ok) throw new Error('Falha na resposta da API');
+        const data = await res.json();
+        if (!data.erro) {
+          setForm(prev => ({
+            ...prev,
+            shipping_address: data.logradouro || prev.shipping_address,
+            shipping_neighborhood: data.bairro || prev.shipping_neighborhood,
+            shipping_city: data.localidade || prev.shipping_city,
+            shipping_state: data.uf || prev.shipping_state,
+          }));
+          toast.success('Endereço de entrega preenchido!');
+        }
+      } catch (err) {
+        console.error('CEP lookup error:', err);
+      } finally {
+        setCepLoading(false);
+      }
+    }
+  };
+
+  const handleFollowupDateChange = (date: Date | undefined) => {
+    setForm(prev => ({ ...prev, followup_date: date ? format(date, 'yyyy-MM-dd') : '' }));
+  };
+
+  const loadData = useCallback(async () => {
+    try {
+      if (!user?.id) {
+        setQuotes([]);
+        setClients([]);
+        setSalespeople([]);
+        setProducts([]);
+        setSellerProfiles([]);
+        return;
+      }
+
       // SEGURANÇA: Admins e Gestores podem ver tudo via RLS, mas na interface 
       // aplicamos o filtro de responsável para evitar confusão.
       // Por padrão, mostramos apenas os orçamentos do usuário atual.
