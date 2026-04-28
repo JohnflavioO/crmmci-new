@@ -102,14 +102,17 @@ export default function Dashboard() {
 
       try {
         const [quotesRes, clientsRes, productsRes] = await Promise.all([
-          db.from('quotes').select('*, clients(company_name)').eq('created_by', user.id).order('created_at', { ascending: false }),
+          db.from('quotes').select('*, clients(company_name)').eq('created_by', user.id).order('created_at', { ascending: false }).limit(50),
           db.from('clients').select('id', { count: 'exact', head: true }).eq('created_by', user.id),
           db.from('products').select('id', { count: 'exact', head: true }),
         ]);
 
-        if (quotesRes.error) console.error('[Dashboard] Quotes error:', quotesRes.error);
-        if (clientsRes.error) console.error('[Dashboard] Clients error:', clientsRes.error);
-        if (productsRes.error) console.error('[Dashboard] Products error:', productsRes.error);
+        if (quotesRes.error) {
+          console.error('[Dashboard] Quotes fetch error:', quotesRes.error);
+          toast.error('Erro ao carregar orçamentos recentes');
+        }
+        if (clientsRes.error) console.error('[Dashboard] Clients count error:', clientsRes.error);
+        if (productsRes.error) console.error('[Dashboard] Products count error:', productsRes.error);
 
         setAllQuotes(quotesRes.data || []);
         setMyClientsCount(clientsRes.count ?? 0);

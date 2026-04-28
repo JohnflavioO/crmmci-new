@@ -80,14 +80,14 @@ function LoadingScreen() {
 function AppRoutes() {
   const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange, profile } = useAuth();
   
-  // Only scan for follow-ups if we have a user and are not loading
-  useEffect(() => {
-    if (user && !loading && isApproved) {
-      console.log('[App] Starting follow-up scanner');
-    }
-  }, [user, loading, isApproved]);
-
+  // Scanner de follow-up otimizado: roda apenas após o auth estar pronto e o usuário estar aprovado
   useFollowUpScanner();
+
+  useEffect(() => {
+    if (user && !loading && isApprovedUser) {
+      console.log('[App] Sistema pronto para o usuário:', user.email);
+    }
+  }, [user, loading, isApprovedUser]);
 
   if (loading) return <LoadingScreen />;
 

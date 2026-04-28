@@ -250,7 +250,10 @@ export default function Quotes() {
       // SEGURANÇA: Admins e Gestores podem ver tudo via RLS, mas na interface 
       // aplicamos o filtro de responsável para evitar confusão.
       // Por padrão, mostramos apenas os orçamentos do usuário atual.
-      let quotesQuery = db.from('quotes').select('*, clients(company_name, phone)').order('created_at', { ascending: false });
+      let quotesQuery = db.from('quotes')
+        .select('*, clients(company_name, phone)')
+        .order('created_at', { ascending: false })
+        .limit(200); // Segurança: evitar carregar milhares de registros de uma vez
       
       if (!isAdmin && !isGestor) {
         // Vendedor comum: sempre apenas os seus
@@ -394,7 +397,7 @@ export default function Quotes() {
       toast.error('Tempo excedido ao salvar.', {
         description: 'A operação demorou mais que o esperado. Verifique sua conexão e tente novamente.',
       });
-    }, 25000);
+    }, 15000); // Reduzido para 15s para ser mais responsivo em falhas de rede
 
     try {
       // ---- Validações de pré-requisito (sempre com toast) ----
