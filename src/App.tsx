@@ -80,6 +80,11 @@ function LoadingScreen() {
 function AppRoutes() {
   const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange, profile } = useAuth();
   
+  // Consideramos aprovado se a flag isApproved for true OU se o perfil tiver uma role válida (gestor, admin, etc)
+  const isApprovedUser = isApproved || 
+    (profile?.role && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica'].includes(profile.role.toLowerCase())) ||
+    isAdmin || isGestor || isFinanceiro || isLogistica;
+
   // Scanner de follow-up otimizado: roda apenas após o auth estar pronto e o usuário estar aprovado
   useFollowUpScanner();
 
@@ -99,12 +104,6 @@ function AppRoutes() {
       </Routes>
     );
   }
-
-  // Se chegou aqui, temos usuário e terminou de carregar o perfil
-  // Consideramos aprovado se a flag isApproved for true OU se o perfil tiver uma role válida (gestor, admin, etc)
-  const isApprovedUser = isApproved || 
-    (profile?.role && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica'].includes(profile.role.toLowerCase())) ||
-    isAdmin || isGestor || isFinanceiro || isLogistica;
 
   if (!isApprovedUser) return <PendingApproval />;
   if (forcePasswordChange) return <ForcePasswordChange />;
