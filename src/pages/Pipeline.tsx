@@ -116,7 +116,7 @@ export default function Pipeline() {
       // Apply filtering based on role and sellerFilter
       if (isGestor || isAdmin) {
         if (sellerFilter === 'meus') {
-          query = query.or(`salesperson_id.eq.${user.id},created_by.eq.${user.id}`);
+          query = query.eq('created_by', user.id);
         } else if (sellerFilter === 'all') {
           // Filtrar para não mostrar orçamentos dos usuários de teste quando estiver em "Todos"
           const testUserIdsRes = await supabase
