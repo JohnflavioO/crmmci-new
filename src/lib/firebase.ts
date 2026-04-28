@@ -16,18 +16,25 @@ const app = initializeApp(firebaseConfig);
 
 const messaging = (() => {
   try {
-    // Only attempt to initialize messaging in non-preview environments or if explicitly supported
-    const isPreview = window.location.hostname.includes('lovable.app') || window.location.hostname.includes('lovableproject.com');
+    if (typeof window === 'undefined') return null;
     
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'Notification' in window && !isPreview) {
+    const isSupported = 'serviceWorker' in navigator && 'Notification' in window && 'PushManager' in window;
+    const isPreview = window.location.hostname.includes('lovable.app') || 
+                      window.location.hostname.includes('lovableproject.com') ||
+                      window.location.hostname === 'localhost' ||
+                      window.location.hostname === '127.0.0.1';
+    
+    if (isSupported && !isPreview) {
+      console.log('[Firebase] Initializing messaging for production');
       return getMessaging(app);
-    } else if (isPreview) {
-      console.log('[Firebase] Messaging initialization skipped in Preview environment');
+    } else {
+      console.log('[Firebase] Messaging skipped:', { isSupported, isPreview });
+      return null;
     }
   } catch (e) {
-    console.warn('[Firebase] Messaging initialization failed (expected in some environments):', e);
+    console.warn('[Firebase] Messaging initialization error (non-critical):', e);
+    return null;
   }
-  return null;
 })();
 
 export const requestNotificationPermission = async () => {
