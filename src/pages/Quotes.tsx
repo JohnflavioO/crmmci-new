@@ -956,7 +956,7 @@ export default function Quotes() {
                         <div className="space-y-2">
                           <Label className="text-xs">Valor (R$)</Label>
                           <Input type="number" step="0.01" min={0}
-                            value={form.split_value_1}
+                            value={form.split_value_1 || ''}
                             onChange={e => {
                               const v = parseFloat(e.target.value) || 0;
                               setForm(p => ({ ...p, split_value_1: v, split_value_2: Math.max(0, Math.round((grandTotal - v) * 100) / 100) }));
@@ -994,7 +994,7 @@ export default function Quotes() {
                         <div className="space-y-2">
                           <Label className="text-xs">Valor (R$)</Label>
                           <Input type="number" step="0.01" min={0}
-                            value={form.split_value_2}
+                            value={form.split_value_2 || ''}
                             onChange={e => {
                               const v = parseFloat(e.target.value) || 0;
                               setForm(p => ({ ...p, split_value_2: v }));
@@ -1082,7 +1082,7 @@ export default function Quotes() {
                 <div className="space-y-2">
                   <Label>Valor do Frete (R$)</Label>
                   <Input type="number" step="0.01" min={0}
-                    value={form.shipping_cost}
+                    value={form.shipping_cost || ''}
                     onChange={e => setForm(p => ({ ...p, shipping_cost: parseFloat(e.target.value) || 0 }))}
                     placeholder="0,00"
                   />
