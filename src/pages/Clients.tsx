@@ -622,15 +622,40 @@ export default function Clients() {
               )}
             </DialogContent>
           </Dialog>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingClient(null); setForm(emptyClient); } }}>
+          <Dialog open={dialogOpen} onOpenChange={(o) => {
+            // Só permitir fechar via botões Cancelar/Salvar (controlados explicitamente).
+            // Bloqueia fechamento acidental por click-outside / Escape para não perder dados.
+            if (!o) {
+              console.log('[ClientDialog] Tentativa de fechamento bloqueada (use Cancelar/Salvar).');
+              return;
+            }
+            setDialogOpen(true);
+          }}>
             <DialogTrigger asChild>
-              <Button className="gap-2 min-h-[44px]"><Plus className="h-4 w-4" /> Novo Cliente</Button>
+              <Button
+                className="gap-2 min-h-[44px]"
+                onClick={() => { setEditingClient(null); setForm(emptyClient); setDialogOpen(true); }}
+              ><Plus className="h-4 w-4" /> Novo Cliente</Button>
             </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogContent
+            className="max-w-2xl max-h-[85vh] overflow-y-auto"
+            onPointerDownOutside={(e) => { e.preventDefault(); console.log('[ClientDialog] PointerDownOutside bloqueado'); }}
+            onInteractOutside={(e) => { e.preventDefault(); console.log('[ClientDialog] InteractOutside bloqueado'); }}
+            onEscapeKeyDown={(e) => { e.preventDefault(); console.log('[ClientDialog] Escape bloqueado'); }}
+          >
             <DialogHeader>
               <DialogTitle className="font-display">{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); console.log('[Form] Submit bloqueado'); }} className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <form
+              onSubmit={(e) => { e.preventDefault(); console.log('[Form] Submit bloqueado'); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+                  e.preventDefault();
+                  console.log('[Form] Enter bloqueado no formulário');
+                }
+              }}
+              className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4"
+            >
               <div className="sm:col-span-2 space-y-2">
                 <Label>Razão Social / Nome *</Label>
                 <Input value={form.company_name} onChange={e => updateForm('company_name', e.target.value)} required />
