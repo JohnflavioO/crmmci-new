@@ -14,6 +14,10 @@ export default function PWAInstallPrompt() {
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
+    const isPreview = window.location.hostname.includes('lovable.app') || 
+                     window.location.hostname.includes('lovableproject.com');
+    if (isPreview) return;
+
     const standalone = window.matchMedia('(display-mode: standalone)').matches
       || (navigator as any).standalone === true;
     setIsStandalone(standalone);
