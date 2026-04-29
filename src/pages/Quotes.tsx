@@ -912,8 +912,9 @@ export default function Quotes() {
                       type="number"
                       step="0.01"
                       min={0}
-                      value={form.manual_total || ''}
-                      onChange={e => setForm(p => ({ ...p, manual_total: parseFloat(e.target.value) || 0 }))}
+                      value={form.manual_total === 0 ? '' : form.manual_total}
+                      onChange={e => setForm(p => ({ ...p, manual_total: e.target.value }))}
+                      onFocus={e => e.target.select()}
                       placeholder="0,00"
                       className="mt-1"
                     />
