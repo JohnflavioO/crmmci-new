@@ -145,9 +145,10 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     { label: 'Modelo / Descrição', w: 48 },
     { label: 'Marca', w: 18 },
     { label: 'Qtd', w: 10 },
-    { label: 'Unit.', w: 20 },
-    { label: 'Desc.', w: 12 },
-    { label: 'Total', w: 26 },
+    { label: 'Unit.', w: 18 },
+    { label: 'Desc.', w: 11 },
+    { label: 'V. Unit c/ Desc.', w: 18 },
+    { label: 'Total', w: 23 },
   ];
 
   const checkPage = (needed: number) => {
@@ -230,6 +231,9 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     cx += cols[1].w;
 
     const isGift = item.is_gift === true;
+    const unitPrice = parseFloat(item.unit_price) || 0;
+    const discPct = parseFloat(item.discount_percent) || 0;
+    const priceWithDisc = unitPrice * (1 - discPct / 100);
     
     // Render row contents
     const rowValues = [
@@ -237,8 +241,9 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       desc,
       item.brand || '',
       String(item.quantity || 1),
-      isGift ? 'BRINDE' : fmt(parseFloat(item.unit_price) || 0),
-      isGift ? '-' : (item.discount_percent ? `${Number(parseFloat(item.discount_percent).toFixed(2))}%` : ''),
+      isGift ? 'BRINDE' : fmt(unitPrice),
+      isGift ? '-' : (discPct ? `${Number(discPct.toFixed(2))}%` : ''),
+      isGift ? 'BRINDE' : fmt(priceWithDisc),
       isGift ? 'BRINDE' : fmt(parseFloat(item.line_total || item.total_price) || 0),
     ];
 
@@ -261,7 +266,8 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
         const splitReducedDesc = doc.splitTextToSize(reducedWords, col.w - 2);
         doc.text(splitReducedDesc, cx, y);
       } else {
-        const maxChars = Math.floor(col.w / 1.8);
+        // Adjust for column width to avoid overlapping or truncation if it's a currency
+        const maxChars = Math.floor(col.w / 1.7);
         doc.text(val.substring(0, maxChars), cx, y);
       }
       
@@ -282,22 +288,11 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   const totalWithShipping = parseFloat(quote.total_amount) || 0;
   const grandTotal = totalWithShipping;
   
-  // Calculate total discount from items
-  const totalItemsDiscount = items.reduce((acc: number, item: any) => {
-    const price = parseFloat(item.unit_price) || 0;
-    const qty = parseFloat(item.quantity) || 1;
-    const discountPct = parseFloat(item.discount_percent) || 0;
-    return acc + (price * qty * (discountPct / 100));
-  }, 0);
-
+  // The user wants to remove the discount from the bottom and only show Shipping and Total
+  
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(60);
-
-  if (totalItemsDiscount > 0) {
-    doc.text(`Desconto Itens: ${fmt(totalItemsDiscount)}`, W - margin, y, { align: 'right' });
-    y += 3.5;
-  }
 
   if (shippingCost > 0) {
     const subtotalWithoutShipping = grandTotal - shippingCost;
