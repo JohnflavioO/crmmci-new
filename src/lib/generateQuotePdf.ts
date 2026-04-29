@@ -126,13 +126,10 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     if (complement) { doc.text(`Complemento: ${complement}`, margin, y); y += 4; }
     
     const neighborhood = client.neighborhood;
-    const cityStateZip = [
-      client.city,
-      client.state,
-      client.zip_code ? `CEP: ${client.zip_code}` : ''
-    ].filter(Boolean).join(' - ');
+    const cityState = [client.city, client.state].filter(Boolean).join(' - ');
+    const zipCode = client.zip_code ? `CEP: ${client.zip_code}` : '';
     
-    const secondLine = [neighborhood, cityStateZip].filter(Boolean).join(', ');
+    const secondLine = [neighborhood, cityState, zipCode].filter(Boolean).join(', ');
     if (secondLine) { doc.text(secondLine, margin, y); y += 4; }
   }
   if (quote.salesperson) { doc.text(`Vendedor: ${quote.salesperson}`, margin, y); y += 4; }
@@ -148,7 +145,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     { label: 'Qtd', w: 10 },
     { label: 'Unit.', w: 18 },
     { label: 'Desc.', w: 11 },
-    { label: 'V. Unit c/ Desc.', w: 18 },
+    { label: 'V. Unit c/ Desc.', w: 20 },
     { label: 'Total', w: 23 },
   ];
 
@@ -163,8 +160,9 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
   let cx = margin + 2;
-  cols.forEach(col => {
-    doc.text(col.label, cx, y + 5.5);
+  cols.forEach((col, idx) => {
+    const isLast = idx === cols.length - 1;
+    doc.text(col.label, isLast ? (W - margin - 2) : cx, y + 5.5, { align: isLast ? 'right' : 'left' });
     cx += col.w;
   });
   y += headerH + 4;
@@ -251,6 +249,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     rowValues.forEach((val, ci) => {
       const colIdx = ci + 2;
       const col = cols[colIdx];
+      const isLast = colIdx === cols.length - 1;
       
       if (isGift && (ci === 4 || ci === 6)) {
         doc.setTextColor(0, 150, 100);
@@ -269,7 +268,8 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       } else {
         // Adjust for column width to avoid overlapping or truncation if it's a currency
         const maxChars = Math.floor(col.w / 1.7);
-        doc.text(val.substring(0, maxChars), cx, y);
+        const textToRender = val.substring(0, maxChars);
+        doc.text(textToRender, isLast ? (W - margin - 2) : cx, y, { align: isLast ? 'right' : 'left' });
       }
       
       cx += col.w;
