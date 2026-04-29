@@ -265,12 +265,9 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
         doc.setFont('helvetica', 'normal');
       }
 
-      // Special handling for description column to limit words
+      // Special handling for description column to limit to 2 lines
       if (ci === 1) { // Descrição
-        const words = val.split(' ');
-        const reducedWords = words.slice(0, Math.ceil(words.length * 0.5)).join(' ');
-        const splitReducedDesc = doc.splitTextToSize(reducedWords, col.w - 2);
-        doc.text(splitReducedDesc, cx, y);
+        doc.text(splitDesc, cx, y);
       } else {
         // Adjust for column width to avoid overlapping or truncation if it's a currency
         const maxChars = Math.floor(col.w / 1.7);
