@@ -160,8 +160,9 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
   let cx = margin + 2;
-  cols.forEach(col => {
-    doc.text(col.label, cx, y + 5.5);
+  cols.forEach((col, idx) => {
+    const isLast = idx === cols.length - 1;
+    doc.text(col.label, isLast ? (W - margin - 2) : cx, y + 5.5, { align: isLast ? 'right' : 'left' });
     cx += col.w;
   });
   y += headerH + 4;
