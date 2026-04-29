@@ -1349,8 +1349,9 @@ export default function Quotes() {
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Qtd</Label>
-                          <Input type="number" min={1} value={item.quantity}
-                            onChange={e => updateItem(idx, 'quantity', parseInt(e.target.value) || 1)} />
+                          <Input type="number" min={1} value={item.quantity === 0 ? '' : item.quantity}
+                            onChange={e => updateItem(idx, 'quantity', e.target.value)}
+                            onFocus={e => e.target.select()} />
                         </div>
                       </div>
                       <div className="space-y-1">
@@ -1361,13 +1362,17 @@ export default function Quotes() {
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs">Preço Unit. (R$)</Label>
-                          <Input type="number" step="0.01" value={item.unit_price} disabled={item.is_gift}
-                            onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} className={item.is_gift ? 'opacity-50' : ''} />
+                          <Input type="number" step="0.01" value={item.unit_price === 0 ? '' : item.unit_price} disabled={item.is_gift}
+                            onChange={e => updateItem(idx, 'unit_price', e.target.value)} 
+                            onFocus={e => e.target.select()}
+                            className={item.is_gift ? 'opacity-50' : ''} />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Desconto (%)</Label>
-                          <Input type="number" step="0.1" min={0} max={100} value={item.discount_percent} disabled={item.is_gift}
-                            onChange={e => updateItem(idx, 'discount_percent', parseFloat(e.target.value) || 0)} className={item.is_gift ? 'opacity-50' : ''} />
+                          <Input type="number" step="0.1" min={0} max={100} value={item.discount_percent === 0 ? '' : item.discount_percent} disabled={item.is_gift}
+                            onChange={e => updateItem(idx, 'discount_percent', e.target.value)} 
+                            onFocus={e => e.target.select()}
+                            className={item.is_gift ? 'opacity-50' : ''} />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Valor Unit.</Label>
