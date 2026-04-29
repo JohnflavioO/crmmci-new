@@ -1060,12 +1060,12 @@ export default function Quotes() {
                     </div>
 
                     {/* Split summary */}
-                    {form.split_value_1 > 0 || form.split_value_2 > 0 ? (
+                    {Number(form.split_value_1) > 0 || Number(form.split_value_2) > 0 ? (
                       <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
-                        Método 1: {formatCurrency(form.split_value_1)} + Método 2: {formatCurrency(form.split_value_2)} = {formatCurrency(form.split_value_1 + form.split_value_2)}
-                        {Math.abs((form.split_value_1 + form.split_value_2) - grandTotal) > 0.01 && (
+                        Método 1: {formatCurrency(Number(form.split_value_1))} + Método 2: {formatCurrency(Number(form.split_value_2))} = {formatCurrency(Number(form.split_value_1) + Number(form.split_value_2))}
+                        {Math.abs((Number(form.split_value_1) + Number(form.split_value_2)) - grandTotal) > 0.01 && (
                           <span className="text-destructive ml-2 font-medium">
-                            (Diferença de {formatCurrency(Math.abs((form.split_value_1 + form.split_value_2) - grandTotal))} em relação ao total)
+                            (Diferença de {formatCurrency(Math.abs((Number(form.split_value_1) + Number(form.split_value_2)) - grandTotal))} em relação ao total)
                           </span>
                         )}
                       </div>
