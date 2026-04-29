@@ -145,7 +145,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     { label: 'Qtd', w: 10 },
     { label: 'Unit.', w: 18 },
     { label: 'Desc.', w: 11 },
-    { label: 'V. Unit c/ Desc.', w: 18 },
+    { label: 'V. Unit c/ Desc.', w: 20 },
     { label: 'Total', w: 23 },
   ];
 
