@@ -231,6 +231,9 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     cx += cols[1].w;
 
     const isGift = item.is_gift === true;
+    const unitPrice = parseFloat(item.unit_price) || 0;
+    const discPct = parseFloat(item.discount_percent) || 0;
+    const priceWithDisc = unitPrice * (1 - discPct / 100);
     
     // Render row contents
     const rowValues = [
@@ -238,8 +241,9 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       desc,
       item.brand || '',
       String(item.quantity || 1),
-      isGift ? 'BRINDE' : fmt(parseFloat(item.unit_price) || 0),
-      isGift ? '-' : (item.discount_percent ? `${Number(parseFloat(item.discount_percent).toFixed(2))}%` : ''),
+      isGift ? 'BRINDE' : fmt(unitPrice),
+      isGift ? '-' : (discPct ? `${Number(discPct.toFixed(2))}%` : ''),
+      isGift ? 'BRINDE' : fmt(priceWithDisc),
       isGift ? 'BRINDE' : fmt(parseFloat(item.line_total || item.total_price) || 0),
     ];
 
