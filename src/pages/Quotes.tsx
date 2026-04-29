@@ -522,9 +522,9 @@ export default function Quotes() {
 
       const validItems = items.filter(i => i.model).map((item, idx) => ({
         quote_id: quoteId, item_number: idx + 1, product_code: item.product_code,
-        quantity: item.quantity, model: item.model, brand: item.brand,
-        specifications: item.specifications, unit_price: item.unit_price,
-        discount_percent: item.discount_percent, unit_total: item.unit_total,
+        quantity: Number(item.quantity) || 1, model: item.model, brand: item.brand,
+        specifications: item.specifications, unit_price: Number(item.unit_price) || 0,
+        discount_percent: Number(item.discount_percent) || 0, unit_total: item.unit_total,
         line_total: item.line_total, image_url: item.image_url, is_gift: item.is_gift,
       }));
 
