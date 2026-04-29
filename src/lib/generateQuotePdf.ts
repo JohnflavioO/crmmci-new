@@ -118,8 +118,19 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     if (client.cpf_cnpj) { doc.text(`CPF/CNPJ: ${client.cpf_cnpj}`, margin, y); y += 4; }
     if (client.email) { doc.text(`Email: ${client.email}`, margin, y); y += 4; }
     if (client.phone) { doc.text(`Tel: ${client.phone}`, margin, y); y += 4; }
-    if (client.address) {
-      const addr = [client.address, client.address_number, client.complement, client.neighborhood, client.city, client.state].filter(Boolean).join(', ');
+    
+    const addrParts = [
+      client.address,
+      client.address_number ? `nº ${client.address_number}` : '',
+      client.complement,
+      client.neighborhood,
+      client.city,
+      client.state,
+      client.zip_code ? `CEP: ${client.zip_code}` : ''
+    ].filter(Boolean);
+    
+    if (addrParts.length > 0) {
+      const addr = addrParts.join(', ');
       doc.text(`Endereço: ${addr}`, margin, y); y += 4;
     }
   }
