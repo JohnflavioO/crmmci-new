@@ -126,13 +126,10 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     if (complement) { doc.text(`Complemento: ${complement}`, margin, y); y += 4; }
     
     const neighborhood = client.neighborhood;
-    const cityStateZip = [
-      client.city,
-      client.state,
-      client.zip_code ? `CEP: ${client.zip_code}` : ''
-    ].filter(Boolean).join(' - ');
+    const cityState = [client.city, client.state].filter(Boolean).join(' - ');
+    const zipCode = client.zip_code ? `CEP: ${client.zip_code}` : '';
     
-    const secondLine = [neighborhood, cityStateZip].filter(Boolean).join(', ');
+    const secondLine = [neighborhood, cityState, zipCode].filter(Boolean).join(', ');
     if (secondLine) { doc.text(secondLine, margin, y); y += 4; }
   }
   if (quote.salesperson) { doc.text(`Vendedor: ${quote.salesperson}`, margin, y); y += 4; }
