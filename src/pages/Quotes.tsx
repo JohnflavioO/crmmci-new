@@ -431,7 +431,7 @@ export default function Quotes() {
       }
 
       const hasAnyItem = items.some(i => !!i.model);
-      const canQuickEntry = form.manual_total > 0 && QUICK_ENTRY_STATUSES.includes(form.status);
+      const canQuickEntry = Number(form.manual_total) > 0 && QUICK_ENTRY_STATUSES.includes(form.status);
       if (!hasAnyItem && !canQuickEntry) {
         toast.error('Adicione pelo menos um item ou informe o valor total da negociação (para status Contato Feito, Proposta Enviada ou Negociação)');
         return;
