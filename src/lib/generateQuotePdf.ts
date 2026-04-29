@@ -280,15 +280,28 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   // Subtotal, Frete, Total
   const shippingCost = parseFloat(quote.shipping_cost) || 0;
   const totalWithShipping = parseFloat(quote.total_amount) || 0;
-  const subtotal = totalWithShipping - shippingCost;
   const grandTotal = totalWithShipping;
+  
+  // Calculate total discount from items
+  const totalItemsDiscount = items.reduce((acc: number, item: any) => {
+    const price = parseFloat(item.unit_price) || 0;
+    const qty = parseFloat(item.quantity) || 1;
+    const discountPct = parseFloat(item.discount_percent) || 0;
+    return acc + (price * qty * (discountPct / 100));
+  }, 0);
 
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(60);
 
+  if (totalItemsDiscount > 0) {
+    doc.text(`Desconto Itens: ${fmt(totalItemsDiscount)}`, W - margin, y, { align: 'right' });
+    y += 3.5;
+  }
+
   if (shippingCost > 0) {
-    doc.text(`Subtotal: ${fmt(subtotal)}`, W - margin, y, { align: 'right' });
+    const subtotalWithoutShipping = grandTotal - shippingCost;
+    doc.text(`Subtotal: ${fmt(subtotalWithoutShipping)}`, W - margin, y, { align: 'right' });
     y += 3.5;
     doc.text(`Frete: ${fmt(shippingCost)}`, W - margin, y, { align: 'right' });
     y += 4;
