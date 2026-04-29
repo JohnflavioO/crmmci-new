@@ -631,15 +631,7 @@ export default function Clients() {
               )}
             </DialogContent>
           </Dialog>
-          <Dialog open={dialogOpen} onOpenChange={(o) => {
-            // Só permitir fechar via botões Cancelar/Salvar (controlados explicitamente).
-            // Bloqueia fechamento acidental por click-outside / Escape para não perder dados.
-            if (!o) {
-              console.log('[ClientDialog] Tentativa de fechamento bloqueada (use Cancelar/Salvar).');
-              return;
-            }
-            setDialogOpen(true);
-          }}>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button
                 className="gap-2 min-h-[44px]"
@@ -648,9 +640,6 @@ export default function Clients() {
             </DialogTrigger>
           <DialogContent
             className="max-w-2xl max-h-[85vh] overflow-y-auto"
-            onPointerDownOutside={(e) => { e.preventDefault(); console.log('[ClientDialog] PointerDownOutside bloqueado'); }}
-            onInteractOutside={(e) => { e.preventDefault(); console.log('[ClientDialog] InteractOutside bloqueado'); }}
-            onEscapeKeyDown={(e) => { e.preventDefault(); console.log('[ClientDialog] Escape bloqueado'); }}
           >
             <DialogHeader>
               <DialogTitle className="font-display">{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
