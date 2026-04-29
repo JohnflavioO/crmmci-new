@@ -919,7 +919,7 @@ export default function Quotes() {
                       className="mt-1"
                     />
                   </div>
-                  {form.manual_total > 0 && !hasItems && (
+                  {Number(form.manual_total) > 0 && !hasItems && (
                     <p className="text-xs text-emerald-600 font-medium">✓ Você pode salvar sem adicionar itens/produtos</p>
                   )}
                 </div>
