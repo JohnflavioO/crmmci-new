@@ -298,8 +298,12 @@ export default function Quotes() {
     if (item.is_gift) {
       return { ...item, unit_total: 0, line_total: 0 };
     }
-    const unitTotal = item.unit_price * (1 - item.discount_percent / 100);
-    const lineTotal = unitTotal * item.quantity;
+    const unitPrice = parseFloat(String(item.unit_price)) || 0;
+    const discountPercent = parseFloat(String(item.discount_percent)) || 0;
+    const quantity = parseFloat(String(item.quantity)) || 0;
+
+    const unitTotal = unitPrice * (1 - discountPercent / 100);
+    const lineTotal = unitTotal * quantity;
     return { ...item, unit_total: Math.round(unitTotal * 100) / 100, line_total: Math.round(lineTotal * 100) / 100 };
   };
 
