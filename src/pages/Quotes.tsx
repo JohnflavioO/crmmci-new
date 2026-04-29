@@ -361,8 +361,10 @@ export default function Quotes() {
 
   const hasItems = items.some(i => !!i.model);
   
-  const totalAmount = hasItems ? items.reduce((sum, item) => sum + item.line_total, 0) : form.manual_total;
-  const grandTotal = totalAmount + (form.shipping_cost || 0);
+  const totalAmount = hasItems 
+    ? items.reduce((sum, item) => sum + (parseFloat(String(item.line_total)) || 0), 0) 
+    : (parseFloat(String(form.manual_total)) || 0);
+  const grandTotal = totalAmount + (parseFloat(String(form.shipping_cost)) || 0);
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
