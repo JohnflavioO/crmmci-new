@@ -119,11 +119,13 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     if (client.email) { doc.text(`Email: ${client.email}`, margin, y); y += 4; }
     if (client.phone) { doc.text(`Tel: ${client.phone}`, margin, y); y += 4; }
     
-    const address = [client.address, client.address_number ? `nº ${client.address_number}` : ''].filter(Boolean).join(', ');
-    if (address) { doc.text(`Endereço: ${address}`, margin, y); y += 4; }
+    const addrParts = [
+      client.address,
+      client.address_number ? `nº ${client.address_number}` : '',
+      client.complement ? `(${client.complement})` : ''
+    ].filter(Boolean).join(', ');
     
-    const complement = client.complement;
-    if (complement) { doc.text(`Complemento: ${complement}`, margin, y); y += 4; }
+    if (addrParts) { doc.text(`Endereço: ${addrParts}`, margin, y); y += 4; }
     
     const neighborhood = client.neighborhood;
     const cityState = [client.city, client.state].filter(Boolean).join(' - ');
