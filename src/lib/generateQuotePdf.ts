@@ -287,22 +287,11 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   const totalWithShipping = parseFloat(quote.total_amount) || 0;
   const grandTotal = totalWithShipping;
   
-  // Calculate total discount from items
-  const totalItemsDiscount = items.reduce((acc: number, item: any) => {
-    const price = parseFloat(item.unit_price) || 0;
-    const qty = parseFloat(item.quantity) || 1;
-    const discountPct = parseFloat(item.discount_percent) || 0;
-    return acc + (price * qty * (discountPct / 100));
-  }, 0);
-
+  // The user wants to remove the discount from the bottom and only show Shipping and Total
+  
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(60);
-
-  if (totalItemsDiscount > 0) {
-    doc.text(`Desconto Itens: ${fmt(totalItemsDiscount)}`, W - margin, y, { align: 'right' });
-    y += 3.5;
-  }
 
   if (shippingCost > 0) {
     const subtotalWithoutShipping = grandTotal - shippingCost;
