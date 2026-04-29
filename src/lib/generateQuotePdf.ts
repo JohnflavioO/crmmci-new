@@ -245,7 +245,10 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
 
       // Special handling for description column to avoid cutting
       if (ci === 1) { // Descrição
-        doc.text(splitDesc, cx, y);
+        const originalFontSize = doc.getFontSize();
+        doc.setFontSize(originalFontSize * 0.5); // Reduce by 50%
+        doc.text(splitDesc, cx, y - 1); // Slight adjustment for the smaller text
+        doc.setFontSize(originalFontSize); // Restore font size
       } else {
         const maxChars = Math.floor(col.w / 1.8);
         doc.text(val.substring(0, maxChars), cx, y);
