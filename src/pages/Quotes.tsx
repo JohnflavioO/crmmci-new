@@ -73,12 +73,12 @@ interface QuoteItem {
   id?: string;
   item_number: number;
   product_code: string;
-  quantity: number;
+  quantity: number | string;
   model: string;
   brand: string;
   specifications: string;
-  unit_price: number;
-  discount_percent: number;
+  unit_price: number | string;
+  discount_percent: number | string;
   unit_total: number;
   line_total: number;
   image_url: string;
