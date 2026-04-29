@@ -192,11 +192,19 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   doc.setTextColor(30);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
-  const rowHeight = 12;
+  const baseRowHeight = 12;
   items.forEach((item: any, i: number) => {
+    const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
+    const splitDesc = doc.splitTextToSize(desc, cols[3].w - 2); // cols[3] is description
+    const descHeight = splitDesc.length * 3.5;
+    const rowHeight = Math.max(baseRowHeight, descHeight + 4);
+
     checkPage(rowHeight + 2);
     const bg = i % 2 === 0;
-    if (bg) { doc.setFillColor(245, 245, 245); doc.rect(margin, y - 5, cw, rowHeight, 'F'); }
+    if (bg) { 
+      doc.setFillColor(245, 245, 245); 
+      doc.rect(margin, y - 5, cw, rowHeight, 'F'); 
+    }
     cx = margin + 2;
 
     doc.setTextColor(30);
@@ -210,7 +218,6 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     }
     cx += cols[1].w;
 
-    const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
     const isGift = item.is_gift === true;
     
     // Render row contents
@@ -236,9 +243,8 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
         doc.setFont('helvetica', 'normal');
       }
 
-      // Especial handling for description column to avoid cutting
+      // Special handling for description column to avoid cutting
       if (ci === 1) { // Descrição
-        const splitDesc = doc.splitTextToSize(val, col.w - 2);
         doc.text(splitDesc, cx, y);
       } else {
         const maxChars = Math.floor(col.w / 1.8);
