@@ -73,12 +73,12 @@ interface QuoteItem {
   id?: string;
   item_number: number;
   product_code: string;
-  quantity: number;
+  quantity: number | string;
   model: string;
   brand: string;
   specifications: string;
-  unit_price: number;
-  discount_percent: number;
+  unit_price: number | string;
+  discount_percent: number | string;
   unit_total: number;
   line_total: number;
   image_url: string;
@@ -100,21 +100,21 @@ const shippingMethods = [
 const defaultForm = {
   client_id: '', salesperson: '', status: 'draft', notes: '',
   payment_terms: '', shipping_deadline: '', shipping_method: '',
-  shipping_cost: 0, proposal_validity: '15 dias',
+  shipping_cost: 0 as number | string, proposal_validity: '15 dias',
   payment_method: '', payment_status: 'pendente',
   is_reseller: false,
   payment_date: '' as string,
   installments: 1,
   is_split_payment: false,
   split_method_1: '',
-  split_value_1: 0,
+  split_value_1: 0 as number | string,
   split_date_1: '' as string,
   split_installments_1: 1,
   split_method_2: '',
-  split_value_2: 0,
+  split_value_2: 0 as number | string,
   split_date_2: '' as string,
   split_installments_2: 1,
-  manual_total: 0,
+  manual_total: 0 as number | string,
   use_alt_shipping_address: false,
   shipping_recipient: '',
   shipping_cep: '',
@@ -298,8 +298,12 @@ export default function Quotes() {
     if (item.is_gift) {
       return { ...item, unit_total: 0, line_total: 0 };
     }
-    const unitTotal = item.unit_price * (1 - item.discount_percent / 100);
-    const lineTotal = unitTotal * item.quantity;
+    const unitPrice = parseFloat(String(item.unit_price)) || 0;
+    const discountPercent = parseFloat(String(item.discount_percent)) || 0;
+    const quantity = parseFloat(String(item.quantity)) || 0;
+
+    const unitTotal = unitPrice * (1 - discountPercent / 100);
+    const lineTotal = unitTotal * quantity;
     return { ...item, unit_total: Math.round(unitTotal * 100) / 100, line_total: Math.round(lineTotal * 100) / 100 };
   };
 
@@ -357,8 +361,10 @@ export default function Quotes() {
 
   const hasItems = items.some(i => !!i.model);
   
-  const totalAmount = hasItems ? items.reduce((sum, item) => sum + item.line_total, 0) : form.manual_total;
-  const grandTotal = totalAmount + (form.shipping_cost || 0);
+  const totalAmount = hasItems 
+    ? items.reduce((sum, item) => sum + (parseFloat(String(item.line_total)) || 0), 0) 
+    : (parseFloat(String(form.manual_total)) || 0);
+  const grandTotal = totalAmount + (parseFloat(String(form.shipping_cost)) || 0);
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -372,10 +378,10 @@ export default function Quotes() {
     if (form.is_split_payment) {
       if (!form.split_method_1) return 'Selecione o método 1 do pagamento misto.';
       if (!form.split_method_2) return 'Selecione o método 2 do pagamento misto.';
-      if (form.split_value_1 <= 0) return 'Informe o valor do método 1.';
-      if (form.split_value_2 <= 0) return 'Informe o valor do método 2.';
+      if (Number(form.split_value_1) <= 0) return 'Informe o valor do método 1.';
+      if (Number(form.split_value_2) <= 0) return 'Informe o valor do método 2.';
 
-      const sumSplit = form.split_value_1 + form.split_value_2;
+      const sumSplit = Number(form.split_value_1) + Number(form.split_value_2);
       if (Math.abs(sumSplit - grandTotal) > 0.01) {
         return `A soma dos valores do pagamento misto (${formatCurrency(sumSplit)}) não corresponde ao total do orçamento (${formatCurrency(grandTotal)}).`;
       }
@@ -425,7 +431,7 @@ export default function Quotes() {
       }
 
       const hasAnyItem = items.some(i => !!i.model);
-      const canQuickEntry = form.manual_total > 0 && QUICK_ENTRY_STATUSES.includes(form.status);
+      const canQuickEntry = Number(form.manual_total) > 0 && QUICK_ENTRY_STATUSES.includes(form.status);
       if (!hasAnyItem && !canQuickEntry) {
         toast.error('Adicione pelo menos um item ou informe o valor total da negociação (para status Contato Feito, Proposta Enviada ou Negociação)');
         return;
@@ -450,7 +456,7 @@ export default function Quotes() {
         salesperson_id: matchedSeller?.id || user?.id || null,
         notes: form.notes, total_amount: grandTotal,
         payment_terms: form.payment_terms, shipping_deadline: form.shipping_deadline,
-        shipping_method: form.shipping_method, shipping_cost: form.shipping_cost,
+        shipping_method: form.shipping_method, shipping_cost: Number(form.shipping_cost) || 0,
         proposal_validity: form.proposal_validity,
         followup_date: form.followup_date || null,
         payment_method: form.is_split_payment ? null : (form.payment_method || null),
@@ -460,11 +466,11 @@ export default function Quotes() {
         installments: (!form.is_split_payment && (form.payment_method === 'boleto' || form.payment_method === 'cartao')) ? form.installments : 1,
         is_split_payment: form.is_split_payment,
         split_method_1: form.is_split_payment ? (form.split_method_1 || null) : null,
-        split_value_1: form.is_split_payment ? form.split_value_1 : 0,
+        split_value_1: form.is_split_payment ? (Number(form.split_value_1) || 0) : 0,
         split_date_1: form.is_split_payment && form.split_method_1 === 'pix' && form.split_date_1 ? form.split_date_1 : null,
         split_installments_1: form.is_split_payment && (form.split_method_1 === 'boleto' || form.split_method_1 === 'cartao') ? form.split_installments_1 : 1,
         split_method_2: form.is_split_payment ? (form.split_method_2 || null) : null,
-        split_value_2: form.is_split_payment ? form.split_value_2 : 0,
+        split_value_2: form.is_split_payment ? (Number(form.split_value_2) || 0) : 0,
         split_date_2: form.is_split_payment && form.split_method_2 === 'pix' && form.split_date_2 ? form.split_date_2 : null,
         split_installments_2: form.is_split_payment && (form.split_method_2 === 'boleto' || form.split_method_2 === 'cartao') ? form.split_installments_2 : 1,
         use_alt_shipping_address: form.use_alt_shipping_address,
@@ -516,9 +522,9 @@ export default function Quotes() {
 
       const validItems = items.filter(i => i.model).map((item, idx) => ({
         quote_id: quoteId, item_number: idx + 1, product_code: item.product_code,
-        quantity: item.quantity, model: item.model, brand: item.brand,
-        specifications: item.specifications, unit_price: item.unit_price,
-        discount_percent: item.discount_percent, unit_total: item.unit_total,
+        quantity: Number(item.quantity) || 1, model: item.model, brand: item.brand,
+        specifications: item.specifications, unit_price: Number(item.unit_price) || 0,
+        discount_percent: Number(item.discount_percent) || 0, unit_total: item.unit_total,
         line_total: item.line_total, image_url: item.image_url, is_gift: item.is_gift,
       }));
 
@@ -906,13 +912,14 @@ export default function Quotes() {
                       type="number"
                       step="0.01"
                       min={0}
-                      value={form.manual_total || ''}
-                      onChange={e => setForm(p => ({ ...p, manual_total: parseFloat(e.target.value) || 0 }))}
+                      value={form.manual_total === 0 ? '' : form.manual_total}
+                      onChange={e => setForm(p => ({ ...p, manual_total: e.target.value }))}
+                      onFocus={e => e.target.select()}
                       placeholder="0,00"
                       className="mt-1"
                     />
                   </div>
-                  {form.manual_total > 0 && !hasItems && (
+                  {Number(form.manual_total) > 0 && !hasItems && (
                     <p className="text-xs text-emerald-600 font-medium">✓ Você pode salvar sem adicionar itens/produtos</p>
                   )}
                 </div>
@@ -992,11 +999,13 @@ export default function Quotes() {
                         <div className="space-y-2">
                           <Label className="text-xs">Valor (R$)</Label>
                           <Input type="number" step="0.01" min={0}
-                            value={form.split_value_1 || ''}
+                            value={form.split_value_1 === 0 ? '' : form.split_value_1}
                             onChange={e => {
-                              const v = parseFloat(e.target.value) || 0;
-                              setForm(p => ({ ...p, split_value_1: v, split_value_2: Math.max(0, Math.round((grandTotal - v) * 100) / 100) }));
+                              const v = e.target.value;
+                              const numV = parseFloat(v) || 0;
+                              setForm(p => ({ ...p, split_value_1: v, split_value_2: Math.max(0, Math.round((grandTotal - numV) * 100) / 100) }));
                             }}
+                            onFocus={e => e.target.select()}
                             placeholder="0,00"
                           />
                         </div>
@@ -1030,11 +1039,11 @@ export default function Quotes() {
                         <div className="space-y-2">
                           <Label className="text-xs">Valor (R$)</Label>
                           <Input type="number" step="0.01" min={0}
-                            value={form.split_value_2 || ''}
+                            value={form.split_value_2 === 0 ? '' : form.split_value_2}
                             onChange={e => {
-                              const v = parseFloat(e.target.value) || 0;
-                              setForm(p => ({ ...p, split_value_2: v }));
+                              setForm(p => ({ ...p, split_value_2: e.target.value }));
                             }}
+                            onFocus={e => e.target.select()}
                             placeholder="0,00"
                           />
                         </div>
@@ -1051,12 +1060,12 @@ export default function Quotes() {
                     </div>
 
                     {/* Split summary */}
-                    {form.split_value_1 > 0 || form.split_value_2 > 0 ? (
+                    {Number(form.split_value_1) > 0 || Number(form.split_value_2) > 0 ? (
                       <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
-                        Método 1: {formatCurrency(form.split_value_1)} + Método 2: {formatCurrency(form.split_value_2)} = {formatCurrency(form.split_value_1 + form.split_value_2)}
-                        {Math.abs((form.split_value_1 + form.split_value_2) - grandTotal) > 0.01 && (
+                        Método 1: {formatCurrency(Number(form.split_value_1))} + Método 2: {formatCurrency(Number(form.split_value_2))} = {formatCurrency(Number(form.split_value_1) + Number(form.split_value_2))}
+                        {Math.abs((Number(form.split_value_1) + Number(form.split_value_2)) - grandTotal) > 0.01 && (
                           <span className="text-destructive ml-2 font-medium">
-                            (Diferença de {formatCurrency(Math.abs((form.split_value_1 + form.split_value_2) - grandTotal))} em relação ao total)
+                            (Diferença de {formatCurrency(Math.abs((Number(form.split_value_1) + Number(form.split_value_2)) - grandTotal))} em relação ao total)
                           </span>
                         )}
                       </div>
@@ -1118,8 +1127,9 @@ export default function Quotes() {
                 <div className="space-y-2">
                   <Label>Valor do Frete (R$)</Label>
                   <Input type="number" step="0.01" min={0}
-                    value={form.shipping_cost || ''}
-                    onChange={e => setForm(p => ({ ...p, shipping_cost: parseFloat(e.target.value) || 0 }))}
+                    value={form.shipping_cost === 0 ? '' : form.shipping_cost}
+                    onChange={e => setForm(p => ({ ...p, shipping_cost: e.target.value }))}
+                    onFocus={e => e.target.select()}
                     placeholder="0,00"
                   />
                 </div>
@@ -1339,8 +1349,9 @@ export default function Quotes() {
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Qtd</Label>
-                          <Input type="number" min={1} value={item.quantity}
-                            onChange={e => updateItem(idx, 'quantity', parseInt(e.target.value) || 1)} />
+                          <Input type="number" min={1} value={item.quantity === 0 ? '' : item.quantity}
+                            onChange={e => updateItem(idx, 'quantity', e.target.value)}
+                            onFocus={e => e.target.select()} />
                         </div>
                       </div>
                       <div className="space-y-1">
@@ -1351,13 +1362,17 @@ export default function Quotes() {
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs">Preço Unit. (R$)</Label>
-                          <Input type="number" step="0.01" value={item.unit_price} disabled={item.is_gift}
-                            onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} className={item.is_gift ? 'opacity-50' : ''} />
+                          <Input type="number" step="0.01" value={item.unit_price === 0 ? '' : item.unit_price} disabled={item.is_gift}
+                            onChange={e => updateItem(idx, 'unit_price', e.target.value)} 
+                            onFocus={e => e.target.select()}
+                            className={item.is_gift ? 'opacity-50' : ''} />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Desconto (%)</Label>
-                          <Input type="number" step="0.1" min={0} max={100} value={item.discount_percent} disabled={item.is_gift}
-                            onChange={e => updateItem(idx, 'discount_percent', parseFloat(e.target.value) || 0)} className={item.is_gift ? 'opacity-50' : ''} />
+                          <Input type="number" step="0.1" min={0} max={100} value={item.discount_percent === 0 ? '' : item.discount_percent} disabled={item.is_gift}
+                            onChange={e => updateItem(idx, 'discount_percent', e.target.value)} 
+                            onFocus={e => e.target.select()}
+                            className={item.is_gift ? 'opacity-50' : ''} />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Valor Unit.</Label>
@@ -1396,7 +1411,7 @@ export default function Quotes() {
                 <div className="flex justify-end mt-4 p-3 bg-primary/5 rounded-lg">
                   <div className="text-right space-y-1">
                     <p className="text-sm text-muted-foreground">Subtotal: {formatCurrency(totalAmount)}</p>
-                    {form.shipping_cost > 0 && <p className="text-sm text-muted-foreground">Frete: {formatCurrency(form.shipping_cost)}</p>}
+                    {Number(form.shipping_cost) > 0 && <p className="text-sm text-muted-foreground">Frete: {formatCurrency(Number(form.shipping_cost))}</p>}
                     <p className="text-2xl font-bold font-display text-primary">Total: {formatCurrency(grandTotal)}</p>
                   </div>
                 </div>
