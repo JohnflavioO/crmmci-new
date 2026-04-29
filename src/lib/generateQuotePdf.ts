@@ -212,7 +212,9 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
 
     const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
     const isGift = item.is_gift === true;
-    const remaining = [
+    
+    // Render row contents
+    const rowValues = [
       item.product_code || '',
       desc,
       item.brand || '',
@@ -221,9 +223,11 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       isGift ? '-' : (item.discount_percent ? `${item.discount_percent}%` : ''),
       isGift ? 'BRINDE' : fmt(parseFloat(item.line_total || item.total_price) || 0),
     ];
-    remaining.forEach((val, ci) => {
+
+    rowValues.forEach((val, ci) => {
       const colIdx = ci + 2;
-      const maxChars = Math.floor(cols[colIdx].w / 1.8);
+      const col = cols[colIdx];
+      
       if (isGift && (ci === 4 || ci === 6)) {
         doc.setTextColor(0, 150, 100);
         doc.setFont('helvetica', 'bold');
@@ -231,8 +235,17 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
         doc.setTextColor(30);
         doc.setFont('helvetica', 'normal');
       }
-      doc.text(val.substring(0, maxChars), cx, y);
-      cx += cols[colIdx].w;
+
+      // Especial handling for description column to avoid cutting
+      if (ci === 1) { // Descrição
+        const splitDesc = doc.splitTextToSize(val, col.w - 2);
+        doc.text(splitDesc, cx, y);
+      } else {
+        const maxChars = Math.floor(col.w / 1.8);
+        doc.text(val.substring(0, maxChars), cx, y);
+      }
+      
+      cx += col.w;
     });
     doc.setTextColor(30);
     doc.setFont('helvetica', 'normal');
