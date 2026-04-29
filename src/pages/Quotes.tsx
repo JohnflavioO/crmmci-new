@@ -1127,8 +1127,9 @@ export default function Quotes() {
                 <div className="space-y-2">
                   <Label>Valor do Frete (R$)</Label>
                   <Input type="number" step="0.01" min={0}
-                    value={form.shipping_cost || ''}
-                    onChange={e => setForm(p => ({ ...p, shipping_cost: parseFloat(e.target.value) || 0 }))}
+                    value={form.shipping_cost === 0 ? '' : form.shipping_cost}
+                    onChange={e => setForm(p => ({ ...p, shipping_cost: e.target.value }))}
+                    onFocus={e => e.target.select()}
                     placeholder="0,00"
                   />
                 </div>
