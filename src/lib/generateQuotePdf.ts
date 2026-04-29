@@ -249,6 +249,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     rowValues.forEach((val, ci) => {
       const colIdx = ci + 2;
       const col = cols[colIdx];
+      const isLast = colIdx === cols.length - 1;
       
       if (isGift && (ci === 4 || ci === 6)) {
         doc.setTextColor(0, 150, 100);
@@ -267,7 +268,8 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       } else {
         // Adjust for column width to avoid overlapping or truncation if it's a currency
         const maxChars = Math.floor(col.w / 1.7);
-        doc.text(val.substring(0, maxChars), cx, y);
+        const textToRender = val.substring(0, maxChars);
+        doc.text(textToRender, isLast ? (W - margin - 2) : cx, y, { align: isLast ? 'right' : 'left' });
       }
       
       cx += col.w;
