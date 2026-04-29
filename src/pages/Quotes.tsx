@@ -1288,7 +1288,7 @@ export default function Quotes() {
                               <FileText className="h-4 w-4 text-muted-foreground/40" />
                             </div>
                           )}
-                          <span className="text-sm font-medium">Item {idx + 1}{item.model ? ` — ${item.model}` : ''}</span>
+                          <span className="text-sm font-medium break-words flex-1">Item {idx + 1}{item.model ? ` — ${item.model}` : ''}</span>
                         </div>
                         {items.length > 1 && (
                           <Button type="button" size="icon" variant="ghost" onClick={() => removeItem(idx)}>
@@ -1326,7 +1326,7 @@ export default function Quotes() {
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <span className="font-medium block truncate">{p.name}</span>
+                                  <span className="font-medium block whitespace-normal">{p.name}</span>
                                   <span className="text-muted-foreground text-xs">{p.brand} • {formatCurrency(parseFloat(p.price) || 0)}</span>
                                 </div>
                               </button>
