@@ -208,7 +208,11 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   const baseRowHeight = 12;
   items.forEach((item: any, i: number) => {
     const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
-    const splitDesc = doc.splitTextToSize(desc, cols[3].w - 2); // cols[3] is description
+    // Pre-calculate to see how many lines it would naturally take
+    const fullSplitDesc = doc.splitTextToSize(desc, cols[3].w - 2);
+    // Limit to maximum 2 lines as requested
+    const splitDesc = fullSplitDesc.slice(0, 2);
+    
     const descHeight = splitDesc.length * 3.5;
     const rowHeight = Math.max(baseRowHeight, descHeight + 4);
 
