@@ -378,10 +378,10 @@ export default function Quotes() {
     if (form.is_split_payment) {
       if (!form.split_method_1) return 'Selecione o método 1 do pagamento misto.';
       if (!form.split_method_2) return 'Selecione o método 2 do pagamento misto.';
-      if (form.split_value_1 <= 0) return 'Informe o valor do método 1.';
-      if (form.split_value_2 <= 0) return 'Informe o valor do método 2.';
+      if (Number(form.split_value_1) <= 0) return 'Informe o valor do método 1.';
+      if (Number(form.split_value_2) <= 0) return 'Informe o valor do método 2.';
 
-      const sumSplit = form.split_value_1 + form.split_value_2;
+      const sumSplit = Number(form.split_value_1) + Number(form.split_value_2);
       if (Math.abs(sumSplit - grandTotal) > 0.01) {
         return `A soma dos valores do pagamento misto (${formatCurrency(sumSplit)}) não corresponde ao total do orçamento (${formatCurrency(grandTotal)}).`;
       }
