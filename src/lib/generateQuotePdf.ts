@@ -119,20 +119,21 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     if (client.email) { doc.text(`Email: ${client.email}`, margin, y); y += 4; }
     if (client.phone) { doc.text(`Tel: ${client.phone}`, margin, y); y += 4; }
     
-    const addrParts = [
-      client.address,
-      client.address_number ? `nº ${client.address_number}` : '',
-      client.complement,
-      client.neighborhood,
+    const address = [client.address, client.address_number ? `nº ${client.address_number}` : ''].filter(Boolean).join(', ');
+    if (address) { doc.text(`Endereço: ${address}`, margin, y); y += 4; }
+    
+    const complement = client.complement;
+    if (complement) { doc.text(`Complemento: ${complement}`, margin, y); y += 4; }
+    
+    const neighborhood = client.neighborhood;
+    const cityStateZip = [
       client.city,
       client.state,
       client.zip_code ? `CEP: ${client.zip_code}` : ''
-    ].filter(Boolean);
+    ].filter(Boolean).join(' - ');
     
-    if (addrParts.length > 0) {
-      const addr = addrParts.join(', ');
-      doc.text(`Endereço: ${addr}`, margin, y); y += 4;
-    }
+    const secondLine = [neighborhood, cityStateZip].filter(Boolean).join(', ');
+    if (secondLine) { doc.text(secondLine, margin, y); y += 4; }
   }
   if (quote.salesperson) { doc.text(`Vendedor: ${quote.salesperson}`, margin, y); y += 4; }
   y += 3;
