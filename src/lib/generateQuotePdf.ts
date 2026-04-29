@@ -266,7 +266,8 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
         const splitReducedDesc = doc.splitTextToSize(reducedWords, col.w - 2);
         doc.text(splitReducedDesc, cx, y);
       } else {
-        const maxChars = Math.floor(col.w / 1.8);
+        // Adjust for column width to avoid overlapping or truncation if it's a currency
+        const maxChars = Math.floor(col.w / 1.7);
         doc.text(val.substring(0, maxChars), cx, y);
       }
       
