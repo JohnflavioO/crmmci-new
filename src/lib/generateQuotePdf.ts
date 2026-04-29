@@ -208,7 +208,11 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   const baseRowHeight = 12;
   items.forEach((item: any, i: number) => {
     const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
-    const splitDesc = doc.splitTextToSize(desc, cols[3].w - 2); // cols[3] is description
+    // Pre-calculate to see how many lines it would naturally take
+    const fullSplitDesc = doc.splitTextToSize(desc, cols[3].w - 2);
+    // Limit to maximum 2 lines as requested
+    const splitDesc = fullSplitDesc.slice(0, 2);
+    
     const descHeight = splitDesc.length * 3.5;
     const rowHeight = Math.max(baseRowHeight, descHeight + 4);
 
@@ -261,12 +265,9 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
         doc.setFont('helvetica', 'normal');
       }
 
-      // Special handling for description column to limit words
+      // Special handling for description column to limit to 2 lines
       if (ci === 1) { // Descrição
-        const words = val.split(' ');
-        const reducedWords = words.slice(0, Math.ceil(words.length * 0.5)).join(' ');
-        const splitReducedDesc = doc.splitTextToSize(reducedWords, col.w - 2);
-        doc.text(splitReducedDesc, cx, y);
+        doc.text(splitDesc, cx, y);
       } else {
         // Adjust for column width to avoid overlapping or truncation if it's a currency
         const maxChars = Math.floor(col.w / 1.7);
