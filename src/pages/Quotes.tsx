@@ -999,11 +999,13 @@ export default function Quotes() {
                         <div className="space-y-2">
                           <Label className="text-xs">Valor (R$)</Label>
                           <Input type="number" step="0.01" min={0}
-                            value={form.split_value_1 || ''}
+                            value={form.split_value_1 === 0 ? '' : form.split_value_1}
                             onChange={e => {
-                              const v = parseFloat(e.target.value) || 0;
-                              setForm(p => ({ ...p, split_value_1: v, split_value_2: Math.max(0, Math.round((grandTotal - v) * 100) / 100) }));
+                              const v = e.target.value;
+                              const numV = parseFloat(v) || 0;
+                              setForm(p => ({ ...p, split_value_1: v, split_value_2: Math.max(0, Math.round((grandTotal - numV) * 100) / 100) }));
                             }}
+                            onFocus={e => e.target.select()}
                             placeholder="0,00"
                           />
                         </div>
