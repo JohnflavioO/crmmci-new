@@ -192,11 +192,19 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   doc.setTextColor(30);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
-  const rowHeight = 12;
+  const baseRowHeight = 12;
   items.forEach((item: any, i: number) => {
+    const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
+    const splitDesc = doc.splitTextToSize(desc, cols[3].w - 2); // cols[3] is description
+    const descHeight = splitDesc.length * 3.5;
+    const rowHeight = Math.max(baseRowHeight, descHeight + 4);
+
     checkPage(rowHeight + 2);
     const bg = i % 2 === 0;
-    if (bg) { doc.setFillColor(245, 245, 245); doc.rect(margin, y - 5, cw, rowHeight, 'F'); }
+    if (bg) { 
+      doc.setFillColor(245, 245, 245); 
+      doc.rect(margin, y - 5, cw, rowHeight, 'F'); 
+    }
     cx = margin + 2;
 
     doc.setTextColor(30);
@@ -210,9 +218,10 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     }
     cx += cols[1].w;
 
-    const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
     const isGift = item.is_gift === true;
-    const remaining = [
+    
+    // Render row contents
+    const rowValues = [
       item.product_code || '',
       desc,
       item.brand || '',
@@ -221,9 +230,11 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       isGift ? '-' : (item.discount_percent ? `${item.discount_percent}%` : ''),
       isGift ? 'BRINDE' : fmt(parseFloat(item.line_total || item.total_price) || 0),
     ];
-    remaining.forEach((val, ci) => {
+
+    rowValues.forEach((val, ci) => {
       const colIdx = ci + 2;
-      const maxChars = Math.floor(cols[colIdx].w / 1.8);
+      const col = cols[colIdx];
+      
       if (isGift && (ci === 4 || ci === 6)) {
         doc.setTextColor(0, 150, 100);
         doc.setFont('helvetica', 'bold');
@@ -231,8 +242,16 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
         doc.setTextColor(30);
         doc.setFont('helvetica', 'normal');
       }
-      doc.text(val.substring(0, maxChars), cx, y);
-      cx += cols[colIdx].w;
+
+      // Special handling for description column to avoid cutting
+      if (ci === 1) { // Descrição
+        doc.text(splitDesc, cx, y);
+      } else {
+        const maxChars = Math.floor(col.w / 1.8);
+        doc.text(val.substring(0, maxChars), cx, y);
+      }
+      
+      cx += col.w;
     });
     doc.setTextColor(30);
     doc.setFont('helvetica', 'normal');
