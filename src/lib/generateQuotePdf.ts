@@ -243,12 +243,12 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
         doc.setFont('helvetica', 'normal');
       }
 
-      // Special handling for description column to avoid cutting
+      // Special handling for description column to limit words
       if (ci === 1) { // Descrição
-        const originalFontSize = doc.getFontSize();
-        doc.setFontSize(originalFontSize * 0.5); // Reduce by 50%
-        doc.text(splitDesc, cx, y - 1); // Slight adjustment for the smaller text
-        doc.setFontSize(originalFontSize); // Restore font size
+        const words = val.split(' ');
+        const reducedWords = words.slice(0, Math.ceil(words.length * 0.5)).join(' ');
+        const splitReducedDesc = doc.splitTextToSize(reducedWords, col.w - 2);
+        doc.text(splitReducedDesc, cx, y);
       } else {
         const maxChars = Math.floor(col.w / 1.8);
         doc.text(val.substring(0, maxChars), cx, y);
