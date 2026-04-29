@@ -145,9 +145,10 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     { label: 'Modelo / Descrição', w: 48 },
     { label: 'Marca', w: 18 },
     { label: 'Qtd', w: 10 },
-    { label: 'Unit.', w: 20 },
-    { label: 'Desc.', w: 12 },
-    { label: 'Total', w: 26 },
+    { label: 'Unit.', w: 18 },
+    { label: 'Desc.', w: 11 },
+    { label: 'V. Unit c/ Desc.', w: 18 },
+    { label: 'Total', w: 23 },
   ];
 
   const checkPage = (needed: number) => {
