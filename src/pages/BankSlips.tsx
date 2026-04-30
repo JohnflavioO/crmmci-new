@@ -92,6 +92,20 @@ const cleanText = (v: any): string => {
 
 // A função parseCurrencyBR foi movida para @/utils/currency.ts para facilitar testes unitários.
 
+const htmlToRowsPreservingCurrencyText = (html: string): any[][] => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const tables = Array.from(doc.querySelectorAll('table'));
+
+  return tables.flatMap(table =>
+    Array.from(table.querySelectorAll('tr')).map(tr =>
+      Array.from(tr.querySelectorAll('th,td')).map(cell =>
+        cleanText(cell.textContent || '')
+      )
+    )
+  );
+};
+
 const parseBool = (v: any): boolean => {
   if (v === null || v === undefined || v === '') return false;
   if (typeof v === 'boolean') return v;
@@ -171,6 +185,14 @@ const matchField = (normalizedHeader: string): string | null => {
   }
   return null;
 };
+
+const normalizeImportKeyPart = (value: any): string => {
+  const text = cleanText(value);
+  return /^\d+$/.test(text) ? text.replace(/^0+/, '') || '0' : text;
+};
+
+const buildImportKey = (nfeNumber: any, clientName: any, dueDate: any): string =>
+  `${normalizeImportKeyPart(nfeNumber)}|${cleanText(clientName)}|${cleanText(dueDate)}`;
 
 // Detecta a linha do cabeçalho procurando colunas conhecidas dentro das primeiras 20 linhas.
 // Aceita o cabeçalho se reconhecer >= 2 campos, sendo um deles client_name OU due_date OU principal_amount.
@@ -508,7 +530,8 @@ export default function BankSlips() {
         const head = new TextDecoder('latin1').decode(bytes.slice(0, 1000)).trim().toLowerCase();
         const isHtml = head.startsWith('<!doctype') || head.includes('<html') || head.includes('<table') || head.includes('<tr');
 
-        let wb: XLSX.WorkBook;
+        let wb: XLSX.WorkBook | null = null;
+        let htmlRows: any[][] | null = null;
         if (isHtml) {
           // Tenta UTF-8, cai para latin-1 se necessário
           let text: string;
@@ -518,7 +541,7 @@ export default function BankSlips() {
           } catch {
             text = new TextDecoder('latin1').decode(bytes);
           }
-          wb = XLSX.read(text, { type: 'string' });
+          htmlRows = htmlToRowsPreservingCurrencyText(text);
         } else {
           wb = XLSX.read(bytes, { type: 'array', cellDates: true });
         }
@@ -527,7 +550,18 @@ export default function BankSlips() {
         let chosen: { name: string; rows: any[][]; headerIdx: number } | null = null;
         const sheetSummaries: { name: string; firstRows: string[]; detectedCols: string[] }[] = [];
 
-        for (const name of wb.SheetNames) {
+        if (htmlRows) {
+          const headerIdx = findHeaderRow(htmlRows);
+          if (headerIdx >= 0) chosen = { name: 'Arquivo HTML', rows: htmlRows, headerIdx };
+          const detected = headerIdx >= 0 ? Object.keys(buildColumnMap(htmlRows[headerIdx])) : [];
+          sheetSummaries.push({
+            name: 'Arquivo HTML',
+            firstRows: htmlRows.slice(0, 5).map(r => r.map(c => String(c ?? '')).join(' | ')),
+            detectedCols: detected,
+          });
+        }
+
+        for (const name of wb?.SheetNames || []) {
           const ws = wb.Sheets[name];
           const rows: any[][] = XLSX.utils.sheet_to_json(ws, {
             header: 1,
@@ -554,7 +588,7 @@ export default function BankSlips() {
             `• Aba "${s.name}":\n   Primeiras linhas:\n   ${s.firstRows.slice(0, 3).join('\n   ')}`
           ).join('\n\n');
           toast.error(
-            `Não foi possível localizar o cabeçalho.\nAbas encontradas: ${wb.SheetNames.join(', ')}.\nCampos obrigatórios faltando: Cliente/Pagador, Vencimento ou Valor(R$).\n\n${detail}`,
+            `Não foi possível localizar o cabeçalho.\nAbas encontradas: ${wb?.SheetNames.join(', ') || 'Arquivo HTML'}.\nCampos obrigatórios faltando: Cliente/Pagador, Vencimento ou Valor(R$).\n\n${detail}`,
             { duration: 15000 }
           );
           return;
@@ -594,15 +628,15 @@ export default function BankSlips() {
       const validRows = parsedRows.filter(p => p.valid);
       const batchId = crypto.randomUUID();
 
-      // Anti-duplicação: busca existentes na chave (nfe_number, client_name, due_date, principal_amount)
+      // Anti-duplicação/correção: não usa valor na chave para permitir reimportar e corrigir Principal errado.
       const { data: existing } = await supabase
         .from('bank_slips' as any)
         .select('id, nfe_number, client_name, due_date, principal_amount');
 
-      const existingMap = new Map<string, string>();
+      const existingMap = new Map<string, string[]>();
       (existing || []).forEach((e: any) => {
-        const k = `${e.nfe_number || ''}|${e.client_name}|${e.due_date}|${Number(e.principal_amount)}`;
-        existingMap.set(k, e.id);
+        const k = buildImportKey(e.nfe_number, e.client_name, e.due_date);
+        existingMap.set(k, [...(existingMap.get(k) || []), e.id]);
       });
 
       let inserted = 0;
@@ -612,7 +646,7 @@ export default function BankSlips() {
 
       for (const row of validRows) {
         const m = row.mapped;
-        const k = `${m.nfe_number || ''}|${m.client_name}|${m.due_date}|${Number(m.principal_amount)}`;
+        const k = buildImportKey(m.nfe_number, m.client_name, m.due_date);
         const payload: any = {
           dda: m.dda,
           reminder: m.reminder,
@@ -630,9 +664,9 @@ export default function BankSlips() {
           status: m.status,
           import_batch_id: batchId,
         };
-        const existsId = existingMap.get(k);
-        if (existsId) {
-          updates.push({ id: existsId, payload });
+        const existsIds = existingMap.get(k);
+        if (existsIds?.length) {
+          existsIds.forEach(id => updates.push({ id, payload }));
         } else {
           inserts.push({ ...payload, created_by: user?.id });
         }
