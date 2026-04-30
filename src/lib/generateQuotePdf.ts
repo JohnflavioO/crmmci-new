@@ -167,13 +167,13 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     { label: '#', w: 7 },
     { label: 'Foto', w: 12 },
     { label: 'Código', w: 16 },
-    { label: 'Modelo / Descrição', w: 75 }, // Increased to ~40% of content width
-    { label: 'Marca', w: 15 },
-    { label: 'Qtd', w: 8 },
-    { label: 'Unit.', w: 16 },
-    { label: 'Desc.', w: 8 },
-    { label: 'V. Unit c/ Desc.', w: 18 },
-    { label: 'Total', w: 11 }, 
+    { label: 'Modelo / Descrição', w: 55 }, // Reduced back to prevent invasion
+    { label: 'Marca', w: 18 },
+    { label: 'Qtd', w: 9 },
+    { label: 'Unit.', w: 18 },
+    { label: 'Desc.', w: 10 },
+    { label: 'V. Unit c/ Desc.', w: 22 }, // Ample space to prevent R$ overlap
+    { label: 'Total', w: 18 }, 
   ];
 
   const checkPage = (needed: number) => {
