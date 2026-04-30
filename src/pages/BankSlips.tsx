@@ -414,8 +414,8 @@ export default function BankSlips() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-500">Vencendo Hoje</p>
-                  <p className="text-2xl font-bold text-orange-600">{stats.vencendoHoje}</p>
-                  <p className="text-xs text-gray-400 mt-1">{stats.proximos7Dias} nos próximos 7 dias</p>
+                  <p className="text-2xl font-bold text-orange-600">{stats.vencendoHojeCount}</p>
+                  <p className="text-xs text-gray-400 mt-1">{stats.proximos7DiasCount} nos próximos 7 dias</p>
                 </div>
                 <div className="h-12 w-12 bg-orange-50 rounded-full flex items-center justify-center">
                   <Calendar className="h-6 w-6 text-orange-600" />
@@ -425,128 +425,266 @@ export default function BankSlips() {
           </Card>
         </div>
 
-        {/* Filters */}
-        <Card>
-          <CardContent className="p-4 flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input 
-                placeholder="Buscar por cliente ou NF-e..." 
-                className="pl-10"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <div className="w-full md:w-48">
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os Status</SelectItem>
-                  <SelectItem value="A vencer">A vencer</SelectItem>
-                  <SelectItem value="Vence hoje">Vence hoje</SelectItem>
-                  <SelectItem value="Vencido">Vencido</SelectItem>
-                  <SelectItem value="Pago">Pago</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="w-full md:w-48">
-              <Select value={filterSeller} onValueChange={setFilterSeller}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Vendedor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos Vendedores</SelectItem>
-                  {sellers.map(s => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Filters and View Toggle */}
+        <div className="flex flex-col md:flex-row gap-4">
+          <Card className="flex-1">
+            <CardContent className="p-4 flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input 
+                  placeholder="Buscar por cliente ou NF-e..." 
+                  className="pl-10"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <div className="w-full md:w-48">
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os Status</SelectItem>
+                    <SelectItem value="A vencer">A vencer</SelectItem>
+                    <SelectItem value="Vence hoje">Vence hoje</SelectItem>
+                    <SelectItem value="Vencido">Vencido</SelectItem>
+                    <SelectItem value="Pago">Pago</SelectItem>
+                    <SelectItem value="Em negociação">Em negociação</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-full md:w-48">
+                <Select value={filterSeller} onValueChange={setFilterSeller}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Vendedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos Vendedores</SelectItem>
+                    {sellers.map(s => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+          <div className="flex bg-gray-100 p-1 rounded-lg self-start">
+            <Button 
+              variant={activeView === 'list' ? 'secondary' : 'ghost'} 
+              size="sm"
+              onClick={() => setActiveView('list')}
+              className="gap-2"
+            >
+              <List className="h-4 w-4" /> Lista
+            </Button>
+            <Button 
+              variant={activeView === 'sellers' ? 'secondary' : 'ghost'} 
+              size="sm"
+              onClick={() => setActiveView('sellers')}
+              className="gap-2"
+            >
+              <Users className="h-4 w-4" /> Vendedores
+            </Button>
+          </div>
+        </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-50/50">
-                  <TableHead className="w-[200px]">Cliente</TableHead>
-                  <TableHead>NF-e</TableHead>
-                  <TableHead>Valor Principal</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Data Pagamento</TableHead>
-                  <TableHead>Valor Atualizado</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Vendedor</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="h-32 text-center">Carregando...</TableCell>
+        {/* Main Content */}
+        {activeView === 'list' ? (
+          <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50/50">
+                    <TableHead className="w-[200px]">Cliente</TableHead>
+                    <TableHead>NF-e</TableHead>
+                    <TableHead>Valor Principal</TableHead>
+                    <TableHead>Vencimento</TableHead>
+                    <TableHead>Data Pagamento</TableHead>
+                    <TableHead>Valor Atualizado</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Vendedor</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
-                ) : filteredSlips.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="h-32 text-center text-gray-500">Nenhum boleto encontrado.</TableCell>
-                  </TableRow>
-                ) : (
-                  filteredSlips.map((slip) => (
-                    <TableRow key={slip.id} className="hover:bg-gray-50/50 transition-colors">
-                      <TableCell className="font-medium">{slip.client_name}</TableCell>
-                      <TableCell>{slip.nfe_number || '-'}</TableCell>
-                      <TableCell>{formatCurrency(slip.principal_amount)}</TableCell>
-                      <TableCell>
-                        <span className={cn(
-                          "px-2 py-1 rounded text-xs font-medium",
-                          slip.status === 'Vencido' ? "bg-red-50 text-red-700" : 
-                          slip.status === 'Vence hoje' ? "bg-orange-50 text-orange-700" : ""
-                        )}>
-                          {format(parseISO(slip.due_date), 'dd/MM/yyyy')}
-                        </span>
-                      </TableCell>
-                      <TableCell>{slip.payment_date ? format(parseISO(slip.payment_date), 'dd/MM/yyyy') : '-'}</TableCell>
-                      <TableCell className="font-semibold text-gray-900">{formatCurrency(slip.updated_amount)}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn("font-medium", statusColors[slip.status])}>
-                          {slip.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-gray-500 text-sm">{slip.salesperson_name || '-'}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {slip.status !== 'Pago' && (
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="h-32 text-center">Carregando...</TableCell>
+                    </TableRow>
+                  ) : filteredSlips.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="h-32 text-center text-gray-500">Nenhum boleto encontrado.</TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredSlips.map((slip) => (
+                      <TableRow key={slip.id} className="hover:bg-gray-50/50 transition-colors text-sm">
+                        <TableCell className="font-medium">{slip.client_name}</TableCell>
+                        <TableCell>{slip.nfe_number || '-'}</TableCell>
+                        <TableCell>{formatCurrency(slip.principal_amount)}</TableCell>
+                        <TableCell>
+                          <span className={cn(
+                            "px-2 py-1 rounded text-xs font-medium",
+                            slip.status === 'Vencido' ? "bg-red-50 text-red-700" : 
+                            slip.status === 'Vence hoje' ? "bg-orange-50 text-orange-700" : ""
+                          )}>
+                            {format(parseISO(slip.due_date), 'dd/MM/yyyy')}
+                          </span>
+                        </TableCell>
+                        <TableCell>{slip.payment_date ? format(parseISO(slip.payment_date), 'dd/MM/yyyy') : '-'}</TableCell>
+                        <TableCell className="font-semibold text-gray-900">{formatCurrency(slip.updated_amount)}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={cn("font-medium", statusColors[slip.status])}>
+                            {slip.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-gray-500">{slip.salesperson_name || '-'}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {slip.status !== 'Pago' && (
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                onClick={() => handleStatusChange(slip, 'Pago')}
+                                title="Marcar como Pago"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button 
                               size="sm" 
                               variant="ghost" 
-                              className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                              onClick={() => handleStatusChange(slip, 'Pago')}
-                              title="Marcar como Pago"
+                              className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={() => handleOpenEdit(slip)}
+                              title="Editar"
                             >
-                              <CheckCircle2 className="h-4 w-4" />
+                              <Edit2 className="h-4 w-4" />
                             </Button>
-                          )}
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600"
-                            onClick={() => openHistory(slip)}
-                            title="Ver Histórico"
-                          >
-                            <History className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600"
+                              onClick={() => openHistory(slip)}
+                              title="Ver Histórico"
+                            >
+                              <History className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sellerGroups.map((group) => (
+              <Card key={group.name} className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex justify-between items-center">
+                    {group.name}
+                    <Badge variant="secondary">{group.count} boletos</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-xs text-gray-500 uppercase font-semibold">Total Emitido</p>
+                      <p className="text-sm font-bold">{formatCurrency(group.total)}</p>
+                    </div>
+                    <div className="p-3 bg-emerald-50 rounded-lg">
+                      <p className="text-xs text-emerald-600 uppercase font-semibold">Total Pago</p>
+                      <p className="text-sm font-bold text-emerald-700">{formatCurrency(group.pago)}</p>
+                    </div>
+                    <div className="p-3 bg-red-50 rounded-lg">
+                      <p className="text-xs text-red-600 uppercase font-semibold">Total Vencido</p>
+                      <p className="text-sm font-bold text-red-700">{formatCurrency(group.vencido)}</p>
+                    </div>
+                    <div className="p-3 bg-blue-50 rounded-lg">
+                      <p className="text-xs text-blue-600 uppercase font-semibold">Em Aberto</p>
+                      <p className="text-sm font-bold text-blue-700">{formatCurrency(group.emAberto)}</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" className="w-full text-xs" onClick={() => {
+                    setFilterSeller(group.name);
+                    setActiveView('list');
+                  }}>
+                    Ver Boletos do Vendedor
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Edit Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar Boleto - {selectedSlip?.client_name}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Juros (R$)</Label>
+                <Input 
+                  type="number" 
+                  value={editForm.interest_amount} 
+                  onChange={(e) => setEditForm({ ...editForm, interest_amount: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Multa (R$)</Label>
+                <Input 
+                  type="number" 
+                  value={editForm.fine_amount} 
+                  onChange={(e) => setEditForm({ ...editForm, fine_amount: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={editForm.status} onValueChange={(val) => setEditForm({ ...editForm, status: val })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Em aberto">Em aberto</SelectItem>
+                  <SelectItem value="Pago">Pago</SelectItem>
+                  <SelectItem value="Vencido">Vencido</SelectItem>
+                  <SelectItem value="Em negociação">Em negociação</SelectItem>
+                  <SelectItem value="Cancelado">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {editForm.status === 'Pago' && (
+              <div className="space-y-2">
+                <Label>Data de Pagamento</Label>
+                <Input 
+                  type="date" 
+                  value={editForm.payment_date} 
+                  onChange={(e) => setEditForm({ ...editForm, payment_date: e.target.value })}
+                />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea 
+                placeholder="Adicione uma nota..." 
+                value={editForm.notes}
+                onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveEdit} className="bg-emerald-600 hover:bg-emerald-700">Salvar Alterações</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
 
       {/* Import Dialog */}
