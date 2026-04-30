@@ -87,35 +87,39 @@ const parseNumber = (v: any): number => {
   if (v === null || v === undefined || v === '') return 0;
   if (typeof v === 'number') return v;
   
-  // Remove R$, spaces and non-breaking spaces
+  // Remove currency symbols, non-breaking spaces, and whitespace
   let s = String(v).replace(/\u00a0/g, '').replace(/\s/g, '').replace(/R\$/gi, '').trim();
   
   if (!s) return 0;
 
-  // No Brasil, a vírgula é o separador decimal oficial.
-  if (s.includes(',')) {
-    // Caso tenha vírgula: 1.234,56 ou 1234,56
-    // Removemos todos os pontos (milhares) e trocamos a vírgula por ponto (decimal)
-    s = s.replace(/\./g, '').replace(',', '.');
-  } else {
-    // Se não houver vírgula, o ponto pode ser decimal (10.50) ou milhar (10.000)
-    const parts = s.split('.');
-    if (parts.length > 2) {
-      // Múltiplos pontos: 1.000.000 -> Milhares
+  // Handle Brazilian formatting: 1.234,56
+  // Check for the last comma to differentiate between thousand/decimal
+  const lastComma = s.lastIndexOf(',');
+  const lastDot = s.lastIndexOf('.');
+  
+  if (lastComma > lastDot) {
+    // Has a comma which is likely the decimal separator
+    // Remove all dots (thousands)
+    s = s.replace(/\./g, '');
+    // Replace comma with dot
+    s = s.replace(',', '.');
+  } else if (lastDot > lastComma) {
+    // Has a dot which might be the decimal separator, OR thousands separator
+    // If the dot is followed by exactly 3 digits and there is no comma,
+    // it could be a thousand separator.
+    // However, to be safe, if we have "10.000", and no comma, it's 10000.
+    // If we have "10.50", and no comma, it's 10.5.
+    const afterDot = s.substring(lastDot + 1);
+    if (afterDot.length === 3) {
+      // Treat as thousands separator: "10.000" -> 10000
       s = s.replace(/\./g, '');
-    } else if (parts.length === 2) {
-      // Ponto único. Heurística robusta para boletos bancários:
-      // Se houver 3 dígitos após o ponto, é quase certamente milhar (ex: 10.000, 1.500)
-      // Se houver 1 ou 2 dígitos, é quase certamente decimal (ex: 10.5, 10.50)
-      if (parts[1].length === 3) {
-        s = s.replace(/\./g, '');
-      }
-      // Caso contrário, mantemos o ponto como decimal (padrão JS)
+    } else {
+      // Treat as decimal: "10.50" -> 10.50
+      // Already in the format JS understands (10.50)
     }
   }
 
-  // Limpeza final para garantir que parseFloat não falhe por caracteres estranhos
-  // Mantemos apenas dígitos e o ponto decimal final
+  // Remove any remaining non-numeric characters except the dot
   s = s.replace(/[^\d.]/g, '');
   
   const n = parseFloat(s);
