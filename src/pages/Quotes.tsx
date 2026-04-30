@@ -253,23 +253,25 @@ export default function Quotes() {
       let quotesQuery = db.from('quotes')
         .select('*, clients(company_name, phone)')
         .order('created_at', { ascending: false })
-        .limit(200); // Segurança: evitar carregar milhares de registros de uma vez
+        .limit(200);
       
-      // Validação extra de segurança: se o filtro falhar, não mostrar nada
-      if (!user?.id) return;
-
       if (!isAdmin && !isGestor) {
         // Vendedor comum: sempre apenas os seus
         quotesQuery = quotesQuery.eq('created_by', user.id);
-      } else if (responsibleFilter === 'me') {
-        // Admin/Gestor vendo apenas os seus
-        quotesQuery = quotesQuery.eq('created_by', user.id);
-      } else if (responsibleFilter !== 'all') {
-        // Admin/Gestor filtrando por um vendedor específico
-        quotesQuery = quotesQuery.eq('created_by', responsibleFilter);
       } else {
-        // Admin/Gestor vendo todos
-        // Nenhuma restrição adicional na query
+        // Admin ou Gestor
+        if (responsibleFilter === 'me') {
+          // Por padrão "me" (Gestor vê os próprios)
+          quotesQuery = quotesQuery.eq('created_by', user.id);
+        } else if (responsibleFilter === 'all') {
+          // "Todos os Vendedores" - carregar orçamentos de vendedores permitidos
+          // Se for Gestor, podemos filtrar apenas por quem é comercial/vendas se necessário, 
+          // mas o requisito diz "equipe comercial permitida". No RLS Gestor já vê tudo.
+          // Aqui deixamos sem filtro adicional para "all"
+        } else {
+          // Filtrando por um vendedor específico (responsibleFilter é o user_id)
+          quotesQuery = quotesQuery.eq('created_by', responsibleFilter);
+        }
       }
 
       const [q, c, s, p] = await Promise.all([
@@ -284,8 +286,20 @@ export default function Quotes() {
       setProducts(p.data || []);
 
       if (isGestor || isAdmin) {
-        const { data: profiles } = await db.from('profiles').select('user_id, full_name').eq('active', true);
-        setSellerProfiles((profiles || []).filter((p: any) => p.full_name));
+        // Obter perfis comerciais ativos para o filtro
+        const { data: profiles } = await db.from('profiles')
+          .select('user_id, full_name, role, commercial_visible')
+          .eq('active', true);
+        
+        const filteredProfiles = (profiles || []).filter((p: any) => {
+          const role = (p.role || '').toLowerCase();
+          // Admin aparece se commercial_visible for true ou se tiver role admin (conforme regra)
+          // Mas regra diz: "Admin deve aparecer se também atuar como vendedor" -> commercial_visible serve pra isso
+          const isCommercial = ['vendedor', 'comercial', 'gestor', 'admin'].includes(role);
+          const isHidden = ['financeiro', 'logistica'].includes(role);
+          return p.full_name && isCommercial && !isHidden;
+        });
+        setSellerProfiles(filteredProfiles);
       }
     } catch (err) {
       console.error('loadData error:', err);
@@ -1437,12 +1451,12 @@ export default function Quotes() {
             </div>
             {(isGestor || isAdmin) && (
               <Select value={responsibleFilter} onValueChange={setResponsibleFilter}>
-                <SelectTrigger className="w-[200px] min-h-[44px]">
+                <SelectTrigger className="w-full sm:w-[220px] min-h-[44px]">
                   <SelectValue placeholder="Responsável" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="me">Meus orçamentos</SelectItem>
-                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="me">Meus Orçamentos</SelectItem>
+                  <SelectItem value="all">Todos os Vendedores</SelectItem>
                   {sellerProfiles.filter(s => s.user_id !== user?.id).map(s => (
                     <SelectItem key={s.user_id} value={s.user_id}>{s.full_name}</SelectItem>
                   ))}
@@ -1455,7 +1469,11 @@ export default function Quotes() {
           {filtered.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="mx-auto h-12 w-12 text-muted-foreground/30" />
-              <p className="text-muted-foreground mt-3">Nenhum orçamento encontrado</p>
+              <p className="text-muted-foreground mt-3">
+                {responsibleFilter !== 'me' && responsibleFilter !== 'all' 
+                  ? "Este vendedor ainda não possui orçamentos." 
+                  : "Nenhum orçamento encontrado"}
+              </p>
             </div>
           ) : isMobile ? (
             <div className="space-y-3">
