@@ -293,11 +293,14 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     const model = normalizeCellText(item.model || item.description || '');
     const specs = item.specifications ? `(${normalizeCellText(item.specifications)})` : '';
     
-    // Compact, bounded description: never renders outside its column
+    // Compact, bounded description: show up to 2 lines of model + 1 line of specs
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.6);
     resetTextSpacing();
-    const splitModel = wrapCellText(model, cols[3].w - 5, 2);
+    
+    // Increase allowed lines to 3 for the model, or 2 for model + 1 for specs
+    const splitModel = wrapCellText(model, cols[3].w - 5, 2); 
+    
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.1);
     const splitSpecs = specs ? wrapCellText(specs, cols[3].w - 5, 1) : [];
