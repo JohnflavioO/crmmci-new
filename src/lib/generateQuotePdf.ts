@@ -304,6 +304,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       const isLast = colIdx === cols.length - 1;
       
       doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.2); // Slightly smaller values for better spacing
       if (isGift && (ci === 2 || ci === 4 || ci === 5)) {
         doc.setTextColor(0, 150, 100);
         doc.setFont('helvetica', 'bold');
