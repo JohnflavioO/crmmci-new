@@ -289,9 +289,9 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     doc.text(splitModel, descX, y);
     
     if (splitSpecs.length > 0) {
-      doc.setFont('helvetica', 'normal'); // Changed from italic for better legibility
+      doc.setFont('helvetica', 'normal'); 
       doc.setTextColor(80);
-      doc.text(splitSpecs, descX, y + (splitModel.length * 4.2));
+      doc.text(splitSpecs, descX, y + (splitModel.length * 3.8));
       doc.setTextColor(30);
     }
     cx += cols[3].w;
