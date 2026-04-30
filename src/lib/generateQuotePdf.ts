@@ -77,11 +77,12 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   doc.line(margin, y, W - margin, y);
   y += 5;
 
-  // Quote info
+  // Quote info section - Layout optimization
+  const infoY = y;
   doc.setFontSize(9);
   doc.setTextColor(0);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Orçamento: ${quote.quote_number}`, margin, y);
+  doc.text(`Orçamento: ${quote.quote_number}`, margin, infoY);
 
   // Reseller badge next to quote number
   if (quote.is_reseller) {
@@ -91,65 +92,88 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     doc.setFontSize(7);
     const badgeW = doc.getTextWidth(badgeText) + 6;
     doc.setFillColor(139, 92, 246); // purple
-    doc.roundedRect(badgeX, y - 3.5, badgeW, 5, 1.5, 1.5, 'F');
+    doc.roundedRect(badgeX, infoY - 3.5, badgeW, 5, 1.5, 1.5, 'F');
     doc.setTextColor(255);
     doc.setFont('helvetica', 'bold');
-    doc.text(badgeText, badgeX + 3, y);
+    doc.text(badgeText, badgeX + 3, infoY);
     doc.setFontSize(9);
     doc.setTextColor(0);
   }
 
-  doc.text(`Data: ${quote.quote_date ? quote.quote_date.split('-').reverse().join('/') : '-'}`, W - margin, y, { align: 'right' });
-  y += 5;
-
+  doc.text(`Data: ${quote.quote_date ? quote.quote_date.split('-').reverse().join('/') : '-'}`, W - margin, infoY, { align: 'right' });
+  
   if (quote.proposal_validity) {
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80);
-    doc.text(`Validade da Proposta: ${quote.proposal_validity}`, W - margin, y, { align: 'right' });
-    y += 4;
+    doc.text(`Validade da Proposta: ${quote.proposal_validity}`, W - margin, infoY + 4, { align: 'right' });
   }
 
+  // Client Data - Two Column Layout to save space
+  y += 5;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
+  doc.setFontSize(7.5); // Slightly smaller to be more compact
   doc.setTextColor(0);
+  
+  const midX = W / 2;
+  let leftY = y;
+  let rightY = y;
+
   if (client) {
-    doc.text(`Cliente: ${client.company_name || client.name || ''}`, margin, y); y += 4;
-    if (client.cpf_cnpj) { doc.text(`CPF/CNPJ: ${client.cpf_cnpj}`, margin, y); y += 4; }
-    if (client.email) { doc.text(`Email: ${client.email}`, margin, y); y += 4; }
-    if (client.phone) { doc.text(`Tel: ${client.phone}`, margin, y); y += 4; }
+    // Column 1: Identification
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Cliente: ${client.company_name || client.name || ''}`, margin, leftY); 
+    leftY += 3.5;
+    doc.setFont('helvetica', 'normal');
+    if (client.cpf_cnpj) { doc.text(`CPF/CNPJ: ${client.cpf_cnpj}`, margin, leftY); leftY += 3.5; }
+    if (client.email) { doc.text(`Email: ${client.email}`, margin, leftY); leftY += 3.5; }
+    if (client.phone) { doc.text(`Tel: ${client.phone}`, margin, leftY); leftY += 3.5; }
     
+    // Column 2: Address & Salesperson
     const addrParts = [
       client.address,
       client.address_number ? `nº ${client.address_number}` : '',
       client.complement ? `(${client.complement})` : ''
     ].filter(Boolean).join(', ');
     
-    if (addrParts) { doc.text(`Endereço: ${addrParts}`, margin, y); y += 4; }
+    if (addrParts) { 
+      const addrLines = doc.splitTextToSize(`Endereço: ${addrParts}`, (W / 2) - margin);
+      doc.text(addrLines, midX, rightY); 
+      rightY += (addrLines.length * 3.5); 
+    }
     
     const neighborhood = client.neighborhood;
     const cityState = [client.city, client.state].filter(Boolean).join(' - ');
     const zipCode = client.cep || client.zip_code;
     const zipCodeStr = zipCode ? `CEP: ${zipCode}` : '';
-    
     const secondLine = [neighborhood, cityState, zipCodeStr].filter(Boolean).join(', ');
-    if (secondLine) { doc.text(secondLine, margin, y); y += 4; }
+    
+    if (secondLine) { 
+      const cityLines = doc.splitTextToSize(secondLine, (W / 2) - margin);
+      doc.text(cityLines, midX, rightY); 
+      rightY += (cityLines.length * 3.5); 
+    }
   }
-  if (quote.salesperson) { doc.text(`Vendedor: ${quote.salesperson}`, margin, y); y += 4; }
-  y += 3;
+  
+  if (quote.salesperson) { 
+    doc.text(`Vendedor: ${quote.salesperson}`, midX, rightY); 
+    rightY += 3.5; 
+  }
+
+  y = Math.max(leftY, rightY) + 2;
 
   // Items table header
   const cols = [
-    { label: '#', w: 8 },
-    { label: 'Foto', w: 14 },
+    { label: '#', w: 7 },
+    { label: 'Foto', w: 12 },
     { label: 'Código', w: 16 },
-    { label: 'Modelo / Descrição', w: 55 }, // Adjusted width
-    { label: 'Marca', w: 18 },
-    { label: 'Qtd', w: 10 },
-    { label: 'Unit.', w: 18 },
-    { label: 'Desc.', w: 11 },
-    { label: 'V. Unit c/ Desc.', w: 20 }, // Increased width to avoid overlapping
-    { label: 'Total', w: 16 }, 
+    { label: 'Modelo / Descrição', w: 57 }, 
+    { label: 'Marca', w: 17 },
+    { label: 'Qtd', w: 8 },
+    { label: 'Unit.', w: 17 },
+    { label: 'Desc.', w: 10 },
+    { label: 'V. Unit c/ Desc.', w: 22 }, // Increased more to prevent overlapping
+    { label: 'Total', w: 17 }, 
   ];
 
   const checkPage = (needed: number) => {
