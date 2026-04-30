@@ -540,15 +540,11 @@ export default function BankSlips() {
     setImporting(true);
     try {
       const validRows = parsedRows.filter(p => p.valid);
+      const batchId = crypto.randomUUID();
 
       // Anti-duplicação: busca existentes na chave (nfe_number, client_name, due_date, principal_amount)
-      const keys = validRows.map(r => ({
-        nfe: r.mapped.nfe_number || '',
-        client: r.mapped.client_name,
-        due: r.mapped.due_date,
-        principal: r.mapped.principal_amount,
-      }));
-
+      // Nota: Com batch_id, poderíamos ser menos agressivos na atualização, 
+      // mas mantemos por segurança para não duplicar se o usuário importar o mesmo arquivo duas vezes sem limpar o lote.
       const { data: existing } = await supabase
         .from('bank_slips' as any)
         .select('id, nfe_number, client_name, due_date, principal_amount');
@@ -560,7 +556,7 @@ export default function BankSlips() {
       });
 
       let inserted = 0;
-      let updated = 0;
+      let updatedCount = 0;
       const inserts: any[] = [];
       const updates: { id: string; payload: any }[] = [];
 
@@ -582,6 +578,7 @@ export default function BankSlips() {
           reference: m.reference,
           salesperson_name: m.salesperson_name,
           status: m.status,
+          import_batch_id: batchId,
         };
         const existsId = existingMap.get(k);
         if (existsId) {
@@ -599,10 +596,10 @@ export default function BankSlips() {
       for (const u of updates) {
         const { error } = await supabase.from('bank_slips' as any).update(u.payload).eq('id', u.id);
         if (error) throw error;
-        updated++;
+        updatedCount++;
       }
 
-      toast.success(`Importação concluída: ${inserted} novos, ${updated} atualizados, ${importMeta.invalid} ignorados.`);
+      toast.success(`Importação concluída: ${inserted} novos, ${updatedCount} atualizados (Lote: ${batchId.slice(0, 8)}).`);
       setIsImportDialogOpen(false);
       setParsedRows([]);
       loadData();
