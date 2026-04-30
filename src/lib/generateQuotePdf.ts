@@ -254,13 +254,30 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     const words = normalizeCellText(text).split(' ').filter(Boolean);
     const lines: string[] = [];
     let current = '';
+    const pushLongWord = (word: string) => {
+      let chunk = '';
+      Array.from(word).forEach((char) => {
+        const candidate = chunk + char;
+        if (doc.getTextWidth(candidate) <= maxWidth) {
+          chunk = candidate;
+        } else {
+          if (chunk) lines.push(chunk);
+          chunk = char;
+        }
+      });
+      current = chunk;
+    };
     words.forEach((word) => {
       const candidate = current ? `${current} ${word}` : word;
       if (doc.getTextWidth(candidate) <= maxWidth) {
         current = candidate;
       } else {
         if (current) lines.push(current);
-        current = word;
+        if (doc.getTextWidth(word) > maxWidth) {
+          pushLongWord(word);
+        } else {
+          current = word;
+        }
       }
     });
     if (current) lines.push(current);
