@@ -27,8 +27,8 @@ import { cn } from '@/lib/utils';
 
 interface BankSlip {
   id: string;
-  dda?: string;
-  reminder?: string;
+  dda: string;
+  lembrete?: string;
   classification?: string;
   nfe_number?: string;
   client_name: string;
@@ -54,8 +54,8 @@ interface ParsedRow {
     fine_amount: any;
   };
   mapped: {
-    dda?: string;
-    reminder?: string;
+    dda: string;
+    lembrete?: string;
     classification?: string;
     nfe_number?: string;
     client_name: string;
@@ -155,7 +155,7 @@ const normalizeHeader = (v: any): string => {
 // Sinônimos aceitos por campo (todos já normalizados)
 const FIELD_ALIASES: Record<string, string[]> = {
   dda: ['dda'],
-  reminder: ['lembrete'],
+  lembrete: ['lembrete', 'reminder'],
   classification: ['classificacao', 'carteira'],
   nfe_number: ['nf e', 'nfe', 'nf', 'nota fiscal', 'n nf e', 'numero nf', 'nosso numero', 'numero documento', 'documento', 'n docto', 'num docto'],
   client_name: ['cliente', 'pagador', 'sacado', 'razao social', 'nome', 'nome cliente', 'nome pagador'],
@@ -265,8 +265,8 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
     const updated = principal + interest + fine;
 
     const mapped = {
-      dda: cleanText(get('dda')) || undefined,
-      reminder: cleanText(get('reminder')) || undefined,
+      dda: cleanText(get('dda')) || 'NÃO',
+      lembrete: cleanText(get('lembrete')) || undefined,
       classification: cleanText(get('classification')) || undefined,
       nfe_number: cleanText(get('nfe_number')) || undefined,
       client_name: client,
@@ -329,7 +329,7 @@ export default function BankSlips() {
     notes: '',
     status: '',
     payment_date: '',
-    reminder: '',
+    lembrete: '',
     classification: '',
     salesperson_name: '',
   });
@@ -649,7 +649,7 @@ export default function BankSlips() {
         const k = buildImportKey(m.nfe_number, m.client_name, m.due_date);
         const payload: any = {
           dda: m.dda,
-          reminder: m.reminder,
+          lembrete: m.lembrete,
           classification: m.classification,
           nfe_number: m.nfe_number,
           client_name: m.client_name,
@@ -705,7 +705,7 @@ export default function BankSlips() {
       notes: slip.notes || '',
       status: slip.status,
       payment_date: slip.payment_date || '',
-      reminder: slip.reminder || '',
+      lembrete: slip.lembrete || '',
       classification: slip.classification || '',
       salesperson_name: slip.salesperson_name || '',
     });
@@ -724,7 +724,7 @@ export default function BankSlips() {
           notes: editForm.notes,
           status: editForm.status,
           payment_date: editForm.payment_date || null,
-          reminder: editForm.reminder || null,
+          lembrete: editForm.lembrete || null,
           classification: editForm.classification || null,
           salesperson_name: editForm.salesperson_name || null,
         })
@@ -746,6 +746,34 @@ export default function BankSlips() {
       loadData();
     } catch (error: any) {
       toast.error('Erro ao salvar: ' + error.message);
+    }
+  };
+
+  const handleInlineUpdate = async (id: string, field: string, value: string) => {
+    const slip = bankSlips.find(s => s.id === id);
+    if (!slip) return;
+
+    try {
+      const { error } = await supabase
+        .from('bank_slips' as any)
+        .update({ [field]: value })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const oldValue = field === 'dda' ? slip.dda : slip.lembrete;
+      
+      await supabase.from('bank_slip_history' as any).insert({
+        bank_slip_id: id,
+        action: 'Edição Rápida',
+        notes: `${field.toUpperCase()}: ${oldValue || '-'} -> ${value}`,
+        performed_by: user?.id
+      });
+
+      setBankSlips(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+      toast.success('Campo atualizado!');
+    } catch (error: any) {
+      toast.error('Erro ao atualizar: ' + error.message);
     }
   };
 
@@ -804,7 +832,7 @@ export default function BankSlips() {
   const exportReport = () => {
     const dataToExport = filteredSlips.map(s => ({
       'DDA': s.dda || '',
-      'Lembrete': s.reminder || '',
+      'Lembrete': s.lembrete || '',
       'Classificação': s.classification || '',
       'NF-e': s.nfe_number || '',
       'Cliente': s.client_name,
@@ -1028,8 +1056,8 @@ export default function BankSlips() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-gray-50/50">
-                    <TableHead>DDA</TableHead>
-                    <TableHead>Lembrete</TableHead>
+                    <TableHead className="w-24">DDA</TableHead>
+                    <TableHead className="w-32">Lembrete</TableHead>
                     <TableHead>Classif.</TableHead>
                     <TableHead>NF-e</TableHead>
                     <TableHead className="min-w-[200px]">Cliente</TableHead>
@@ -1056,8 +1084,43 @@ export default function BankSlips() {
                       const days = calcDaysLate(slip);
                       return (
                         <TableRow key={slip.id} className="hover:bg-gray-50/50 text-xs">
-                          <TableCell>{slip.dda || '-'}</TableCell>
-                          <TableCell>{slip.reminder || '-'}</TableCell>
+                          <TableCell>
+                            <Select 
+                              value={slip.dda || 'NÃO'} 
+                              onValueChange={(val) => handleInlineUpdate(slip.id, 'dda', val)}
+                            >
+                              <SelectTrigger className="h-7 text-[10px] py-0 px-2">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="SIM">SIM</SelectItem>
+                                <SelectItem value="NÃO">NÃO</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Select 
+                              value={slip.lembrete || ''} 
+                              onValueChange={(val) => handleInlineUpdate(slip.id, 'lembrete', val)}
+                            >
+                              <SelectTrigger className={cn(
+                                "h-7 text-[10px] py-0 px-2",
+                                slip.lembrete === 'P' && "bg-purple-100 text-purple-800",
+                                slip.lembrete === 'W' && "bg-blue-100 text-blue-800",
+                                slip.lembrete === 'Standby' && "bg-orange-100 text-orange-800",
+                                slip.lembrete === 'Vendedor' && "bg-gray-100 text-gray-800"
+                              )}>
+                                <SelectValue placeholder="-" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="P">P</SelectItem>
+                                <SelectItem value="W">W</SelectItem>
+                                <SelectItem value="Standby">Standby</SelectItem>
+                                <SelectItem value="Vendedor">Vendedor</SelectItem>
+                                <SelectItem value="">-</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
                           <TableCell>{slip.classification || '-'}</TableCell>
                           <TableCell className="font-mono">{slip.nfe_number || '-'}</TableCell>
                           <TableCell className="font-medium">{slip.client_name}</TableCell>
@@ -1175,7 +1238,16 @@ export default function BankSlips() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Lembrete</Label>
-                <Input value={editForm.reminder} onChange={(e) => setEditForm({ ...editForm, reminder: e.target.value })} />
+                <Select value={editForm.lembrete} onValueChange={(val) => setEditForm({ ...editForm, lembrete: val })}>
+                  <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="P">P</SelectItem>
+                    <SelectItem value="W">W</SelectItem>
+                    <SelectItem value="Standby">Standby</SelectItem>
+                    <SelectItem value="Vendedor">Vendedor</SelectItem>
+                    <SelectItem value="">-</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Classificação</Label>
