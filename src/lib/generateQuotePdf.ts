@@ -136,7 +136,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   if (client) {
     // Column 1: Identification
     doc.setFont('helvetica', 'bold');
-    doc.text(`Cliente: ${client.company_name || client.name || ''}`, margin, leftY); 
+    doc.text(`Cliente: ${client?.company_name || client?.name || quote.client_name || ''}`, margin, leftY); 
     leftY += 3.5;
     doc.setFont('helvetica', 'normal');
     if (client.cpf_cnpj) { doc.text(`CPF/CNPJ: ${client.cpf_cnpj}`, margin, leftY); leftY += 3.5; }
