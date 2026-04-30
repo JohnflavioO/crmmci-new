@@ -143,24 +143,24 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     { label: '#', w: 8 },
     { label: 'Foto', w: 14 },
     { label: 'Código', w: 16 },
-    { label: 'Modelo / Descrição', w: 48 },
+    { label: 'Modelo / Descrição', w: 60 }, // Increased width
     { label: 'Marca', w: 18 },
     { label: 'Qtd', w: 10 },
     { label: 'Unit.', w: 18 },
     { label: 'Desc.', w: 11 },
-    { label: 'V. Unit c/ Desc.', w: 20 },
-    { label: 'Total', w: 23 },
+    { label: 'V. Unit c/ Desc.', w: 15 }, // Slightly reduced to accommodate description
+    { label: 'Total', w: 16 }, // Slightly reduced to accommodate description
   ];
 
   const checkPage = (needed: number) => {
-    if (y + needed > 275) { doc.addPage(); y = margin; }
+    if (y + needed > 275) { doc.addPage(); y = margin + 12; } // Added margin after addPage
   };
 
   const headerH = 8;
   doc.setFillColor(0, 150, 136);
   doc.rect(margin, y, cw, headerH, 'F');
   doc.setTextColor(255);
-  doc.setFontSize(7);
+  doc.setFontSize(7.5); // Slightly larger header font
   doc.setFont('helvetica', 'bold');
   let cx = margin + 2;
   cols.forEach((col, idx) => {
@@ -183,7 +183,6 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
           img.onerror = () => reject();
           img.src = item.image_url;
         });
-        // Resize to tiny thumbnail for PDF (max 50px) with heavy JPEG compression
         const maxSize = 50;
         let w = img.naturalWidth;
         let h = img.naturalHeight;
@@ -205,27 +204,37 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   // Items
   doc.setTextColor(30);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
-  const baseRowHeight = 11;
+  doc.setFontSize(7.5); // Fixed font size for better legibility (12px-14px equivalent in mm/points is around 7-9)
+  const baseRowHeight = 10;
+  
   items.forEach((item: any, i: number) => {
-    const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
+    const model = item.model || item.description || '';
+    const specs = item.specifications ? `(${item.specifications})` : '';
     
-    // Calculate wrapping for 2 lines maximum
-    const splitDesc = doc.splitTextToSize(desc, cols[3].w - 2).slice(0, 2);
-    const rowHeight = Math.max(baseRowHeight, (splitDesc.length * 3.5) + 4);
+    // Split text to fit column width
+    const splitModel = doc.splitTextToSize(model, cols[3].w - 4);
+    const splitSpecs = specs ? doc.splitTextToSize(specs, cols[3].w - 4) : [];
+    
+    // Calculate required row height based on content
+    const totalLines = splitModel.length + splitSpecs.length;
+    const contentHeight = (totalLines * 4) + 6; 
+    const rowHeight = Math.max(baseRowHeight, contentHeight);
 
     checkPage(rowHeight + 2);
+    
     const bg = i % 2 === 0;
     if (bg) { 
       doc.setFillColor(245, 245, 245); 
       doc.rect(margin, y - 5, cw, rowHeight, 'F'); 
     }
+    
     cx = margin + 2;
 
-    doc.setTextColor(30);
+    // 1. Column #
     doc.text(String(item.item_number || i + 1), cx, y);
     cx += cols[0].w;
 
+    // 2. Column Foto
     if (itemImages[i]) {
       try {
         doc.addImage(itemImages[i], 'JPEG', cx, y - 4, 10, 10);
@@ -233,15 +242,30 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     }
     cx += cols[1].w;
 
+    // 3. Column Código
+    doc.text(item.product_code || '', cx, y);
+    cx += cols[2].w;
+
+    // 4. Column Modelo / Descrição (Multi-line)
+    const descX = cx;
+    doc.setFont('helvetica', 'bold');
+    doc.text(splitModel, descX, y);
+    
+    if (splitSpecs.length > 0) {
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(100);
+      doc.text(splitSpecs, descX, y + (splitModel.length * 4));
+      doc.setTextColor(30);
+    }
+    cx += cols[3].w;
+
+    // Other Columns
     const isGift = item.is_gift === true;
     const unitPrice = parseFloat(item.unit_price) || 0;
     const discPct = parseFloat(item.discount_percent) || 0;
     const priceWithDisc = unitPrice * (1 - discPct / 100);
     
-    // Render row contents
-    const rowValues = [
-      item.product_code || '',
-      desc,
+    const remainingValues = [
       item.brand || '',
       String(item.quantity || 1),
       isGift ? 'BRINDE' : fmt(unitPrice),
@@ -250,40 +274,24 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       isGift ? 'BRINDE' : fmt(parseFloat(item.line_total || item.total_price) || 0),
     ];
 
-    rowValues.forEach((val, ci) => {
-      const colIdx = ci + 2;
+    remainingValues.forEach((val, ci) => {
+      const colIdx = ci + 4;
       const col = cols[colIdx];
       const isLast = colIdx === cols.length - 1;
       
-      if (isGift && (ci === 4 || ci === 6)) {
+      doc.setFont('helvetica', 'normal');
+      if (isGift && (ci === 2 || ci === 4 || ci === 5)) {
         doc.setTextColor(0, 150, 100);
         doc.setFont('helvetica', 'bold');
       } else {
         doc.setTextColor(30);
-        doc.setFont('helvetica', 'normal');
       }
 
-      // Special handling for description column to limit to 2 lines
-      if (ci === 1) { // Descrição
-        doc.text(splitDesc, cx, y);
-      } else {
-        const colW = col.w;
-        const textVal = String(val);
-        const textW = doc.getTextWidth(textVal);
-        
-        let textToRender = textVal;
-        if (textW > colW - 2) {
-          const maxChars = Math.floor(colW / 1.5); // Slightly more conservative truncation
-          textToRender = textVal.substring(0, maxChars);
-        }
-        
-        doc.text(textToRender, isLast ? (W - margin - 2) : cx, y, { align: isLast ? 'right' : 'left' });
-      }
-      
+      const textVal = String(val);
+      doc.text(textVal, isLast ? (W - margin - 2) : cx, y, { align: isLast ? 'right' : 'left' });
       cx += col.w;
     });
-    doc.setTextColor(30);
-    doc.setFont('helvetica', 'normal');
+
     y += rowHeight;
   });
 
