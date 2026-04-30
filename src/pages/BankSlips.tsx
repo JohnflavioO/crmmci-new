@@ -1210,8 +1210,8 @@ export default function BankSlips() {
                       </TableCell>
                       <TableCell className="font-mono">{row.mapped.nfe_number || '-'}</TableCell>
                       <TableCell>{row.mapped.client_name || '-'}</TableCell>
-                      <TableCell className="text-right text-emerald-600 font-bold">{formatCurrency(row.mapped.principal_amount)}</TableCell>
                       <TableCell>{row.mapped.due_date ? format(parseISO(row.mapped.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
+                      <TableCell className="text-right text-emerald-600 font-bold">{formatCurrency(row.mapped.principal_amount)}</TableCell>
                       <TableCell>{row.mapped.salesperson_name || '-'}</TableCell>
                     </TableRow>
                   );
