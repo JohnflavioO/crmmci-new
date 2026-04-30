@@ -181,22 +181,22 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
 
   // Items table header - fixed positions prevent column overlap
   const cols = [
-    { label: '#', w: 7 },
-    { label: 'Foto', w: 12 },
-    { label: 'Código', w: 16 },
-    { label: 'Modelo / Descrição', w: 58 },
-    { label: 'Marca', w: 18 },
-    { label: 'Qtd', w: 8 },
-    { label: 'Unit.', w: 18 },
-    { label: 'Desc.', w: 10 },
-    { label: 'V. Unit c/ Desc.', w: 22 },
-    { label: 'Total', w: 17 }, 
+    { label: '#', w: 6 },
+    { label: 'Foto', w: 10 },
+    { label: 'Código', w: 13 },
+    { label: 'Modelo / Descrição', w: 52 },
+    { label: 'Marca', w: 16 },
+    { label: 'Qtd', w: 7 },
+    { label: 'Unit.', w: 19 },
+    { label: 'Desc.', w: 8 },
+    { label: 'V. Unit c/ Desc.', w: 24 },
+    { label: 'Total', w: 31 }, 
   ];
   const colX = cols.reduce<number[]>((acc, col, idx) => {
-    acc[idx] = idx === 0 ? margin + 2 : acc[idx - 1] + cols[idx - 1].w;
+    acc[idx] = idx === 0 ? margin + 1 : acc[idx - 1] + cols[idx - 1].w;
     return acc;
   }, []);
-  const colRight = (idx: number) => (idx === cols.length - 1 ? W - margin - 2 : colX[idx] + cols[idx].w - 2);
+  const colRight = (idx: number) => (idx === cols.length - 1 ? W - margin - 1 : colX[idx] + cols[idx].w - 2);
 
   const checkPage = (needed: number) => {
     if (y + needed > 275) { 
