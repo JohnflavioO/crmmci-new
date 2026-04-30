@@ -638,11 +638,7 @@ export default function Clients() {
                 onClick={() => { setEditingClient(null); setForm(emptyClient); setDialogOpen(true); }}
               ><Plus className="h-4 w-4" /> Novo Cliente</Button>
             </DialogTrigger>
-          <DialogContent
-            className="max-w-2xl max-h-[85vh] overflow-y-auto"
-            onPointerDownOutside={(e) => e.preventDefault()}
-            onInteractOutside={(e) => e.preventDefault()}
-          >
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-display">{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
             </DialogHeader>
