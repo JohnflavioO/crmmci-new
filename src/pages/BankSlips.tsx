@@ -19,7 +19,7 @@ import {
 import {
   FileSpreadsheet, Download, Search,
   CheckCircle2, AlertTriangle, Clock,
-  History, Users, Edit2, Calendar, List, FileText, Wallet, CalendarDays
+  History, Users, Edit2, Calendar, List, FileText, Wallet, CalendarDays, Trash2, Filter
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
@@ -85,10 +85,46 @@ const cleanText = (v: any): string => {
 const parseNumber = (v: any): number => {
   if (v === null || v === undefined || v === '') return 0;
   if (typeof v === 'number') return v;
-  const s = String(v).replace(/\u00a0/g, '').replace(/\s/g, '').replace(/R\$/gi, '').trim();
-  // BR: 1.234,56 -> 1234.56
-  const normalized = s.replace(/\./g, '').replace(',', '.');
-  const n = parseFloat(normalized);
+  
+  // Remove R$, spaces and non-breaking spaces
+  let s = String(v).replace(/\u00a0/g, '').replace(/\s/g, '').replace(/R\$/gi, '').trim();
+  
+  if (!s) return 0;
+
+  // Detect format: 1.234,56 (BR) vs 1,234.56 (US)
+  const hasComma = s.includes(',');
+  const hasDot = s.includes('.');
+
+  if (hasComma && hasDot) {
+    // If both exist, the last one is the decimal separator
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+      // BR format: 1.234,56
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      // US format: 1,234.56
+      s = s.replace(/,/g, '');
+    }
+  } else if (hasComma) {
+    // Only comma: 1234,56
+    s = s.replace(',', '.');
+  } else if (hasDot) {
+    // Only dot: could be 1.234 (BR thousand) or 1234.56 (US decimal)
+    // If it has 2 digits after dot, it's likely decimal
+    const parts = s.split('.');
+    if (parts.length > 2 || parts[parts.length - 1].length === 3) {
+      // Multiple dots or 3 digits after dot -> thousand separator
+      s = s.replace(/\./g, '');
+    } else if (parts[parts.length - 1].length === 2 || parts[parts.length - 1].length === 1) {
+      // 1 or 2 digits after dot -> likely decimal separator
+      // but if the part before dot is also small, it's ambiguous.
+      // In bank slips, we almost always have 2 decimals.
+    } else {
+      // Default: treat as thousand separator if unsure
+      s = s.replace(/\./g, '');
+    }
+  }
+
+  const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 };
 
@@ -245,6 +281,7 @@ export default function BankSlips() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSeller, setFilterSeller] = useState('all');
+  const [filterMonth, setFilterMonth] = useState('all');
   const [activeView, setActiveView] = useState<'list' | 'sellers'>('list');
 
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -342,9 +379,17 @@ export default function BankSlips() {
         (s.reference || '').toLowerCase().includes(q);
       const matchesStatus = filterStatus === 'all' || s.status === filterStatus;
       const matchesSeller = filterSeller === 'all' || (s.salesperson_name || 'Sem Vendedor') === filterSeller;
-      return matchesSearch && matchesStatus && matchesSeller;
+      
+      let matchesMonth = true;
+      if (filterMonth !== 'all') {
+        const date = parseISO(s.due_date);
+        const monthYear = format(date, 'MM/yyyy');
+        matchesMonth = monthYear === filterMonth;
+      }
+
+      return matchesSearch && matchesStatus && matchesSeller && matchesMonth;
     });
-  }, [bankSlips, search, filterStatus, filterSeller]);
+  }, [bankSlips, search, filterStatus, filterSeller, filterMonth]);
 
   const sellerGroups = useMemo(() => {
     const groups: Record<string, any> = {};
@@ -366,6 +411,56 @@ export default function BankSlips() {
     const names = Array.from(new Set(bankSlips.map(s => s.salesperson_name || 'Sem Vendedor')));
     return names.sort();
   }, [bankSlips]);
+
+  const months = useMemo(() => {
+    const uniqueMonths = Array.from(new Set(bankSlips.map(s => {
+      const date = parseISO(s.due_date);
+      return format(date, 'MM/yyyy');
+    })));
+    return uniqueMonths.sort((a, b) => {
+      const [mA, yA] = a.split('/').map(Number);
+      const [mB, yB] = b.split('/').map(Number);
+      return yB !== yA ? yB - yA : mB - mA; // Orden decrescente
+    });
+  }, [bankSlips]);
+
+  const handleDeleteSlip = async (slip: BankSlip) => {
+    if (!confirm(`Deseja realmente excluir o boleto de ${slip.client_name}?`)) return;
+    
+    try {
+      const { error } = await supabase
+        .from('bank_slips' as any)
+        .delete()
+        .eq('id', slip.id);
+
+      if (error) throw error;
+      
+      toast.success('Boleto excluído com sucesso!');
+      loadData();
+    } catch (error: any) {
+      toast.error('Erro ao excluir: ' + error.message);
+    }
+  };
+
+  const handleDeleteFiltered = async () => {
+    if (filteredSlips.length === 0) return;
+    if (!confirm(`Deseja realmente excluir os ${filteredSlips.length} boletos filtrados? Esta ação não pode ser desfeita.`)) return;
+
+    try {
+      const ids = filteredSlips.map(s => s.id);
+      const { error } = await supabase
+        .from('bank_slips' as any)
+        .delete()
+        .in('id', ids);
+
+      if (error) throw error;
+
+      toast.success(`${ids.length} boletos excluídos!`);
+      loadData();
+    } catch (error: any) {
+      toast.error('Erro ao excluir boletos: ' + error.message);
+    }
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -522,6 +617,7 @@ export default function BankSlips() {
         .update({
           interest_amount: editForm.interest_amount,
           fine_amount: editForm.fine_amount,
+          updated_amount: (selectedSlip.principal_amount || 0) + editForm.interest_amount + editForm.fine_amount,
           notes: editForm.notes,
           status: editForm.status,
           payment_date: editForm.payment_date || null,
@@ -791,6 +887,20 @@ export default function BankSlips() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="w-full md:w-48">
+                <Select value={filterMonth} onValueChange={setFilterMonth}>
+                  <SelectTrigger><SelectValue placeholder="Mês Venc." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os Meses</SelectItem>
+                    {months.map(m => (<SelectItem key={m} value={m}>{m}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {filteredSlips.length > 0 && (
+                <Button variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50 gap-2" onClick={handleDeleteFiltered}>
+                  <Trash2 className="h-4 w-4" /> Apagar Filtrados
+                </Button>
+              )}
             </CardContent>
           </Card>
           <div className="flex bg-gray-100 p-1 rounded-lg self-start">
@@ -875,9 +985,13 @@ export default function BankSlips() {
                                 onClick={() => handleOpenEdit(slip)} title="Editar">
                                 <Edit2 className="h-4 w-4" />
                               </Button>
-                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600"
+                               <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600"
                                 onClick={() => openHistory(slip)} title="Histórico">
                                 <History className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                                onClick={() => handleDeleteSlip(slip)} title="Excluir">
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </TableCell>
