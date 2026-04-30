@@ -251,7 +251,7 @@ export default function Quotes() {
       // aplicamos o filtro de responsável para evitar confusão.
       // Por padrão, mostramos apenas os orçamentos do usuário atual.
       let quotesQuery = db.from('quotes')
-        .select('*, clients(company_name, phone)')
+        .select('*, clients(company_name, name, phone)')
         .order('created_at', { ascending: false })
         .limit(200);
       
@@ -1580,7 +1580,7 @@ export default function Quotes() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{q.clients?.company_name || '-'}</TableCell>
+                    <TableCell>{q.clients?.company_name || q.clients?.name || q.client_name || '-'}</TableCell>
                     <TableCell>{safeFormatDate(q.quote_date)}</TableCell>
                     <TableCell>
                       {parseFloat(q.shipping_cost) > 0 ? (
