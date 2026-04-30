@@ -267,15 +267,13 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       if (ci === 1) { // Descrição
         doc.text(splitDesc, cx, y);
       } else {
-        // Adjust for column width to avoid overlapping or truncation if it's a currency
         const colW = col.w;
         const textVal = String(val);
         const textW = doc.getTextWidth(textVal);
         
-        // If text is wider than column, truncate it
         let textToRender = textVal;
         if (textW > colW - 2) {
-          const maxChars = Math.floor(colW / 1.8);
+          const maxChars = Math.floor(colW / 1.5); // Slightly more conservative truncation
           textToRender = textVal.substring(0, maxChars);
         }
         
