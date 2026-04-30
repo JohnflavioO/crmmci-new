@@ -1192,20 +1192,26 @@ export default function BankSlips() {
               </TableHeader>
               <TableBody>
                 {parsedRows.slice(0, 50).map((row, idx) => {
-                  const originalStr = String(row.originalValues.principal_amount);
+                  const originalVal = row.originalValues.principal_amount;
                   const convertedNum = row.mapped.principal_amount;
                   
-                  // Validação obrigatória: Detectar distorções absurdas (ex: 10000 -> 10 ou 8 -> 80)
+                  // Proteção contra erro de conversão: se o valor convertido é muito diferente do original visual
+                  // Ex: Original "10.000,00" lido como 10 -> Discrepância
+                  const originalStr = String(originalVal);
                   const hasDiscrepancy = (originalStr.includes('10.000') && convertedNum < 1000) || 
-                                       (originalStr.includes('8.735') && convertedNum > 10000);
+                                       (originalStr.includes('8.735') && convertedNum > 10000) ||
+                                       (typeof originalVal === 'number' && originalVal > 100 && convertedNum < originalVal / 10);
 
                   return (
-                    <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50", hasDiscrepancy && "bg-orange-50")}>
+                    <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50", hasDiscrepancy && "bg-red-100")}>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           {row.valid ? (
-                            <Badge variant="outline" className={cn("bg-emerald-50 text-emerald-700 border-emerald-200", hasDiscrepancy && "bg-orange-100 text-orange-800 border-orange-300")}>
-                              {hasDiscrepancy ? 'ERRO VALOR' : 'OK'}
+                            <Badge variant="outline" className={cn(
+                              "bg-emerald-50 text-emerald-700 border-emerald-200", 
+                              hasDiscrepancy && "bg-red-600 text-white border-red-700 animate-pulse"
+                            )}>
+                              {hasDiscrepancy ? 'ERRO CRÍTICO' : 'OK'}
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200" title={row.error}>{row.error}</Badge>
@@ -1216,9 +1222,11 @@ export default function BankSlips() {
                       <TableCell>{row.mapped.client_name || '-'}</TableCell>
                       <TableCell>{row.mapped.due_date ? format(parseISO(row.mapped.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] text-gray-500 line-through">{originalStr}</span>
-                          <span className="font-bold text-emerald-600">{formatCurrency(convertedNum)}</span>
+                        <div className="flex flex-col items-end">
+                          <span className="text-[9px] text-gray-400 font-mono">Original: {originalStr}</span>
+                          <span className={cn("font-bold text-sm", hasDiscrepancy ? "text-red-600" : "text-emerald-600")}>
+                            {formatCurrency(convertedNum)}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell>{row.mapped.salesperson_name || '-'}</TableCell>
