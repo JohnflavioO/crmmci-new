@@ -635,7 +635,7 @@ export default function BankSlips() {
 
       const existingMap = new Map<string, string[]>();
       (existing || []).forEach((e: any) => {
-        const k = `${e.nfe_number || ''}|${e.client_name}|${e.due_date}`;
+        const k = buildImportKey(e.nfe_number, e.client_name, e.due_date);
         existingMap.set(k, [...(existingMap.get(k) || []), e.id]);
       });
 
@@ -646,7 +646,7 @@ export default function BankSlips() {
 
       for (const row of validRows) {
         const m = row.mapped;
-        const k = `${m.nfe_number || ''}|${m.client_name}|${m.due_date}`;
+        const k = buildImportKey(m.nfe_number, m.client_name, m.due_date);
         const payload: any = {
           dda: m.dda,
           reminder: m.reminder,
