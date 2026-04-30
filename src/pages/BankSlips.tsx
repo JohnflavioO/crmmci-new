@@ -617,6 +617,7 @@ export default function BankSlips() {
         .update({
           interest_amount: editForm.interest_amount,
           fine_amount: editForm.fine_amount,
+          updated_amount: (selectedSlip.principal_amount || 0) + editForm.interest_amount + editForm.fine_amount,
           notes: editForm.notes,
           status: editForm.status,
           payment_date: editForm.payment_date || null,
