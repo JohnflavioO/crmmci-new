@@ -162,30 +162,41 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
 
   y = Math.max(leftY, rightY) + 2;
 
-  // Items table header
+  // Items table header - Optimized widths for better distribution
   const cols = [
     { label: '#', w: 7 },
     { label: 'Foto', w: 12 },
     { label: 'Código', w: 16 },
-    { label: 'Modelo / Descrição', w: 57 }, 
-    { label: 'Marca', w: 17 },
+    { label: 'Modelo / Descrição', w: 75 }, // Increased to ~40% of content width
+    { label: 'Marca', w: 15 },
     { label: 'Qtd', w: 8 },
-    { label: 'Unit.', w: 17 },
-    { label: 'Desc.', w: 10 },
-    { label: 'V. Unit c/ Desc.', w: 22 }, // Increased more to prevent overlapping
-    { label: 'Total', w: 17 }, 
+    { label: 'Unit.', w: 16 },
+    { label: 'Desc.', w: 8 },
+    { label: 'V. Unit c/ Desc.', w: 18 },
+    { label: 'Total', w: 11 }, 
   ];
 
   const checkPage = (needed: number) => {
-    if (y + needed > 275) { doc.addPage(); y = margin + 12; } // Added margin after addPage
+    if (y + needed > 275) { 
+      doc.addPage(); 
+      y = margin + 12; 
+    }
   };
 
   const headerH = 8;
   doc.setFillColor(0, 150, 136);
   doc.rect(margin, y, cw, headerH, 'F');
   doc.setTextColor(255);
-  doc.setFontSize(7.5); // Slightly larger header font
+  doc.setFontSize(8); 
   doc.setFont('helvetica', 'bold');
+  
+  // Reset character spacing explicitly for PDF export
+  // @ts-ignore - charSpace exists in some jsPDF versions/typings
+  if (doc.internal.getCharSpace) {
+    // @ts-ignore
+    doc.internal.write("0 Tc"); 
+  }
+
   let cx = margin + 2;
   cols.forEach((col, idx) => {
     const isLast = idx === cols.length - 1;
@@ -235,14 +246,15 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     const model = item.model || item.description || '';
     const specs = item.specifications ? `(${item.specifications})` : '';
     
-    // Split text to fit column width - more compact volume
-    const splitModel = doc.splitTextToSize(model, cols[3].w - 4).slice(0, 3); // Max 3 lines for model
-    const splitSpecs = specs ? doc.splitTextToSize(specs, cols[3].w - 4).slice(0, 2) : []; // Max 2 lines for specs
+    // Split text to fit column width accurately
+    const splitModel = doc.splitTextToSize(model, cols[3].w - 4);
+    const splitSpecs = specs ? doc.splitTextToSize(specs, cols[3].w - 4) : [];
     
-    // Calculate required row height based on content - optimized for density
+    // Calculate required row height based on content
     const totalLines = splitModel.length + splitSpecs.length;
-    const contentHeight = (totalLines * 3.8) + 4; 
-    const rowHeight = Math.max(8.5, contentHeight);
+    const lineHeight = 4.2; // Equivalent to ~1.5 line-height
+    const contentHeight = (totalLines * lineHeight) + 4; 
+    const rowHeight = Math.max(9, contentHeight);
 
     checkPage(rowHeight + 2);
     
@@ -273,12 +285,13 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     // 4. Column Modelo / Descrição (Multi-line)
     const descX = cx;
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8); // Standard professional size
     doc.text(splitModel, descX, y);
     
     if (splitSpecs.length > 0) {
-      doc.setFont('helvetica', 'italic');
-      doc.setTextColor(100);
-      doc.text(splitSpecs, descX, y + (splitModel.length * 3.8));
+      doc.setFont('helvetica', 'normal'); // Changed from italic for better legibility
+      doc.setTextColor(80);
+      doc.text(splitSpecs, descX, y + (splitModel.length * 4.2));
       doc.setTextColor(30);
     }
     cx += cols[3].w;
