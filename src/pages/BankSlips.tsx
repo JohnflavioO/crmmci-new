@@ -186,6 +186,14 @@ const matchField = (normalizedHeader: string): string | null => {
   return null;
 };
 
+const normalizeImportKeyPart = (value: any): string => {
+  const text = cleanText(value);
+  return /^\d+$/.test(text) ? text.replace(/^0+/, '') || '0' : text;
+};
+
+const buildImportKey = (nfeNumber: any, clientName: any, dueDate: any): string =>
+  `${normalizeImportKeyPart(nfeNumber)}|${cleanText(clientName)}|${cleanText(dueDate)}`;
+
 // Detecta a linha do cabeçalho procurando colunas conhecidas dentro das primeiras 20 linhas.
 // Aceita o cabeçalho se reconhecer >= 2 campos, sendo um deles client_name OU due_date OU principal_amount.
 const findHeaderRow = (rows: any[][]): number => {
