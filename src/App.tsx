@@ -80,19 +80,19 @@ function LoadingScreen() {
 function AppRoutes() {
   const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange, profile } = useAuth();
   
-  // Consideramos aprovado se a flag isApproved for true OU se o perfil tiver uma role válida (gestor, admin, etc)
-  const isApprovedUser = isApproved || 
-    (profile?.role && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica'].includes(profile.role.toLowerCase())) ||
-    isAdmin || isGestor || isFinanceiro || isLogistica;
+  // O usuário só é considerado pendente se estiver logado, NÃO for admin/gestor/etc, e a flag isApproved for explicitamente falsa
+  const isPendingApproval = user && !loading && !isApproved && 
+    !(profile?.role && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica'].includes(profile.role.toLowerCase())) &&
+    !isAdmin && !isGestor && !isFinanceiro && !isLogistica;
 
   // Scanner de follow-up otimizado: roda apenas após o auth estar pronto e o usuário estar aprovado
   useFollowUpScanner();
 
   useEffect(() => {
-    if (user && !loading && isApprovedUser) {
+    if (user && !loading && !isPendingApproval) {
       console.log('[App] Sistema pronto para o usuário:', user.email);
     }
-  }, [user, loading, isApprovedUser]);
+  }, [user, loading, isPendingApproval]);
 
   if (loading) return <LoadingScreen />;
 
@@ -105,7 +105,7 @@ function AppRoutes() {
     );
   }
 
-  if (!isApprovedUser) return <PendingApproval />;
+  if (isPendingApproval) return <PendingApproval />;
   if (forcePasswordChange) return <ForcePasswordChange />;
 
   const isLogisticaOnly = isLogistica && !isAdmin && !isGestor && !isFinanceiro;
