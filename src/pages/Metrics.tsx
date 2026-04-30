@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { format, startOfMonth, endOfMonth, subMonths, differenceInDays, eachDayOfInterval, eachWeekOfInterval, endOfWeek, isWithinInterval, parseISO } from 'date-fns';
 import {
@@ -16,7 +17,7 @@ import {
 } from 'recharts';
 import {
   BarChart3, TrendingUp, DollarSign,
-  CalendarDays, Target, Grid3X3, BarChart2,
+  CalendarDays, Target, Grid3X3, BarChart2, Users, Check, ChevronDown
 } from 'lucide-react';
 
 const db = supabase as any;
@@ -44,6 +45,8 @@ export default function Metrics() {
   const [customTo, setCustomTo] = useState<Date | undefined>(new Date());
   const [chartView, setChartView] = useState<ChartView>('bar');
   const [chartMetric, setChartMetric] = useState<ChartMetric>('quantity');
+  const [sellers, setSellers] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [selectedSellerIds, setSelectedSellerIds] = useState<string[]>([]);
 
   const dateRange = useMemo(() => {
     const now = new Date();
@@ -54,6 +57,29 @@ export default function Metrics() {
   }, [period, customFrom, customTo]);
 
   useEffect(() => {
+    const loadSellers = async () => {
+      if (!canSeeAll) return;
+      const { data } = await db.from('profiles')
+        .select('user_id, full_name')
+        .eq('active', true)
+        .in('role', ['vendedor', 'comercial', 'gestor', 'admin']);
+      
+      if (data) {
+        // Sort: current user first, then others by name
+        const sorted = [...data].sort((a, b) => {
+          if (a.user_id === user?.id) return -1;
+          if (b.user_id === user?.id) return 1;
+          return a.full_name.localeCompare(b.full_name);
+        });
+        setSellers(sorted);
+        // Default to current user for Gestor/Admin
+        setSelectedSellerIds([user?.id || '']);
+      }
+    };
+    loadSellers();
+  }, [canSeeAll, user?.id]);
+
+  useEffect(() => {
     const load = async () => {
       let query = db.from('quotes')
         .select('id, quote_number, client_name, total, total_amount, status, payment_status, payment_method, quote_date, created_at, created_by, salesperson')
@@ -62,13 +88,15 @@ export default function Metrics() {
 
       if (!canSeeAll) {
         query = query.eq('created_by', user?.id);
+      } else if (selectedSellerIds.length > 0) {
+        query = query.in('created_by', selectedSellerIds);
       }
 
       const { data } = await query.order('quote_date', { ascending: true });
       setQuotes(data || []);
     };
     load();
-  }, [dateRange, user?.id, canSeeAll]);
+  }, [dateRange, user?.id, canSeeAll, selectedSellerIds]);
 
 
   const totalQuotes = quotes.length;
@@ -219,7 +247,7 @@ export default function Metrics() {
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
           <Select value={period} onValueChange={v => setPeriod(v as Period)}>
-            <SelectTrigger className="w-full sm:w-[220px] bg-background min-h-[44px]">
+            <SelectTrigger className="w-full sm:w-[180px] bg-background min-h-[44px]">
               <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>
@@ -230,11 +258,64 @@ export default function Metrics() {
               <SelectItem value="custom">Personalizado</SelectItem>
             </SelectContent>
           </Select>
+
+          {canSeeAll && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-[250px] justify-between bg-background min-h-[44px]">
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="truncate">
+                      {selectedSellerIds.length === 0 
+                        ? "Todos os Vendedores" 
+                        : selectedSellerIds.length === 1 
+                          ? sellers.find(s => s.user_id === selectedSellerIds[0])?.full_name 
+                          : `${selectedSellerIds.length} selecionados`}
+                    </span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[250px] p-2" align="start">
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  <div 
+                    className="flex items-center space-x-2 p-2 hover:bg-muted rounded-md cursor-pointer transition-colors"
+                    onClick={() => setSelectedSellerIds([])}
+                  >
+                    <Checkbox id="seller-all" checked={selectedSellerIds.length === 0} />
+                    <Label htmlFor="seller-all" className="flex-1 cursor-pointer font-medium">Todos</Label>
+                    {selectedSellerIds.length === 0 && <Check className="h-4 w-4 text-primary" />}
+                  </div>
+                  <div className="h-px bg-muted my-1" />
+                  {sellers.map((s) => (
+                    <div 
+                      key={s.user_id}
+                      className="flex items-center space-x-2 p-2 hover:bg-muted rounded-md cursor-pointer transition-colors"
+                      onClick={() => {
+                        setSelectedSellerIds(prev => 
+                          prev.includes(s.user_id) 
+                            ? prev.filter(id => id !== s.user_id)
+                            : [...prev, s.user_id]
+                        );
+                      }}
+                    >
+                      <Checkbox id={`seller-${s.user_id}`} checked={selectedSellerIds.includes(s.user_id)} />
+                      <Label htmlFor={`seller-${s.user_id}`} className="flex-1 cursor-pointer truncate">
+                        {s.full_name} {s.user_id === user?.id && <span className="text-[10px] text-muted-foreground">(você)</span>}
+                      </Label>
+                      {selectedSellerIds.includes(s.user_id) && <Check className="h-4 w-4 text-primary" />}
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+
           {period === 'custom' && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("min-h-[44px]", !customFrom && 'text-muted-foreground')}>
+                  <Button variant="outline" size="sm" className={cn("min-h-[44px] flex-1 sm:flex-none", !customFrom && 'text-muted-foreground')}>
                     {customFrom ? format(customFrom, 'dd/MM/yyyy') : 'De'}
                   </Button>
                 </PopoverTrigger>
@@ -244,7 +325,7 @@ export default function Metrics() {
               </Popover>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("min-h-[44px]", !customTo && 'text-muted-foreground')}>
+                  <Button variant="outline" size="sm" className={cn("min-h-[44px] flex-1 sm:flex-none", !customTo && 'text-muted-foreground')}>
                     {customTo ? format(customTo, 'dd/MM/yyyy') : 'Até'}
                   </Button>
                 </PopoverTrigger>
