@@ -63,12 +63,20 @@ export default function BankSlips() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSeller, setFilterSeller] = useState('all');
+  const [activeView, setActiveView] = useState<'list' | 'sellers'>('list');
   
   // Dialogs
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importData, setImportData] = useState<any[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedSlip, setSelectedSlip] = useState<BankSlip | null>(null);
+  const [editForm, setEditForm] = useState({
+    interest_amount: 0,
+    fine_amount: 0,
+    notes: '',
+    status: '',
+    payment_date: ''
+  });
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
 
@@ -88,6 +96,7 @@ export default function BankSlips() {
         let status = slip.status;
         const dueDate = parseISO(slip.due_date);
         
+        // Only auto-update if not terminal status
         if (status !== 'Pago' && status !== 'Cancelado' && status !== 'Em negociação') {
           if (isToday(dueDate)) status = 'Vence hoje';
           else if (isBefore(dueDate, today)) status = 'Vencido';
@@ -102,6 +111,9 @@ export default function BankSlips() {
         return {
           ...slip,
           status,
+          principal_amount: principal,
+          interest_amount: interest,
+          fine_amount: fine,
           updated_amount: updatedAmount
         };
       });
