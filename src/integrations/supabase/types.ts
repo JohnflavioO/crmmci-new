@@ -66,6 +66,7 @@ export type Database = {
           due_date: string
           fine_amount: number
           id: string
+          import_batch_id: string | null
           interest_amount: number
           nfe_number: string | null
           notes: string | null
@@ -88,6 +89,7 @@ export type Database = {
           due_date: string
           fine_amount?: number
           id?: string
+          import_batch_id?: string | null
           interest_amount?: number
           nfe_number?: string | null
           notes?: string | null
@@ -110,6 +112,7 @@ export type Database = {
           due_date?: string
           fine_amount?: number
           id?: string
+          import_batch_id?: string | null
           interest_amount?: number
           nfe_number?: string | null
           notes?: string | null
