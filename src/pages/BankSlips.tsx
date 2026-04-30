@@ -225,7 +225,9 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
 
     const client = cleanText(get('client_name'));
     const due = parseDate(get('due_date'));
-    const principal = parseNumber(get('principal_amount'));
+    
+    const rawPrincipal = get('principal_amount');
+    const principal = parseBrazilianCurrency(rawPrincipal);
 
     // Linha vazia - ignorar silenciosamente
     if (!client && !due && principal === 0) continue;
@@ -240,8 +242,12 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
     else if (vencido) status = 'Vencido';
     else if (aVencer) status = 'A vencer';
 
-    const interest = parseNumber(get('interest_amount'));
-    const fine = parseNumber(get('fine_amount'));
+    const rawInterest = get('interest_amount');
+    const interest = parseBrazilianCurrency(rawInterest);
+    
+    const rawFine = get('fine_amount');
+    const fine = parseBrazilianCurrency(rawFine);
+    
     const updated = principal + interest + fine;
 
     const mapped = {
@@ -267,7 +273,17 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
     else if (!due) { valid = false; error = 'Vencimento inválido'; }
     else if (principal <= 0) { valid = false; error = 'Valor principal inválido'; }
 
-    parsed.push({ raw: row, mapped, valid, error });
+    parsed.push({ 
+      raw: row, 
+      originalValues: {
+        principal_amount: rawPrincipal,
+        interest_amount: rawInterest,
+        fine_amount: rawFine
+      },
+      mapped, 
+      valid, 
+      error 
+    });
   }
 
   return { parsed, headerIdx, colMap };
