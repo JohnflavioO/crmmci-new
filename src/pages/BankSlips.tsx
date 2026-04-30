@@ -91,55 +91,32 @@ const parseNumber = (v: any): number => {
   
   if (!s) return 0;
 
-  // Se o valor tiver apenas dígitos e um ponto (ex: 10.000)
-  // em arquivos de bancos brasileiros isso costuma ser separador de MILHAR.
-  // Se fosse decimal, geralmente teria vírgula ou o arquivo seria lido como número pelo XLSX.
-  
-  const hasComma = s.includes(',');
-  const hasDot = s.includes('.');
-
-  if (hasComma && hasDot) {
-    // Caso padrão brasileiro: 1.234,56
-    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
-      s = s.replace(/\./g, '').replace(',', '.');
-    } else {
-      // Caso improvável em bancos BR mas possível: 1,234.56
-      s = s.replace(/,/g, '');
-    }
-  } else if (hasComma) {
-    // Apenas vírgula: 1234,56
-    s = s.replace(',', '.');
-  } else if (hasDot) {
-    // O grande problema: 10.000 (Milhar) vs 10.00 (Decimal)
-    // Em exportações bancárias tipo Itaú, 10.000 é Dez Mil.
-    // Se houver exatamente 2 ou 1 dígito após o ponto, PODE ser decimal, 
-    // MAS se o valor for redondo como 10.000, 30.000, o Excel/HTML muitas vezes exporta com ponto de milhar.
-    
+  // No Brasil, a vírgula é o separador decimal oficial.
+  if (s.includes(',')) {
+    // Caso tenha vírgula: 1.234,56 ou 1234,56
+    // Removemos todos os pontos (milhares) e trocamos a vírgula por ponto (decimal)
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else {
+    // Se não houver vírgula, o ponto pode ser decimal (10.50) ou milhar (10.000)
     const parts = s.split('.');
-    const lastPart = parts[parts.length - 1];
-    
-    // Regra heurística: Se tiver 3 dígitos após o ponto, é MILHAR.
-    if (lastPart.length === 3) {
+    if (parts.length > 2) {
+      // Múltiplos pontos: 1.000.000 -> Milhares
       s = s.replace(/\./g, '');
-    } 
-    // Se tiver mais de um ponto, é MILHAR (1.000.000)
-    else if (parts.length > 2) {
-      s = s.replace(/\./g, '');
-    }
-    // Caso crítico: 10.000. No print do usuário, o valor é 10.000 (Dez mil).
-    // Se eu interpretar 10.000 como decimal, vira 10.
-    // Como a maioria dos boletos bancários tem valores altos, vou assumir que ponto ÚNICO 
-    // seguido de 3 zeros ou algo que não pareça centavos padrão é milhar.
-    else if (lastPart === '000') {
-      s = s.replace(/\./g, '');
-    }
-    else {
-      // Se não caiu em milhar óbvio, e o usuário está reclamando que 10.000 vira 10,
-      // significa que 10.000 deve ser tratado como milhar.
-      s = s.replace(/\./g, '');
+    } else if (parts.length === 2) {
+      // Ponto único. Heurística robusta para boletos bancários:
+      // Se houver 3 dígitos após o ponto, é quase certamente milhar (ex: 10.000, 1.500)
+      // Se houver 1 ou 2 dígitos, é quase certamente decimal (ex: 10.5, 10.50)
+      if (parts[1].length === 3) {
+        s = s.replace(/\./g, '');
+      }
+      // Caso contrário, mantemos o ponto como decimal (padrão JS)
     }
   }
 
+  // Limpeza final para garantir que parseFloat não falhe por caracteres estranhos
+  // Mantemos apenas dígitos e o ponto decimal final
+  s = s.replace(/[^\d.]/g, '');
+  
   const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 };
