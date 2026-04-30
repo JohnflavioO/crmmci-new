@@ -343,6 +343,27 @@ export default function BankSlips() {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
 
+  const exportReport = () => {
+    const dataToExport = filteredSlips.map(s => ({
+      'Cliente': s.client_name,
+      'NF-e': s.nfe_number || '',
+      'Principal': s.principal_amount,
+      'Vencimento': format(parseISO(s.due_date), 'dd/MM/yyyy'),
+      'Pagamento': s.payment_date ? format(parseISO(s.payment_date), 'dd/MM/yyyy') : '',
+      'Juros': s.interest_amount,
+      'Multa': s.fine_amount,
+      'Total': s.updated_amount,
+      'Status': s.status,
+      'Vendedor': s.salesperson_name || ''
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Relatório de Boletos');
+    XLSX.writeFile(wb, `relatorio_boletos_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`);
+    toast.success('Relatório exportado!');
+  };
+
   return (
     <AppLayout>
       <div className="p-4 md:p-6 space-y-6">
