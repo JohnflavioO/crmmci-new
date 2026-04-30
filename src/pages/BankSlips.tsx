@@ -685,7 +685,6 @@ export default function BankSlips() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </div>
 
       {/* Import Dialog */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
