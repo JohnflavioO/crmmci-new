@@ -1244,12 +1244,22 @@ export default function BankSlips() {
                       <TableCell>{row.mapped.client_name || '-'}</TableCell>
                       <TableCell>{row.mapped.due_date ? format(parseISO(row.mapped.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
                       <TableCell className="text-right">
-                        <span className="font-bold text-sm text-emerald-600">
+                        <span className={cn(
+                          "font-bold text-sm",
+                          Math.abs(convertedNum - parseCurrencyBR(row.originalValues.principal_amount)) > 0.01 
+                            ? "text-red-600 animate-pulse" 
+                            : "text-emerald-600"
+                        )}>
                           {formatCurrency(convertedNum)}
                         </span>
+                        {Math.abs(convertedNum - parseCurrencyBR(row.originalValues.principal_amount)) > 0.01 && (
+                          <div className="text-[9px] text-red-500 font-bold uppercase mt-1">Erro Crítico</div>
+                        )}
                       </TableCell>
-                      <TableCell className="text-right text-[10px] text-gray-500 font-mono">
-                        {String(row.originalValues.principal_amount || '-')}
+                      <TableCell className="text-right text-[10px] text-gray-400 font-mono">
+                        <div className="bg-gray-50 p-1 rounded border border-gray-100">
+                          {String(row.originalValues.principal_amount || '-')}
+                        </div>
                       </TableCell>
                       <TableCell className="font-mono text-[10px] text-gray-400">
                         {row.mapped.nfe_number || row.mapped.reference || '-'}
