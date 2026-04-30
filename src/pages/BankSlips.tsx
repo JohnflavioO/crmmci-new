@@ -544,8 +544,6 @@ export default function BankSlips() {
       const batchId = crypto.randomUUID();
 
       // Anti-duplicação: busca existentes na chave (nfe_number, client_name, due_date, principal_amount)
-      // Nota: Com batch_id, poderíamos ser menos agressivos na atualização, 
-      // mas mantemos por segurança para não duplicar se o usuário importar o mesmo arquivo duas vezes sem limpar o lote.
       const { data: existing } = await supabase
         .from('bank_slips' as any)
         .select('id, nfe_number, client_name, due_date, principal_amount');
@@ -599,6 +597,9 @@ export default function BankSlips() {
         if (error) throw error;
         updatedCount++;
       }
+
+      setLastBatchId(batchId);
+      localStorage.setItem('last_bank_slip_batch', batchId);
 
       toast.success(`Importação concluída: ${inserted} novos, ${updatedCount} atualizados (Lote: ${batchId.slice(0, 8)}).`);
       setIsImportDialogOpen(false);
