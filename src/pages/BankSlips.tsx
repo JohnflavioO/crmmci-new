@@ -1218,7 +1218,8 @@ export default function BankSlips() {
                   <TableHead>Status</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Vencimento</TableHead>
-                  <TableHead className="text-right">Valor R$</TableHead>
+                  <TableHead className="text-right">Valor Convertido</TableHead>
+                  <TableHead className="text-right">Original na Planilha</TableHead>
                   <TableHead>Ref / Docto</TableHead>
                 </TableRow>
               </TableHeader>
