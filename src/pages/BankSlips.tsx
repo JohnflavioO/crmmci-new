@@ -1197,12 +1197,21 @@ export default function BankSlips() {
               </TableHeader>
               <TableBody>
                 {parsedRows.slice(0, 50).map((row, idx) => {
+                  const originalStr = String(row.originalValues.principal_amount);
+                  const convertedNum = row.mapped.principal_amount;
+                  
+                  // Validação obrigatória: Detectar distorções absurdas (ex: 10000 -> 10 ou 8 -> 80)
+                  const hasDiscrepancy = (originalStr.includes('10.000') && convertedNum < 1000) || 
+                                       (originalStr.includes('8.735') && convertedNum > 10000);
+
                   return (
-                    <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50")}>
+                    <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50", hasDiscrepancy && "bg-orange-50")}>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           {row.valid ? (
-                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">OK</Badge>
+                            <Badge variant="outline" className={cn("bg-emerald-50 text-emerald-700 border-emerald-200", hasDiscrepancy && "bg-orange-100 text-orange-800 border-orange-300")}>
+                              {hasDiscrepancy ? 'ERRO VALOR' : 'OK'}
+                            </Badge>
                           ) : (
                             <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200" title={row.error}>{row.error}</Badge>
                           )}
@@ -1211,7 +1220,12 @@ export default function BankSlips() {
                       <TableCell className="font-mono">{row.mapped.nfe_number || '-'}</TableCell>
                       <TableCell>{row.mapped.client_name || '-'}</TableCell>
                       <TableCell>{row.mapped.due_date ? format(parseISO(row.mapped.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
-                      <TableCell className="text-right text-emerald-600 font-bold">{formatCurrency(row.mapped.principal_amount)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-gray-500 line-through">{originalStr}</span>
+                          <span className="font-bold text-emerald-600">{formatCurrency(convertedNum)}</span>
+                        </div>
+                      </TableCell>
                       <TableCell>{row.mapped.salesperson_name || '-'}</TableCell>
                     </TableRow>
                   );
