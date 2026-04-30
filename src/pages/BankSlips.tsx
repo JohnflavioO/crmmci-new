@@ -42,10 +42,16 @@ interface BankSlip {
   salesperson_name?: string;
   notes?: string;
   created_at: string;
+  import_batch_id?: string;
 }
 
 interface ParsedRow {
   raw: any[];
+  originalValues: {
+    principal_amount: any;
+    interest_amount: any;
+    fine_amount: any;
+  };
   mapped: {
     dda?: string;
     reminder?: string;
@@ -83,49 +89,40 @@ const cleanText = (v: any): string => {
   return String(v).replace(/\u00a0/g, ' ').trim();
 };
 
-const parseNumber = (v: any): number => {
-  if (v === null || v === undefined || v === '') return 0;
-  if (typeof v === 'number') return v;
-  
-  // Limpeza profunda: remove R$, espaços, símbolos de moeda, caracteres invisíveis e espaços extras
-  let s = String(v)
-    .replace(/\u00a0/g, '')
-    .replace(/R\$/gi, '')
-    .trim();
-  
-  if (!s) return 0;
+const parseBrazilianCurrency = (value: any): number => {
+  if (value === null || value === undefined || value === '') return 0;
 
-  // IMPORTANTE: Para arquivos HTML do Itaú disfarçados de XLS, 
-  // os espaços podem ser usados como separadores de milhar ou apenas decorativos.
-  // Vamos remover todos os espaços primeiro.
-  s = s.replace(/\s/g, '');
-
-  const hasComma = s.includes(',');
-  const hasDot = s.includes('.');
-
-  if (hasComma) {
-    // Padrão Brasileiro: 1.234,56 ou 1234,56
-    // Removemos o ponto de milhar e trocamos a vírgula pelo ponto decimal do JS
-    s = s.replace(/\./g, '').replace(',', '.');
-  } else if (hasDot) {
-    // Se só tem ponto, pode ser milhar (10.000) ou decimal (10.50)
-    // Heurística para boletos: se tem 3 dígitos após o ponto, é milhar.
-    const parts = s.split('.');
-    if (parts.length > 2) {
-      // 1.000.000
-      s = s.replace(/\./g, '');
-    } else if (parts.length === 2 && parts[1].length === 3) {
-      // 10.000 -> 10000
-      s = s.replace(/\./g, '');
-    }
-    // Caso contrário (ex: 10.5 ou 10.50), mantemos o ponto como decimal.
+  if (typeof value === 'number') {
+    return value;
   }
 
-  // Remove qualquer caractere que não seja dígito ou o ponto decimal final
-  s = s.replace(/[^\d.]/g, '');
-  
-  const n = parseFloat(s);
-  return isNaN(n) ? 0 : n;
+  let str = String(value)
+    .replace(/R\$/g, '')
+    .replace(/\s/g, '')
+    .trim();
+
+  // Se tiver ponto e vírgula, assume padrão BR: 10.000,00
+  if (str.includes('.') && str.includes(',')) {
+    str = str.replace(/\./g, '').replace(',', '.');
+    return Number(str) || 0;
+  }
+
+  // Se tiver apenas vírgula, assume decimal BR: 404,77
+  if (str.includes(',') && !str.includes('.')) {
+    str = str.replace(',', '.');
+    return Number(str) || 0;
+  }
+
+  // Se tiver apenas ponto
+  // Pode ser decimal (10.50) ou milhar (10.000)
+  // Heurística de segurança: em boletos bancários, pontos isolados costumam ser milhares se houver 3 dígitos depois
+  const parts = str.split('.');
+  if (parts.length === 2 && parts[1].length === 3) {
+    // 10.000 -> 10000
+    return Number(str.replace(/\./g, '')) || 0;
+  }
+
+  return Number(str) || 0;
 };
 
 const parseBool = (v: any): boolean => {
@@ -228,7 +225,9 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
 
     const client = cleanText(get('client_name'));
     const due = parseDate(get('due_date'));
-    const principal = parseNumber(get('principal_amount'));
+    
+    const rawPrincipal = get('principal_amount');
+    const principal = parseBrazilianCurrency(rawPrincipal);
 
     // Linha vazia - ignorar silenciosamente
     if (!client && !due && principal === 0) continue;
@@ -243,8 +242,12 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
     else if (vencido) status = 'Vencido';
     else if (aVencer) status = 'A vencer';
 
-    const interest = parseNumber(get('interest_amount'));
-    const fine = parseNumber(get('fine_amount'));
+    const rawInterest = get('interest_amount');
+    const interest = parseBrazilianCurrency(rawInterest);
+    
+    const rawFine = get('fine_amount');
+    const fine = parseBrazilianCurrency(rawFine);
+    
     const updated = principal + interest + fine;
 
     const mapped = {
@@ -270,7 +273,17 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
     else if (!due) { valid = false; error = 'Vencimento inválido'; }
     else if (principal <= 0) { valid = false; error = 'Valor principal inválido'; }
 
-    parsed.push({ raw: row, mapped, valid, error });
+    parsed.push({ 
+      raw: row, 
+      originalValues: {
+        principal_amount: rawPrincipal,
+        interest_amount: rawInterest,
+        fine_amount: rawFine
+      },
+      mapped, 
+      valid, 
+      error 
+    });
   }
 
   return { parsed, headerIdx, colMap };
@@ -292,6 +305,7 @@ export default function BankSlips() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [importMeta, setImportMeta] = useState<{ totalRows: number; valid: number; invalid: number; sheetName: string }>({ totalRows: 0, valid: 0, invalid: 0, sheetName: '' });
+  const [lastBatchId, setLastBatchId] = useState<string | null>(localStorage.getItem('last_bank_slip_batch'));
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedSlip, setSelectedSlip] = useState<BankSlip | null>(null);
@@ -466,6 +480,27 @@ export default function BankSlips() {
       toast.error('Erro ao excluir boletos: ' + error.message);
     }
   };
+  const handleUndoImport = async () => {
+    if (!lastBatchId) return;
+    if (!confirm(`Deseja desfazer a última importação (Lote: ${lastBatchId.slice(0, 8)})? Todos os registros deste lote serão removidos.`)) return;
+
+    try {
+      const { error } = await supabase
+        .from('bank_slips' as any)
+        .delete()
+        .eq('import_batch_id', lastBatchId);
+
+      if (error) throw error;
+
+      toast.success(`Importação desfeita com sucesso!`);
+      setLastBatchId(null);
+      localStorage.removeItem('last_bank_slip_batch');
+      loadData();
+    } catch (error: any) {
+      toast.error('Erro ao desfazer importação: ' + error.message);
+    }
+  };
+
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -527,15 +562,9 @@ export default function BankSlips() {
     setImporting(true);
     try {
       const validRows = parsedRows.filter(p => p.valid);
+      const batchId = crypto.randomUUID();
 
       // Anti-duplicação: busca existentes na chave (nfe_number, client_name, due_date, principal_amount)
-      const keys = validRows.map(r => ({
-        nfe: r.mapped.nfe_number || '',
-        client: r.mapped.client_name,
-        due: r.mapped.due_date,
-        principal: r.mapped.principal_amount,
-      }));
-
       const { data: existing } = await supabase
         .from('bank_slips' as any)
         .select('id, nfe_number, client_name, due_date, principal_amount');
@@ -547,7 +576,7 @@ export default function BankSlips() {
       });
 
       let inserted = 0;
-      let updated = 0;
+      let updatedCount = 0;
       const inserts: any[] = [];
       const updates: { id: string; payload: any }[] = [];
 
@@ -569,6 +598,7 @@ export default function BankSlips() {
           reference: m.reference,
           salesperson_name: m.salesperson_name,
           status: m.status,
+          import_batch_id: batchId,
         };
         const existsId = existingMap.get(k);
         if (existsId) {
@@ -586,10 +616,13 @@ export default function BankSlips() {
       for (const u of updates) {
         const { error } = await supabase.from('bank_slips' as any).update(u.payload).eq('id', u.id);
         if (error) throw error;
-        updated++;
+        updatedCount++;
       }
 
-      toast.success(`Importação concluída: ${inserted} novos, ${updated} atualizados, ${importMeta.invalid} ignorados.`);
+      setLastBatchId(batchId);
+      localStorage.setItem('last_bank_slip_batch', batchId);
+
+      toast.success(`Importação concluída: ${inserted} novos, ${updatedCount} atualizados (Lote: ${batchId.slice(0, 8)}).`);
       setIsImportDialogOpen(false);
       setParsedRows([]);
       loadData();
@@ -738,6 +771,11 @@ export default function BankSlips() {
             <p className="text-gray-500">Importação e gestão de Títulos a Vencer / Vencidos</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {lastBatchId && (
+              <Button variant="ghost" className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 gap-2" onClick={handleUndoImport}>
+                <History className="h-4 w-4" /> Desfazer Última Importação
+              </Button>
+            )}
             <Button variant="outline" className="gap-2" onClick={exportReport} disabled={filteredSlips.length === 0}>
               <Download className="h-4 w-4" /> Exportar Relatório
             </Button>
@@ -1150,30 +1188,43 @@ export default function BankSlips() {
                   <TableHead>Status</TableHead>
                   <TableHead>NF-e</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead className="text-right">Principal</TableHead>
+                  <TableHead className="text-right">Original (Excel)</TableHead>
+                  <TableHead className="text-right text-emerald-600 font-bold">Convertido</TableHead>
                   <TableHead>Vencimento</TableHead>
-                  <TableHead>Pagamento</TableHead>
                   <TableHead>Vendedor</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {parsedRows.slice(0, 50).map((row, idx) => (
-                  <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50")}>
-                    <TableCell>
-                      {row.valid ? (
-                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">OK</Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200" title={row.error}>{row.error}</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-mono">{row.mapped.nfe_number || '-'}</TableCell>
-                    <TableCell>{row.mapped.client_name || '-'}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(row.mapped.principal_amount)}</TableCell>
-                    <TableCell>{row.mapped.due_date ? format(parseISO(row.mapped.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
-                    <TableCell>{row.mapped.payment_date ? format(parseISO(row.mapped.payment_date), 'dd/MM/yyyy') : '-'}</TableCell>
-                    <TableCell>{row.mapped.salesperson_name || '-'}</TableCell>
-                  </TableRow>
-                ))}
+                {parsedRows.slice(0, 50).map((row, idx) => {
+                  const hasInconsistency = row.valid && 
+                    String(row.originalValues.principal_amount).includes('10.000') && 
+                    row.mapped.principal_amount < 1000;
+
+                  return (
+                    <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50", hasInconsistency && "bg-yellow-50")}>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {row.valid ? (
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">OK</Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200" title={row.error}>{row.error}</Badge>
+                          )}
+                          {hasInconsistency && (
+                            <span title="Possível erro de conversão">
+                              <AlertTriangle className="h-3 w-3 text-amber-500" />
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono">{row.mapped.nfe_number || '-'}</TableCell>
+                      <TableCell>{row.mapped.client_name || '-'}</TableCell>
+                      <TableCell className="text-right text-gray-500">{row.originalValues.principal_amount || '-'}</TableCell>
+                      <TableCell className="text-right text-emerald-600 font-bold">{formatCurrency(row.mapped.principal_amount)}</TableCell>
+                      <TableCell>{row.mapped.due_date ? format(parseISO(row.mapped.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
+                      <TableCell>{row.mapped.salesperson_name || '-'}</TableCell>
+                    </TableRow>
+                  );
+                })}
                 {parsedRows.length > 50 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-gray-500 py-3">
