@@ -1267,7 +1267,9 @@ export default function BankSlips() {
                           {formatCurrency(convertedNum)}
                         </span>
                       </TableCell>
-                      <TableCell>{row.mapped.salesperson_name || '-'}</TableCell>
+                      <TableCell className="font-mono text-[10px] text-gray-500">
+                        {row.mapped.nfe_number || row.mapped.reference || '-'}
+                      </TableCell>
                     </TableRow>
                   );
                 })}
