@@ -92,6 +92,11 @@ const cleanText = (v: any): string => {
 const parseCurrencyBR = (value: any): number => {
   if (value === null || value === undefined || value === '') return 0;
 
+  // Se já for um número do Excel (SheetJS), usamos diretamente
+  if (typeof value === 'number') {
+    return value;
+  }
+
   let str = String(value)
     .replace(/&nbsp;/g, '')
     .replace(/\u00A0/g, '')
@@ -99,12 +104,22 @@ const parseCurrencyBR = (value: any): number => {
     .replace(/\s/g, '')
     .trim();
 
+  // Caso especial: o valor pode estar vindo formatado com pontos como milhar e vírgula como decimal
+  // Ex: "10.000,00"
   if (str.includes('.') && str.includes(',')) {
     return Number(str.replace(/\./g, '').replace(',', '.'));
   }
 
+  // Ex: "404,77"
   if (str.includes(',') && !str.includes('.')) {
     return Number(str.replace(',', '.'));
+  }
+
+  // Se não houver vírgula, mas houver ponto (formato americano ou milhar sem centavos)
+  // Se tiver apenas um ponto e 2 casas decimais, tratamos como ponto decimal
+  const parts = str.split('.');
+  if (parts.length === 2 && parts[1].length === 2) {
+    return Number(str);
   }
 
   const num = Number(str);
@@ -551,7 +566,7 @@ export default function BankSlips() {
           const rows: any[][] = XLSX.utils.sheet_to_json(ws, {
             header: 1,
             defval: '',
-            raw: !isHtml, // Se for HTML, pegamos o texto bruto para não deixar o SheetJS converter errado
+            raw: true, // Sempre tentar ler o valor bruto numérico do Excel primeiro
           });
           const headerIdx = findHeaderRow(rows);
           if (headerIdx >= 0 && !chosen) {
