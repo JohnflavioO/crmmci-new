@@ -524,8 +524,8 @@ export default function BankSlips() {
         const bytes = new Uint8Array(buf);
 
         // Detecta arquivos HTML (ex: Itaú exporta .xls que na verdade é HTML)
-        const head = new TextDecoder('latin1').decode(bytes.slice(0, 200)).trim().toLowerCase();
-        const isHtml = head.startsWith('<!doctype') || head.startsWith('<html') || head.startsWith('<?xml') || head.includes('<table');
+        const head = new TextDecoder('latin1').decode(bytes.slice(0, 1000)).trim().toLowerCase();
+        const isHtml = head.startsWith('<!doctype') || head.includes('<html') || head.includes('<table') || head.includes('<tr');
 
         let wb: XLSX.WorkBook;
         if (isHtml) {
