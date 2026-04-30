@@ -257,6 +257,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     const pushLongWord = (word: string) => {
       let chunk = '';
       Array.from(word).forEach((char) => {
+        if (lines.length >= maxLines) return;
         const candidate = chunk + char;
         if (doc.getTextWidth(candidate) <= maxWidth) {
           chunk = candidate;
@@ -268,6 +269,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       current = chunk;
     };
     words.forEach((word) => {
+      if (lines.length >= maxLines) return;
       const candidate = current ? `${current} ${word}` : word;
       if (doc.getTextWidth(candidate) <= maxWidth) {
         current = candidate;
