@@ -236,6 +236,10 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
     else if (vencido) status = 'Vencido';
     else if (aVencer) status = 'A vencer';
 
+    const interest = parseNumber(get('interest_amount'));
+    const fine = parseNumber(get('fine_amount'));
+    const updated = principal + interest + fine;
+
     const mapped = {
       dda: cleanText(get('dda')) || undefined,
       reminder: cleanText(get('reminder')) || undefined,
@@ -245,8 +249,9 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
       principal_amount: principal,
       due_date: due,
       payment_date: paymentDate,
-      interest_amount: parseNumber(get('interest_amount')),
-      fine_amount: parseNumber(get('fine_amount')),
+      interest_amount: interest,
+      fine_amount: fine,
+      updated_amount: updated,
       reference: cleanText(get('reference')) || undefined,
       salesperson_name: cleanText(get('salesperson_name')) || undefined,
       status,
