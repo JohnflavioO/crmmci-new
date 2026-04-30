@@ -92,7 +92,7 @@ const cleanText = (v: any): string => {
 const parseCurrencyBR = (value: any): number => {
   if (value === null || value === undefined || value === '') return 0;
 
-  // Se já for número, NÃO ALTERAR
+  // Se já for número, usar direto conforme regra absoluta
   if (typeof value === 'number') return value;
 
   let str = String(value)
@@ -101,28 +101,18 @@ const parseCurrencyBR = (value: any): number => {
 
   if (!str) return 0;
 
-  // Caso padrão brasileiro: tem ponto e vírgula (ex: 10.000,00)
+  // Caso padrão brasileiro: tem ponto e vírgula
   if (str.includes('.') && str.includes(',')) {
     str = str.replace(/\./g, '').replace(',', '.');
     return Number(str);
   }
 
-  // Caso só vírgula (decimal BR, ex: 404,77)
+  // Caso só vírgula (decimal BR)
   if (str.includes(',') && !str.includes('.')) {
-    str = str.replace(',', '.');
-    return Number(str);
+    return Number(str.replace(',', '.'));
   }
 
-  // Caso só ponto (pode ser milhar sem decimal ou internacional)
-  // Se tiver ponto e for seguido de 3 dígitos, tratamos como milhar no contexto de boletos BR
-  if (str.includes('.') && !str.includes(',')) {
-    const parts = str.split('.');
-    if (parts.length === 2 && parts[1].length === 3) {
-      str = str.replace(/\./g, '');
-    }
-  }
-
-  // Caso número puro ou já formatado internacionalmente
+  // Caso número puro
   const num = Number(str);
   return isNaN(num) ? 0 : num;
 };
@@ -535,7 +525,12 @@ export default function BankSlips() {
 
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { 
+          header: 1, 
+          defval: '', 
+          raw: true, // REGRA ABSOLUTA: Tentar obter o número original do Excel
+          rawNumbers: true 
+        });
 
         const { parsed, headerIdx } = parseSheetRows(rows);
 
@@ -1197,20 +1192,26 @@ export default function BankSlips() {
               </TableHeader>
               <TableBody>
                 {parsedRows.slice(0, 50).map((row, idx) => {
-                  const originalStr = String(row.originalValues.principal_amount);
+                  const originalVal = row.originalValues.principal_amount;
                   const convertedNum = row.mapped.principal_amount;
                   
-                  // Validação obrigatória: Detectar distorções absurdas (ex: 10000 -> 10 ou 8 -> 80)
+                  // Proteção contra erro de conversão: se o valor convertido é muito diferente do original visual
+                  // Ex: Original "10.000,00" lido como 10 -> Discrepância
+                  const originalStr = String(originalVal);
                   const hasDiscrepancy = (originalStr.includes('10.000') && convertedNum < 1000) || 
-                                       (originalStr.includes('8.735') && convertedNum > 10000);
+                                       (originalStr.includes('8.735') && convertedNum > 10000) ||
+                                       (typeof originalVal === 'number' && originalVal > 100 && convertedNum < originalVal / 10);
 
                   return (
-                    <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50", hasDiscrepancy && "bg-orange-50")}>
+                    <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50", hasDiscrepancy && "bg-red-100")}>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           {row.valid ? (
-                            <Badge variant="outline" className={cn("bg-emerald-50 text-emerald-700 border-emerald-200", hasDiscrepancy && "bg-orange-100 text-orange-800 border-orange-300")}>
-                              {hasDiscrepancy ? 'ERRO VALOR' : 'OK'}
+                            <Badge variant="outline" className={cn(
+                              "bg-emerald-50 text-emerald-700 border-emerald-200", 
+                              hasDiscrepancy && "bg-red-600 text-white border-red-700 animate-pulse"
+                            )}>
+                              {hasDiscrepancy ? 'ERRO CRÍTICO' : 'OK'}
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200" title={row.error}>{row.error}</Badge>
@@ -1221,9 +1222,11 @@ export default function BankSlips() {
                       <TableCell>{row.mapped.client_name || '-'}</TableCell>
                       <TableCell>{row.mapped.due_date ? format(parseISO(row.mapped.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] text-gray-500 line-through">{originalStr}</span>
-                          <span className="font-bold text-emerald-600">{formatCurrency(convertedNum)}</span>
+                        <div className="flex flex-col items-end">
+                          <span className="text-[9px] text-gray-400 font-mono">Original: {originalStr}</span>
+                          <span className={cn("font-bold text-sm", hasDiscrepancy ? "text-red-600" : "text-emerald-600")}>
+                            {formatCurrency(convertedNum)}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell>{row.mapped.salesperson_name || '-'}</TableCell>
