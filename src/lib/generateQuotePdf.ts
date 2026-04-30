@@ -206,16 +206,13 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   doc.setTextColor(30);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
-  const baseRowHeight = 12;
+  const baseRowHeight = 11;
   items.forEach((item: any, i: number) => {
     const desc = [item.model || item.description || '', item.specifications ? `(${item.specifications})` : ''].filter(Boolean).join(' ');
-    // Pre-calculate to see how many lines it would naturally take
-    const fullSplitDesc = doc.splitTextToSize(desc, cols[3].w - 2);
-    // Limit to maximum 2 lines as requested
-    const splitDesc = fullSplitDesc.slice(0, 2);
     
-    const descHeight = splitDesc.length * 3.5;
-    const rowHeight = Math.max(baseRowHeight, descHeight + 4);
+    // Calculate wrapping for 2 lines maximum
+    const splitDesc = doc.splitTextToSize(desc, cols[3].w - 2).slice(0, 2);
+    const rowHeight = Math.max(baseRowHeight, (splitDesc.length * 3.5) + 4);
 
     checkPage(rowHeight + 2);
     const bg = i % 2 === 0;
@@ -271,8 +268,17 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
         doc.text(splitDesc, cx, y);
       } else {
         // Adjust for column width to avoid overlapping or truncation if it's a currency
-        const maxChars = Math.floor(col.w / 1.7);
-        const textToRender = val.substring(0, maxChars);
+        const colW = col.w;
+        const textVal = String(val);
+        const textW = doc.getTextWidth(textVal);
+        
+        // If text is wider than column, truncate it
+        let textToRender = textVal;
+        if (textW > colW - 2) {
+          const maxChars = Math.floor(colW / 1.8);
+          textToRender = textVal.substring(0, maxChars);
+        }
+        
         doc.text(textToRender, isLast ? (W - margin - 2) : cx, y, { align: isLast ? 'right' : 'left' });
       }
       
