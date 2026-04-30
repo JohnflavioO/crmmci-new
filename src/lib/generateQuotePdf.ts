@@ -235,14 +235,14 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     const model = item.model || item.description || '';
     const specs = item.specifications ? `(${item.specifications})` : '';
     
-    // Split text to fit column width - now limiting volume of text
-    const splitModel = doc.splitTextToSize(model, cols[3].w - 4).slice(0, 4); // Limit model to 4 lines
-    const splitSpecs = specs ? doc.splitTextToSize(specs, cols[3].w - 4).slice(0, 3) : []; // Limit specs to 3 lines
+    // Split text to fit column width - more compact volume
+    const splitModel = doc.splitTextToSize(model, cols[3].w - 4).slice(0, 3); // Max 3 lines for model
+    const splitSpecs = specs ? doc.splitTextToSize(specs, cols[3].w - 4).slice(0, 2) : []; // Max 2 lines for specs
     
-    // Calculate required row height based on content
+    // Calculate required row height based on content - optimized for density
     const totalLines = splitModel.length + splitSpecs.length;
-    const contentHeight = (totalLines * 4) + 6; 
-    const rowHeight = Math.max(baseRowHeight, contentHeight);
+    const contentHeight = (totalLines * 3.8) + 4; 
+    const rowHeight = Math.max(8.5, contentHeight);
 
     checkPage(rowHeight + 2);
     
