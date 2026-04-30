@@ -1248,7 +1248,10 @@ export default function BankSlips() {
                           {formatCurrency(convertedNum)}
                         </span>
                       </TableCell>
-                      <TableCell className="font-mono text-[10px] text-gray-500">
+                      <TableCell className="text-right text-[10px] text-gray-500 font-mono">
+                        {String(row.originalValues.principal_amount || '-')}
+                      </TableCell>
+                      <TableCell className="font-mono text-[10px] text-gray-400">
                         {row.mapped.nfe_number || row.mapped.reference || '-'}
                       </TableCell>
                     </TableRow>
