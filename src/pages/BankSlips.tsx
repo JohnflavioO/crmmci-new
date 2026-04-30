@@ -92,27 +92,26 @@ const cleanText = (v: any): string => {
 const parseCurrencyBR = (value: any): number => {
   if (value === null || value === undefined || value === '') return 0;
 
-  // Se já for número, usar direto conforme regra absoluta
-  if (typeof value === 'number') return value;
-
-  let str = String(value)
-    .replace(/[^\d,.-]/g, '') // remove R$, espaços e caracteres extras
-    .trim();
-
-  if (!str) return 0;
-
-  // Caso padrão brasileiro: tem ponto e vírgula
-  if (str.includes('.') && str.includes(',')) {
-    str = str.replace(/\./g, '').replace(',', '.');
-    return Number(str);
+  if (typeof value === 'number') {
+    return value;
   }
 
-  // Caso só vírgula (decimal BR)
+  let str = String(value)
+    .replace(/R\$/g, '')
+    .replace(/\s/g, '')
+    .trim();
+
+  // Padrão brasileiro: 10.000,00
+  if (str.includes('.') && str.includes(',')) {
+    return Number(str.replace(/\./g, '').replace(',', '.'));
+  }
+
+  // Padrão brasileiro sem milhar: 404,77
   if (str.includes(',') && !str.includes('.')) {
     return Number(str.replace(',', '.'));
   }
 
-  // Caso número puro
+  // Número simples ou já em formato americano vindo do Excel
   const num = Number(str);
   return isNaN(num) ? 0 : num;
 };
