@@ -1195,15 +1195,12 @@ export default function BankSlips() {
 
 
                   return (
-                    <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50", hasDiscrepancy && "bg-red-100")}>
+                    <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50")}>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           {row.valid ? (
-                            <Badge variant="outline" className={cn(
-                              "bg-emerald-50 text-emerald-700 border-emerald-200", 
-                              hasDiscrepancy && "bg-red-600 text-white border-red-700 animate-pulse"
-                            )}>
-                              {hasDiscrepancy ? 'ERRO CRÍTICO' : 'OK'}
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                              OK
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200" title={row.error}>{row.error}</Badge>
@@ -1214,12 +1211,9 @@ export default function BankSlips() {
                       <TableCell>{row.mapped.client_name || '-'}</TableCell>
                       <TableCell>{row.mapped.due_date ? format(parseISO(row.mapped.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex flex-col items-end">
-                          <span className="text-[9px] text-gray-400 font-mono">Original: {originalStr}</span>
-                          <span className={cn("font-bold text-sm", hasDiscrepancy ? "text-red-600" : "text-emerald-600")}>
-                            {formatCurrency(convertedNum)}
-                          </span>
-                        </div>
+                        <span className="font-bold text-sm text-emerald-600">
+                          {formatCurrency(convertedNum)}
+                        </span>
                       </TableCell>
                       <TableCell>{row.mapped.salesperson_name || '-'}</TableCell>
                     </TableRow>
