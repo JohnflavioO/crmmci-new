@@ -99,7 +99,8 @@ const parseBrazilianCurrency = (value: any): number => {
 
   // Tratamento de string
   let str = String(value)
-    .replace(/R\$/g, '')
+    .replace(/R\$/gi, '')
+    .replace(/\s/g, '') // Remove qualquer espaço em branco, inclusive espaços de milhar
     .trim();
 
   if (!str) return 0;
@@ -116,11 +117,15 @@ const parseBrazilianCurrency = (value: any): number => {
   // Se houver apenas pontos (ex: 10.000 ou 10.50)
   else if (str.includes('.')) {
     const parts = str.split('.');
-    // Se o ponto separa exatamente 3 dígitos no final (ex: 10.000), tratamos como milhar
-    if (parts.length === 2 && parts[1].length === 3) {
+    // Caso especial: se houver múltiplos pontos, remove todos (ex: 1.000.000)
+    if (parts.length > 2) {
       str = str.replace(/\./g, '');
     }
-    // Caso contrário (ex: 10.5 ou 10.50), mantemos o ponto como decimal (padrão internacional)
+    // Se houver apenas um ponto e 3 dígitos depois, tratamos como milhar (ex: 10.000)
+    else if (parts.length === 2 && parts[1].length === 3) {
+      str = str.replace(/\./g, '');
+    }
+    // Caso contrário (ex: 10.5 ou 10.50), mantemos o ponto como decimal
   }
 
   const num = Number(str);
@@ -1190,8 +1195,8 @@ export default function BankSlips() {
                   <TableHead>Status</TableHead>
                   <TableHead>NF-e</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead className="text-right">Valor Correto</TableHead>
                   <TableHead>Vencimento</TableHead>
+                  <TableHead className="text-right">Valor R$</TableHead>
                   <TableHead>Vendedor</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1210,8 +1215,8 @@ export default function BankSlips() {
                       </TableCell>
                       <TableCell className="font-mono">{row.mapped.nfe_number || '-'}</TableCell>
                       <TableCell>{row.mapped.client_name || '-'}</TableCell>
-                      <TableCell className="text-right text-emerald-600 font-bold">{formatCurrency(row.mapped.principal_amount)}</TableCell>
                       <TableCell>{row.mapped.due_date ? format(parseISO(row.mapped.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
+                      <TableCell className="text-right text-emerald-600 font-bold">{formatCurrency(row.mapped.principal_amount)}</TableCell>
                       <TableCell>{row.mapped.salesperson_name || '-'}</TableCell>
                     </TableRow>
                   );
