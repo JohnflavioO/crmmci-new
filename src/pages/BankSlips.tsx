@@ -115,11 +115,24 @@ const parseCurrencyBR = (value: any): number => {
     return Number(str.replace(',', '.'));
   }
 
-  // Se não houver vírgula, mas houver ponto (formato americano ou milhar sem centavos)
-  // Se tiver apenas um ponto e 2 casas decimais, tratamos como ponto decimal
-  const parts = str.split('.');
-  if (parts.length === 2 && parts[1].length === 2) {
-    return Number(str);
+  // Se houver apenas pontos (formato americano ou milhar sem centavos separado por ponto)
+  // Se tiver múltiplos pontos, é separador de milhar: "10.000.000" -> 10000000
+  if (str.includes('.') && (str.match(/\./g) || []).length > 1) {
+    return Number(str.replace(/\./g, ''));
+  }
+
+  // Se tiver um único ponto, precisamos decidir se é decimal ou milhar
+  // Em arquivos exportados que fingem ser XLS mas são HTML, "10.000" costuma ser 10 mil
+  // Se o número depois do ponto tiver exatamente 3 dígitos, tratamos como milhar
+  if (str.includes('.')) {
+    const parts = str.split('.');
+    if (parts.length === 2 && parts[1].length === 3) {
+      return Number(str.replace(/\./g, ''));
+    }
+    // Se for 2 dígitos, é centavo: "10.00" -> 10
+    if (parts.length === 2 && parts[1].length === 2) {
+      return Number(str);
+    }
   }
 
   const num = Number(str);
