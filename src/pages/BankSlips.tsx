@@ -24,6 +24,7 @@ import {
 import * as XLSX from 'xlsx';
 import { parseCurrencyBR } from '@/utils/currency';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface BankSlip {
   id: string;
@@ -323,6 +324,7 @@ export default function BankSlips() {
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedSlip, setSelectedSlip] = useState<BankSlip | null>(null);
+  const [systemUsers, setSystemUsers] = useState<string[]>([]);
   const [editForm, setEditForm] = useState({
     interest_amount: 0,
     fine_amount: 0,
@@ -332,6 +334,7 @@ export default function BankSlips() {
     lembrete: '',
     classification: '',
     salesperson_name: '',
+    reference: '',
   });
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
@@ -382,6 +385,19 @@ export default function BankSlips() {
 
   useEffect(() => {
     loadData();
+    const fetchUsers = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('active', true)
+        .in('role', ['vendedor', 'comercial', 'admin', 'gestor']);
+      
+      if (data) {
+        const names = data.map(p => p.full_name).sort();
+        setSystemUsers(names);
+      }
+    };
+    fetchUsers();
   }, [loadData]);
 
   const stats = useMemo(() => {
@@ -708,6 +724,7 @@ export default function BankSlips() {
       lembrete: slip.lembrete || '',
       classification: slip.classification || '',
       salesperson_name: slip.salesperson_name || '',
+      reference: slip.reference || '',
     });
     setIsEditModalOpen(true);
   };
@@ -727,6 +744,7 @@ export default function BankSlips() {
           lembrete: editForm.lembrete || null,
           classification: editForm.classification || null,
           salesperson_name: editForm.salesperson_name || null,
+          reference: editForm.reference || null,
         })
         .eq('id', selectedSlip.id);
 
@@ -749,20 +767,38 @@ export default function BankSlips() {
     }
   };
 
-  const handleInlineUpdate = async (id: string, field: string, value: string) => {
+  const handleInlineUpdate = async (id: string, field: string, value: any) => {
     const finalValue = value === 'none' ? null : value;
     const slip = bankSlips.find(s => s.id === id);
     if (!slip) return;
 
     try {
+      const updateData: any = { [field]: finalValue };
+      
+      // Regras de negócio para status via checkbox
+      if (field === 'status') {
+        if (value === 'Pago' && !slip.payment_date) {
+          updateData.payment_date = format(new Date(), 'yyyy-MM-dd');
+        } else if (value !== 'Pago') {
+          updateData.payment_date = null;
+        }
+      }
+
       const { error } = await supabase
         .from('bank_slips' as any)
-        .update({ [field]: finalValue })
+        .update(updateData)
         .eq('id', id);
 
       if (error) throw error;
 
-      const oldValue = field === 'dda' ? slip.dda : slip.lembrete;
+      let oldValue = '';
+      if (field === 'dda') oldValue = slip.dda;
+      else if (field === 'lembrete') oldValue = slip.lembrete;
+      else if (field === 'status') oldValue = slip.status;
+      else if (field === 'salesperson_name') oldValue = slip.salesperson_name;
+      else if (field === 'reference') oldValue = slip.reference;
+      else if (field === 'interest_amount') oldValue = String(slip.interest_amount);
+      else if (field === 'fine_amount') oldValue = String(slip.fine_amount);
       
       await supabase.from('bank_slip_history' as any).insert({
         bank_slip_id: id,
@@ -771,7 +807,11 @@ export default function BankSlips() {
         performed_by: user?.id
       });
 
-      setBankSlips(prev => prev.map(s => s.id === id ? { ...s, [field]: finalValue } : s));
+      if (field === 'status' || field === 'interest_amount' || field === 'fine_amount') {
+        loadData(); // Recarrega para atualizar cálculos de totais e status derivados
+      } else {
+        setBankSlips(prev => prev.map(s => s.id === id ? { ...s, ...updateData } : s));
+      }
       toast.success('Campo atualizado!');
     } catch (error: any) {
       toast.error('Erro ao atualizar: ' + error.message);
@@ -1057,22 +1097,24 @@ export default function BankSlips() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-gray-50/50">
-                    <TableHead className="w-24">DDA</TableHead>
-                    <TableHead className="w-32">Lembrete</TableHead>
-                    <TableHead>Classif.</TableHead>
-                    <TableHead>NF-e</TableHead>
-                    <TableHead className="min-w-[200px]">Cliente</TableHead>
-                    <TableHead className="text-right">Principal</TableHead>
-                    <TableHead>Vencimento</TableHead>
-                    <TableHead>Pagamento</TableHead>
-                    <TableHead className="text-right">Atraso</TableHead>
-                    <TableHead className="text-right">Juros</TableHead>
-                    <TableHead className="text-right">Multa</TableHead>
-                    <TableHead>Refer.</TableHead>
-                    <TableHead className="text-right">Atualizado</TableHead>
-                    <TableHead>Vendedor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
+                    <TableHead className="w-20">DDA</TableHead>
+                    <TableHead className="w-24">Lembrete</TableHead>
+                    <TableHead className="w-24">Classif.</TableHead>
+                    <TableHead className="w-24">NF-e</TableHead>
+                    <TableHead className="min-w-[180px]">Cliente</TableHead>
+                    <TableHead className="text-right w-28">Principal</TableHead>
+                    <TableHead className="w-28">Vencimento</TableHead>
+                    <TableHead className="w-16 text-center">A Vencer</TableHead>
+                    <TableHead className="w-16 text-center">Pago</TableHead>
+                    <TableHead className="w-16 text-center">Vencido</TableHead>
+                    <TableHead className="w-28 text-right">Atraso</TableHead>
+                    <TableHead className="w-24 text-right">Juros</TableHead>
+                    <TableHead className="w-24 text-right">Multa</TableHead>
+                    <TableHead className="min-w-[150px]">Refer.</TableHead>
+                    <TableHead className="text-right w-28">Atualizado</TableHead>
+                    <TableHead className="min-w-[150px]">Vendedor</TableHead>
+                    <TableHead className="w-24">Status</TableHead>
+                    <TableHead className="text-right w-24">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1122,28 +1164,81 @@ export default function BankSlips() {
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell>{slip.classification || '-'}</TableCell>
+                          <TableCell className="max-w-[100px] truncate">{slip.classification || '-'}</TableCell>
                           <TableCell className="font-mono">{slip.nfe_number || '-'}</TableCell>
-                          <TableCell className="font-medium">{slip.client_name}</TableCell>
+                          <TableCell className="font-medium truncate max-w-[150px]">{slip.client_name}</TableCell>
                           <TableCell className="text-right">{formatCurrency(slip.principal_amount)}</TableCell>
                           <TableCell>
                             <span className={cn(
-                              "px-2 py-0.5 rounded text-[11px] font-medium",
+                              "px-2 py-0.5 rounded text-[10px] font-medium whitespace-nowrap",
                               slip.status === 'Vencido' ? "bg-red-50 text-red-700" :
                               slip.status === 'Vence hoje' ? "bg-orange-50 text-orange-700" : ""
                             )}>
                               {format(parseISO(slip.due_date), 'dd/MM/yyyy')}
                             </span>
                           </TableCell>
-                          <TableCell>{slip.payment_date ? format(parseISO(slip.payment_date), 'dd/MM/yyyy') : '-'}</TableCell>
+                          <TableCell className="text-center">
+                            <Checkbox 
+                              checked={slip.status === 'A vencer' || slip.status === 'Vence hoje' || slip.status === 'Em aberto'} 
+                              onCheckedChange={(checked) => checked && handleInlineUpdate(slip.id, 'status', 'A vencer')}
+                            />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Checkbox 
+                              checked={slip.status === 'Pago'} 
+                              onCheckedChange={(checked) => checked && handleInlineUpdate(slip.id, 'status', 'Pago')}
+                            />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Checkbox 
+                              checked={slip.status === 'Vencido'} 
+                              onCheckedChange={(checked) => checked && handleInlineUpdate(slip.id, 'status', 'Vencido')}
+                            />
+                          </TableCell>
                           <TableCell className={cn("text-right", days > 0 && "text-red-600 font-semibold")}>{days > 0 ? `${days}d` : '-'}</TableCell>
-                          <TableCell className="text-right">{slip.interest_amount > 0 ? formatCurrency(slip.interest_amount) : '-'}</TableCell>
-                          <TableCell className="text-right">{slip.fine_amount > 0 ? formatCurrency(slip.fine_amount) : '-'}</TableCell>
-                          <TableCell>{slip.reference || '-'}</TableCell>
+                          <TableCell className="text-right p-1">
+                            <Input 
+                              type="number" 
+                              className="h-7 text-[10px] text-right" 
+                              defaultValue={slip.interest_amount}
+                              onBlur={(e) => handleInlineUpdate(slip.id, 'interest_amount', parseFloat(e.target.value) || 0)}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right p-1">
+                            <Input 
+                              type="number" 
+                              className="h-7 text-[10px] text-right" 
+                              defaultValue={slip.fine_amount}
+                              onBlur={(e) => handleInlineUpdate(slip.id, 'fine_amount', parseFloat(e.target.value) || 0)}
+                            />
+                          </TableCell>
+                          <TableCell className="p-1">
+                            <Input 
+                              className="h-7 text-[10px]" 
+                              defaultValue={slip.reference || ''}
+                              onBlur={(e) => handleInlineUpdate(slip.id, 'reference', e.target.value)}
+                            />
+                          </TableCell>
                           <TableCell className="text-right font-semibold text-gray-900">{formatCurrency(slip.updated_amount)}</TableCell>
-                          <TableCell className="text-gray-500">{slip.salesperson_name || '-'}</TableCell>
+                          <TableCell className="p-1">
+                            <Select 
+                              value={slip.salesperson_name || 'none'} 
+                              onValueChange={(val) => handleInlineUpdate(slip.id, 'salesperson_name', val)}
+                            >
+                              <SelectTrigger className="h-7 text-[10px] py-0 px-2">
+                                <SelectValue placeholder="Selecione..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {systemUsers.map(name => (
+                                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                                ))}
+                                <SelectItem value="Standby">Standby</SelectItem>
+                                <SelectItem value="none">Nenhum</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={cn("font-medium", statusColors[slip.status])}>{slip.status}</Badge>
+                            <Badge variant="outline" className={cn("font-medium text-[10px]", statusColors[slip.status])}>{slip.status}</Badge>
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
@@ -1256,8 +1351,21 @@ export default function BankSlips() {
               </div>
             </div>
             <div className="space-y-2">
+              <Label>Referência</Label>
+              <Input value={editForm.reference} onChange={(e) => setEditForm({ ...editForm, reference: e.target.value })} />
+            </div>
+            <div className="space-y-2">
               <Label>Vendedor</Label>
-              <Input value={editForm.salesperson_name} onChange={(e) => setEditForm({ ...editForm, salesperson_name: e.target.value })} />
+              <Select value={editForm.salesperson_name || 'none'} onValueChange={(val) => setEditForm({ ...editForm, salesperson_name: val === 'none' ? '' : val })}>
+                <SelectTrigger><SelectValue placeholder="Selecione o vendedor..." /></SelectTrigger>
+                <SelectContent>
+                  {systemUsers.map(name => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))}
+                  <SelectItem value="Standby">Standby</SelectItem>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Status</Label>
