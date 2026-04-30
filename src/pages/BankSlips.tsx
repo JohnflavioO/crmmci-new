@@ -127,14 +127,17 @@ const parseDate = (v: any): string | null => {
   return null;
 };
 
-// Detecta a linha do cabeçalho procurando por células que contenham "Cliente" e "Vencimento"
+// Detecta a linha do cabeçalho procurando por colunas conhecidas (Cliente/Pagador + Vencimento)
+const CLIENT_HEADERS = ['cliente', 'pagador', 'sacado', 'razao social', 'razão social', 'nome'];
+const DUE_HEADERS = ['vencimento', 'data vencimento', 'data de vencimento', 'vcto', 'venc'];
+
 const findHeaderRow = (rows: any[][]): number => {
-  for (let i = 0; i < Math.min(rows.length, 30); i++) {
+  for (let i = 0; i < Math.min(rows.length, 50); i++) {
     const row = rows[i] || [];
-    const texts = row.map(c => cleanText(c).toLowerCase());
-    if (texts.includes('cliente') && texts.includes('vencimento')) {
-      return i;
-    }
+    const texts = row.map(c => cleanText(c).toLowerCase().replace(/\(.*?\)/g, '').trim());
+    const hasClient = texts.some(t => CLIENT_HEADERS.includes(t));
+    const hasDue = texts.some(t => DUE_HEADERS.includes(t));
+    if (hasClient && hasDue) return i;
   }
   return -1;
 };
