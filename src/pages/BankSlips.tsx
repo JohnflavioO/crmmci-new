@@ -89,49 +89,40 @@ const cleanText = (v: any): string => {
   return String(v).replace(/\u00a0/g, ' ').trim();
 };
 
-const parseNumber = (v: any): number => {
-  if (v === null || v === undefined || v === '') return 0;
-  if (typeof v === 'number') return v;
-  
-  // Limpeza profunda: remove R$, espaços, símbolos de moeda, caracteres invisíveis e espaços extras
-  let s = String(v)
-    .replace(/\u00a0/g, '')
-    .replace(/R\$/gi, '')
-    .trim();
-  
-  if (!s) return 0;
+const parseBrazilianCurrency = (value: any): number => {
+  if (value === null || value === undefined || value === '') return 0;
 
-  // IMPORTANTE: Para arquivos HTML do Itaú disfarçados de XLS, 
-  // os espaços podem ser usados como separadores de milhar ou apenas decorativos.
-  // Vamos remover todos os espaços primeiro.
-  s = s.replace(/\s/g, '');
-
-  const hasComma = s.includes(',');
-  const hasDot = s.includes('.');
-
-  if (hasComma) {
-    // Padrão Brasileiro: 1.234,56 ou 1234,56
-    // Removemos o ponto de milhar e trocamos a vírgula pelo ponto decimal do JS
-    s = s.replace(/\./g, '').replace(',', '.');
-  } else if (hasDot) {
-    // Se só tem ponto, pode ser milhar (10.000) ou decimal (10.50)
-    // Heurística para boletos: se tem 3 dígitos após o ponto, é milhar.
-    const parts = s.split('.');
-    if (parts.length > 2) {
-      // 1.000.000
-      s = s.replace(/\./g, '');
-    } else if (parts.length === 2 && parts[1].length === 3) {
-      // 10.000 -> 10000
-      s = s.replace(/\./g, '');
-    }
-    // Caso contrário (ex: 10.5 ou 10.50), mantemos o ponto como decimal.
+  if (typeof value === 'number') {
+    return value;
   }
 
-  // Remove qualquer caractere que não seja dígito ou o ponto decimal final
-  s = s.replace(/[^\d.]/g, '');
-  
-  const n = parseFloat(s);
-  return isNaN(n) ? 0 : n;
+  let str = String(value)
+    .replace(/R\$/g, '')
+    .replace(/\s/g, '')
+    .trim();
+
+  // Se tiver ponto e vírgula, assume padrão BR: 10.000,00
+  if (str.includes('.') && str.includes(',')) {
+    str = str.replace(/\./g, '').replace(',', '.');
+    return Number(str) || 0;
+  }
+
+  // Se tiver apenas vírgula, assume decimal BR: 404,77
+  if (str.includes(',') && !str.includes('.')) {
+    str = str.replace(',', '.');
+    return Number(str) || 0;
+  }
+
+  // Se tiver apenas ponto
+  // Pode ser decimal (10.50) ou milhar (10.000)
+  // Heurística de segurança: em boletos bancários, pontos isolados costumam ser milhares se houver 3 dígitos depois
+  const parts = str.split('.');
+  if (parts.length === 2 && parts[1].length === 3) {
+    // 10.000 -> 10000
+    return Number(str.replace(/\./g, '')) || 0;
+  }
+
+  return Number(str) || 0;
 };
 
 const parseBool = (v: any): boolean => {
