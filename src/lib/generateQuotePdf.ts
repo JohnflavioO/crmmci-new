@@ -251,36 +251,53 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     const words = normalizeCellText(text).split(' ').filter(Boolean);
     const lines: string[] = [];
     let current = '';
+
     const pushLongWord = (word: string) => {
       let chunk = '';
       Array.from(word).forEach((char) => {
-        if (lines.length >= maxLines) return;
         const candidate = chunk + char;
         if (doc.getTextWidth(candidate) <= maxWidth) {
           chunk = candidate;
         } else {
-          if (chunk) lines.push(chunk);
+          if (chunk && lines.length < maxLines) lines.push(chunk);
           chunk = char;
         }
       });
-      current = chunk;
+      if (chunk && lines.length < maxLines) current = chunk;
     };
-    words.forEach((word) => {
-      if (lines.length >= maxLines) return;
+
+    for (const word of words) {
+      if (lines.length >= maxLines) break;
       const candidate = current ? `${current} ${word}` : word;
       if (doc.getTextWidth(candidate) <= maxWidth) {
         current = candidate;
       } else {
         if (current) lines.push(current);
+        if (lines.length >= maxLines) {
+          current = '';
+          break;
+        }
         if (doc.getTextWidth(word) > maxWidth) {
           pushLongWord(word);
         } else {
           current = word;
         }
       }
-    });
-    if (current) lines.push(current);
-    return lines.slice(0, maxLines);
+    }
+    
+    if (current && lines.length < maxLines) {
+      lines.push(current);
+    }
+
+    // Add ellipsis ONLY if we actually truncated text
+    if (lines.length === maxLines && words.length > lines.join(' ').split(' ').length) {
+      const lastLine = lines[maxLines - 1];
+      if (lastLine.length > 3) {
+        lines[maxLines - 1] = lastLine.substring(0, lastLine.length - 3) + '...';
+      }
+    }
+
+    return lines;
   };
 
   // Items
@@ -298,12 +315,12 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     doc.setFontSize(7.6);
     resetTextSpacing();
     
-    // Increase allowed lines to 3 for the model, or 2 for model + 1 for specs
-    const splitModel = wrapCellText(model, cols[3].w - 5, 2); 
+    // Show up to 3 lines for model if no specs, or 2 lines model + 1 line specs
+    const splitModel = wrapCellText(model, cols[3].w - 3, specs ? 2 : 3); 
     
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.1);
-    const splitSpecs = specs ? wrapCellText(specs, cols[3].w - 5, 1) : [];
+    const splitSpecs = specs ? wrapCellText(specs, cols[3].w - 3, 1) : [];
     
     // Calculate required row height based on content
     const totalLines = Math.max(1, splitModel.length + splitSpecs.length);
