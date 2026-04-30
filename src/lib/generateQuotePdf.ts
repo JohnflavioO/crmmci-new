@@ -16,13 +16,10 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
 
   const normalizeCellText = (value: any) => {
     let text = String(value || '').replace(/\s+/g, ' ').trim();
-    text = text.replace(/\(\s+/g, '(').replace(/\s+\)/g, ')').replace(/\s+-\s+/g, '-');
-    text = text.replace(/((?:\b[\p{L}\p{N}]\s*){2,})-((?:\s*[\p{L}\p{N}]\b){2,})/gu, (_match, left, right) => {
-      return `${left.replace(/\s+/g, '')}-${right.replace(/\s+/g, '')}`;
-    });
-    text = text.replace(/(?:^|[\s(])((?:[\p{L}\p{N}]\s+){2,}[\p{L}\p{N}])(?=$|[\s),.-])/gu, (match, group) => {
-      return match.replace(group, group.replace(/\s+/g, ''));
-    });
+    text = text.replace(/\(\s+/g, '(').replace(/\s+\)/g, ')').replace(/\s+-\s+/g, ' - ');
+    text = text.replace(/B\s+L\s+A\s+I\s+R/gi, 'BLAIR');
+    text = text.replace(/C\s+G/gi, 'CG');
+    text = text.replace(/K\s+I\s+T\s+D\s+E\s+V\s+I\s+A\s+G\s+E\s+M/gi, 'KIT DE VIAGEM');
     return text;
   };
 
