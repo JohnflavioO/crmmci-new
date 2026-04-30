@@ -57,6 +57,7 @@ interface ParsedRow {
     payment_date: string | null;
     interest_amount: number;
     fine_amount: number;
+    updated_amount: number;
     reference?: string;
     salesperson_name?: string;
     status: string;
