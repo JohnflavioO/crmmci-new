@@ -9,6 +9,23 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   const fmt = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
+  const resetTextSpacing = () => {
+    const pdfDoc = doc as any;
+    if (typeof pdfDoc.setCharSpace === 'function') pdfDoc.setCharSpace(0);
+  };
+
+  const normalizeCellText = (value: any) => {
+    let text = String(value || '').replace(/\s+/g, ' ').trim();
+    text = text.replace(/\(\s+/g, '(').replace(/\s+\)/g, ')').replace(/\s+-\s+/g, '-');
+    text = text.replace(/((?:\b[\p{L}\p{N}]\s*){2,})-((?:\s*[\p{L}\p{N}]\b){2,})/gu, (_match, left, right) => {
+      return `${left.replace(/\s+/g, '')}-${right.replace(/\s+/g, '')}`;
+    });
+    text = text.replace(/(?:^|[\s(])((?:[\p{L}\p{N}]\s+){2,}[\p{L}\p{N}])(?=$|[\s),.-])/gu, (match, group) => {
+      return match.replace(group, group.replace(/\s+/g, ''));
+    });
+    return text;
+  };
+
   // Load logo (optimized PNG, pre-resized to 400px)
   try {
     const logoImg = new Image();
