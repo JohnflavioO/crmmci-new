@@ -522,7 +522,8 @@ export default function BankSlips() {
         const head = new TextDecoder('latin1').decode(bytes.slice(0, 1000)).trim().toLowerCase();
         const isHtml = head.startsWith('<!doctype') || head.includes('<html') || head.includes('<table') || head.includes('<tr');
 
-        let wb: XLSX.WorkBook;
+        let wb: XLSX.WorkBook | null = null;
+        let htmlRows: any[][] | null = null;
         if (isHtml) {
           // Tenta UTF-8, cai para latin-1 se necessário
           let text: string;
@@ -532,7 +533,7 @@ export default function BankSlips() {
           } catch {
             text = new TextDecoder('latin1').decode(bytes);
           }
-          wb = XLSX.read(text, { type: 'string' });
+          htmlRows = htmlToRowsPreservingCurrencyText(text);
         } else {
           wb = XLSX.read(bytes, { type: 'array', cellDates: true });
         }
@@ -541,7 +542,18 @@ export default function BankSlips() {
         let chosen: { name: string; rows: any[][]; headerIdx: number } | null = null;
         const sheetSummaries: { name: string; firstRows: string[]; detectedCols: string[] }[] = [];
 
-        for (const name of wb.SheetNames) {
+        if (htmlRows) {
+          const headerIdx = findHeaderRow(htmlRows);
+          if (headerIdx >= 0) chosen = { name: 'Arquivo HTML', rows: htmlRows, headerIdx };
+          const detected = headerIdx >= 0 ? Object.keys(buildColumnMap(htmlRows[headerIdx])) : [];
+          sheetSummaries.push({
+            name: 'Arquivo HTML',
+            firstRows: htmlRows.slice(0, 5).map(r => r.map(c => String(c ?? '')).join(' | ')),
+            detectedCols: detected,
+          });
+        }
+
+        for (const name of wb?.SheetNames || []) {
           const ws = wb.Sheets[name];
           const rows: any[][] = XLSX.utils.sheet_to_json(ws, {
             header: 1,
@@ -568,7 +580,7 @@ export default function BankSlips() {
             `• Aba "${s.name}":\n   Primeiras linhas:\n   ${s.firstRows.slice(0, 3).join('\n   ')}`
           ).join('\n\n');
           toast.error(
-            `Não foi possível localizar o cabeçalho.\nAbas encontradas: ${wb.SheetNames.join(', ')}.\nCampos obrigatórios faltando: Cliente/Pagador, Vencimento ou Valor(R$).\n\n${detail}`,
+            `Não foi possível localizar o cabeçalho.\nAbas encontradas: ${wb?.SheetNames.join(', ') || 'Arquivo HTML'}.\nCampos obrigatórios faltando: Cliente/Pagador, Vencimento ou Valor(R$).\n\n${detail}`,
             { duration: 15000 }
           );
           return;
