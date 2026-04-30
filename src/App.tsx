@@ -30,6 +30,7 @@ import EstoqueSC from "./pages/EstoqueSC";
 import { useEffect, useState } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
 import ProspectView from "./pages/ProspectView";
+import BankSlips from "./pages/BankSlips";
 
 const queryClient = new QueryClient({
   defaultOptions: {
