@@ -167,13 +167,13 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     { label: '#', w: 7 },
     { label: 'Foto', w: 12 },
     { label: 'Código', w: 16 },
-    { label: 'Modelo / Descrição', w: 75 }, // Increased to ~40% of content width
-    { label: 'Marca', w: 15 },
-    { label: 'Qtd', w: 8 },
-    { label: 'Unit.', w: 16 },
-    { label: 'Desc.', w: 8 },
-    { label: 'V. Unit c/ Desc.', w: 18 },
-    { label: 'Total', w: 11 }, 
+    { label: 'Modelo / Descrição', w: 55 }, // Reduced back to prevent invasion
+    { label: 'Marca', w: 18 },
+    { label: 'Qtd', w: 9 },
+    { label: 'Unit.', w: 18 },
+    { label: 'Desc.', w: 10 },
+    { label: 'V. Unit c/ Desc.', w: 22 }, // Ample space to prevent R$ overlap
+    { label: 'Total', w: 18 }, 
   ];
 
   const checkPage = (needed: number) => {
@@ -246,13 +246,13 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     const model = item.model || item.description || '';
     const specs = item.specifications ? `(${item.specifications})` : '';
     
-    // Split text to fit column width accurately
-    const splitModel = doc.splitTextToSize(model, cols[3].w - 4);
-    const splitSpecs = specs ? doc.splitTextToSize(specs, cols[3].w - 4) : [];
+    // Split text to fit column width - Limiting volume of text to prevent page explosions
+    const splitModel = doc.splitTextToSize(model, cols[3].w - 4).slice(0, 3); // Max 3 lines
+    const splitSpecs = specs ? doc.splitTextToSize(specs, cols[3].w - 4).slice(0, 2) : []; // Max 2 lines
     
     // Calculate required row height based on content
     const totalLines = splitModel.length + splitSpecs.length;
-    const lineHeight = 4.2; // Equivalent to ~1.5 line-height
+    const lineHeight = 3.8; 
     const contentHeight = (totalLines * lineHeight) + 4; 
     const rowHeight = Math.max(9, contentHeight);
 
@@ -289,9 +289,9 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     doc.text(splitModel, descX, y);
     
     if (splitSpecs.length > 0) {
-      doc.setFont('helvetica', 'normal'); // Changed from italic for better legibility
+      doc.setFont('helvetica', 'normal'); 
       doc.setTextColor(80);
-      doc.text(splitSpecs, descX, y + (splitModel.length * 4.2));
+      doc.text(splitSpecs, descX, y + (splitModel.length * 3.8));
       doc.setTextColor(30);
     }
     cx += cols[3].w;
