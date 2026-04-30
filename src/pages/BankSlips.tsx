@@ -187,7 +187,7 @@ const buildColumnMap = (headerRow: any[]): Record<string, number> => {
     classification: ['classificação', 'classificacao', 'carteira'],
     nfe_number: ['nf-e', 'nfe', 'nf', 'nosso numero', 'nosso número', 'nosso n umero', 'numero documento', 'documento'],
     client_name: ['cliente', 'pagador', 'sacado', 'razao social', 'razão social', 'nome'],
-    principal_amount: ['principal', 'valor principal', 'valor', 'valor r', 'valor (r$)', 'valor(r$)', 'valor rs', 'valor título', 'vlr título', 'valor total'],
+    principal_amount: ['principal', 'valor principal', 'valor', 'valor r', 'valor (r$)', 'valor(r$)', 'valor rs', 'valor título', 'vlr título', 'valor total', 'valor(r$)'],
     due_date: ['vencimento', 'data vencimento', 'data de vencimento', 'vcto', 'venc'],
     payment_date: ['data pagamento', 'data de pagamento', 'pagamento', 'liquidacao', 'liquidação'],
     days_late: ['dias de atraso', 'dias atraso', 'atraso'],
