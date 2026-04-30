@@ -278,7 +278,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     if (splitSpecs.length > 0) {
       doc.setFont('helvetica', 'italic');
       doc.setTextColor(100);
-      doc.text(splitSpecs, descX, y + (splitModel.length * 4));
+      doc.text(splitSpecs, descX, y + (splitModel.length * 3.8));
       doc.setTextColor(30);
     }
     cx += cols[3].w;
