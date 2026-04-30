@@ -1235,11 +1235,10 @@ export default function BankSlips() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Status</TableHead>
-                  <TableHead>NF-e</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead className="text-right">Valor R$</TableHead>
-                  <TableHead>Vendedor</TableHead>
+                  <TableHead>Ref / Docto</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
