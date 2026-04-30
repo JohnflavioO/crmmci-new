@@ -179,19 +179,24 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
 
   y = Math.max(leftY, rightY) + 2;
 
-  // Items table header - Optimized widths for better distribution
+  // Items table header - fixed positions prevent column overlap
   const cols = [
     { label: '#', w: 7 },
     { label: 'Foto', w: 12 },
     { label: 'Código', w: 16 },
-    { label: 'Modelo / Descrição', w: 55 }, // Reduced back to prevent invasion
+    { label: 'Modelo / Descrição', w: 58 },
     { label: 'Marca', w: 18 },
-    { label: 'Qtd', w: 9 },
+    { label: 'Qtd', w: 8 },
     { label: 'Unit.', w: 18 },
     { label: 'Desc.', w: 10 },
-    { label: 'V. Unit c/ Desc.', w: 22 }, // Ample space to prevent R$ overlap
-    { label: 'Total', w: 18 }, 
+    { label: 'V. Unit c/ Desc.', w: 22 },
+    { label: 'Total', w: 17 }, 
   ];
+  const colX = cols.reduce<number[]>((acc, col, idx) => {
+    acc[idx] = idx === 0 ? margin + 2 : acc[idx - 1] + cols[idx - 1].w;
+    return acc;
+  }, []);
+  const colRight = (idx: number) => (idx === cols.length - 1 ? W - margin - 2 : colX[idx] + cols[idx].w - 2);
 
   const checkPage = (needed: number) => {
     if (y + needed > 275) { 
