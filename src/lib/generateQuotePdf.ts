@@ -246,13 +246,13 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     const model = item.model || item.description || '';
     const specs = item.specifications ? `(${item.specifications})` : '';
     
-    // Split text to fit column width accurately
-    const splitModel = doc.splitTextToSize(model, cols[3].w - 4);
-    const splitSpecs = specs ? doc.splitTextToSize(specs, cols[3].w - 4) : [];
+    // Split text to fit column width - Limiting volume of text to prevent page explosions
+    const splitModel = doc.splitTextToSize(model, cols[3].w - 4).slice(0, 3); // Max 3 lines
+    const splitSpecs = specs ? doc.splitTextToSize(specs, cols[3].w - 4).slice(0, 2) : []; // Max 2 lines
     
     // Calculate required row height based on content
     const totalLines = splitModel.length + splitSpecs.length;
-    const lineHeight = 4.2; // Equivalent to ~1.5 line-height
+    const lineHeight = 3.8; 
     const contentHeight = (totalLines * lineHeight) + 4; 
     const rowHeight = Math.max(9, contentHeight);
 
