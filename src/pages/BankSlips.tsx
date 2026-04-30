@@ -92,26 +92,21 @@ const cleanText = (v: any): string => {
 const parseCurrencyBR = (value: any): number => {
   if (value === null || value === undefined || value === '') return 0;
 
-  if (typeof value === 'number') {
-    return value;
-  }
-
   let str = String(value)
+    .replace(/&nbsp;/g, '')
+    .replace(/\u00A0/g, '')
     .replace(/R\$/g, '')
     .replace(/\s/g, '')
     .trim();
 
-  // Padrão brasileiro: 10.000,00
   if (str.includes('.') && str.includes(',')) {
     return Number(str.replace(/\./g, '').replace(',', '.'));
   }
 
-  // Padrão brasileiro sem milhar: 404,77
   if (str.includes(',') && !str.includes('.')) {
     return Number(str.replace(',', '.'));
   }
 
-  // Número simples ou já em formato americano vindo do Excel
   const num = Number(str);
   return isNaN(num) ? 0 : num;
 };
@@ -167,9 +162,9 @@ const FIELD_ALIASES: Record<string, string[]> = {
   dda: ['dda'],
   reminder: ['lembrete'],
   classification: ['classificacao', 'carteira'],
-  nfe_number: ['nf e', 'nfe', 'nf', 'nota fiscal', 'n nf e', 'numero nf', 'nosso numero', 'numero documento', 'documento'],
+  nfe_number: ['nf e', 'nfe', 'nf', 'nota fiscal', 'n nf e', 'numero nf', 'nosso numero', 'numero documento', 'documento', 'n docto', 'num docto'],
   client_name: ['cliente', 'pagador', 'sacado', 'razao social', 'nome', 'nome cliente', 'nome pagador'],
-  principal_amount: ['valor r', 'valor rs', 'valor', 'valor r$', 'principal', 'valor principal', 'valor titulo', 'vlr titulo', 'valor total', 'valor do titulo'],
+  principal_amount: ['valor r', 'valor rs', 'valor', 'valor r$', 'principal', 'valor principal', 'valor titulo', 'vlr titulo', 'valor total', 'valor do titulo', 'valor r$'],
   due_date: ['vencimento', 'data vencimento', 'data de vencimento', 'dt vencimento', 'vcto', 'venc'],
   payment_date: ['data pagamento', 'data de pagamento', 'pagamento', 'dt pagamento', 'liquidacao'],
   days_late: ['dias de atraso', 'dias atraso', 'atraso'],
@@ -529,8 +524,8 @@ export default function BankSlips() {
         const bytes = new Uint8Array(buf);
 
         // Detecta arquivos HTML (ex: Itaú exporta .xls que na verdade é HTML)
-        const head = new TextDecoder('latin1').decode(bytes.slice(0, 200)).trim().toLowerCase();
-        const isHtml = head.startsWith('<!doctype') || head.startsWith('<html') || head.startsWith('<?xml') || head.includes('<table');
+        const head = new TextDecoder('latin1').decode(bytes.slice(0, 1000)).trim().toLowerCase();
+        const isHtml = head.startsWith('<!doctype') || head.includes('<html') || head.includes('<table') || head.includes('<tr');
 
         let wb: XLSX.WorkBook;
         if (isHtml) {
@@ -556,8 +551,7 @@ export default function BankSlips() {
           const rows: any[][] = XLSX.utils.sheet_to_json(ws, {
             header: 1,
             defval: '',
-            raw: true,
-            rawNumbers: true,
+            raw: !isHtml, // Se for HTML, pegamos o texto bruto para não deixar o SheetJS converter errado
           });
           const headerIdx = findHeaderRow(rows);
           if (headerIdx >= 0 && !chosen) {
@@ -1241,11 +1235,10 @@ export default function BankSlips() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Status</TableHead>
-                  <TableHead>NF-e</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead className="text-right">Valor R$</TableHead>
-                  <TableHead>Vendedor</TableHead>
+                  <TableHead>Ref / Docto</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1266,7 +1259,6 @@ export default function BankSlips() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono">{row.mapped.nfe_number || '-'}</TableCell>
                       <TableCell>{row.mapped.client_name || '-'}</TableCell>
                       <TableCell>{row.mapped.due_date ? format(parseISO(row.mapped.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
                       <TableCell className="text-right">
@@ -1274,7 +1266,9 @@ export default function BankSlips() {
                           {formatCurrency(convertedNum)}
                         </span>
                       </TableCell>
-                      <TableCell>{row.mapped.salesperson_name || '-'}</TableCell>
+                      <TableCell className="font-mono text-[10px] text-gray-500">
+                        {row.mapped.nfe_number || row.mapped.reference || '-'}
+                      </TableCell>
                     </TableRow>
                   );
                 })}
