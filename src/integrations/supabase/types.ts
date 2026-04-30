@@ -14,6 +14,116 @@ export type Database = {
   }
   public: {
     Tables: {
+      bank_slip_history: {
+        Row: {
+          action: string
+          bank_slip_id: string | null
+          created_at: string | null
+          id: string
+          new_status: string | null
+          notes: string | null
+          performed_by: string | null
+          prev_status: string | null
+        }
+        Insert: {
+          action: string
+          bank_slip_id?: string | null
+          created_at?: string | null
+          id?: string
+          new_status?: string | null
+          notes?: string | null
+          performed_by?: string | null
+          prev_status?: string | null
+        }
+        Update: {
+          action?: string
+          bank_slip_id?: string | null
+          created_at?: string | null
+          id?: string
+          new_status?: string | null
+          notes?: string | null
+          performed_by?: string | null
+          prev_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_slip_history_bank_slip_id_fkey"
+            columns: ["bank_slip_id"]
+            isOneToOne: false
+            referencedRelation: "bank_slips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_slips: {
+        Row: {
+          classification: string | null
+          client_name: string
+          company_id: string | null
+          created_at: string | null
+          created_by: string | null
+          dda: string | null
+          due_date: string
+          fine_amount: number
+          id: string
+          interest_amount: number
+          nfe_number: string | null
+          notes: string | null
+          payment_date: string | null
+          principal_amount: number
+          reference: string | null
+          reminder: string | null
+          salesperson_name: string | null
+          status: string
+          updated_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          classification?: string | null
+          client_name: string
+          company_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          dda?: string | null
+          due_date: string
+          fine_amount?: number
+          id?: string
+          interest_amount?: number
+          nfe_number?: string | null
+          notes?: string | null
+          payment_date?: string | null
+          principal_amount?: number
+          reference?: string | null
+          reminder?: string | null
+          salesperson_name?: string | null
+          status?: string
+          updated_amount?: number
+          updated_at?: string | null
+        }
+        Update: {
+          classification?: string | null
+          client_name?: string
+          company_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          dda?: string | null
+          due_date?: string
+          fine_amount?: number
+          id?: string
+          interest_amount?: number
+          nfe_number?: string | null
+          notes?: string | null
+          payment_date?: string | null
+          principal_amount?: number
+          reference?: string | null
+          reminder?: string | null
+          salesperson_name?: string | null
+          status?: string
+          updated_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           address: string | null
