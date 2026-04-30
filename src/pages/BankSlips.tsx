@@ -724,6 +724,7 @@ export default function BankSlips() {
       lembrete: slip.lembrete || '',
       classification: slip.classification || '',
       salesperson_name: slip.salesperson_name || '',
+      reference: slip.reference || '',
     });
     setIsEditModalOpen(true);
   };
