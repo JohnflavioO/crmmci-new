@@ -480,6 +480,27 @@ export default function BankSlips() {
       toast.error('Erro ao excluir boletos: ' + error.message);
     }
   };
+  const handleUndoImport = async () => {
+    if (!lastBatchId) return;
+    if (!confirm(`Deseja desfazer a última importação (Lote: ${lastBatchId.slice(0, 8)})? Todos os registros deste lote serão removidos.`)) return;
+
+    try {
+      const { error } = await supabase
+        .from('bank_slips' as any)
+        .delete()
+        .eq('import_batch_id', lastBatchId);
+
+      if (error) throw error;
+
+      toast.success(`Importação desfeita com sucesso!`);
+      setLastBatchId(null);
+      localStorage.removeItem('last_bank_slip_batch');
+      loadData();
+    } catch (error: any) {
+      toast.error('Erro ao desfazer importação: ' + error.message);
+    }
+  };
+
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
