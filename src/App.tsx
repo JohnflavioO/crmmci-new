@@ -30,6 +30,7 @@ import EstoqueSC from "./pages/EstoqueSC";
 import { useEffect, useState } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
 import ProspectView from "./pages/ProspectView";
+import BankSlips from "./pages/BankSlips";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -132,6 +133,7 @@ function AppRoutes() {
       <Route path="/logistics" element={<Logistics />} />
       <Route path="/estoque-sc" element={<EstoqueSC />} />
       {(isGestor || isFinanceiro) && <Route path="/financial" element={<Financial />} />}
+      {(isGestor || isFinanceiro) && <Route path="/bank-slips" element={<BankSlips />} />}
       {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
       {isAdmin && <Route path="/integrations" element={<Integrations />} />}
       <Route path="*" element={<NotFound />} />
