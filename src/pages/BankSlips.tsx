@@ -620,14 +620,14 @@ export default function BankSlips() {
       const validRows = parsedRows.filter(p => p.valid);
       const batchId = crypto.randomUUID();
 
-      // Anti-duplicação: busca existentes na chave (nfe_number, client_name, due_date, principal_amount)
+      // Anti-duplicação/correção: não usa valor na chave para permitir reimportar e corrigir Principal errado.
       const { data: existing } = await supabase
         .from('bank_slips' as any)
         .select('id, nfe_number, client_name, due_date, principal_amount');
 
       const existingMap = new Map<string, string>();
       (existing || []).forEach((e: any) => {
-        const k = `${e.nfe_number || ''}|${e.client_name}|${e.due_date}|${Number(e.principal_amount)}`;
+        const k = `${e.nfe_number || ''}|${e.client_name}|${e.due_date}`;
         existingMap.set(k, e.id);
       });
 
@@ -638,7 +638,7 @@ export default function BankSlips() {
 
       for (const row of validRows) {
         const m = row.mapped;
-        const k = `${m.nfe_number || ''}|${m.client_name}|${m.due_date}|${Number(m.principal_amount)}`;
+        const k = `${m.nfe_number || ''}|${m.client_name}|${m.due_date}`;
         const payload: any = {
           dda: m.dda,
           reminder: m.reminder,
