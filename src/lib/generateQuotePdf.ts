@@ -209,21 +209,13 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   doc.setFillColor(0, 150, 136);
   doc.rect(margin, y, cw, headerH, 'F');
   doc.setTextColor(255);
-  doc.setFontSize(8); 
+  doc.setFontSize(7.2); 
   doc.setFont('helvetica', 'bold');
-  
-  // Reset character spacing explicitly for PDF export
-  // @ts-ignore - charSpace exists in some jsPDF versions/typings
-  if (doc.internal.getCharSpace) {
-    // @ts-ignore
-    doc.internal.write("0 Tc"); 
-  }
+  resetTextSpacing();
 
-  let cx = margin + 2;
   cols.forEach((col, idx) => {
     const isLast = idx === cols.length - 1;
-    doc.text(col.label, isLast ? (W - margin - 2) : cx, y + 5.5, { align: isLast ? 'right' : 'left' });
-    cx += col.w;
+    doc.text(col.label, isLast ? colRight(idx) : colX[idx], y + 5.5, { align: isLast ? 'right' : 'left' });
   });
   y += headerH + 4;
 
