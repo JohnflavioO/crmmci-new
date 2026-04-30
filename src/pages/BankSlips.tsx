@@ -1177,14 +1177,18 @@ export default function BankSlips() {
                   return (
                     <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50", hasInconsistency && "bg-yellow-50")}>
                       <TableCell>
-                        {row.valid ? (
-                          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">OK</Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200" title={row.error}>{row.error}</Badge>
-                        )}
-                        {hasInconsistency && (
-                          <AlertTriangle className="h-3 w-3 text-amber-500 inline ml-1" title="Possível erro de conversão" />
-                        )}
+                        <div className="flex items-center gap-1">
+                          {row.valid ? (
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">OK</Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200" title={row.error}>{row.error}</Badge>
+                          )}
+                          {hasInconsistency && (
+                            <span title="Possível erro de conversão">
+                              <AlertTriangle className="h-3 w-3 text-amber-500" />
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="font-mono">{row.mapped.nfe_number || '-'}</TableCell>
                       <TableCell>{row.mapped.client_name || '-'}</TableCell>
