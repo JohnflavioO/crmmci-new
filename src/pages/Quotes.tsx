@@ -1451,12 +1451,12 @@ export default function Quotes() {
             </div>
             {(isGestor || isAdmin) && (
               <Select value={responsibleFilter} onValueChange={setResponsibleFilter}>
-                <SelectTrigger className="w-[200px] min-h-[44px]">
+                <SelectTrigger className="w-full sm:w-[220px] min-h-[44px]">
                   <SelectValue placeholder="Responsável" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="me">Meus orçamentos</SelectItem>
-                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="me">Meus Orçamentos</SelectItem>
+                  <SelectItem value="all">Todos os Vendedores</SelectItem>
                   {sellerProfiles.filter(s => s.user_id !== user?.id).map(s => (
                     <SelectItem key={s.user_id} value={s.user_id}>{s.full_name}</SelectItem>
                   ))}
@@ -1469,7 +1469,11 @@ export default function Quotes() {
           {filtered.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="mx-auto h-12 w-12 text-muted-foreground/30" />
-              <p className="text-muted-foreground mt-3">Nenhum orçamento encontrado</p>
+              <p className="text-muted-foreground mt-3">
+                {responsibleFilter !== 'me' && responsibleFilter !== 'all' 
+                  ? "Este vendedor ainda não possui orçamentos." 
+                  : "Nenhum orçamento encontrado"}
+              </p>
             </div>
           ) : isMobile ? (
             <div className="space-y-3">
