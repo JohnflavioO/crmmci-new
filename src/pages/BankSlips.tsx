@@ -93,29 +93,24 @@ const parseNumber = (v: any): number => {
   if (!s) return 0;
 
   // Handle Brazilian formatting: 1.234,56
-  // Check for the last comma to differentiate between thousand/decimal
   const lastComma = s.lastIndexOf(',');
   const lastDot = s.lastIndexOf('.');
   
   if (lastComma > lastDot) {
-    // Has a comma which is likely the decimal separator
-    // Remove all dots (thousands)
-    s = s.replace(/\./g, '');
-    // Replace comma with dot
-    s = s.replace(',', '.');
+    // Comma is the decimal separator (e.g. 1.234,56)
+    // Remove all dots (thousands) and replace comma with dot
+    s = s.replace(/\./g, '').replace(',', '.');
   } else if (lastDot > lastComma) {
-    // Has a dot which might be the decimal separator, OR thousands separator
-    // If the dot is followed by exactly 3 digits and there is no comma,
-    // it could be a thousand separator.
-    // However, to be safe, if we have "10.000", and no comma, it's 10000.
-    // If we have "10.50", and no comma, it's 10.5.
-    const afterDot = s.substring(lastDot + 1);
-    if (afterDot.length === 3) {
-      // Treat as thousands separator: "10.000" -> 10000
+    // Dot is likely the decimal separator, OR it's a thousands separator
+    const parts = s.split('.');
+    if (parts.length > 2) {
+      // 1.000.000 -> 1000000
       s = s.replace(/\./g, '');
-    } else {
-      // Treat as decimal: "10.50" -> 10.50
-      // Already in the format JS understands (10.50)
+    } else if (parts.length === 2) {
+      // 10.000 (thousands) vs 10.50 (decimal)
+      if (parts[1].length === 3) {
+        s = s.replace(/\./g, '');
+      }
     }
   }
 
