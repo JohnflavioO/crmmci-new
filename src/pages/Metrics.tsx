@@ -40,7 +40,8 @@ type ChartMetric = 'quantity' | 'value';
 
 export default function Metrics() {
   const { user, isGestor, isAdmin } = useAuth();
-  const canSeeAll = isAdmin || isGestor;
+  const canSeeAll = isGestor; // Only Gestor can see all and filter
+  const isOnlyAdmin = isAdmin && !isGestor;
   const [quotes, setQuotes] = useState<any[]>([]);
   const [period, setPeriod] = useState<Period>('month');
   const [customFrom, setCustomFrom] = useState<Date | undefined>(startOfMonth(new Date()));
@@ -88,17 +89,19 @@ export default function Metrics() {
         .gte('quote_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('quote_date', format(dateRange.to, 'yyyy-MM-dd'));
 
-      if (!canSeeAll) {
+      if (!canSeeAll && !isOnlyAdmin) {
         query = query.eq('created_by', user?.id);
-      } else if (selectedSellerIds.length > 0) {
+      } else if (canSeeAll && selectedSellerIds.length > 0) {
         query = query.in('created_by', selectedSellerIds);
+      } else if (isOnlyAdmin) {
+        query = query.eq('created_by', user?.id);
       }
 
       const { data } = await query.order('quote_date', { ascending: true });
       setQuotes(data || []);
     };
     load();
-  }, [dateRange, user?.id, canSeeAll, selectedSellerIds]);
+  }, [dateRange, user?.id, canSeeAll, selectedSellerIds, isOnlyAdmin]);
 
 
   const totalQuotes = quotes.length;
