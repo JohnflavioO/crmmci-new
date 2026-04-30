@@ -89,10 +89,12 @@ export default function Metrics() {
         .gte('quote_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('quote_date', format(dateRange.to, 'yyyy-MM-dd'));
 
-      if (!canSeeAll) {
+      if (!canSeeAll && !isOnlyAdmin) {
         query = query.eq('created_by', user?.id);
-      } else if (selectedSellerIds.length > 0) {
+      } else if (canSeeAll && selectedSellerIds.length > 0) {
         query = query.in('created_by', selectedSellerIds);
+      } else if (isOnlyAdmin) {
+        query = query.eq('created_by', user?.id);
       }
 
       const { data } = await query.order('quote_date', { ascending: true });
