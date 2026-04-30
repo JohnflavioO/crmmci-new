@@ -640,6 +640,8 @@ export default function Clients() {
             </DialogTrigger>
           <DialogContent
             className="max-w-2xl max-h-[85vh] overflow-y-auto"
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onInteractOutside={(e) => e.preventDefault()}
           >
             <DialogHeader>
               <DialogTitle className="font-display">{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>

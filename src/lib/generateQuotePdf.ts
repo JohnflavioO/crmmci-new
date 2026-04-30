@@ -129,9 +129,10 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     
     const neighborhood = client.neighborhood;
     const cityState = [client.city, client.state].filter(Boolean).join(' - ');
-    const zipCode = client.cep ? `CEP: ${client.cep}` : '';
+    const zipCode = client.cep || client.zip_code;
+    const zipCodeStr = zipCode ? `CEP: ${zipCode}` : '';
     
-    const secondLine = [neighborhood, cityState, zipCode].filter(Boolean).join(', ');
+    const secondLine = [neighborhood, cityState, zipCodeStr].filter(Boolean).join(', ');
     if (secondLine) { doc.text(secondLine, margin, y); y += 4; }
   }
   if (quote.salesperson) { doc.text(`Vendedor: ${quote.salesperson}`, margin, y); y += 4; }
