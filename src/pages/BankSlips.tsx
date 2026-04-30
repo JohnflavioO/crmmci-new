@@ -547,27 +547,61 @@ export default function BankSlips() {
           wb = XLSX.read(bytes, { type: 'array', cellDates: true });
         }
 
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { 
-          header: 1, 
-          defval: '', 
-          raw: true, // REGRA ABSOLUTA: Tentar obter o número original do Excel
-          rawNumbers: true 
-        });
+        // Procura a aba que contém um cabeçalho válido
+        let chosen: { name: string; rows: any[][]; headerIdx: number } | null = null;
+        const sheetSummaries: { name: string; firstRows: string[]; detectedCols: string[] }[] = [];
 
-        const { parsed, headerIdx } = parseSheetRows(rows);
+        for (const name of wb.SheetNames) {
+          const ws = wb.Sheets[name];
+          const rows: any[][] = XLSX.utils.sheet_to_json(ws, {
+            header: 1,
+            defval: '',
+            raw: true,
+            rawNumbers: true,
+          });
+          const headerIdx = findHeaderRow(rows);
+          if (headerIdx >= 0 && !chosen) {
+            chosen = { name, rows, headerIdx };
+          }
+          // Resumo para mensagem de erro caso nenhuma aba sirva
+          const detected = headerIdx >= 0
+            ? Object.keys(buildColumnMap(rows[headerIdx]))
+            : [];
+          sheetSummaries.push({
+            name,
+            firstRows: rows.slice(0, 5).map(r => r.map(c => String(c ?? '')).join(' | ')),
+            detectedCols: detected,
+          });
+        }
 
-        if (headerIdx < 0) {
-          toast.error('Não foi possível localizar o cabeçalho da planilha. Verifique se ela contém colunas como Cliente/Pagador e Vencimento.');
+        if (!chosen) {
+          const detail = sheetSummaries.map(s =>
+            `• Aba "${s.name}":\n   Primeiras linhas:\n   ${s.firstRows.slice(0, 3).join('\n   ')}`
+          ).join('\n\n');
+          toast.error(
+            `Não foi possível localizar o cabeçalho.\nAbas encontradas: ${wb.SheetNames.join(', ')}.\nCampos obrigatórios faltando: Cliente/Pagador, Vencimento ou Valor(R$).\n\n${detail}`,
+            { duration: 15000 }
+          );
           return;
+        }
+
+        const { parsed, headerIdx } = parseSheetRows(chosen.rows);
+        const colMap = buildColumnMap(chosen.rows[chosen.headerIdx]);
+        const missing: string[] = [];
+        if (colMap.client_name === undefined) missing.push('Cliente/Pagador');
+        if (colMap.due_date === undefined) missing.push('Vencimento');
+        if (colMap.principal_amount === undefined) missing.push('Valor(R$)');
+        if (missing.length > 0) {
+          toast.warning(`Cabeçalho localizado na linha ${headerIdx + 1} da aba "${chosen.name}", mas faltam colunas: ${missing.join(', ')}.`);
+        } else {
+          toast.success(`Cabeçalho localizado na linha ${headerIdx + 1} da aba "${chosen.name}".`);
         }
 
         const valid = parsed.filter(p => p.valid).length;
         const invalid = parsed.length - valid;
 
         setParsedRows(parsed);
-        setImportMeta({ totalRows: parsed.length, valid, invalid, sheetName: wsname });
+        setImportMeta({ totalRows: parsed.length, valid, invalid, sheetName: chosen.name });
         setIsImportDialogOpen(true);
       } catch (err: any) {
         toast.error('Erro ao ler arquivo: ' + err.message);
