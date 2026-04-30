@@ -89,45 +89,40 @@ const cleanText = (v: any): string => {
   return String(v).replace(/\u00a0/g, ' ').trim();
 };
 
-const parseBrazilianCurrency = (value: any): number => {
+const parseCurrencyBR = (value: any): number => {
   if (value === null || value === undefined || value === '') return 0;
 
-  // Se o Excel já enviou como número, retornamos diretamente.
-  if (typeof value === 'number') {
-    return value;
-  }
+  // Se já for número, NÃO ALTERAR
+  if (typeof value === 'number') return value;
 
-  // Tratamento de string
   let str = String(value)
-    .replace(/R\$/gi, '')
-    .replace(/\s/g, '') // Remove qualquer espaço em branco, inclusive espaços de milhar
+    .replace(/[^\d,.-]/g, '') // remove R$, espaços e caracteres extras
     .trim();
 
   if (!str) return 0;
 
-  // Se houver pontos e vírgulas (ex: 10.000,00 ou 1.234,56)
+  // Caso padrão brasileiro: tem ponto e vírgula (ex: 10.000,00)
   if (str.includes('.') && str.includes(',')) {
-    // Remove todos os pontos (milhar) e troca a vírgula por ponto (decimal)
     str = str.replace(/\./g, '').replace(',', '.');
-  } 
-  // Se houver apenas vírgula (ex: 404,77 ou 10000,00)
-  else if (str.includes(',')) {
-    str = str.replace(',', '.');
-  }
-  // Se houver apenas pontos (ex: 10.000 ou 10.50)
-  else if (str.includes('.')) {
-    const parts = str.split('.');
-    // Caso especial: se houver múltiplos pontos, remove todos (ex: 1.000.000)
-    if (parts.length > 2) {
-      str = str.replace(/\./g, '');
-    }
-    // Se houver apenas um ponto e 3 dígitos depois, tratamos como milhar (ex: 10.000)
-    else if (parts.length === 2 && parts[1].length === 3) {
-      str = str.replace(/\./g, '');
-    }
-    // Caso contrário (ex: 10.5 ou 10.50), mantemos o ponto como decimal
+    return Number(str);
   }
 
+  // Caso só vírgula (decimal BR, ex: 404,77)
+  if (str.includes(',') && !str.includes('.')) {
+    str = str.replace(',', '.');
+    return Number(str);
+  }
+
+  // Caso só ponto (pode ser milhar sem decimal ou internacional)
+  // Se tiver ponto e for seguido de 3 dígitos, tratamos como milhar no contexto de boletos BR
+  if (str.includes('.') && !str.includes(',')) {
+    const parts = str.split('.');
+    if (parts.length === 2 && parts[1].length === 3) {
+      str = str.replace(/\./g, '');
+    }
+  }
+
+  // Caso número puro ou já formatado internacionalmente
   const num = Number(str);
   return isNaN(num) ? 0 : num;
 };
@@ -234,7 +229,7 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
     const due = parseDate(get('due_date'));
     
     const rawPrincipal = get('principal_amount');
-    const principal = parseBrazilianCurrency(rawPrincipal);
+    const principal = parseCurrencyBR(rawPrincipal);
 
     // Linha vazia - ignorar silenciosamente
     if (!client && !due && principal === 0) continue;
@@ -250,10 +245,10 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
     else if (aVencer) status = 'A vencer';
 
     const rawInterest = get('interest_amount');
-    const interest = parseBrazilianCurrency(rawInterest);
+    const interest = parseCurrencyBR(rawInterest);
     
     const rawFine = get('fine_amount');
-    const fine = parseBrazilianCurrency(rawFine);
+    const fine = parseCurrencyBR(rawFine);
     
     const updated = principal + interest + fine;
 
@@ -1202,12 +1197,21 @@ export default function BankSlips() {
               </TableHeader>
               <TableBody>
                 {parsedRows.slice(0, 50).map((row, idx) => {
+                  const originalStr = String(row.originalValues.principal_amount);
+                  const convertedNum = row.mapped.principal_amount;
+                  
+                  // Validação obrigatória: Detectar distorções absurdas (ex: 10000 -> 10 ou 8 -> 80)
+                  const hasDiscrepancy = (originalStr.includes('10.000') && convertedNum < 1000) || 
+                                       (originalStr.includes('8.735') && convertedNum > 10000);
+
                   return (
-                    <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50")}>
+                    <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50", hasDiscrepancy && "bg-orange-50")}>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           {row.valid ? (
-                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">OK</Badge>
+                            <Badge variant="outline" className={cn("bg-emerald-50 text-emerald-700 border-emerald-200", hasDiscrepancy && "bg-orange-100 text-orange-800 border-orange-300")}>
+                              {hasDiscrepancy ? 'ERRO VALOR' : 'OK'}
+                            </Badge>
                           ) : (
                             <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200" title={row.error}>{row.error}</Badge>
                           )}
@@ -1216,7 +1220,12 @@ export default function BankSlips() {
                       <TableCell className="font-mono">{row.mapped.nfe_number || '-'}</TableCell>
                       <TableCell>{row.mapped.client_name || '-'}</TableCell>
                       <TableCell>{row.mapped.due_date ? format(parseISO(row.mapped.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
-                      <TableCell className="text-right text-emerald-600 font-bold">{formatCurrency(row.mapped.principal_amount)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-gray-500 line-through">{originalStr}</span>
+                          <span className="font-bold text-emerald-600">{formatCurrency(convertedNum)}</span>
+                        </div>
+                      </TableCell>
                       <TableCell>{row.mapped.salesperson_name || '-'}</TableCell>
                     </TableRow>
                   );
