@@ -556,6 +556,7 @@ export default function BankSlips() {
           principal_amount: m.principal_amount,
           interest_amount: m.interest_amount,
           fine_amount: m.fine_amount,
+          updated_amount: m.updated_amount,
           due_date: m.due_date,
           payment_date: m.payment_date,
           reference: m.reference,
