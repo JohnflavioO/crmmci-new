@@ -92,7 +92,7 @@ const cleanText = (v: any): string => {
 const parseCurrencyBR = (value: any): number => {
   if (value === null || value === undefined || value === '') return 0;
 
-  // Se já for número, NÃO ALTERAR
+  // Se já for número, usar direto conforme regra absoluta
   if (typeof value === 'number') return value;
 
   let str = String(value)
@@ -101,28 +101,18 @@ const parseCurrencyBR = (value: any): number => {
 
   if (!str) return 0;
 
-  // Caso padrão brasileiro: tem ponto e vírgula (ex: 10.000,00)
+  // Caso padrão brasileiro: tem ponto e vírgula
   if (str.includes('.') && str.includes(',')) {
     str = str.replace(/\./g, '').replace(',', '.');
     return Number(str);
   }
 
-  // Caso só vírgula (decimal BR, ex: 404,77)
+  // Caso só vírgula (decimal BR)
   if (str.includes(',') && !str.includes('.')) {
-    str = str.replace(',', '.');
-    return Number(str);
+    return Number(str.replace(',', '.'));
   }
 
-  // Caso só ponto (pode ser milhar sem decimal ou internacional)
-  // Se tiver ponto e for seguido de 3 dígitos, tratamos como milhar no contexto de boletos BR
-  if (str.includes('.') && !str.includes(',')) {
-    const parts = str.split('.');
-    if (parts.length === 2 && parts[1].length === 3) {
-      str = str.replace(/\./g, '');
-    }
-  }
-
-  // Caso número puro ou já formatado internacionalmente
+  // Caso número puro
   const num = Number(str);
   return isNaN(num) ? 0 : num;
 };
