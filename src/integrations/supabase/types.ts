@@ -68,6 +68,7 @@ export type Database = {
           id: string
           import_batch_id: string | null
           interest_amount: number
+          lembrete: string | null
           nfe_number: string | null
           notes: string | null
           payment_date: string | null
@@ -91,6 +92,7 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           interest_amount?: number
+          lembrete?: string | null
           nfe_number?: string | null
           notes?: string | null
           payment_date?: string | null
@@ -114,6 +116,7 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           interest_amount?: number
+          lembrete?: string | null
           nfe_number?: string | null
           notes?: string | null
           payment_date?: string | null
