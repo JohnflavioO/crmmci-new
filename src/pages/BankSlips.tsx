@@ -229,7 +229,7 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
     const due = parseDate(get('due_date'));
     
     const rawPrincipal = get('principal_amount');
-    const principal = parseBrazilianCurrency(rawPrincipal);
+    const principal = parseCurrencyBR(rawPrincipal);
 
     // Linha vazia - ignorar silenciosamente
     if (!client && !due && principal === 0) continue;
@@ -245,10 +245,10 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
     else if (aVencer) status = 'A vencer';
 
     const rawInterest = get('interest_amount');
-    const interest = parseBrazilianCurrency(rawInterest);
+    const interest = parseCurrencyBR(rawInterest);
     
     const rawFine = get('fine_amount');
-    const fine = parseBrazilianCurrency(rawFine);
+    const fine = parseCurrencyBR(rawFine);
     
     const updated = principal + interest + fine;
 
