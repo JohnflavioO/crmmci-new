@@ -151,52 +151,77 @@ const parseDate = (v: any): string | null => {
   return null;
 };
 
-// Detecta a linha do cabeçalho procurando por colunas conhecidas (Cliente/Pagador + Vencimento)
-const CLIENT_HEADERS = ['cliente', 'pagador', 'sacado', 'razao social', 'razão social', 'nome', 'pagador'];
-const DUE_HEADERS = ['vencimento', 'data vencimento', 'data de vencimento', 'vcto', 'venc', 'vencimento'];
-
-const findHeaderRow = (rows: any[][]): number => {
-  for (let i = 0; i < Math.min(rows.length, 50); i++) {
-    const row = rows[i] || [];
-    const texts = row.map(c => cleanText(c).toLowerCase().replace(/\(.*?\)/g, '').trim());
-    const hasClient = texts.some(t => CLIENT_HEADERS.includes(t));
-    const hasDue = texts.some(t => DUE_HEADERS.includes(t));
-    if (hasClient && hasDue) return i;
-  }
-  return -1;
+// Normaliza texto: minúsculas, sem acentos, sem pontuação extra
+const normalizeHeader = (v: any): string => {
+  return cleanText(v)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .replace(/[().:;,\-_/\\$º°ª"']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 };
 
-// Mapeia índices de coluna por nome do cabeçalho (sinônimos aceitos)
+// Sinônimos aceitos por campo (todos já normalizados)
+const FIELD_ALIASES: Record<string, string[]> = {
+  dda: ['dda'],
+  reminder: ['lembrete'],
+  classification: ['classificacao', 'carteira'],
+  nfe_number: ['nf e', 'nfe', 'nf', 'nota fiscal', 'n nf e', 'numero nf', 'nosso numero', 'numero documento', 'documento'],
+  client_name: ['cliente', 'pagador', 'sacado', 'razao social', 'nome', 'nome cliente', 'nome pagador'],
+  principal_amount: ['valor r', 'valor rs', 'valor', 'valor r$', 'principal', 'valor principal', 'valor titulo', 'vlr titulo', 'valor total', 'valor do titulo'],
+  due_date: ['vencimento', 'data vencimento', 'data de vencimento', 'dt vencimento', 'vcto', 'venc'],
+  payment_date: ['data pagamento', 'data de pagamento', 'pagamento', 'dt pagamento', 'liquidacao'],
+  days_late: ['dias de atraso', 'dias atraso', 'atraso'],
+  interest_amount: ['juros'],
+  fine_amount: ['multa'],
+  reference: ['referencia', 'seu numero', 'observacao', 'obs'],
+  a_vencer: ['a vencer'],
+  pago: ['pago'],
+  vencido: ['vencido'],
+  salesperson_name: ['vendedor', 'representante', 'responsavel', 'comercial'],
+};
+
+const matchField = (normalizedHeader: string): string | null => {
+  if (!normalizedHeader) return null;
+  for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
+    if (aliases.includes(normalizedHeader)) return field;
+  }
+  // fallback parcial: começa com algum alias (ex.: "vencimento titulo")
+  for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
+    if (aliases.some(a => normalizedHeader === a || normalizedHeader.startsWith(a + ' ') || normalizedHeader.endsWith(' ' + a))) {
+      return field;
+    }
+  }
+  return null;
+};
+
+// Detecta a linha do cabeçalho procurando colunas conhecidas dentro das primeiras 20 linhas.
+// Aceita o cabeçalho se reconhecer >= 2 campos, sendo um deles client_name OU due_date OU principal_amount.
+const findHeaderRow = (rows: any[][]): number => {
+  let best = { idx: -1, score: 0 };
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const row = rows[i] || [];
+    const matched = new Set<string>();
+    row.forEach(cell => {
+      const f = matchField(normalizeHeader(cell));
+      if (f) matched.add(f);
+    });
+    const hasKey = matched.has('client_name') || matched.has('due_date') || matched.has('principal_amount');
+    if (hasKey && matched.size >= 2 && matched.size > best.score) {
+      best = { idx: i, score: matched.size };
+    }
+  }
+  return best.idx;
+};
+
+// Mapeia índices de coluna por nome do cabeçalho
 const buildColumnMap = (headerRow: any[]): Record<string, number> => {
   const map: Record<string, number> = {};
-  const aliases: Record<string, string[]> = {
-    dda: ['dda'],
-    reminder: ['lembrete'],
-    classification: ['classificação', 'classificacao', 'carteira'],
-    nfe_number: ['nf-e', 'nfe', 'nf', 'nosso numero', 'nosso número', 'nosso n umero', 'numero documento', 'documento'],
-    client_name: ['cliente', 'pagador', 'sacado', 'razao social', 'razão social', 'nome'],
-    principal_amount: ['principal', 'valor principal', 'valor', 'valor r', 'valor (r$)', 'valor(r$)', 'valor rs', 'valor título', 'vlr título', 'valor total', 'valor(r$)', 'valor'],
-    due_date: ['vencimento', 'data vencimento', 'data de vencimento', 'vcto', 'venc'],
-    payment_date: ['data pagamento', 'data de pagamento', 'pagamento', 'liquidacao', 'liquidação'],
-    days_late: ['dias de atraso', 'dias atraso', 'atraso'],
-    interest_amount: ['juros'],
-    fine_amount: ['multa'],
-    reference: ['referencia', 'referência', 'seu numero', 'seu número', 'observacao', 'observação', 'obs'],
-    a_vencer: ['á vencer', 'a vencer'],
-    pago: ['pago'],
-    vencido: ['vencido'],
-    salesperson_name: ['vendedor', 'representante'],
-  };
-
   headerRow.forEach((cell, idx) => {
-    const key = cleanText(cell).toLowerCase().replace(/\(.*?\)/g, '').trim();
-    if (!key) return;
-    for (const [target, names] of Object.entries(aliases)) {
-      if (map[target] !== undefined) continue;
-      if (names.includes(key)) {
-        map[target] = idx;
-        break;
-      }
+    const field = matchField(normalizeHeader(cell));
+    if (field && map[field] === undefined) {
+      map[field] = idx;
     }
   });
   return map;
@@ -522,27 +547,61 @@ export default function BankSlips() {
           wb = XLSX.read(bytes, { type: 'array', cellDates: true });
         }
 
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { 
-          header: 1, 
-          defval: '', 
-          raw: true, // REGRA ABSOLUTA: Tentar obter o número original do Excel
-          rawNumbers: true 
-        });
+        // Procura a aba que contém um cabeçalho válido
+        let chosen: { name: string; rows: any[][]; headerIdx: number } | null = null;
+        const sheetSummaries: { name: string; firstRows: string[]; detectedCols: string[] }[] = [];
 
-        const { parsed, headerIdx } = parseSheetRows(rows);
+        for (const name of wb.SheetNames) {
+          const ws = wb.Sheets[name];
+          const rows: any[][] = XLSX.utils.sheet_to_json(ws, {
+            header: 1,
+            defval: '',
+            raw: true,
+            rawNumbers: true,
+          });
+          const headerIdx = findHeaderRow(rows);
+          if (headerIdx >= 0 && !chosen) {
+            chosen = { name, rows, headerIdx };
+          }
+          // Resumo para mensagem de erro caso nenhuma aba sirva
+          const detected = headerIdx >= 0
+            ? Object.keys(buildColumnMap(rows[headerIdx]))
+            : [];
+          sheetSummaries.push({
+            name,
+            firstRows: rows.slice(0, 5).map(r => r.map(c => String(c ?? '')).join(' | ')),
+            detectedCols: detected,
+          });
+        }
 
-        if (headerIdx < 0) {
-          toast.error('Não foi possível localizar o cabeçalho da planilha. Verifique se ela contém colunas como Cliente/Pagador e Vencimento.');
+        if (!chosen) {
+          const detail = sheetSummaries.map(s =>
+            `• Aba "${s.name}":\n   Primeiras linhas:\n   ${s.firstRows.slice(0, 3).join('\n   ')}`
+          ).join('\n\n');
+          toast.error(
+            `Não foi possível localizar o cabeçalho.\nAbas encontradas: ${wb.SheetNames.join(', ')}.\nCampos obrigatórios faltando: Cliente/Pagador, Vencimento ou Valor(R$).\n\n${detail}`,
+            { duration: 15000 }
+          );
           return;
+        }
+
+        const { parsed, headerIdx } = parseSheetRows(chosen.rows);
+        const colMap = buildColumnMap(chosen.rows[chosen.headerIdx]);
+        const missing: string[] = [];
+        if (colMap.client_name === undefined) missing.push('Cliente/Pagador');
+        if (colMap.due_date === undefined) missing.push('Vencimento');
+        if (colMap.principal_amount === undefined) missing.push('Valor(R$)');
+        if (missing.length > 0) {
+          toast.warning(`Cabeçalho localizado na linha ${headerIdx + 1} da aba "${chosen.name}", mas faltam colunas: ${missing.join(', ')}.`);
+        } else {
+          toast.success(`Cabeçalho localizado na linha ${headerIdx + 1} da aba "${chosen.name}".`);
         }
 
         const valid = parsed.filter(p => p.valid).length;
         const invalid = parsed.length - valid;
 
         setParsedRows(parsed);
-        setImportMeta({ totalRows: parsed.length, valid, invalid, sheetName: wsname });
+        setImportMeta({ totalRows: parsed.length, valid, invalid, sheetName: chosen.name });
         setIsImportDialogOpen(true);
       } catch (err: any) {
         toast.error('Erro ao ler arquivo: ' + err.message);
