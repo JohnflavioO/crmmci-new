@@ -804,7 +804,7 @@ export default function BankSlips() {
   const exportReport = () => {
     const dataToExport = filteredSlips.map(s => ({
       'DDA': s.dda || '',
-      'Lembrete': s.reminder || '',
+      'Lembrete': s.lembrete || '',
       'Classificação': s.classification || '',
       'NF-e': s.nfe_number || '',
       'Cliente': s.client_name,
@@ -1028,8 +1028,8 @@ export default function BankSlips() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-gray-50/50">
-                    <TableHead>DDA</TableHead>
-                    <TableHead>Lembrete</TableHead>
+                    <TableHead className="w-24">DDA</TableHead>
+                    <TableHead className="w-32">Lembrete</TableHead>
                     <TableHead>Classif.</TableHead>
                     <TableHead>NF-e</TableHead>
                     <TableHead className="min-w-[200px]">Cliente</TableHead>
@@ -1056,8 +1056,43 @@ export default function BankSlips() {
                       const days = calcDaysLate(slip);
                       return (
                         <TableRow key={slip.id} className="hover:bg-gray-50/50 text-xs">
-                          <TableCell>{slip.dda || '-'}</TableCell>
-                          <TableCell>{slip.reminder || '-'}</TableCell>
+                          <TableCell>
+                            <Select 
+                              value={slip.dda || 'NÃO'} 
+                              onValueChange={(val) => handleInlineUpdate(slip.id, 'dda', val)}
+                            >
+                              <SelectTrigger className="h-7 text-[10px] py-0 px-2">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="SIM">SIM</SelectItem>
+                                <SelectItem value="NÃO">NÃO</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Select 
+                              value={slip.lembrete || ''} 
+                              onValueChange={(val) => handleInlineUpdate(slip.id, 'lembrete', val)}
+                            >
+                              <SelectTrigger className={cn(
+                                "h-7 text-[10px] py-0 px-2",
+                                slip.lembrete === 'P' && "bg-purple-100 text-purple-800",
+                                slip.lembrete === 'W' && "bg-blue-100 text-blue-800",
+                                slip.lembrete === 'Standby' && "bg-orange-100 text-orange-800",
+                                slip.lembrete === 'Vendedor' && "bg-gray-100 text-gray-800"
+                              )}>
+                                <SelectValue placeholder="-" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="P">P</SelectItem>
+                                <SelectItem value="W">W</SelectItem>
+                                <SelectItem value="Standby">Standby</SelectItem>
+                                <SelectItem value="Vendedor">Vendedor</SelectItem>
+                                <SelectItem value="">-</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
                           <TableCell>{slip.classification || '-'}</TableCell>
                           <TableCell className="font-mono">{slip.nfe_number || '-'}</TableCell>
                           <TableCell className="font-medium">{slip.client_name}</TableCell>
