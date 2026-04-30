@@ -625,10 +625,10 @@ export default function BankSlips() {
         .from('bank_slips' as any)
         .select('id, nfe_number, client_name, due_date, principal_amount');
 
-      const existingMap = new Map<string, string>();
+      const existingMap = new Map<string, string[]>();
       (existing || []).forEach((e: any) => {
         const k = `${e.nfe_number || ''}|${e.client_name}|${e.due_date}`;
-        existingMap.set(k, e.id);
+        existingMap.set(k, [...(existingMap.get(k) || []), e.id]);
       });
 
       let inserted = 0;
@@ -656,9 +656,9 @@ export default function BankSlips() {
           status: m.status,
           import_batch_id: batchId,
         };
-        const existsId = existingMap.get(k);
-        if (existsId) {
-          updates.push({ id: existsId, payload });
+        const existsIds = existingMap.get(k);
+        if (existsIds?.length) {
+          existsIds.forEach(id => updates.push({ id, payload }));
         } else {
           inserts.push({ ...payload, created_by: user?.id });
         }
