@@ -649,7 +649,7 @@ export default function BankSlips() {
         const k = buildImportKey(m.nfe_number, m.client_name, m.due_date);
         const payload: any = {
           dda: m.dda,
-          reminder: m.reminder,
+          lembrete: m.lembrete,
           classification: m.classification,
           nfe_number: m.nfe_number,
           client_name: m.client_name,
@@ -705,7 +705,7 @@ export default function BankSlips() {
       notes: slip.notes || '',
       status: slip.status,
       payment_date: slip.payment_date || '',
-      reminder: slip.reminder || '',
+      lembrete: slip.lembrete || '',
       classification: slip.classification || '',
       salesperson_name: slip.salesperson_name || '',
     });
@@ -724,7 +724,7 @@ export default function BankSlips() {
           notes: editForm.notes,
           status: editForm.status,
           payment_date: editForm.payment_date || null,
-          reminder: editForm.reminder || null,
+          lembrete: editForm.lembrete || null,
           classification: editForm.classification || null,
           salesperson_name: editForm.salesperson_name || null,
         })
@@ -746,6 +746,34 @@ export default function BankSlips() {
       loadData();
     } catch (error: any) {
       toast.error('Erro ao salvar: ' + error.message);
+    }
+  };
+
+  const handleInlineUpdate = async (id: string, field: string, value: string) => {
+    const slip = bankSlips.find(s => s.id === id);
+    if (!slip) return;
+
+    try {
+      const { error } = await supabase
+        .from('bank_slips' as any)
+        .update({ [field]: value })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const oldValue = field === 'dda' ? slip.dda : slip.lembrete;
+      
+      await supabase.from('bank_slip_history' as any).insert({
+        bank_slip_id: id,
+        action: 'Edição Rápida',
+        notes: `${field.toUpperCase()}: ${oldValue || '-'} -> ${value}`,
+        performed_by: user?.id
+      });
+
+      setBankSlips(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+      toast.success('Campo atualizado!');
+    } catch (error: any) {
+      toast.error('Erro ao atualizar: ' + error.message);
     }
   };
 
@@ -1210,7 +1238,16 @@ export default function BankSlips() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Lembrete</Label>
-                <Input value={editForm.reminder} onChange={(e) => setEditForm({ ...editForm, reminder: e.target.value })} />
+                <Select value={editForm.lembrete} onValueChange={(val) => setEditForm({ ...editForm, lembrete: val })}>
+                  <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="P">P</SelectItem>
+                    <SelectItem value="W">W</SelectItem>
+                    <SelectItem value="Standby">Standby</SelectItem>
+                    <SelectItem value="Vendedor">Vendedor</SelectItem>
+                    <SelectItem value="">-</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Classificação</Label>
