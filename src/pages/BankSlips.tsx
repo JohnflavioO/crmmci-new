@@ -27,8 +27,8 @@ import { cn } from '@/lib/utils';
 
 interface BankSlip {
   id: string;
-  dda?: string;
-  reminder?: string;
+  dda: string;
+  lembrete?: string;
   classification?: string;
   nfe_number?: string;
   client_name: string;
@@ -54,8 +54,8 @@ interface ParsedRow {
     fine_amount: any;
   };
   mapped: {
-    dda?: string;
-    reminder?: string;
+    dda: string;
+    lembrete?: string;
     classification?: string;
     nfe_number?: string;
     client_name: string;
@@ -155,7 +155,7 @@ const normalizeHeader = (v: any): string => {
 // Sinônimos aceitos por campo (todos já normalizados)
 const FIELD_ALIASES: Record<string, string[]> = {
   dda: ['dda'],
-  reminder: ['lembrete'],
+  lembrete: ['lembrete', 'reminder'],
   classification: ['classificacao', 'carteira'],
   nfe_number: ['nf e', 'nfe', 'nf', 'nota fiscal', 'n nf e', 'numero nf', 'nosso numero', 'numero documento', 'documento', 'n docto', 'num docto'],
   client_name: ['cliente', 'pagador', 'sacado', 'razao social', 'nome', 'nome cliente', 'nome pagador'],
@@ -265,8 +265,8 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
     const updated = principal + interest + fine;
 
     const mapped = {
-      dda: cleanText(get('dda')) || undefined,
-      reminder: cleanText(get('reminder')) || undefined,
+      dda: cleanText(get('dda')) || 'NÃO',
+      lembrete: cleanText(get('lembrete')) || undefined,
       classification: cleanText(get('classification')) || undefined,
       nfe_number: cleanText(get('nfe_number')) || undefined,
       client_name: client,
@@ -329,7 +329,7 @@ export default function BankSlips() {
     notes: '',
     status: '',
     payment_date: '',
-    reminder: '',
+    lembrete: '',
     classification: '',
     salesperson_name: '',
   });
