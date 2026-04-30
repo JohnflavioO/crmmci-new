@@ -143,13 +143,13 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     { label: '#', w: 8 },
     { label: 'Foto', w: 14 },
     { label: 'Código', w: 16 },
-    { label: 'Modelo / Descrição', w: 60 }, // Increased width
+    { label: 'Modelo / Descrição', w: 55 }, // Adjusted width
     { label: 'Marca', w: 18 },
     { label: 'Qtd', w: 10 },
     { label: 'Unit.', w: 18 },
     { label: 'Desc.', w: 11 },
-    { label: 'V. Unit c/ Desc.', w: 15 }, // Slightly reduced to accommodate description
-    { label: 'Total', w: 16 }, // Slightly reduced to accommodate description
+    { label: 'V. Unit c/ Desc.', w: 20 }, // Increased width to avoid overlapping
+    { label: 'Total', w: 16 }, 
   ];
 
   const checkPage = (needed: number) => {
@@ -211,9 +211,9 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     const model = item.model || item.description || '';
     const specs = item.specifications ? `(${item.specifications})` : '';
     
-    // Split text to fit column width
-    const splitModel = doc.splitTextToSize(model, cols[3].w - 4);
-    const splitSpecs = specs ? doc.splitTextToSize(specs, cols[3].w - 4) : [];
+    // Split text to fit column width - now limiting volume of text
+    const splitModel = doc.splitTextToSize(model, cols[3].w - 4).slice(0, 4); // Limit model to 4 lines
+    const splitSpecs = specs ? doc.splitTextToSize(specs, cols[3].w - 4).slice(0, 3) : []; // Limit specs to 3 lines
     
     // Calculate required row height based on content
     const totalLines = splitModel.length + splitSpecs.length;
