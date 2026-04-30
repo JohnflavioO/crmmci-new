@@ -92,6 +92,20 @@ const cleanText = (v: any): string => {
 
 // A função parseCurrencyBR foi movida para @/utils/currency.ts para facilitar testes unitários.
 
+const htmlToRowsPreservingCurrencyText = (html: string): any[][] => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const tables = Array.from(doc.querySelectorAll('table'));
+
+  return tables.flatMap(table =>
+    Array.from(table.querySelectorAll('tr')).map(tr =>
+      Array.from(tr.querySelectorAll('th,td')).map(cell =>
+        cleanText(cell.textContent || '')
+      )
+    )
+  );
+};
+
 const parseBool = (v: any): boolean => {
   if (v === null || v === undefined || v === '') return false;
   if (typeof v === 'boolean') return v;
