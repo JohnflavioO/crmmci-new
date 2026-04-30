@@ -127,14 +127,17 @@ const parseDate = (v: any): string | null => {
   return null;
 };
 
-// Detecta a linha do cabeçalho procurando por células que contenham "Cliente" e "Vencimento"
+// Detecta a linha do cabeçalho procurando por colunas conhecidas (Cliente/Pagador + Vencimento)
+const CLIENT_HEADERS = ['cliente', 'pagador', 'sacado', 'razao social', 'razão social', 'nome'];
+const DUE_HEADERS = ['vencimento', 'data vencimento', 'data de vencimento', 'vcto', 'venc'];
+
 const findHeaderRow = (rows: any[][]): number => {
-  for (let i = 0; i < Math.min(rows.length, 30); i++) {
+  for (let i = 0; i < Math.min(rows.length, 50); i++) {
     const row = rows[i] || [];
-    const texts = row.map(c => cleanText(c).toLowerCase());
-    if (texts.includes('cliente') && texts.includes('vencimento')) {
-      return i;
-    }
+    const texts = row.map(c => cleanText(c).toLowerCase().replace(/\(.*?\)/g, '').trim());
+    const hasClient = texts.some(t => CLIENT_HEADERS.includes(t));
+    const hasDue = texts.some(t => DUE_HEADERS.includes(t));
+    if (hasClient && hasDue) return i;
   }
   return -1;
 };
@@ -145,24 +148,24 @@ const buildColumnMap = (headerRow: any[]): Record<string, number> => {
   const aliases: Record<string, string[]> = {
     dda: ['dda'],
     reminder: ['lembrete'],
-    classification: ['classificação', 'classificacao'],
-    nfe_number: ['nf-e', 'nfe', 'nf'],
-    client_name: ['cliente'],
-    principal_amount: ['principal', 'valor principal', 'valor'],
-    due_date: ['vencimento'],
-    payment_date: ['data pagamento', 'data de pagamento', 'pagamento'],
+    classification: ['classificação', 'classificacao', 'carteira'],
+    nfe_number: ['nf-e', 'nfe', 'nf', 'nosso numero', 'nosso número', 'nosso n umero', 'numero documento', 'documento'],
+    client_name: ['cliente', 'pagador', 'sacado', 'razao social', 'razão social', 'nome'],
+    principal_amount: ['principal', 'valor principal', 'valor', 'valor r', 'valor (r$)', 'valor(r$)', 'valor rs'],
+    due_date: ['vencimento', 'data vencimento', 'data de vencimento', 'vcto', 'venc'],
+    payment_date: ['data pagamento', 'data de pagamento', 'pagamento', 'liquidacao', 'liquidação'],
     days_late: ['dias de atraso', 'dias atraso', 'atraso'],
     interest_amount: ['juros'],
     fine_amount: ['multa'],
-    reference: ['referencia', 'referência'],
+    reference: ['referencia', 'referência', 'seu numero', 'seu número', 'observacao', 'observação', 'obs'],
     a_vencer: ['á vencer', 'a vencer'],
     pago: ['pago'],
     vencido: ['vencido'],
-    salesperson_name: ['vendedor'],
+    salesperson_name: ['vendedor', 'representante'],
   };
 
   headerRow.forEach((cell, idx) => {
-    const key = cleanText(cell).toLowerCase();
+    const key = cleanText(cell).toLowerCase().replace(/\(.*?\)/g, '').trim();
     if (!key) return;
     for (const [target, names] of Object.entries(aliases)) {
       if (map[target] !== undefined) continue;
@@ -371,16 +374,36 @@ export default function BankSlips() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
+        const buf = evt.target?.result as ArrayBuffer;
+        const bytes = new Uint8Array(buf);
+
+        // Detecta arquivos HTML (ex: Itaú exporta .xls que na verdade é HTML)
+        const head = new TextDecoder('latin1').decode(bytes.slice(0, 200)).trim().toLowerCase();
+        const isHtml = head.startsWith('<!doctype') || head.startsWith('<html') || head.startsWith('<?xml') || head.includes('<table');
+
+        let wb: XLSX.WorkBook;
+        if (isHtml) {
+          // Tenta UTF-8, cai para latin-1 se necessário
+          let text: string;
+          try {
+            text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+            if (text.includes('\uFFFD')) throw new Error('encoding');
+          } catch {
+            text = new TextDecoder('latin1').decode(bytes);
+          }
+          wb = XLSX.read(text, { type: 'string' });
+        } else {
+          wb = XLSX.read(bytes, { type: 'array', cellDates: true });
+        }
+
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: !isHtml });
 
         const { parsed, headerIdx } = parseSheetRows(rows);
 
         if (headerIdx < 0) {
-          toast.error('Não foi possível localizar o cabeçalho da planilha. Verifique se ela contém as colunas Cliente e Vencimento.');
+          toast.error('Não foi possível localizar o cabeçalho da planilha. Verifique se ela contém colunas como Cliente/Pagador e Vencimento.');
           return;
         }
 
@@ -397,7 +420,7 @@ export default function BankSlips() {
         e.target.value = '';
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const processImport = async () => {
