@@ -566,7 +566,7 @@ export default function BankSlips() {
           const rows: any[][] = XLSX.utils.sheet_to_json(ws, {
             header: 1,
             defval: '',
-            raw: !isHtml, // Se for HTML, pegamos o texto bruto para não deixar o SheetJS converter errado
+            raw: true, // Sempre tentar ler o valor bruto numérico do Excel primeiro
           });
           const headerIdx = findHeaderRow(rows);
           if (headerIdx >= 0 && !chosen) {
