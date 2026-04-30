@@ -525,7 +525,12 @@ export default function BankSlips() {
 
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { 
+          header: 1, 
+          defval: '', 
+          raw: true, // REGRA ABSOLUTA: Tentar obter o número original do Excel
+          rawNumbers: true 
+        });
 
         const { parsed, headerIdx } = parseSheetRows(rows);
 
