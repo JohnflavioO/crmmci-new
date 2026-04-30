@@ -92,37 +92,39 @@ const cleanText = (v: any): string => {
 const parseBrazilianCurrency = (value: any): number => {
   if (value === null || value === undefined || value === '') return 0;
 
+  // Se o Excel já enviou como número, retornamos diretamente.
   if (typeof value === 'number') {
     return value;
   }
 
+  // Tratamento de string
   let str = String(value)
     .replace(/R\$/g, '')
-    .replace(/\s/g, '')
     .trim();
 
-  // Se tiver ponto e vírgula, assume padrão BR: 10.000,00
+  if (!str) return 0;
+
+  // Se houver pontos e vírgulas (ex: 10.000,00 ou 1.234,56)
   if (str.includes('.') && str.includes(',')) {
+    // Remove todos os pontos (milhar) e troca a vírgula por ponto (decimal)
     str = str.replace(/\./g, '').replace(',', '.');
-    return Number(str) || 0;
-  }
-
-  // Se tiver apenas vírgula, assume decimal BR: 404,77
-  if (str.includes(',') && !str.includes('.')) {
+  } 
+  // Se houver apenas vírgula (ex: 404,77 ou 10000,00)
+  else if (str.includes(',')) {
     str = str.replace(',', '.');
-    return Number(str) || 0;
+  }
+  // Se houver apenas pontos (ex: 10.000 ou 10.50)
+  else if (str.includes('.')) {
+    const parts = str.split('.');
+    // Se o ponto separa exatamente 3 dígitos no final (ex: 10.000), tratamos como milhar
+    if (parts.length === 2 && parts[1].length === 3) {
+      str = str.replace(/\./g, '');
+    }
+    // Caso contrário (ex: 10.5 ou 10.50), mantemos o ponto como decimal (padrão internacional)
   }
 
-  // Se tiver apenas ponto
-  // Pode ser decimal (10.50) ou milhar (10.000)
-  // Heurística de segurança: em boletos bancários, pontos isolados costumam ser milhares se houver 3 dígitos depois
-  const parts = str.split('.');
-  if (parts.length === 2 && parts[1].length === 3) {
-    // 10.000 -> 10000
-    return Number(str.replace(/\./g, '')) || 0;
-  }
-
-  return Number(str) || 0;
+  const num = Number(str);
+  return isNaN(num) ? 0 : num;
 };
 
 const parseBool = (v: any): boolean => {
@@ -1188,20 +1190,15 @@ export default function BankSlips() {
                   <TableHead>Status</TableHead>
                   <TableHead>NF-e</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead className="text-right">Original (Excel)</TableHead>
-                  <TableHead className="text-right text-emerald-600 font-bold">Convertido</TableHead>
+                  <TableHead className="text-right">Valor Correto</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Vendedor</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {parsedRows.slice(0, 50).map((row, idx) => {
-                  const hasInconsistency = row.valid && 
-                    String(row.originalValues.principal_amount).includes('10.000') && 
-                    row.mapped.principal_amount < 1000;
-
                   return (
-                    <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50", hasInconsistency && "bg-yellow-50")}>
+                    <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50")}>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           {row.valid ? (
@@ -1209,16 +1206,10 @@ export default function BankSlips() {
                           ) : (
                             <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200" title={row.error}>{row.error}</Badge>
                           )}
-                          {hasInconsistency && (
-                            <span title="Possível erro de conversão">
-                              <AlertTriangle className="h-3 w-3 text-amber-500" />
-                            </span>
-                          )}
                         </div>
                       </TableCell>
                       <TableCell className="font-mono">{row.mapped.nfe_number || '-'}</TableCell>
                       <TableCell>{row.mapped.client_name || '-'}</TableCell>
-                      <TableCell className="text-right text-gray-500">{row.originalValues.principal_amount || '-'}</TableCell>
                       <TableCell className="text-right text-emerald-600 font-bold">{formatCurrency(row.mapped.principal_amount)}</TableCell>
                       <TableCell>{row.mapped.due_date ? format(parseISO(row.mapped.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
                       <TableCell>{row.mapped.salesperson_name || '-'}</TableCell>
@@ -1227,7 +1218,7 @@ export default function BankSlips() {
                 })}
                 {parsedRows.length > 50 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-gray-500 py-3">
+                    <TableCell colSpan={6} className="text-center text-gray-500 py-3">
                       + {parsedRows.length - 50} outras linhas...
                     </TableCell>
                   </TableRow>
