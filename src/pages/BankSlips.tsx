@@ -87,34 +87,41 @@ const parseNumber = (v: any): number => {
   if (v === null || v === undefined || v === '') return 0;
   if (typeof v === 'number') return v;
   
-  // Remove currency symbols, non-breaking spaces, and whitespace
-  let s = String(v).replace(/\u00a0/g, '').replace(/\s/g, '').replace(/R\$/gi, '').trim();
+  // Limpeza profunda: remove R$, espaços, símbolos de moeda e caracteres invisíveis
+  let s = String(v)
+    .replace(/\u00a0/g, '')
+    .replace(/[\s\t\n\r]/g, '')
+    .replace(/R\$/gi, '')
+    .trim();
   
   if (!s) return 0;
 
-  // Handle Brazilian formatting: 1.234,56
-  const lastComma = s.lastIndexOf(',');
-  const lastDot = s.lastIndexOf('.');
-  
-  if (lastComma > lastDot) {
-    // Comma is the decimal separator (e.g. 1.234,56)
-    // Remove all dots (thousands) and replace comma with dot
+  // Detecta formato brasileiro com ponto e vírgula: 1.234,56
+  const hasComma = s.includes(',');
+  const hasDot = s.includes('.');
+
+  if (hasComma) {
+    // No Brasil, se tem vírgula, ela é o separador decimal.
+    // Removemos todos os pontos (milhares) e trocamos a vírgula por ponto (padrão JS)
     s = s.replace(/\./g, '').replace(',', '.');
-  } else if (lastDot > lastComma) {
-    // Dot is likely the decimal separator, OR it's a thousands separator
+  } else if (hasDot) {
+    // Se tem apenas ponto(s), pode ser milhar (10.000) ou decimal (10.50)
     const parts = s.split('.');
     if (parts.length > 2) {
-      // 1.000.000 -> 1000000
+      // Múltiplos pontos: sempre milhares (1.000.000)
       s = s.replace(/\./g, '');
     } else if (parts.length === 2) {
-      // 10.000 (thousands) vs 10.50 (decimal)
+      // Ponto único: heurística de 3 dígitos para boletos bancários
       if (parts[1].length === 3) {
+        // 10.000 -> 10000
         s = s.replace(/\./g, '');
+      } else {
+        // 10.50 -> 10.50 (mantém o ponto como decimal)
       }
     }
   }
 
-  // Remove any remaining non-numeric characters except the dot
+  // Remove qualquer caractere que não seja dígito ou o ponto decimal final
   s = s.replace(/[^\d.]/g, '');
   
   const n = parseFloat(s);
