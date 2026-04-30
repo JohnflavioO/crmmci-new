@@ -285,7 +285,7 @@ export default function Quotes() {
       setSalespeople(s.data || []);
       setProducts(p.data || []);
 
-      if (isGestor || isAdmin) {
+      if (isGestor) {
         // Obter perfis comerciais ativos para o filtro
         const { data: profiles } = await db.from('profiles')
           .select('user_id, full_name, role, commercial_visible')
@@ -792,12 +792,15 @@ export default function Quotes() {
   };
 
   const filtered = quotes.filter((q: any) => {
-    if (isAdmin || isGestor) {
+    if (isGestor) {
       if (responsibleFilter === 'me') {
         if (q.created_by !== user?.id) return false;
       } else if (responsibleFilter !== 'all') {
         if (q.created_by !== responsibleFilter) return false;
       }
+    } else if (isAdmin || !isGestor) {
+      // Vendedor e agora Admin vêem apenas os seus
+      if (q.created_by !== user?.id) return false;
     }
     return q.quote_number?.toLowerCase().includes(search.toLowerCase()) ||
       q.client_name?.toLowerCase()?.includes(search.toLowerCase()) ||
@@ -1449,7 +1452,7 @@ export default function Quotes() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Buscar orçamento..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
             </div>
-            {(isGestor || isAdmin) && (
+            {isGestor && (
               <Select value={responsibleFilter} onValueChange={setResponsibleFilter}>
                 <SelectTrigger className="w-full sm:w-[220px] min-h-[44px]">
                   <SelectValue placeholder="Responsável" />
