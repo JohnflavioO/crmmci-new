@@ -255,23 +255,16 @@ export default function Quotes() {
         .order('created_at', { ascending: false })
         .limit(200);
       
-      if (!isAdmin && !isGestor) {
-        // Vendedor comum: sempre apenas os seus
-        quotesQuery = quotesQuery.eq('created_by', user.id);
-      } else {
-        // Admin ou Gestor
+      if (isGestor) {
+        // Gestor pode filtrar entre seus próprios ou equipe
         if (responsibleFilter === 'me') {
-          // Por padrão "me" (Gestor vê os próprios)
           quotesQuery = quotesQuery.eq('created_by', user.id);
-        } else if (responsibleFilter === 'all') {
-          // "Todos os Vendedores" - carregar orçamentos de vendedores permitidos
-          // Se for Gestor, podemos filtrar apenas por quem é comercial/vendas se necessário, 
-          // mas o requisito diz "equipe comercial permitida". No RLS Gestor já vê tudo.
-          // Aqui deixamos sem filtro adicional para "all"
-        } else {
-          // Filtrando por um vendedor específico (responsibleFilter é o user_id)
+        } else if (responsibleFilter !== 'all') {
           quotesQuery = quotesQuery.eq('created_by', responsibleFilter);
         }
+      } else {
+        // Vendedor e Admin vêem apenas seus próprios orçamentos
+        quotesQuery = quotesQuery.eq('created_by', user.id);
       }
 
       const [q, c, s, p] = await Promise.all([
