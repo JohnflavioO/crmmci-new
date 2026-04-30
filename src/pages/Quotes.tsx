@@ -735,7 +735,7 @@ export default function Quotes() {
     try {
       const { data: clientData } = await db.from('clients').select('*').eq('id', quote.client_id).maybeSingle();
       const phone = quote.clients.phone.replace(/\D/g, '');
-      const clientName = clientData?.company_name || clientData?.name || 'Cliente';
+      const clientName = clientData?.company_name || clientData?.name || quote.client_name || 'Cliente';
       const total = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(quote.total_amount) || 0);
       const publicLink = `${window.location.origin}/quote/${quote.public_token}`;
       const sellerName = profile?.full_name || '';
@@ -797,6 +797,7 @@ export default function Quotes() {
     }
     return q.quote_number?.toLowerCase().includes(search.toLowerCase()) ||
       q.client_name?.toLowerCase()?.includes(search.toLowerCase()) ||
+      q.clients?.name?.toLowerCase()?.includes(search.toLowerCase()) ||
       q.clients?.company_name?.toLowerCase()?.includes(search.toLowerCase());
   });
 
@@ -1481,7 +1482,7 @@ export default function Quotes() {
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="font-medium text-sm">{q.quote_number}</p>
-                        <p className="text-xs text-muted-foreground">{q.clients?.company_name || '-'}</p>
+                        <p className="text-xs text-muted-foreground">{q.clients?.company_name || q.clients?.name || q.client_name || '-'}</p>
                         <p className="text-xs text-muted-foreground">{safeFormatDate(q.quote_date)}</p>
                       </div>
                       <div className="text-right">
