@@ -148,24 +148,24 @@ const buildColumnMap = (headerRow: any[]): Record<string, number> => {
   const aliases: Record<string, string[]> = {
     dda: ['dda'],
     reminder: ['lembrete'],
-    classification: ['classificação', 'classificacao'],
-    nfe_number: ['nf-e', 'nfe', 'nf'],
-    client_name: ['cliente'],
-    principal_amount: ['principal', 'valor principal', 'valor'],
-    due_date: ['vencimento'],
-    payment_date: ['data pagamento', 'data de pagamento', 'pagamento'],
+    classification: ['classificação', 'classificacao', 'carteira'],
+    nfe_number: ['nf-e', 'nfe', 'nf', 'nosso numero', 'nosso número', 'nosso n umero', 'numero documento', 'documento'],
+    client_name: ['cliente', 'pagador', 'sacado', 'razao social', 'razão social', 'nome'],
+    principal_amount: ['principal', 'valor principal', 'valor', 'valor r', 'valor (r$)', 'valor(r$)', 'valor rs'],
+    due_date: ['vencimento', 'data vencimento', 'data de vencimento', 'vcto', 'venc'],
+    payment_date: ['data pagamento', 'data de pagamento', 'pagamento', 'liquidacao', 'liquidação'],
     days_late: ['dias de atraso', 'dias atraso', 'atraso'],
     interest_amount: ['juros'],
     fine_amount: ['multa'],
-    reference: ['referencia', 'referência'],
+    reference: ['referencia', 'referência', 'seu numero', 'seu número', 'observacao', 'observação', 'obs'],
     a_vencer: ['á vencer', 'a vencer'],
     pago: ['pago'],
     vencido: ['vencido'],
-    salesperson_name: ['vendedor'],
+    salesperson_name: ['vendedor', 'representante'],
   };
 
   headerRow.forEach((cell, idx) => {
-    const key = cleanText(cell).toLowerCase();
+    const key = cleanText(cell).toLowerCase().replace(/\(.*?\)/g, '').trim();
     if (!key) return;
     for (const [target, names] of Object.entries(aliases)) {
       if (map[target] !== undefined) continue;
