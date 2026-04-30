@@ -9,6 +9,20 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   const fmt = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
+  const resetTextSpacing = () => {
+    const pdfDoc = doc as any;
+    if (typeof pdfDoc.setCharSpace === 'function') pdfDoc.setCharSpace(0);
+  };
+
+  const normalizeCellText = (value: any) => {
+    let text = String(value || '').replace(/\s+/g, ' ').trim();
+    text = text.replace(/\(\s+/g, '(').replace(/\s+\)/g, ')').replace(/\s+-\s+/g, ' - ');
+    text = text.replace(/B\s+L\s+A\s+I\s+R/gi, 'BLAIR');
+    text = text.replace(/C\s+G/gi, 'CG');
+    text = text.replace(/K\s+I\s+T\s+D\s+E\s+V\s+I\s+A\s+G\s+E\s+M/gi, 'KIT DE VIAGEM');
+    return text;
+  };
+
   // Load logo (optimized PNG, pre-resized to 400px)
   try {
     const logoImg = new Image();
@@ -162,19 +176,24 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
 
   y = Math.max(leftY, rightY) + 2;
 
-  // Items table header - Optimized widths for better distribution
+  // Items table header - fixed positions prevent column overlap
   const cols = [
-    { label: '#', w: 7 },
-    { label: 'Foto', w: 12 },
-    { label: 'Código', w: 16 },
-    { label: 'Modelo / Descrição', w: 55 }, // Reduced back to prevent invasion
-    { label: 'Marca', w: 18 },
-    { label: 'Qtd', w: 9 },
-    { label: 'Unit.', w: 18 },
-    { label: 'Desc.', w: 10 },
-    { label: 'V. Unit c/ Desc.', w: 22 }, // Ample space to prevent R$ overlap
-    { label: 'Total', w: 18 }, 
+    { label: '#', w: 6 },
+    { label: 'Foto', w: 10 },
+    { label: 'Código', w: 13 },
+    { label: 'Modelo / Descrição', w: 52 },
+    { label: 'Marca', w: 16 },
+    { label: 'Qtd', w: 7 },
+    { label: 'Unit.', w: 19 },
+    { label: 'Desc.', w: 8 },
+    { label: 'V. Unit c/ Desc.', w: 24 },
+    { label: 'Total', w: 31 }, 
   ];
+  const colX = cols.reduce<number[]>((acc, col, idx) => {
+    acc[idx] = idx === 0 ? margin + 1 : acc[idx - 1] + cols[idx - 1].w;
+    return acc;
+  }, []);
+  const colRight = (idx: number) => (idx === cols.length - 1 ? W - margin - 1 : colX[idx] + cols[idx].w - 2);
 
   const checkPage = (needed: number) => {
     if (y + needed > 275) { 
@@ -187,21 +206,13 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   doc.setFillColor(0, 150, 136);
   doc.rect(margin, y, cw, headerH, 'F');
   doc.setTextColor(255);
-  doc.setFontSize(8); 
+  doc.setFontSize(7.2); 
   doc.setFont('helvetica', 'bold');
-  
-  // Reset character spacing explicitly for PDF export
-  // @ts-ignore - charSpace exists in some jsPDF versions/typings
-  if (doc.internal.getCharSpace) {
-    // @ts-ignore
-    doc.internal.write("0 Tc"); 
-  }
+  resetTextSpacing();
 
-  let cx = margin + 2;
   cols.forEach((col, idx) => {
     const isLast = idx === cols.length - 1;
-    doc.text(col.label, isLast ? (W - margin - 2) : cx, y + 5.5, { align: isLast ? 'right' : 'left' });
-    cx += col.w;
+    doc.text(col.label, isLast ? colRight(idx) : colX[idx], y + 5.5, { align: isLast ? 'right' : 'left' });
   });
   y += headerH + 4;
 
@@ -236,25 +247,66 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     })
   );
 
+  const wrapCellText = (text: string, maxWidth: number, maxLines: number) => {
+    const words = normalizeCellText(text).split(' ').filter(Boolean);
+    const lines: string[] = [];
+    let current = '';
+    const pushLongWord = (word: string) => {
+      let chunk = '';
+      Array.from(word).forEach((char) => {
+        if (lines.length >= maxLines) return;
+        const candidate = chunk + char;
+        if (doc.getTextWidth(candidate) <= maxWidth) {
+          chunk = candidate;
+        } else {
+          if (chunk) lines.push(chunk);
+          chunk = char;
+        }
+      });
+      current = chunk;
+    };
+    words.forEach((word) => {
+      if (lines.length >= maxLines) return;
+      const candidate = current ? `${current} ${word}` : word;
+      if (doc.getTextWidth(candidate) <= maxWidth) {
+        current = candidate;
+      } else {
+        if (current) lines.push(current);
+        if (doc.getTextWidth(word) > maxWidth) {
+          pushLongWord(word);
+        } else {
+          current = word;
+        }
+      }
+    });
+    if (current) lines.push(current);
+    return lines.slice(0, maxLines);
+  };
+
   // Items
   doc.setTextColor(30);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5); // Fixed font size for better legibility (12px-14px equivalent in mm/points is around 7-9)
+  doc.setFontSize(7.2);
   const baseRowHeight = 10;
   
   items.forEach((item: any, i: number) => {
-    const model = item.model || item.description || '';
-    const specs = item.specifications ? `(${item.specifications})` : '';
+    const model = normalizeCellText(item.model || item.description || '');
+    const specs = item.specifications ? `(${normalizeCellText(item.specifications)})` : '';
     
-    // Split text to fit column width - Limiting volume of text to prevent page explosions
-    const splitModel = doc.splitTextToSize(model, cols[3].w - 4).slice(0, 3); // Max 3 lines
-    const splitSpecs = specs ? doc.splitTextToSize(specs, cols[3].w - 4).slice(0, 2) : []; // Max 2 lines
+    // Compact, bounded description: never renders outside its column
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.6);
+    resetTextSpacing();
+    const splitModel = wrapCellText(model, cols[3].w - 5, 2);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.1);
+    const splitSpecs = specs ? wrapCellText(specs, cols[3].w - 5, 1) : [];
     
     // Calculate required row height based on content
-    const totalLines = splitModel.length + splitSpecs.length;
-    const lineHeight = 3.8; 
+    const totalLines = Math.max(1, splitModel.length + splitSpecs.length);
+    const lineHeight = 3.6; 
     const contentHeight = (totalLines * lineHeight) + 4; 
-    const rowHeight = Math.max(9, contentHeight);
+    const rowHeight = Math.max(baseRowHeight, contentHeight);
 
     checkPage(rowHeight + 2);
     
@@ -264,37 +316,38 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       doc.rect(margin, y - 5, cw, rowHeight, 'F'); 
     }
     
-    cx = margin + 2;
-
     // 1. Column #
-    doc.text(String(item.item_number || i + 1), cx, y);
-    cx += cols[0].w;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.1);
+    doc.setTextColor(30);
+    resetTextSpacing();
+    doc.text(String(item.item_number || i + 1), colX[0], y);
 
     // 2. Column Foto
     if (itemImages[i]) {
       try {
-        doc.addImage(itemImages[i], 'JPEG', cx, y - 4, 10, 10);
+        doc.addImage(itemImages[i], 'JPEG', colX[1], y - 4, 10, 10);
       } catch { /* skip */ }
     }
-    cx += cols[1].w;
 
     // 3. Column Código
-    doc.text(item.product_code || '', cx, y);
-    cx += cols[2].w;
+    const codeLines = wrapCellText(item.product_code || '', cols[2].w - 2, 1);
+    doc.text(codeLines, colX[2], y);
 
     // 4. Column Modelo / Descrição (Multi-line)
-    const descX = cx;
+    const descX = colX[3];
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8); // Standard professional size
+    doc.setFontSize(7.6);
+    resetTextSpacing();
     doc.text(splitModel, descX, y);
     
     if (splitSpecs.length > 0) {
       doc.setFont('helvetica', 'normal'); 
+      doc.setFontSize(7.1);
       doc.setTextColor(80);
-      doc.text(splitSpecs, descX, y + (splitModel.length * 3.8));
+      doc.text(splitSpecs, descX, y + (splitModel.length * 3.6));
       doc.setTextColor(30);
     }
-    cx += cols[3].w;
 
     // Other Columns
     const isGift = item.is_gift === true;
@@ -313,11 +366,11 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
 
     remainingValues.forEach((val, ci) => {
       const colIdx = ci + 4;
-      const col = cols[colIdx];
       const isLast = colIdx === cols.length - 1;
       
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.2); // Slightly smaller values for better spacing
+      doc.setFontSize(7.0);
+      resetTextSpacing();
       if (isGift && (ci === 2 || ci === 4 || ci === 5)) {
         doc.setTextColor(0, 150, 100);
         doc.setFont('helvetica', 'bold');
@@ -325,9 +378,12 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
         doc.setTextColor(30);
       }
 
-      const textVal = String(val);
-      doc.text(textVal, isLast ? (W - margin - 2) : cx, y, { align: isLast ? 'right' : 'left' });
-      cx += col.w;
+      const textVal = normalizeCellText(val);
+      const alignRight = colIdx >= 6;
+      const x = alignRight ? colRight(colIdx) : colX[colIdx];
+      const maxW = cols[colIdx].w - 2;
+      const safeText = doc.getTextWidth(textVal) > maxW ? wrapCellText(textVal, maxW, 1)[0] || '' : textVal;
+      doc.text(safeText, x, y, { align: alignRight || isLast ? 'right' : 'left' });
     });
 
     y += rowHeight;
