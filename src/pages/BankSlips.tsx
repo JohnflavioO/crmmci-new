@@ -164,8 +164,8 @@ const parseDate = (v: any): string | null => {
 };
 
 // Detecta a linha do cabeçalho procurando por colunas conhecidas (Cliente/Pagador + Vencimento)
-const CLIENT_HEADERS = ['cliente', 'pagador', 'sacado', 'razao social', 'razão social', 'nome'];
-const DUE_HEADERS = ['vencimento', 'data vencimento', 'data de vencimento', 'vcto', 'venc'];
+const CLIENT_HEADERS = ['cliente', 'pagador', 'sacado', 'razao social', 'razão social', 'nome', 'pagador'];
+const DUE_HEADERS = ['vencimento', 'data vencimento', 'data de vencimento', 'vcto', 'venc', 'vencimento'];
 
 const findHeaderRow = (rows: any[][]): number => {
   for (let i = 0; i < Math.min(rows.length, 50); i++) {
