@@ -750,13 +750,14 @@ export default function BankSlips() {
   };
 
   const handleInlineUpdate = async (id: string, field: string, value: string) => {
+    const finalValue = value === 'none' ? null : value;
     const slip = bankSlips.find(s => s.id === id);
     if (!slip) return;
 
     try {
       const { error } = await supabase
         .from('bank_slips' as any)
-        .update({ [field]: value })
+        .update({ [field]: finalValue })
         .eq('id', id);
 
       if (error) throw error;
@@ -766,11 +767,11 @@ export default function BankSlips() {
       await supabase.from('bank_slip_history' as any).insert({
         bank_slip_id: id,
         action: 'Edição Rápida',
-        notes: `${field.toUpperCase()}: ${oldValue || '-'} -> ${value}`,
+        notes: `${field.toUpperCase()}: ${oldValue || '-'} -> ${finalValue || '-'}`,
         performed_by: user?.id
       });
 
-      setBankSlips(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+      setBankSlips(prev => prev.map(s => s.id === id ? { ...s, [field]: finalValue } : s));
       toast.success('Campo atualizado!');
     } catch (error: any) {
       toast.error('Erro ao atualizar: ' + error.message);
@@ -1100,7 +1101,7 @@ export default function BankSlips() {
                           </TableCell>
                           <TableCell>
                             <Select 
-                              value={slip.lembrete || ''} 
+                              value={slip.lembrete || 'none'} 
                               onValueChange={(val) => handleInlineUpdate(slip.id, 'lembrete', val)}
                             >
                               <SelectTrigger className={cn(
@@ -1117,7 +1118,7 @@ export default function BankSlips() {
                                 <SelectItem value="W">W</SelectItem>
                                 <SelectItem value="Standby">Standby</SelectItem>
                                 <SelectItem value="Vendedor">Vendedor</SelectItem>
-                                <SelectItem value="">-</SelectItem>
+                                <SelectItem value="none">-</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
@@ -1238,14 +1239,14 @@ export default function BankSlips() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Lembrete</Label>
-                <Select value={editForm.lembrete} onValueChange={(val) => setEditForm({ ...editForm, lembrete: val })}>
+                <Select value={editForm.lembrete || 'none'} onValueChange={(val) => setEditForm({ ...editForm, lembrete: val === 'none' ? '' : val })}>
                   <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="P">P</SelectItem>
                     <SelectItem value="W">W</SelectItem>
                     <SelectItem value="Standby">Standby</SelectItem>
                     <SelectItem value="Vendedor">Vendedor</SelectItem>
-                    <SelectItem value="">-</SelectItem>
+                    <SelectItem value="none">-</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
