@@ -372,7 +372,10 @@ export default function BankSlips() {
             <h1 className="text-2xl font-bold text-gray-900 font-display">Controle de Boletos</h1>
             <p className="text-gray-500">Gerenciamento operacional de boletos e vencimentos</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" className="gap-2" onClick={exportReport} disabled={filteredSlips.length === 0}>
+              <Download className="h-4 w-4" /> Exportar Relatório
+            </Button>
             <Button variant="outline" className="gap-2" onClick={() => document.getElementById('excel-upload')?.click()}>
               <FileSpreadsheet className="h-4 w-4" /> Importar Excel
             </Button>
@@ -383,9 +386,6 @@ export default function BankSlips() {
               accept=".xlsx, .xls" 
               onChange={handleFileUpload}
             />
-            <Button className="gap-2 bg-emerald-600 hover:bg-emerald-700">
-              <Plus className="h-4 w-4" /> Novo Boleto
-            </Button>
           </div>
         </div>
 
