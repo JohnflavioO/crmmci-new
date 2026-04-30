@@ -2,51 +2,39 @@
 export const parseCurrencyBR = (value: any): number => {
   if (value === null || value === undefined || value === '') return 0;
 
-  // Se já for um número do Excel (SheetJS), usamos diretamente
+  // Em arquivos exportados que fingem ser XLS (HTML), capturamos como string para precisão.
   if (typeof value === 'number') {
     return value;
   }
 
-  // Limpeza de caracteres não numéricos exceto ponto, vírgula e sinal de menos
-  // Preservamos o texto original para análise de separadores
+  // Limpeza total de espaços, incluindo espaços HTML (&nbsp;) e símbolos
   let str = String(value)
     .replace(/&nbsp;/g, '')
     .replace(/\u00A0/g, '')
     .replace(/R\$/g, '')
+    .replace(/\s/g, '')
     .trim();
 
   if (!str) return 0;
 
-  // LÓGICA ROBUSTA PARA FORMATO BRASILEIRO (10.000,00 ou 10,00 ou 10.000)
+  // LÓGICA DE PRECISÃO TOTAL PARA EXPORTAÇÕES BRASILEIRAS (SISTEMA MCI)
   
-  // Caso 1: Tem vírgula (Padrão brasileiro obrigatório)
+  // 1. Se contém vírgula, é o padrão BR clássico (milhar opcional com ponto, decimal com vírgula)
   if (str.includes(',')) {
-    // 10.000,00 -> 10000.00
-    // Removemos os pontos de milhar e trocamos a vírgula por ponto decimal
-    return Number(str.replace(/\./g, '').replace(',', '.'));
+    // Remove todos os pontos (milhares) e converte vírgula em ponto decimal (JS)
+    const sanitized = str.replace(/\./g, '').replace(',', '.');
+    return Number(sanitized);
   }
 
-  // Caso 2: Não tem vírgula, mas tem ponto(s)
+  // 2. Se NÃO contém vírgula, mas contém ponto, o sistema exportador está usando ponto como milhar.
+  // Ex: "10.000" ou "1.200.500"
   if (str.includes('.')) {
-    // Se houver mais de um ponto, é definitivamente milhar: 1.200.500
-    if ((str.match(/\./g) || []).length > 1) {
-      return Number(str.replace(/\./g, ''));
-    }
-    
-    // Se houver apenas um ponto, precisamos decidir se é milhar ou decimal.
-    // Regra para arquivos do sistema MCI (HTML exportado): 
-    // "10.000" (sem vírgula) é DEZ MIL, não dez.
-    const parts = str.split('.');
-    if (parts[1].length === 3) {
-      // 10.000 -> 10000
-      return Number(str.replace(/\./g, ''));
-    }
-    // Se for 2 dígitos, pode ser centavo americano (10.00) ou erro de exportação (ex: 10.00 virando 10)
-    // No contexto financeiro brasileiro, 10.00 sem vírgula costuma ser dez reais.
-    return Number(str);
+    // Removemos todos os pontos e tratamos o número como inteiro (sem centavos na planilha)
+    const sanitized = str.replace(/\./g, '');
+    return Number(sanitized);
   }
 
-  // Caso 3: Apenas números (ex: 10000)
-  const num = Number(str.replace(/\s/g, ''));
+  // 3. Apenas dígitos (ex: "10000")
+  const num = Number(str);
   return isNaN(num) ? 0 : num;
 };
