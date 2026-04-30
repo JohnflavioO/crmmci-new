@@ -83,6 +83,7 @@ export default function AppSidebar({ onNavigate }: Props) {
 
   const financialMenuItems = [
     { to: '/financial?tab=dashboard', icon: LayoutDashboard, label: 'Dashboard Financeiro' },
+    { to: '/bank-slips', icon: FileBarChart, label: 'Controle de Boletos' },
     { to: '/financial?tab=pendencias', icon: Clock, label: 'Contas a Receber' },
     { to: '/financial?tab=baixas', icon: ArrowDownCircle, label: 'Baixas' },
     { to: '/financial?tab=pendencias&priority=vencidos', icon: AlertTriangle, label: 'Pendências' },
