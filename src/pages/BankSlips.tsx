@@ -20,7 +20,7 @@ import {
   FileSpreadsheet, Download, Search, Filter, 
   Plus, CheckCircle2, AlertTriangle, Clock, 
   DollarSign, Calculator, History, MessageSquare,
-  Users, Trash2, Edit2, Calendar
+  Users, Trash2, Edit2, Calendar, List
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
