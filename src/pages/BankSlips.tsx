@@ -771,6 +771,11 @@ export default function BankSlips() {
             <p className="text-gray-500">Importação e gestão de Títulos a Vencer / Vencidos</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {lastBatchId && (
+              <Button variant="ghost" className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 gap-2" onClick={handleUndoImport}>
+                <History className="h-4 w-4" /> Desfazer Última Importação
+              </Button>
+            )}
             <Button variant="outline" className="gap-2" onClick={exportReport} disabled={filteredSlips.length === 0}>
               <Download className="h-4 w-4" /> Exportar Relatório
             </Button>
