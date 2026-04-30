@@ -101,7 +101,7 @@ export default function Metrics() {
       setQuotes(data || []);
     };
     load();
-  }, [dateRange, user?.id, canSeeAll, selectedSellerIds]);
+  }, [dateRange, user?.id, canSeeAll, selectedSellerIds, isOnlyAdmin]);
 
 
   const totalQuotes = quotes.length;
