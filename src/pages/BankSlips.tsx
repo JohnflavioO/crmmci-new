@@ -1191,15 +1191,8 @@ export default function BankSlips() {
               </TableHeader>
               <TableBody>
                 {parsedRows.slice(0, 50).map((row, idx) => {
-                  const originalVal = row.originalValues.principal_amount;
                   const convertedNum = row.mapped.principal_amount;
-                  
-                  // Proteção contra erro de conversão: se o valor convertido é muito diferente do original visual
-                  // Ex: Original "10.000,00" lido como 10 -> Discrepância
-                  const originalStr = String(originalVal);
-                  const hasDiscrepancy = (originalStr.includes('10.000') && convertedNum < 1000) || 
-                                       (originalStr.includes('8.735') && convertedNum > 10000) ||
-                                       (typeof originalVal === 'number' && originalVal > 100 && convertedNum < originalVal / 10);
+
 
                   return (
                     <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50", hasDiscrepancy && "bg-red-100")}>
