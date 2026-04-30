@@ -300,37 +300,38 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       doc.rect(margin, y - 5, cw, rowHeight, 'F'); 
     }
     
-    cx = margin + 2;
-
     // 1. Column #
-    doc.text(String(item.item_number || i + 1), cx, y);
-    cx += cols[0].w;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.1);
+    doc.setTextColor(30);
+    resetTextSpacing();
+    doc.text(String(item.item_number || i + 1), colX[0], y);
 
     // 2. Column Foto
     if (itemImages[i]) {
       try {
-        doc.addImage(itemImages[i], 'JPEG', cx, y - 4, 10, 10);
+        doc.addImage(itemImages[i], 'JPEG', colX[1], y - 4, 10, 10);
       } catch { /* skip */ }
     }
-    cx += cols[1].w;
 
     // 3. Column Código
-    doc.text(item.product_code || '', cx, y);
-    cx += cols[2].w;
+    const codeLines = wrapCellText(item.product_code || '', cols[2].w - 2, 1);
+    doc.text(codeLines, colX[2], y);
 
     // 4. Column Modelo / Descrição (Multi-line)
-    const descX = cx;
+    const descX = colX[3];
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8); // Standard professional size
+    doc.setFontSize(7.6);
+    resetTextSpacing();
     doc.text(splitModel, descX, y);
     
     if (splitSpecs.length > 0) {
       doc.setFont('helvetica', 'normal'); 
+      doc.setFontSize(7.1);
       doc.setTextColor(80);
-      doc.text(splitSpecs, descX, y + (splitModel.length * 3.8));
+      doc.text(splitSpecs, descX, y + (splitModel.length * 3.6));
       doc.setTextColor(30);
     }
-    cx += cols[3].w;
 
     // Other Columns
     const isGift = item.is_gift === true;
@@ -349,11 +350,11 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
 
     remainingValues.forEach((val, ci) => {
       const colIdx = ci + 4;
-      const col = cols[colIdx];
       const isLast = colIdx === cols.length - 1;
       
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.2); // Slightly smaller values for better spacing
+      doc.setFontSize(7.0);
+      resetTextSpacing();
       if (isGift && (ci === 2 || ci === 4 || ci === 5)) {
         doc.setTextColor(0, 150, 100);
         doc.setFont('helvetica', 'bold');
@@ -361,9 +362,12 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
         doc.setTextColor(30);
       }
 
-      const textVal = String(val);
-      doc.text(textVal, isLast ? (W - margin - 2) : cx, y, { align: isLast ? 'right' : 'left' });
-      cx += col.w;
+      const textVal = normalizeCellText(val);
+      const alignRight = colIdx >= 6;
+      const x = alignRight ? colRight(colIdx) : colX[colIdx];
+      const maxW = cols[colIdx].w - 2;
+      const safeText = doc.getTextWidth(textVal) > maxW ? wrapCellText(textVal, maxW, 1)[0] || '' : textVal;
+      doc.text(safeText, x, y, { align: alignRight || isLast ? 'right' : 'left' });
     });
 
     y += rowHeight;
