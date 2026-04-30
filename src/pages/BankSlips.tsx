@@ -89,45 +89,40 @@ const cleanText = (v: any): string => {
   return String(v).replace(/\u00a0/g, ' ').trim();
 };
 
-const parseBrazilianCurrency = (value: any): number => {
+const parseCurrencyBR = (value: any): number => {
   if (value === null || value === undefined || value === '') return 0;
 
-  // Se o Excel já enviou como número, retornamos diretamente.
-  if (typeof value === 'number') {
-    return value;
-  }
+  // Se já for número, NÃO ALTERAR
+  if (typeof value === 'number') return value;
 
-  // Tratamento de string
   let str = String(value)
-    .replace(/R\$/gi, '')
-    .replace(/\s/g, '') // Remove qualquer espaço em branco, inclusive espaços de milhar
+    .replace(/[^\d,.-]/g, '') // remove R$, espaços e caracteres extras
     .trim();
 
   if (!str) return 0;
 
-  // Se houver pontos e vírgulas (ex: 10.000,00 ou 1.234,56)
+  // Caso padrão brasileiro: tem ponto e vírgula (ex: 10.000,00)
   if (str.includes('.') && str.includes(',')) {
-    // Remove todos os pontos (milhar) e troca a vírgula por ponto (decimal)
     str = str.replace(/\./g, '').replace(',', '.');
-  } 
-  // Se houver apenas vírgula (ex: 404,77 ou 10000,00)
-  else if (str.includes(',')) {
-    str = str.replace(',', '.');
-  }
-  // Se houver apenas pontos (ex: 10.000 ou 10.50)
-  else if (str.includes('.')) {
-    const parts = str.split('.');
-    // Caso especial: se houver múltiplos pontos, remove todos (ex: 1.000.000)
-    if (parts.length > 2) {
-      str = str.replace(/\./g, '');
-    }
-    // Se houver apenas um ponto e 3 dígitos depois, tratamos como milhar (ex: 10.000)
-    else if (parts.length === 2 && parts[1].length === 3) {
-      str = str.replace(/\./g, '');
-    }
-    // Caso contrário (ex: 10.5 ou 10.50), mantemos o ponto como decimal
+    return Number(str);
   }
 
+  // Caso só vírgula (decimal BR, ex: 404,77)
+  if (str.includes(',') && !str.includes('.')) {
+    str = str.replace(',', '.');
+    return Number(str);
+  }
+
+  // Caso só ponto (pode ser milhar sem decimal ou internacional)
+  // Se tiver ponto e for seguido de 3 dígitos, tratamos como milhar no contexto de boletos BR
+  if (str.includes('.') && !str.includes(',')) {
+    const parts = str.split('.');
+    if (parts.length === 2 && parts[1].length === 3) {
+      str = str.replace(/\./g, '');
+    }
+  }
+
+  // Caso número puro ou já formatado internacionalmente
   const num = Number(str);
   return isNaN(num) ? 0 : num;
 };
