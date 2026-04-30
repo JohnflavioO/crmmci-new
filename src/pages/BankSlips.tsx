@@ -42,10 +42,16 @@ interface BankSlip {
   salesperson_name?: string;
   notes?: string;
   created_at: string;
+  import_batch_id?: string;
 }
 
 interface ParsedRow {
   raw: any[];
+  originalValues: {
+    principal_amount: any;
+    interest_amount: any;
+    fine_amount: any;
+  };
   mapped: {
     dda?: string;
     reminder?: string;
