@@ -374,16 +374,36 @@ export default function BankSlips() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
+        const buf = evt.target?.result as ArrayBuffer;
+        const bytes = new Uint8Array(buf);
+
+        // Detecta arquivos HTML (ex: Itaú exporta .xls que na verdade é HTML)
+        const head = new TextDecoder('latin1').decode(bytes.slice(0, 200)).trim().toLowerCase();
+        const isHtml = head.startsWith('<!doctype') || head.startsWith('<html') || head.startsWith('<?xml') || head.includes('<table');
+
+        let wb: XLSX.WorkBook;
+        if (isHtml) {
+          // Tenta UTF-8, cai para latin-1 se necessário
+          let text: string;
+          try {
+            text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+            if (text.includes('\uFFFD')) throw new Error('encoding');
+          } catch {
+            text = new TextDecoder('latin1').decode(bytes);
+          }
+          wb = XLSX.read(text, { type: 'string' });
+        } else {
+          wb = XLSX.read(bytes, { type: 'array', cellDates: true });
+        }
+
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: !isHtml });
 
         const { parsed, headerIdx } = parseSheetRows(rows);
 
         if (headerIdx < 0) {
-          toast.error('Não foi possível localizar o cabeçalho da planilha. Verifique se ela contém as colunas Cliente e Vencimento.');
+          toast.error('Não foi possível localizar o cabeçalho da planilha. Verifique se ela contém colunas como Cliente/Pagador e Vencimento.');
           return;
         }
 
@@ -400,7 +420,7 @@ export default function BankSlips() {
         e.target.value = '';
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const processImport = async () => {
