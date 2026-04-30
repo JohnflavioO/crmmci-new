@@ -87,38 +87,38 @@ const parseNumber = (v: any): number => {
   if (v === null || v === undefined || v === '') return 0;
   if (typeof v === 'number') return v;
   
-  // Limpeza profunda: remove R$, espaços, símbolos de moeda e caracteres invisíveis
+  // Limpeza profunda: remove R$, espaços, símbolos de moeda, caracteres invisíveis e espaços extras
   let s = String(v)
     .replace(/\u00a0/g, '')
-    .replace(/[\s\t\n\r]/g, '')
     .replace(/R\$/gi, '')
     .trim();
   
   if (!s) return 0;
 
-  // Detecta formato brasileiro com ponto e vírgula: 1.234,56
+  // IMPORTANTE: Para arquivos HTML do Itaú disfarçados de XLS, 
+  // os espaços podem ser usados como separadores de milhar ou apenas decorativos.
+  // Vamos remover todos os espaços primeiro.
+  s = s.replace(/\s/g, '');
+
   const hasComma = s.includes(',');
   const hasDot = s.includes('.');
 
   if (hasComma) {
-    // No Brasil, se tem vírgula, ela é o separador decimal.
-    // Removemos todos os pontos (milhares) e trocamos a vírgula por ponto (padrão JS)
+    // Padrão Brasileiro: 1.234,56 ou 1234,56
+    // Removemos o ponto de milhar e trocamos a vírgula pelo ponto decimal do JS
     s = s.replace(/\./g, '').replace(',', '.');
   } else if (hasDot) {
-    // Se tem apenas ponto(s), pode ser milhar (10.000) ou decimal (10.50)
+    // Se só tem ponto, pode ser milhar (10.000) ou decimal (10.50)
+    // Heurística para boletos: se tem 3 dígitos após o ponto, é milhar.
     const parts = s.split('.');
     if (parts.length > 2) {
-      // Múltiplos pontos: sempre milhares (1.000.000)
+      // 1.000.000
       s = s.replace(/\./g, '');
-    } else if (parts.length === 2) {
-      // Ponto único: heurística de 3 dígitos para boletos bancários
-      if (parts[1].length === 3) {
-        // 10.000 -> 10000
-        s = s.replace(/\./g, '');
-      } else {
-        // 10.50 -> 10.50 (mantém o ponto como decimal)
-      }
+    } else if (parts.length === 2 && parts[1].length === 3) {
+      // 10.000 -> 10000
+      s = s.replace(/\./g, '');
     }
+    // Caso contrário (ex: 10.5 ou 10.50), mantemos o ponto como decimal.
   }
 
   // Remove qualquer caractere que não seja dígito ou o ponto decimal final
@@ -164,8 +164,8 @@ const parseDate = (v: any): string | null => {
 };
 
 // Detecta a linha do cabeçalho procurando por colunas conhecidas (Cliente/Pagador + Vencimento)
-const CLIENT_HEADERS = ['cliente', 'pagador', 'sacado', 'razao social', 'razão social', 'nome'];
-const DUE_HEADERS = ['vencimento', 'data vencimento', 'data de vencimento', 'vcto', 'venc'];
+const CLIENT_HEADERS = ['cliente', 'pagador', 'sacado', 'razao social', 'razão social', 'nome', 'pagador'];
+const DUE_HEADERS = ['vencimento', 'data vencimento', 'data de vencimento', 'vcto', 'venc', 'vencimento'];
 
 const findHeaderRow = (rows: any[][]): number => {
   for (let i = 0; i < Math.min(rows.length, 50); i++) {
@@ -187,7 +187,7 @@ const buildColumnMap = (headerRow: any[]): Record<string, number> => {
     classification: ['classificação', 'classificacao', 'carteira'],
     nfe_number: ['nf-e', 'nfe', 'nf', 'nosso numero', 'nosso número', 'nosso n umero', 'numero documento', 'documento'],
     client_name: ['cliente', 'pagador', 'sacado', 'razao social', 'razão social', 'nome'],
-    principal_amount: ['principal', 'valor principal', 'valor', 'valor r', 'valor (r$)', 'valor(r$)', 'valor rs', 'valor título', 'vlr título', 'valor total', 'valor(r$)'],
+    principal_amount: ['principal', 'valor principal', 'valor', 'valor r', 'valor (r$)', 'valor(r$)', 'valor rs', 'valor título', 'vlr título', 'valor total', 'valor(r$)', 'valor'],
     due_date: ['vencimento', 'data vencimento', 'data de vencimento', 'vcto', 'venc'],
     payment_date: ['data pagamento', 'data de pagamento', 'pagamento', 'liquidacao', 'liquidação'],
     days_late: ['dias de atraso', 'dias atraso', 'atraso'],
