@@ -1259,7 +1259,6 @@ export default function BankSlips() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono">{row.mapped.nfe_number || '-'}</TableCell>
                       <TableCell>{row.mapped.client_name || '-'}</TableCell>
                       <TableCell>{row.mapped.due_date ? format(parseISO(row.mapped.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
                       <TableCell className="text-right">
