@@ -136,15 +136,15 @@ export default function BankSlips() {
     const pago = bankSlips.filter(s => s.status === 'Pago').reduce((acc, s) => acc + s.updated_amount, 0);
     const vencido = bankSlips.filter(s => s.status === 'Vencido').reduce((acc, s) => acc + s.updated_amount, 0);
     const emAberto = bankSlips.filter(s => s.status !== 'Pago' && s.status !== 'Cancelado').reduce((acc, s) => acc + s.updated_amount, 0);
-    const vencendoHoje = bankSlips.filter(s => s.status === 'Vence hoje').length;
-    const proximos7Dias = bankSlips.filter(s => {
+    const vencendoHojeCount = bankSlips.filter(s => s.status === 'Vence hoje').length;
+    const proximos7DiasCount = bankSlips.filter(s => {
       if (s.status === 'Pago' || s.status === 'Cancelado') return false;
       const due = parseISO(s.due_date);
       const in7Days = addDays(startOfDay(new Date()), 7);
       return isWithinInterval(due, { start: startOfDay(new Date()), end: in7Days });
     }).length;
 
-    return { total, aVencer, pago, vencido, emAberto, vencendoHoje, proximos7Dias };
+    return { total, aVencer, pago, vencido, emAberto, vencendoHojeCount, proximos7DiasCount };
   }, [bankSlips]);
 
   const filteredSlips = useMemo(() => {
@@ -156,6 +156,29 @@ export default function BankSlips() {
       return matchesSearch && matchesStatus && matchesSeller;
     });
   }, [bankSlips, search, filterStatus, filterSeller]);
+
+  const sellerGroups = useMemo(() => {
+    const groups: Record<string, any> = {};
+    bankSlips.forEach(s => {
+      const seller = s.salesperson_name || 'Sem Vendedor';
+      if (!groups[seller]) {
+        groups[seller] = {
+          name: seller,
+          total: 0,
+          pago: 0,
+          vencido: 0,
+          emAberto: 0,
+          count: 0
+        };
+      }
+      groups[seller].total += s.updated_amount;
+      if (s.status === 'Pago') groups[seller].pago += s.updated_amount;
+      else if (s.status === 'Vencido') groups[seller].vencido += s.updated_amount;
+      if (s.status !== 'Pago' && s.status !== 'Cancelado') groups[seller].emAberto += s.updated_amount;
+      groups[seller].count++;
+    });
+    return Object.values(groups).sort((a: any, b: any) => b.total - a.total);
+  }, [bankSlips]);
 
   const sellers = useMemo(() => {
     const names = Array.from(new Set(bankSlips.map(s => s.salesperson_name).filter(Boolean)));
@@ -182,22 +205,30 @@ export default function BankSlips() {
   const processImport = async () => {
     setImporting(true);
     try {
-      const toInsert = importData.map(row => ({
-        dda: row['DDA']?.toString(),
-        reminder: row['Lembrete']?.toString(),
-        classification: row['Classificação']?.toString(),
-        nfe_number: row['NF-e']?.toString(),
-        client_name: row['Cliente']?.toString() || 'Cliente não informado',
-        principal_amount: parseFloat(row['Principal']?.toString()?.replace(',', '.') || '0'),
-        due_date: row['Vencimento'] ? format(new Date(row['Vencimento']), 'yyyy-MM-dd') : null,
-        payment_date: row['Data Pagamento'] ? format(new Date(row['Data Pagamento']), 'yyyy-MM-dd') : null,
-        status: row['Pago'] ? 'Pago' : (row['Vencido'] ? 'Vencido' : 'Em aberto'),
-        salesperson_name: row['Vendedor']?.toString(),
-        reference: row['Referência']?.toString(),
-        created_by: user?.id,
-      })).filter(item => item.due_date && item.client_name);
+      const toInsert = importData.map(row => {
+        const principal = parseFloat(row['Principal']?.toString()?.replace(',', '.') || '0');
+        const interest = parseFloat(row['Juros']?.toString()?.replace(',', '.') || '0');
+        const fine = parseFloat(row['Multa']?.toString()?.replace(',', '.') || '0');
+        
+        return {
+          dda: row['DDA']?.toString(),
+          reminder: row['Lembrete']?.toString(),
+          classification: row['Classificação']?.toString(),
+          nfe_number: row['NF-e']?.toString(),
+          client_name: row['Cliente']?.toString() || 'Cliente não informado',
+          principal_amount: principal,
+          interest_amount: interest,
+          fine_amount: fine,
+          due_date: row['Vencimento'] ? format(new Date(row['Vencimento']), 'yyyy-MM-dd') : null,
+          payment_date: row['Data Pagamento'] ? format(new Date(row['Data Pagamento']), 'yyyy-MM-dd') : null,
+          status: row['Pago'] ? 'Pago' : (row['Vencido'] ? 'Vencido' : 'Em aberto'),
+          salesperson_name: row['Vendedor']?.toString(),
+          reference: row['Referência']?.toString(),
+          created_by: user?.id,
+        };
+      }).filter(item => item.due_date && item.client_name);
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('bank_slips' as any)
         .upsert(toInsert, { 
           onConflict: 'nfe_number, client_name, due_date, principal_amount',
@@ -213,6 +244,51 @@ export default function BankSlips() {
       toast.error('Erro ao importar: ' + error.message);
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleOpenEdit = (slip: BankSlip) => {
+    setSelectedSlip(slip);
+    setEditForm({
+      interest_amount: slip.interest_amount,
+      fine_amount: slip.fine_amount,
+      notes: slip.notes || '',
+      status: slip.status,
+      payment_date: slip.payment_date || ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedSlip) return;
+    try {
+      const { error } = await supabase
+        .from('bank_slips' as any)
+        .update({
+          interest_amount: editForm.interest_amount,
+          fine_amount: editForm.fine_amount,
+          notes: editForm.notes,
+          status: editForm.status,
+          payment_date: editForm.payment_date || null
+        })
+        .eq('id', selectedSlip.id);
+
+      if (error) throw error;
+
+      await supabase.from('bank_slip_history' as any).insert({
+        bank_slip_id: selectedSlip.id,
+        action: 'Edição de Dados',
+        prev_status: selectedSlip.status,
+        new_status: editForm.status,
+        notes: `Juros: ${editForm.interest_amount}, Multa: ${editForm.fine_amount}`,
+        performed_by: user?.id
+      });
+
+      toast.success('Dados atualizados!');
+      setIsEditModalOpen(false);
+      loadData();
+    } catch (error: any) {
+      toast.error('Erro ao salvar: ' + error.message);
     }
   };
 
