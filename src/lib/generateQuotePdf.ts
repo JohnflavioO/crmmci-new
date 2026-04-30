@@ -250,25 +250,47 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     })
   );
 
+  const wrapCellText = (text: string, maxWidth: number, maxLines: number) => {
+    const words = normalizeCellText(text).split(' ').filter(Boolean);
+    const lines: string[] = [];
+    let current = '';
+    words.forEach((word) => {
+      const candidate = current ? `${current} ${word}` : word;
+      if (doc.getTextWidth(candidate) <= maxWidth) {
+        current = candidate;
+      } else {
+        if (current) lines.push(current);
+        current = word;
+      }
+    });
+    if (current) lines.push(current);
+    return lines.slice(0, maxLines);
+  };
+
   // Items
   doc.setTextColor(30);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5); // Fixed font size for better legibility (12px-14px equivalent in mm/points is around 7-9)
+  doc.setFontSize(7.2);
   const baseRowHeight = 10;
   
   items.forEach((item: any, i: number) => {
-    const model = item.model || item.description || '';
-    const specs = item.specifications ? `(${item.specifications})` : '';
+    const model = normalizeCellText(item.model || item.description || '');
+    const specs = item.specifications ? `(${normalizeCellText(item.specifications)})` : '';
     
-    // Split text to fit column width - Limiting volume of text to prevent page explosions
-    const splitModel = doc.splitTextToSize(model, cols[3].w - 4).slice(0, 3); // Max 3 lines
-    const splitSpecs = specs ? doc.splitTextToSize(specs, cols[3].w - 4).slice(0, 2) : []; // Max 2 lines
+    // Compact, bounded description: never renders outside its column
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.6);
+    resetTextSpacing();
+    const splitModel = wrapCellText(model, cols[3].w - 5, 2);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.1);
+    const splitSpecs = specs ? wrapCellText(specs, cols[3].w - 5, 1) : [];
     
     // Calculate required row height based on content
-    const totalLines = splitModel.length + splitSpecs.length;
-    const lineHeight = 3.8; 
+    const totalLines = Math.max(1, splitModel.length + splitSpecs.length);
+    const lineHeight = 3.6; 
     const contentHeight = (totalLines * lineHeight) + 4; 
-    const rowHeight = Math.max(9, contentHeight);
+    const rowHeight = Math.max(baseRowHeight, contentHeight);
 
     checkPage(rowHeight + 2);
     
