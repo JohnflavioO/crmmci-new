@@ -1190,20 +1190,15 @@ export default function BankSlips() {
                   <TableHead>Status</TableHead>
                   <TableHead>NF-e</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead className="text-right">Original (Excel)</TableHead>
-                  <TableHead className="text-right text-emerald-600 font-bold">Convertido</TableHead>
+                  <TableHead className="text-right">Valor Correto</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Vendedor</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {parsedRows.slice(0, 50).map((row, idx) => {
-                  const hasInconsistency = row.valid && 
-                    String(row.originalValues.principal_amount).includes('10.000') && 
-                    row.mapped.principal_amount < 1000;
-
                   return (
-                    <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50", hasInconsistency && "bg-yellow-50")}>
+                    <TableRow key={idx} className={cn("text-xs", !row.valid && "bg-red-50")}>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           {row.valid ? (
@@ -1211,16 +1206,10 @@ export default function BankSlips() {
                           ) : (
                             <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200" title={row.error}>{row.error}</Badge>
                           )}
-                          {hasInconsistency && (
-                            <span title="Possível erro de conversão">
-                              <AlertTriangle className="h-3 w-3 text-amber-500" />
-                            </span>
-                          )}
                         </div>
                       </TableCell>
                       <TableCell className="font-mono">{row.mapped.nfe_number || '-'}</TableCell>
                       <TableCell>{row.mapped.client_name || '-'}</TableCell>
-                      <TableCell className="text-right text-gray-500">{row.originalValues.principal_amount || '-'}</TableCell>
                       <TableCell className="text-right text-emerald-600 font-bold">{formatCurrency(row.mapped.principal_amount)}</TableCell>
                       <TableCell>{row.mapped.due_date ? format(parseISO(row.mapped.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
                       <TableCell>{row.mapped.salesperson_name || '-'}</TableCell>
@@ -1229,7 +1218,7 @@ export default function BankSlips() {
                 })}
                 {parsedRows.length > 50 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-gray-500 py-3">
+                    <TableCell colSpan={6} className="text-center text-gray-500 py-3">
                       + {parsedRows.length - 50} outras linhas...
                     </TableCell>
                   </TableRow>
