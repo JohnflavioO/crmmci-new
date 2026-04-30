@@ -22,6 +22,7 @@ import {
   History, Users, Edit2, Calendar, List, FileText, Wallet, CalendarDays, Trash2, Filter
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { parseCurrencyBR } from '@/utils/currency';
 import { cn } from '@/lib/utils';
 
 interface BankSlip {
