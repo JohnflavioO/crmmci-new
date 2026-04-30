@@ -532,7 +532,7 @@ export default function BankSlips() {
           const rows: any[][] = XLSX.utils.sheet_to_json(ws, {
             header: 1,
             defval: '',
-            raw: false, // Alterado para FALSE: queremos a string formatada exatamente como está na tela do Excel
+            raw: false, // OBRIGATÓRIO: Pegar o texto formatado para não deixar o Excel arredondar ou cortar zeros
           });
           const headerIdx = findHeaderRow(rows);
           if (headerIdx >= 0 && !chosen) {
