@@ -305,6 +305,7 @@ export default function BankSlips() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [importMeta, setImportMeta] = useState<{ totalRows: number; valid: number; invalid: number; sheetName: string }>({ totalRows: 0, valid: 0, invalid: 0, sheetName: '' });
+  const [lastBatchId, setLastBatchId] = useState<string | null>(localStorage.getItem('last_bank_slip_batch'));
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedSlip, setSelectedSlip] = useState<BankSlip | null>(null);
