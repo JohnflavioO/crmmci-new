@@ -87,35 +87,41 @@ const parseNumber = (v: any): number => {
   if (v === null || v === undefined || v === '') return 0;
   if (typeof v === 'number') return v;
   
-  // Remove R$, spaces and non-breaking spaces
-  let s = String(v).replace(/\u00a0/g, '').replace(/\s/g, '').replace(/R\$/gi, '').trim();
+  // Limpeza profunda: remove R$, espaços, símbolos de moeda e caracteres invisíveis
+  let s = String(v)
+    .replace(/\u00a0/g, '')
+    .replace(/[\s\t\n\r]/g, '')
+    .replace(/R\$/gi, '')
+    .trim();
   
   if (!s) return 0;
 
-  // No Brasil, a vírgula é o separador decimal oficial.
-  if (s.includes(',')) {
-    // Caso tenha vírgula: 1.234,56 ou 1234,56
-    // Removemos todos os pontos (milhares) e trocamos a vírgula por ponto (decimal)
+  // Detecta formato brasileiro com ponto e vírgula: 1.234,56
+  const hasComma = s.includes(',');
+  const hasDot = s.includes('.');
+
+  if (hasComma) {
+    // No Brasil, se tem vírgula, ela é o separador decimal.
+    // Removemos todos os pontos (milhares) e trocamos a vírgula por ponto (padrão JS)
     s = s.replace(/\./g, '').replace(',', '.');
-  } else {
-    // Se não houver vírgula, o ponto pode ser decimal (10.50) ou milhar (10.000)
+  } else if (hasDot) {
+    // Se tem apenas ponto(s), pode ser milhar (10.000) ou decimal (10.50)
     const parts = s.split('.');
     if (parts.length > 2) {
-      // Múltiplos pontos: 1.000.000 -> Milhares
+      // Múltiplos pontos: sempre milhares (1.000.000)
       s = s.replace(/\./g, '');
     } else if (parts.length === 2) {
-      // Ponto único. Heurística robusta para boletos bancários:
-      // Se houver 3 dígitos após o ponto, é quase certamente milhar (ex: 10.000, 1.500)
-      // Se houver 1 ou 2 dígitos, é quase certamente decimal (ex: 10.5, 10.50)
+      // Ponto único: heurística de 3 dígitos para boletos bancários
       if (parts[1].length === 3) {
+        // 10.000 -> 10000
         s = s.replace(/\./g, '');
+      } else {
+        // 10.50 -> 10.50 (mantém o ponto como decimal)
       }
-      // Caso contrário, mantemos o ponto como decimal (padrão JS)
     }
   }
 
-  // Limpeza final para garantir que parseFloat não falhe por caracteres estranhos
-  // Mantemos apenas dígitos e o ponto decimal final
+  // Remove qualquer caractere que não seja dígito ou o ponto decimal final
   s = s.replace(/[^\d.]/g, '');
   
   const n = parseFloat(s);
@@ -181,7 +187,7 @@ const buildColumnMap = (headerRow: any[]): Record<string, number> => {
     classification: ['classificação', 'classificacao', 'carteira'],
     nfe_number: ['nf-e', 'nfe', 'nf', 'nosso numero', 'nosso número', 'nosso n umero', 'numero documento', 'documento'],
     client_name: ['cliente', 'pagador', 'sacado', 'razao social', 'razão social', 'nome'],
-    principal_amount: ['principal', 'valor principal', 'valor', 'valor r', 'valor (r$)', 'valor(r$)', 'valor rs', 'valor título', 'vlr título', 'valor total'],
+    principal_amount: ['principal', 'valor principal', 'valor', 'valor r', 'valor (r$)', 'valor(r$)', 'valor rs', 'valor título', 'vlr título', 'valor total', 'valor(r$)'],
     due_date: ['vencimento', 'data vencimento', 'data de vencimento', 'vcto', 'venc'],
     payment_date: ['data pagamento', 'data de pagamento', 'pagamento', 'liquidacao', 'liquidação'],
     days_late: ['dias de atraso', 'dias atraso', 'atraso'],
@@ -492,7 +498,7 @@ export default function BankSlips() {
 
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: !isHtml });
+        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
 
         const { parsed, headerIdx } = parseSheetRows(rows);
 
