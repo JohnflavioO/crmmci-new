@@ -92,26 +92,21 @@ const cleanText = (v: any): string => {
 const parseCurrencyBR = (value: any): number => {
   if (value === null || value === undefined || value === '') return 0;
 
-  if (typeof value === 'number') {
-    return value;
-  }
-
   let str = String(value)
+    .replace(/&nbsp;/g, '')
+    .replace(/\u00A0/g, '')
     .replace(/R\$/g, '')
     .replace(/\s/g, '')
     .trim();
 
-  // Padrão brasileiro: 10.000,00
   if (str.includes('.') && str.includes(',')) {
     return Number(str.replace(/\./g, '').replace(',', '.'));
   }
 
-  // Padrão brasileiro sem milhar: 404,77
   if (str.includes(',') && !str.includes('.')) {
     return Number(str.replace(',', '.'));
   }
 
-  // Número simples ou já em formato americano vindo do Excel
   const num = Number(str);
   return isNaN(num) ? 0 : num;
 };
