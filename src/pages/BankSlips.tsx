@@ -45,6 +45,7 @@ interface BankSlip {
   notes?: string;
   created_at: string;
   import_batch_id?: string;
+  days_late?: number; // Propriedade virtual para exibição
 }
 
 interface ParsedRow {
@@ -258,10 +259,10 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
     else if (aVencer) status = 'A vencer';
 
     const rawInterest = get('interest_amount');
-    const interest = parseCurrencyBR(rawInterest);
+    const importedInterest = parseCurrencyBR(rawInterest);
     
     const rawFine = get('fine_amount');
-    const fine = parseCurrencyBR(rawFine);
+    const importedFine = parseCurrencyBR(rawFine);
     
     // Cálculo automático inicial na importação conforme regra de negócio
     const today = startOfDay(new Date());
@@ -269,11 +270,11 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
     const diffDays = due ? differenceInDays(today, parseISO(due)) : 0;
     const daysLate = isPaid ? 0 : (diffDays > 0 ? diffDays : 0);
     
-    let interest = 0;
-    let fine = 0;
+    let interest = importedInterest;
+    let fine = importedFine;
     
-    // Regra: Aplicar quando Vencido ou Atrasado não pago
-    if (status === 'Vencido' || (daysLate > 0 && !isPaid)) {
+    // Regra: Aplicar cálculo automático quando Vencido ou Atrasado não pago se não houver valor importado
+    if ((status === 'Vencido' || (daysLate > 0 && !isPaid)) && interest === 0 && fine === 0) {
       interest = (principal * daysLate * 0.06) / 30;
       fine = principal * 0.02;
     }
