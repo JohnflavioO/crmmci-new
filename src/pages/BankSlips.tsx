@@ -263,6 +263,21 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
     const rawFine = get('fine_amount');
     const fine = parseCurrencyBR(rawFine);
     
+    // Cálculo automático inicial na importação conforme regra de negócio
+    const today = startOfDay(new Date());
+    const isPaid = status === 'Pago';
+    const diffDays = due ? differenceInDays(today, parseISO(due)) : 0;
+    const daysLate = isPaid ? 0 : (diffDays > 0 ? diffDays : 0);
+    
+    let interest = 0;
+    let fine = 0;
+    
+    // Regra: Aplicar quando Vencido ou Atrasado não pago
+    if (status === 'Vencido' || (daysLate > 0 && !isPaid)) {
+      interest = (principal * daysLate * 0.06) / 30;
+      fine = principal * 0.02;
+    }
+
     const updated = principal + interest + fine;
 
     const mapped = {
@@ -353,21 +368,52 @@ export default function BankSlips() {
       const updatedData = (data || []).map((slip: any) => {
         let status = slip.status;
         const dueDate = parseISO(slip.due_date);
+        const principal = parseFloat(slip.principal_amount) || 0;
 
+        // Regra de Negócio: Dias de Atraso
+        // se dias_atraso < 0 → considerar 0
+        // se boleto estiver pago → dias_atraso = 0
+        const isPaid = status === 'Pago';
+        const diffDays = differenceInDays(today, dueDate);
+        const daysLate = isPaid ? 0 : (diffDays > 0 ? diffDays : 0);
+
+        // Atualização Dinâmica de Status
         if (status !== 'Pago' && status !== 'Cancelado' && status !== 'Em negociação') {
           if (isToday(dueDate)) status = 'Vence hoje';
           else if (isBefore(dueDate, today)) status = 'Vencido';
           else status = 'A vencer';
         }
 
-        const interest = parseFloat(slip.interest_amount) || 0;
-        const fine = parseFloat(slip.fine_amount) || 0;
-        const principal = parseFloat(slip.principal_amount) || 0;
+        // Cálculos Automáticos de Juros e Multa
+        // Regra: Aplicar somente quando status = Vencido OU data atual > data de vencimento e não está pago
+        let interest = parseFloat(slip.interest_amount) || 0;
+        let fine = parseFloat(slip.fine_amount) || 0;
+
+        const isOverdue = status === 'Vencido' || (daysLate > 0 && !isPaid);
+
+        if (isOverdue) {
+          // Fórmula Juros: (Principal * Dias * 6%) / 30
+          interest = (principal * daysLate * 0.06) / 30;
+          // Fórmula Multa: Principal * 2%
+          fine = principal * 0.02;
+        } else if (isPaid) {
+          // Conforme regra: NÃO aplicar juros/multa em boletos pagos
+          // (Preservamos o que foi salvo ou zeramos? A regra diz para não aplicar, 
+          // mas se já foi pago com juros, o valor salvo deve ser mantido se estivermos visualizando histórico.
+          // No entanto, para cálculo EM TEMPO REAL de novos atrasos, seguimos a regra.)
+          interest = parseFloat(slip.interest_amount) || 0;
+          fine = parseFloat(slip.fine_amount) || 0;
+        } else {
+          interest = 0;
+          fine = 0;
+        }
+
         const updatedAmount = principal + interest + fine;
 
         return {
           ...slip,
           status,
+          days_late: daysLate, // Adicionado para facilitar exibição
           principal_amount: principal,
           interest_amount: interest,
           fine_amount: fine,
@@ -1124,7 +1170,7 @@ export default function BankSlips() {
                     <TableRow><TableCell colSpan={16} className="h-32 text-center text-gray-500">Nenhum boleto encontrado.</TableCell></TableRow>
                   ) : (
                     filteredSlips.map((slip) => {
-                      const days = calcDaysLate(slip);
+                      const days = slip.days_late || 0;
                       return (
                         <TableRow key={slip.id} className="hover:bg-gray-50/50 text-xs">
                           <TableCell>
