@@ -1247,6 +1247,7 @@ export default function BankSlips() {
                             <Input 
                               type="number" 
                               className="h-7 text-[10px] text-right" 
+                              key={`interest-${slip.id}-${slip.interest_amount}`}
                               defaultValue={slip.interest_amount}
                               onBlur={(e) => handleInlineUpdate(slip.id, 'interest_amount', parseFloat(e.target.value) || 0)}
                             />
@@ -1255,6 +1256,7 @@ export default function BankSlips() {
                             <Input 
                               type="number" 
                               className="h-7 text-[10px] text-right" 
+                              key={`fine-${slip.id}-${slip.fine_amount}`}
                               defaultValue={slip.fine_amount}
                               onBlur={(e) => handleInlineUpdate(slip.id, 'fine_amount', parseFloat(e.target.value) || 0)}
                             />
