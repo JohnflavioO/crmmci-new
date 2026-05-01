@@ -79,7 +79,7 @@ function LoadingScreen() {
 }
 
 function AppRoutes() {
-  const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange, profile } = useAuth();
+  const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange, profile, signOut } = useAuth();
   
   // O usuário só é considerado pendente se estiver logado, NÃO for admin/gestor/etc, e a flag isApproved for explicitamente falsa
   const isPendingApproval = user && !loading && !isApproved && 
@@ -96,6 +96,16 @@ function AppRoutes() {
   }, [user, loading, isPendingApproval]);
 
   if (loading) return <LoadingScreen />;
+
+  // Se houver usuário mas o perfil for nulo e não estiver carregando, pode haver um problema de sincronização
+  if (user && !loading && !profile && !isPendingApproval) {
+    console.warn('[App] Usuário logado mas perfil ausente. Tentando deslogar para limpar estado.');
+    // Usamos um timer curto para evitar loops infinitos se o signOut falhar
+    setTimeout(() => {
+      signOut().catch(console.error);
+    }, 2000);
+    return <LoadingScreen />;
+  }
 
   if (!user) {
     return (

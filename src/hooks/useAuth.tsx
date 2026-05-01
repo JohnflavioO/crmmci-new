@@ -182,7 +182,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       } catch (e) {
         console.error('[Auth] fetchUserData error:', e);
-        setLoading(false);
       } finally {
         if (!cancelled) setLoading(false);
       }
