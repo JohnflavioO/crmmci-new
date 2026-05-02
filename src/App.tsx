@@ -147,12 +147,12 @@ const App = () => {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <Toaster />
-          <Sonner position="top-right" closeButton />
-          <PWAUpdatePrompt />
           <BrowserRouter>
             <AuthProvider>
               <AppRoutes />
+              <Toaster />
+              <Sonner position="top-right" closeButton />
+              <PWAUpdatePrompt />
             </AuthProvider>
           </BrowserRouter>
         </TooltipProvider>
