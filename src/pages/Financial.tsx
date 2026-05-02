@@ -165,7 +165,12 @@ export default function Financial() {
       });
       setRecords(updated);
     }
-    setLoading(false);
+    } catch (err: any) {
+      console.error('[Financial] Error loading data:', err);
+      toast.error('Erro ao carregar dados financeiros');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { loadRecords(); }, [loadRecords]);
