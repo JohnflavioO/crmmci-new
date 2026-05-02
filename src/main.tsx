@@ -20,9 +20,18 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
 // 2. Renderização segura com log de inicialização
 console.log('[App] Inicializando aplicação...', {
   env: import.meta.env.MODE,
-  preview: window.location.hostname.includes('lovable.app'),
   time: new Date().toISOString()
 });
+
+// 3. Captura global de erros não tratados
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[App] Unhandled promise rejection:', event.reason);
+});
+
+window.onerror = (message, source, lineno, colno, error) => {
+  console.error('[App] Global error:', { message, source, lineno, colno, error });
+  return false;
+};
 
 const rootElement = document.getElementById("root");
 if (rootElement) {
