@@ -97,7 +97,11 @@ export default function Metrics() {
         query = query.eq('created_by', user?.id);
       }
 
-      const { data } = await query.order('quote_date', { ascending: true });
+      const { data, error } = await query.order('quote_date', { ascending: true });
+      if (error) {
+        console.error('[Metrics] Error loading quotes:', error);
+        toast.error('Erro ao carregar métricas');
+      }
       setQuotes(data || []);
     };
     load();

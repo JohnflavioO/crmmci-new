@@ -1221,7 +1221,7 @@ export default function BankSlips() {
                               slip.status === 'Vencido' ? "bg-red-50 text-red-700" :
                               slip.status === 'Vence hoje' ? "bg-orange-50 text-orange-700" : ""
                             )}>
-                              {format(parseISO(slip.due_date), 'dd/MM/yyyy')}
+                              {slip.due_date ? format(parseISO(slip.due_date), 'dd/MM/yyyy') : '-'}
                             </span>
                           </TableCell>
                           <TableCell className="text-center">

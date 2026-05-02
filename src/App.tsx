@@ -81,31 +81,22 @@ function LoadingScreen() {
 function AppRoutes() {
   const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange, profile, signOut } = useAuth();
   
-  // O usuário só é considerado pendente se estiver logado, NÃO for admin/gestor/etc, e a flag isApproved for explicitamente falsa
-  const isPendingApproval = user && !loading && !isApproved && 
-    !(profile?.role && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica'].includes(profile.role.toLowerCase())) &&
-    !isAdmin && !isGestor && !isFinanceiro && !isLogistica;
-
   // Scanner de follow-up otimizado: roda apenas após o auth estar pronto e o usuário estar aprovado
   useFollowUpScanner();
 
   useEffect(() => {
-    if (user && !loading && !isPendingApproval) {
-      console.log('[App] Sistema pronto para o usuário:', user.email);
+    if (user && !loading) {
+      console.log('[App] Auth status:', { email: user.email, hasProfile: !!profile, loading });
     }
-  }, [user, loading, isPendingApproval]);
+  }, [user, loading, profile]);
 
   if (loading) return <LoadingScreen />;
 
-  // Se houver usuário mas o perfil for nulo e não estiver carregando, pode haver um problema de sincronização
-  if (user && !loading && !profile && !isPendingApproval) {
-    console.warn('[App] Usuário logado mas perfil ausente. Tentando deslogar para limpar estado.');
-    // Usamos um timer curto para evitar loops infinitos se o signOut falhar
-    setTimeout(() => {
-      signOut().catch(console.error);
-    }, 2000);
-    return <LoadingScreen />;
-  }
+  // O usuário só é considerado pendente se estiver logado, NÃO for admin/gestor/etc, e a flag isApproved for explicitamente falsa
+  // Se não tiver perfil ainda, também consideramos como aguardando (ou em processo de criação)
+  const isPendingApproval = user && !loading && (!isApproved || !profile) && 
+    !(profile?.role && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica'].includes(profile.role.toLowerCase())) &&
+    !isAdmin && !isGestor && !isFinanceiro && !isLogistica;
 
   if (!user) {
     return (
@@ -156,12 +147,12 @@ const App = () => {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <Toaster />
-          <Sonner position="top-right" closeButton />
-          <PWAUpdatePrompt />
           <BrowserRouter>
             <AuthProvider>
               <AppRoutes />
+              <Toaster />
+              <Sonner position="top-right" closeButton />
+              <PWAUpdatePrompt />
             </AuthProvider>
           </BrowserRouter>
         </TooltipProvider>

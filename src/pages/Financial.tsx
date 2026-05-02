@@ -94,30 +94,34 @@ export default function Financial() {
 
   const loadRecords = useCallback(async () => {
     setLoading(true);
-    const [recordsRes, profilesRes, quotesRes] = await Promise.all([
-      db.from('financial_records').select('*').order('due_date', { ascending: true }),
-      db.from('profiles').select('user_id, full_name').eq('active', true),
-      db.from('quotes').select('id, quote_number, client_name, salesperson, created_by, client_id, payment_status, clients(company_name, name)').eq('status', 'approved'),
-    ]);
+    try {
+      const [recordsRes, profilesRes, quotesRes] = await Promise.all([
+        db.from('financial_records').select('*').order('due_date', { ascending: true }),
+        db.from('profiles').select('user_id, full_name').eq('active', true),
+        db.from('quotes').select('id, quote_number, client_name, salesperson, created_by, client_id, payment_status, clients(company_name, name)').eq('status', 'approved'),
+      ]);
 
-    const profileMap: Record<string, string> = {};
-    if (profilesRes.data) {
-      (profilesRes.data as any[]).forEach((p: any) => { profileMap[p.user_id] = p.full_name || 'Sem nome'; });
-      setProfiles(profileMap);
-      // Build seller options from ALL profiles (not just those with records)
-      setSellerOptions(
-        (profilesRes.data as any[])
-          .filter((p: any) => p.full_name)
-          .map((p: any) => ({ uid: p.user_id, name: p.full_name }))
-          .sort((a: any, b: any) => a.name.localeCompare(b.name))
-      );
-    }
+      const profileMap: Record<string, string> = {};
+      if (profilesRes.data) {
+        (profilesRes.data as any[]).forEach((p: any) => { 
+          profileMap[p.user_id] = p.full_name || 'Sem nome'; 
+        });
+        setProfiles(profileMap);
+        
+        setSellerOptions(
+          (profilesRes.data as any[])
+            .filter((p: any) => p.full_name)
+            .map((p: any) => ({ uid: p.user_id, name: p.full_name }))
+            .sort((a: any, b: any) => a.name.localeCompare(b.name))
+        );
+      }
 
-    // Build quote lookup for enrichment
-    const quotesMap: Record<string, any> = {};
-    if (quotesRes.data) {
-      (quotesRes.data as any[]).forEach((q: any) => { quotesMap[q.id] = q; });
-    }
+      const quotesMap: Record<string, any> = {};
+      if (quotesRes.data) {
+        (quotesRes.data as any[]).forEach((q: any) => { 
+          quotesMap[q.id] = q; 
+        });
+      }
 
     if (recordsRes.error) {
       toast.error('Erro ao carregar registros financeiros');
@@ -161,7 +165,12 @@ export default function Financial() {
       });
       setRecords(updated);
     }
-    setLoading(false);
+    } catch (err: any) {
+      console.error('[Financial] Error loading data:', err);
+      toast.error('Erro ao carregar dados financeiros');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { loadRecords(); }, [loadRecords]);
