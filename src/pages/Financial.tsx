@@ -102,9 +102,11 @@ export default function Financial() {
 
     const profileMap: Record<string, string> = {};
     if (profilesRes.data) {
-      (profilesRes.data as any[]).forEach((p: any) => { profileMap[p.user_id] = p.full_name || 'Sem nome'; });
+      (profilesRes.data as any[]).forEach((p: any) => { 
+        profileMap[p.user_id] = p.full_name || 'Sem nome'; 
+      });
       setProfiles(profileMap);
-      // Build seller options from ALL profiles (not just those with records)
+      
       setSellerOptions(
         (profilesRes.data as any[])
           .filter((p: any) => p.full_name)
@@ -113,10 +115,11 @@ export default function Financial() {
       );
     }
 
-    // Build quote lookup for enrichment
     const quotesMap: Record<string, any> = {};
     if (quotesRes.data) {
-      (quotesRes.data as any[]).forEach((q: any) => { quotesMap[q.id] = q; });
+      (quotesRes.data as any[]).forEach((q: any) => { 
+        quotesMap[q.id] = q; 
+      });
     }
 
     if (recordsRes.error) {
