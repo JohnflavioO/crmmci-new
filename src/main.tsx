@@ -29,7 +29,20 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 window.onerror = (message, source, lineno, colno, error) => {
+  // Ignorar erros benignos de extensões ou de rede que não afetam o React
+  if (typeof message === 'string' && (
+    message.includes('Extension') || 
+    message.includes('Script error') ||
+    message.includes('Failed to fetch')
+  )) return false;
+
   console.error('[App] Global error:', { message, source, lineno, colno, error });
+  
+  // Se for um erro de chunk (comum em deploys novos), forçar recarregamento
+  if (typeof message === 'string' && message.includes('Loading chunk')) {
+    window.location.reload();
+  }
+  
   return false;
 };
 

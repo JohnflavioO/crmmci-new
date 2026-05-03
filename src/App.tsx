@@ -47,9 +47,8 @@ function LoadingScreen() {
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowRetry(true), 10000);
+    const timer = setTimeout(() => setShowRetry(true), 8000);
     
-    // Check if there are critical errors in console
     const checkErrors = () => {
       if (window.location.hash.includes('error=')) {
         setErrorDetails('Erro na autenticação detectado.');
@@ -59,6 +58,15 @@ function LoadingScreen() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  const handleForceRecovery = () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    if ('caches' in window) {
+      caches.keys().then(names => names.forEach(n => caches.delete(n)));
+    }
+    window.location.href = '/';
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#0f2b26] gap-6 p-6 font-sans">
@@ -78,23 +86,19 @@ function LoadingScreen() {
 
         {showRetry && (
           <div className="pt-4 space-y-3 animate-in zoom-in duration-300">
-            <p className="text-xs text-white/40">O carregamento está demorando mais que o esperado.</p>
+            <p className="text-xs text-white/40">O sistema está demorando para responder.</p>
             <div className="flex flex-col gap-2">
               <button 
                 onClick={() => window.location.reload()}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-emerald-900/20 active:scale-95"
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-emerald-900/20 active:scale-95 flex items-center justify-center gap-2"
               >
                 Tentar Novamente
               </button>
               <button 
-                onClick={() => {
-                  localStorage.clear();
-                  sessionStorage.clear();
-                  window.location.href = '/';
-                }}
+                onClick={handleForceRecovery}
                 className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-xl text-xs font-medium transition-all"
               >
-                Limpar Sessão
+                Limpar Sessão e Cache
               </button>
             </div>
           </div>
@@ -116,7 +120,13 @@ function AppRoutes() {
     }
   }, [user, loading, profile]);
 
-  if (loading) return <LoadingScreen />;
+  if (loading) {
+    return (
+      <ErrorBoundary>
+        <LoadingScreen />
+      </ErrorBoundary>
+    );
+  }
 
   // O usuário só é considerado pendente se estiver logado, NÃO for admin/gestor/etc, e a flag isApproved for explicitamente falsa
   // Se não tiver perfil ainda, também consideramos como aguardando (ou em processo de criação)
