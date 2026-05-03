@@ -16,6 +16,14 @@ export function useFollowUpScanner() {
     try {
       console.log('[FollowUpScanner] Starting scan...');
       
+      // Basic check for tables
+      const { error: checkError } = await db.from('followup_notification_logs').select('id').limit(1);
+      if (checkError && checkError.code === 'PGRST116') {
+        console.warn('[FollowUpScanner] Table followup_notification_logs not found, skipping scan.');
+        return;
+      }
+
+      
       // 1. Fetch active quotes for the user directly with filter for performance
       let query = db
         .from('quotes')
