@@ -130,9 +130,10 @@ function AppRoutes() {
 
   // O usuário só é considerado pendente se estiver logado, NÃO for admin/gestor/etc, e a flag isApproved for explicitamente falsa
   // Se não tiver perfil ainda, também consideramos como aguardando (ou em processo de criação)
-  const isPendingApproval = user && !loading && (!isApproved || !profile) && 
+  const isPendingApproval = user && !loading && 
     !(profile?.role && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica'].includes(profile.role.toLowerCase())) &&
-    !isAdmin && !isGestor && !isFinanceiro && !isLogistica;
+    !isAdmin && !isGestor && !isFinanceiro && !isLogistica && !isApproved;
+
 
   if (!user) {
     return (
