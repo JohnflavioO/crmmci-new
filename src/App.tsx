@@ -44,14 +44,24 @@ const queryClient = new QueryClient({
 
 function LoadingScreen() {
   const [showRetry, setShowRetry] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowRetry(true), 10000);
+    
+    // Check if there are critical errors in console
+    const checkErrors = () => {
+      if (window.location.hash.includes('error=')) {
+        setErrorDetails('Erro na autenticação detectado.');
+      }
+    };
+    checkErrors();
+
     return () => clearTimeout(timer);
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#0f2b26] gap-6 p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#0f2b26] gap-6 p-6 font-sans">
       <div className="relative">
         <div className="w-16 h-16 border-4 border-emerald-500/20 rounded-full" />
         <div className="absolute top-0 left-0 w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -62,15 +72,31 @@ function LoadingScreen() {
           <p className="text-sm text-emerald-400/80 animate-pulse">Iniciando módulos do sistema...</p>
         </div>
         
+        {errorDetails && (
+          <p className="text-xs text-red-400 bg-red-950/30 p-2 rounded border border-red-500/20">{errorDetails}</p>
+        )}
+
         {showRetry && (
           <div className="pt-4 space-y-3 animate-in zoom-in duration-300">
             <p className="text-xs text-white/40">O carregamento está demorando mais que o esperado.</p>
-            <button 
-              onClick={() => window.location.reload()}
-              className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full text-sm font-medium transition-all shadow-lg shadow-emerald-900/20"
-            >
-              Recarregar Página
-            </button>
+            <div className="flex flex-col gap-2">
+              <button 
+                onClick={() => window.location.reload()}
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-emerald-900/20 active:scale-95"
+              >
+                Tentar Novamente
+              </button>
+              <button 
+                onClick={() => {
+                  localStorage.clear();
+                  sessionStorage.clear();
+                  window.location.href = '/';
+                }}
+                className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-xl text-xs font-medium transition-all"
+              >
+                Limpar Sessão
+              </button>
+            </div>
           </div>
         )}
       </div>
