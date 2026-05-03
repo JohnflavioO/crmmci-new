@@ -170,7 +170,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const normalizedRole = profileRes.data?.role?.toLowerCase();
         const approvedByRole = !!normalizedRole && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica'].includes(normalizedRole);
 
-        setIsApproved(approvedRes.data === true || approvedByRole);
+        // Se o usuário tem o perfil com role correta, ele está aprovado
+        const approvedState = approvedRes.data === true || approvedByRole;
+        
+        console.log('[Auth] Final state mapping:', {
+          role: normalizedRole,
+          approvedByRole,
+          rpcApproved: approvedRes.data,
+          finalApproved: approvedState
+        });
+
+        setIsApproved(approvedState);
         setIsAdmin(adminRes.data === true || normalizedRole === 'admin');
         setIsGestor(gestorRes.data === true || normalizedRole === 'gestor');
         setIsFinanceiro(financeiroRes.data === true || normalizedRole === 'financeiro');
@@ -178,8 +188,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(profileRes.data as any);
         setForcePasswordChange(profileRes.data?.force_password_change === true);
         
-        // Garante que o loading seja encerrado IMEDIATAMENTE após receber os dados
         setLoading(false);
+
       } catch (e) {
         console.error('[Auth] fetchUserData error:', e);
       } finally {
