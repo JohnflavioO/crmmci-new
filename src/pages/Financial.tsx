@@ -1060,3 +1060,11 @@ function FinancialContent() {
     </AppLayout>
   );
 }
+
+export default function Financial() {
+  return (
+    <ErrorBoundary>
+      <FinancialContent />
+    </ErrorBoundary>
+  );
+}
