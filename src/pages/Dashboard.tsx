@@ -103,14 +103,16 @@ export default function Dashboard() {
 
       try {
         const [quotesRes, clientsRes, productsRes] = await Promise.all([
-          db.from('quotes').select('*, clients(company_name)').eq('created_by', user.id).order('created_at', { ascending: false }).limit(50),
+          db.from('quotes').select('id, quote_number, status, client_name, total_amount, shipping_cost, payment_method, payment_status, created_at, created_by, clients(company_name)').eq('created_by', user.id).order('created_at', { ascending: false }).limit(50),
           db.from('clients').select('id', { count: 'exact', head: true }).eq('created_by', user.id),
           db.from('products').select('id', { count: 'exact', head: true }),
         ]);
 
         if (quotesRes.error) {
           console.error('[Dashboard] Quotes fetch error:', quotesRes.error);
-          toast.error('Erro ao carregar orçamentos recentes');
+          if (quotesRes.error.code !== 'PGRST116') {
+            toast.error('Erro ao carregar orçamentos recentes');
+          }
         }
         if (clientsRes.error) console.error('[Dashboard] Clients count error:', clientsRes.error);
         if (productsRes.error) console.error('[Dashboard] Products count error:', productsRes.error);
@@ -121,6 +123,7 @@ export default function Dashboard() {
       } catch (err) {
         console.error('[Dashboard] loadOwnData error:', err);
       }
+
     };
 
     loadOwnData();
