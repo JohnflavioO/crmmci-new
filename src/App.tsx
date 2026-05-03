@@ -135,6 +135,7 @@ function AppRoutes() {
     !isAdmin && !isGestor && !isFinanceiro && !isLogistica && !isApproved;
 
 
+
   if (!user) {
     return (
       <Routes>
