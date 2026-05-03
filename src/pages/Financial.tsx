@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -52,7 +53,7 @@ const paymentMethodConfig: Record<string, { label: string; icon: any; color: str
   boleto: { label: 'Boleto', icon: FileBarChart, color: 'text-amber-600' },
 };
 
-export default function Financial() {
+function FinancialContent() {
   const { user, isFinanceiro, profile } = useAuth();
   const isMobile = useIsMobile();
   const [searchParams] = useSearchParams();
