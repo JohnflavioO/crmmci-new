@@ -1176,7 +1176,7 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "smart_opportunities_vendedor_id_fkey"
+            foreignKeyName: "smart_opportunities_vendedor_id_fkey_profiles"
             columns: ["vendedor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
