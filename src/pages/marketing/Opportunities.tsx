@@ -260,7 +260,7 @@ export default function Opportunities() {
                       size="sm" 
                       variant="outline" 
                       className="flex-1 gap-2"
-                      onClick={() => navigate(`/clients?id=${opp.cliente_id}`)}
+                      onClick={() => window.location.href = `/clients?id=${opp.cliente_id}`}
                     >
                       <ExternalLink className="h-3 w-3" /> Abrir cliente
                     </Button>

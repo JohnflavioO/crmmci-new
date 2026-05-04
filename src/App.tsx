@@ -31,6 +31,7 @@ import { useEffect, useState } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
 import ProspectView from "./pages/ProspectView";
 import BankSlips from "./pages/BankSlips";
+import Opportunities from "./pages/marketing/Opportunities";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -170,6 +171,7 @@ function AppRoutes() {
       <Route path="/negociacoes" element={<Negociacoes />} />
       <Route path="/prospect" element={<ProspectView />} />
       <Route path="/reports" element={<Reports />} />
+      <Route path="/opportunities" element={<Opportunities />} />
       <Route path="/logistics" element={<Logistics />} />
       <Route path="/estoque-sc" element={<EstoqueSC />} />
       {(isGestor || isFinanceiro) && <Route path="/financial" element={<Financial />} />}
