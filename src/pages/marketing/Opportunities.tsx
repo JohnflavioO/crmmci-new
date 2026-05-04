@@ -254,9 +254,16 @@ export default function Opportunities() {
                     </div>
                     <div className="space-y-1">
                       <p className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider">Sugestão</p>
-                      <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
-                        <Sparkles className="h-3 w-3" />
-                        {opp.suggested_prod?.name || 'Produto Sugerido'}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                          <Sparkles className="h-3 w-3" />
+                          {opp.suggested_prod?.name || 'Produto Sugerido'}
+                        </div>
+                        {opp.suggested_prod?.level && (
+                          <Badge variant="secondary" className="text-[9px] h-4 w-fit px-1">
+                            Nível {opp.suggested_prod.level}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>
