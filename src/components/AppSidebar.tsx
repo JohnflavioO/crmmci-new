@@ -10,7 +10,6 @@ import UserProfileEditor from './UserProfileEditor';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/opportunities', icon: Sparkles, label: 'Marketing Inteligente' },
   { to: '/quotes', icon: FileText, label: 'Orçamentos' },
   { to: '/clients', icon: Users, label: 'Clientes' },
   { to: '/prospect', icon: Target, label: 'Visão Prospect' },
