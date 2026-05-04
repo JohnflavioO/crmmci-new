@@ -20,6 +20,8 @@ export default function Opportunities() {
   const { user, isAdmin, isGestor, isFinanceiro, isLogistica } = useAuth();
   const [opportunities, setOpportunities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [diagnosticReport, setDiagnosticReport] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState('Todas');
   const [typeFilter, setTypeFilter] = useState('Todos');
   const [sellerFilter, setSellerFilter] = useState(isGestor ? user?.id || 'all' : user?.id || 'all');
@@ -138,22 +140,84 @@ export default function Opportunities() {
             <Button 
               variant="outline" 
               className="gap-2"
+              disabled={isGenerating}
               onClick={async () => {
                 try {
-                  const { data, error } = await supabase.rpc('process_approved_quotes_v2');
+                  setIsGenerating(true);
+                  const { data, error } = await supabase.rpc('process_smart_opportunities_diagnostics');
                   if (error) throw error;
-                  toast.success(`${data} oportunidades geradas ou atualizadas.`);
+                  
+                  setDiagnosticReport(data);
+                  toast.success(`${data.created_count} novas oportunidades geradas.`);
                   fetchOpportunities();
                 } catch (error: any) {
+                  console.error('Erro ao gerar:', error);
                   toast.error('Erro ao gerar oportunidades: ' + error.message);
+                } finally {
+                  setIsGenerating(false);
                 }
               }}
             >
-              <RefreshCw className="h-4 w-4" />
-              Gerar Oportunidades
+              <RefreshCw className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
+              {isGenerating ? 'Processando...' : 'Gerar Oportunidades'}
             </Button>
           </div>
         </div>
+
+        {diagnosticReport && (
+          <Card className="bg-emerald-50 border-emerald-200 mb-6">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-emerald-800">
+                <AlertCircle className="h-4 w-4" /> Relatório de Diagnóstico
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="ml-auto h-6 text-[10px]" 
+                  onClick={() => setDiagnosticReport(null)}
+                >
+                  Fechar
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white p-2 rounded border border-emerald-100">
+                  <p className="text-[10px] text-muted-foreground uppercase">Analisados</p>
+                  <p className="text-lg font-bold">{diagnosticReport.analyzed_quotes}</p>
+                </div>
+                <div className="bg-white p-2 rounded border border-emerald-100">
+                  <p className="text-[10px] text-muted-foreground uppercase">Criados</p>
+                  <p className="text-lg font-bold text-emerald-600">{diagnosticReport.created_count}</p>
+                </div>
+                <div className="bg-white p-2 rounded border border-emerald-100">
+                  <p className="text-[10px] text-muted-foreground uppercase">Ignorados</p>
+                  <p className="text-lg font-bold text-amber-600">{diagnosticReport.ignored_count}</p>
+                </div>
+                <div className="bg-white p-2 rounded border border-emerald-100">
+                  <p className="text-[10px] text-muted-foreground uppercase">Removidos</p>
+                  <p className="text-lg font-bold text-red-600">{diagnosticReport.removed_count}</p>
+                </div>
+              </div>
+              
+              {diagnosticReport.details?.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-[10px] font-bold uppercase mb-2">Detalhes dos Ignorados:</p>
+                  <div className="max-h-32 overflow-y-auto text-[10px] space-y-1">
+                    {diagnosticReport.details.slice(0, 10).map((d: any, i: number) => (
+                      <div key={i} className="flex gap-2 bg-white/50 p-1 rounded">
+                        <span className="font-mono text-muted-foreground">ID:{d.quote_id.slice(0,8)}</span>
+                        <span className="text-amber-700">{d.reason}</span>
+                      </div>
+                    ))}
+                    {diagnosticReport.details.length > 10 && (
+                      <p className="text-muted-foreground italic">...e mais {diagnosticReport.details.length - 10} itens.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <div className="space-y-2">
