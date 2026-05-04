@@ -82,7 +82,7 @@ function computeTopClients(quotes: any[]) {
 export default function Dashboard() {
   const { user, isGestor, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const canSeeTeam = isGestor || isAdmin;
+  const canSeeTeam = isGestor; // Ajustado: apenas Gestores veem dashboard do time, Admin não.
 
   const [allQuotes, setAllQuotes] = useState<any[]>([]);
   const [myClientsCount, setMyClientsCount] = useState(0);
