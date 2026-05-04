@@ -1298,6 +1298,10 @@ export type Database = {
     Functions: {
       delete_quote_cascade: { Args: { p_quote_id: string }; Returns: undefined }
       generate_quote_number: { Args: never; Returns: string }
+      generate_smart_opportunities_for_quote: {
+        Args: { p_quote_id: string }
+        Returns: undefined
+      }
       get_public_quote_token: { Args: never; Returns: string }
       get_team_dashboard_recent_quotes: {
         Args: { p_limit?: number; p_owner?: string }
@@ -1342,6 +1346,10 @@ export type Database = {
       is_gestor: { Args: never; Returns: boolean }
       is_logistica: { Args: never; Returns: boolean }
       is_quote_owner: { Args: { p_quote_id: string }; Returns: boolean }
+      process_all_approved_quotes_opportunities: {
+        Args: never
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never

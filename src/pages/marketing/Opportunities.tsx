@@ -125,6 +125,25 @@ export default function Opportunities() {
             </h1>
             <p className="text-muted-foreground">Sugestões de vendas baseadas no histórico dos clientes</p>
           </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={async () => {
+                try {
+                  const { data, error } = await supabase.rpc('process_all_approved_quotes_opportunities');
+                  if (error) throw error;
+                  toast.success(`${data} oportunidades geradas ou atualizadas.`);
+                  fetchOpportunities();
+                } catch (error: any) {
+                  toast.error('Erro ao gerar oportunidades: ' + error.message);
+                }
+              }}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Gerar Oportunidades
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
