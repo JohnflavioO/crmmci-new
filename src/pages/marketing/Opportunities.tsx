@@ -56,8 +56,8 @@ export default function Opportunities() {
           *,
           cliente:clients(company_name, contact_name),
           vendedor:profiles!vendedor_id(full_name),
-          base_prod:products!produto_base(name),
-          suggested_prod:products!produto_sugerido(name)
+          base_prod:products!produto_base(name, category_principal, level),
+          suggested_prod:products!produto_sugerido(name, category_principal, level)
         `)
         .order('created_at', { ascending: false });
 
@@ -254,9 +254,16 @@ export default function Opportunities() {
                     </div>
                     <div className="space-y-1">
                       <p className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider">Sugestão</p>
-                      <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
-                        <Sparkles className="h-3 w-3" />
-                        {opp.suggested_prod?.name || 'Produto Sugerido'}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                          <Sparkles className="h-3 w-3" />
+                          {opp.suggested_prod?.name || 'Produto Sugerido'}
+                        </div>
+                        {opp.suggested_prod?.level && (
+                          <Badge variant="secondary" className="text-[9px] h-4 w-fit px-1">
+                            Nível {opp.suggested_prod.level}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -288,9 +295,10 @@ export default function Opportunities() {
                       size="sm" 
                       variant="outline" 
                       className="flex-1 gap-2"
-                      onClick={() => window.location.href = `/clients?id=${opp.cliente_id}`}
+                      onClick={() => window.location.href = `/quotes?id=${opp.quote_id}`}
+                      disabled={!opp.quote_id}
                     >
-                      <ExternalLink className="h-3 w-3" /> Abrir cliente
+                      <ExternalLink className="h-3 w-3" /> Ver Orçamento
                     </Button>
                   </div>
                   

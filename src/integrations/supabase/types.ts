@@ -689,33 +689,42 @@ export type Database = {
       products: {
         Row: {
           brand: string | null
+          category_principal: string | null
           code: string | null
+          compatibility: string | null
           created_at: string | null
           description: string | null
           id: string
           image_url: string | null
+          level: string | null
           name: string
           price: number | null
           sku: string | null
         }
         Insert: {
           brand?: string | null
+          category_principal?: string | null
           code?: string | null
+          compatibility?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
           image_url?: string | null
+          level?: string | null
           name: string
           price?: number | null
           sku?: string | null
         }
         Update: {
           brand?: string | null
+          category_principal?: string | null
           code?: string | null
+          compatibility?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
           image_url?: string | null
+          level?: string | null
           name?: string
           price?: number | null
           sku?: string | null
@@ -1085,6 +1094,7 @@ export type Database = {
           prioridade: string | null
           produto_base: string | null
           produto_sugerido: string | null
+          quote_id: string | null
           status: string
           tipo_oportunidade: string
           updated_at: string | null
@@ -1098,6 +1108,7 @@ export type Database = {
           prioridade?: string | null
           produto_base?: string | null
           produto_sugerido?: string | null
+          quote_id?: string | null
           status?: string
           tipo_oportunidade: string
           updated_at?: string | null
@@ -1111,6 +1122,7 @@ export type Database = {
           prioridade?: string | null
           produto_base?: string | null
           produto_sugerido?: string | null
+          quote_id?: string | null
           status?: string
           tipo_oportunidade?: string
           updated_at?: string | null
@@ -1136,6 +1148,13 @@ export type Database = {
             columns: ["produto_sugerido"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "smart_opportunities_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
             referencedColumns: ["id"]
           },
           {
