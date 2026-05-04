@@ -1088,6 +1088,7 @@ export type Database = {
       smart_opportunities: {
         Row: {
           cliente_id: string | null
+          company_id: string | null
           created_at: string | null
           id: string
           motivo: string | null
@@ -1102,6 +1103,7 @@ export type Database = {
         }
         Insert: {
           cliente_id?: string | null
+          company_id?: string | null
           created_at?: string | null
           id?: string
           motivo?: string | null
@@ -1116,6 +1118,7 @@ export type Database = {
         }
         Update: {
           cliente_id?: string | null
+          company_id?: string | null
           created_at?: string | null
           id?: string
           motivo?: string | null
@@ -1317,10 +1320,6 @@ export type Database = {
     Functions: {
       delete_quote_cascade: { Args: { p_quote_id: string }; Returns: undefined }
       generate_quote_number: { Args: never; Returns: string }
-      generate_smart_opportunities_for_quote: {
-        Args: { p_quote_id: string }
-        Returns: undefined
-      }
       get_public_quote_token: { Args: never; Returns: string }
       get_team_dashboard_recent_quotes: {
         Args: { p_limit?: number; p_owner?: string }
@@ -1369,7 +1368,7 @@ export type Database = {
         Args: never
         Returns: number
       }
-      process_approved_quotes_v2: { Args: never; Returns: number }
+      process_smart_opportunities_diagnostics: { Args: never; Returns: Json }
     }
     Enums: {
       [_ in never]: never
