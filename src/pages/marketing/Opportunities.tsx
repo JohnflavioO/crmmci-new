@@ -17,20 +17,27 @@ import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 
 export default function Opportunities() {
-  const { user, isAdmin, isGestor } = useAuth();
+  const { user, isAdmin, isGestor, isFinanceiro, isLogistica } = useAuth();
   const [opportunities, setOpportunities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('Todas');
   const [typeFilter, setTypeFilter] = useState('Todos');
-  const [sellerFilter, setSellerFilter] = useState('all');
+  const [sellerFilter, setSellerFilter] = useState(isGestor ? user?.id || 'all' : user?.id || 'all');
   const [sellers, setSellers] = useState<any[]>([]);
 
   useEffect(() => {
+    // Se não for Gestor nem Admin nem Vendedor (ex: Financeiro/Logistica), redirecionar ou tratar
+    if (isFinanceiro || isLogistica) {
+      toast.error('Você não tem permissão para acessar este módulo.');
+      window.location.href = '/dashboard';
+      return;
+    }
+
     fetchOpportunities();
-    if (isGestor || isAdmin) {
+    if (isGestor) {
       fetchSellers();
     }
-  }, [user?.id, statusFilter, typeFilter, sellerFilter]);
+  }, [user?.id, statusFilter, typeFilter, sellerFilter, isGestor, isAdmin, isFinanceiro, isLogistica]);
 
   const fetchSellers = async () => {
     const { data } = await supabase
@@ -61,8 +68,10 @@ export default function Opportunities() {
         query = query.eq('tipo_oportunidade', typeFilter);
       }
       
-      // Regra de visualização: vendedor vê só as dele, gestor/admin pode filtrar ou ver todas
-      if (!isGestor && !isAdmin) {
+      // Regra de visualização:
+      // Gestor pode filtrar todos ou ver um específico.
+      // Admin e Vendedor veem apenas as suas próprias.
+      if (!isGestor) {
         query = query.eq('vendedor_id', user?.id);
       } else if (sellerFilter !== 'all') {
         query = query.eq('vendedor_id', sellerFilter);
@@ -182,7 +191,7 @@ export default function Opportunities() {
             </Select>
           </div>
 
-          {(isGestor || isAdmin) && (
+          {isGestor && (
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground uppercase">Vendedor</label>
               <Select value={sellerFilter} onValueChange={setSellerFilter}>
@@ -230,7 +239,7 @@ export default function Opportunities() {
                     <User className="h-4 w-4 text-emerald-600" />
                     {opp.cliente?.company_name || opp.cliente?.contact_name || 'Cliente'}
                   </CardTitle>
-                  {(isGestor || isAdmin) && (
+                  {isGestor && (
                     <p className="text-xs text-muted-foreground mt-1">Vendedor: {opp.vendedor?.full_name}</p>
                   )}
                 </CardHeader>
