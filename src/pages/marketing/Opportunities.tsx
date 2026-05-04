@@ -288,9 +288,10 @@ export default function Opportunities() {
                       size="sm" 
                       variant="outline" 
                       className="flex-1 gap-2"
-                      onClick={() => window.location.href = `/clients?id=${opp.cliente_id}`}
+                      onClick={() => window.location.href = `/quotes?id=${opp.quote_id}`}
+                      disabled={!opp.quote_id}
                     >
-                      <ExternalLink className="h-3 w-3" /> Abrir cliente
+                      <ExternalLink className="h-3 w-3" /> Ver Orçamento
                     </Button>
                   </div>
                   
