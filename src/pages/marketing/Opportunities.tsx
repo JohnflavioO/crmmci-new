@@ -52,6 +52,14 @@ export default function Opportunities() {
   const fetchOpportunities = async () => {
     try {
       setLoading(true);
+      
+      // Obter perfil para pegar company_id
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+
       let query = supabase
         .from('smart_opportunities')
         .select(`
@@ -63,6 +71,10 @@ export default function Opportunities() {
         `)
         .order('created_at', { ascending: false });
 
+      if (profileData?.company_id) {
+        query = query.eq('company_id', profileData.company_id);
+      }
+
       if (statusFilter !== 'Todas') {
         query = query.eq('status', statusFilter);
       }
@@ -70,9 +82,6 @@ export default function Opportunities() {
         query = query.eq('tipo_oportunidade', typeFilter);
       }
       
-      // Regra de visualização:
-      // Gestor pode filtrar todos ou ver um específico.
-      // Admin e Vendedor veem apenas as suas próprias.
       if (!isGestor) {
         query = query.eq('vendedor_id', user?.id);
       } else if (sellerFilter !== 'all') {
