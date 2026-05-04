@@ -641,6 +641,51 @@ export type Database = {
         }
         Relationships: []
       }
+      product_relationships: {
+        Row: {
+          created_at: string | null
+          id: string
+          observacao: string | null
+          product_id: string | null
+          related_product_id: string | null
+          tipo_relacao: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          observacao?: string | null
+          product_id?: string | null
+          related_product_id?: string | null
+          tipo_relacao: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          observacao?: string | null
+          product_id?: string | null
+          related_product_id?: string | null
+          tipo_relacao?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_relationships_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_relationships_related_product_id_fkey"
+            columns: ["related_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           brand: string | null
@@ -1030,6 +1075,77 @@ export type Database = {
           phone?: string | null
         }
         Relationships: []
+      }
+      smart_opportunities: {
+        Row: {
+          cliente_id: string | null
+          created_at: string | null
+          id: string
+          motivo: string | null
+          prioridade: string | null
+          produto_base: string | null
+          produto_sugerido: string | null
+          status: string
+          tipo_oportunidade: string
+          updated_at: string | null
+          vendedor_id: string | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string | null
+          id?: string
+          motivo?: string | null
+          prioridade?: string | null
+          produto_base?: string | null
+          produto_sugerido?: string | null
+          status?: string
+          tipo_oportunidade: string
+          updated_at?: string | null
+          vendedor_id?: string | null
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string | null
+          id?: string
+          motivo?: string | null
+          prioridade?: string | null
+          produto_base?: string | null
+          produto_sugerido?: string | null
+          status?: string
+          tipo_oportunidade?: string
+          updated_at?: string | null
+          vendedor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "smart_opportunities_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "smart_opportunities_produto_base_fkey"
+            columns: ["produto_base"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "smart_opportunities_produto_sugerido_fkey"
+            columns: ["produto_sugerido"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "smart_opportunities_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       tasks: {
         Row: {
