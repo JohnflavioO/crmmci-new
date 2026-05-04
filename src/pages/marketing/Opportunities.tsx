@@ -56,8 +56,8 @@ export default function Opportunities() {
           *,
           cliente:clients(company_name, contact_name),
           vendedor:profiles!vendedor_id(full_name),
-          base_prod:products!produto_base(name),
-          suggested_prod:products!produto_sugerido(name)
+          base_prod:products!produto_base(name, category_principal, level),
+          suggested_prod:products!produto_sugerido(name, category_principal, level)
         `)
         .order('created_at', { ascending: false });
 
