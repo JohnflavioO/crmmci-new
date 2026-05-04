@@ -1369,6 +1369,7 @@ export type Database = {
         Args: never
         Returns: number
       }
+      process_approved_quotes_v2: { Args: never; Returns: number }
     }
     Enums: {
       [_ in never]: never

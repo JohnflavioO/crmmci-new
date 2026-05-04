@@ -140,7 +140,7 @@ export default function Opportunities() {
               className="gap-2"
               onClick={async () => {
                 try {
-                  const { data, error } = await supabase.rpc('process_all_approved_quotes_opportunities');
+                  const { data, error } = await supabase.rpc('process_approved_quotes_v2');
                   if (error) throw error;
                   toast.success(`${data} oportunidades geradas ou atualizadas.`);
                   fetchOpportunities();
