@@ -137,6 +137,7 @@ export type Database = {
           cep: string | null
           city: string | null
           company: string | null
+          company_id: string | null
           company_name: string | null
           complement: string | null
           contact_name: string | null
@@ -164,6 +165,7 @@ export type Database = {
           cep?: string | null
           city?: string | null
           company?: string | null
+          company_id?: string | null
           company_name?: string | null
           complement?: string | null
           contact_name?: string | null
@@ -191,6 +193,7 @@ export type Database = {
           cep?: string | null
           city?: string | null
           company?: string | null
+          company_id?: string | null
           company_name?: string | null
           complement?: string | null
           contact_name?: string | null
@@ -643,6 +646,7 @@ export type Database = {
       }
       product_relationships: {
         Row: {
+          company_id: string | null
           created_at: string | null
           id: string
           observacao: string | null
@@ -652,6 +656,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          company_id?: string | null
           created_at?: string | null
           id?: string
           observacao?: string | null
@@ -661,6 +666,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          company_id?: string | null
           created_at?: string | null
           id?: string
           observacao?: string | null
@@ -691,6 +697,7 @@ export type Database = {
           brand: string | null
           category_principal: string | null
           code: string | null
+          company_id: string | null
           compatibility: string | null
           created_at: string | null
           description: string | null
@@ -705,6 +712,7 @@ export type Database = {
           brand?: string | null
           category_principal?: string | null
           code?: string | null
+          company_id?: string | null
           compatibility?: string | null
           created_at?: string | null
           description?: string | null
@@ -719,6 +727,7 @@ export type Database = {
           brand?: string | null
           category_principal?: string | null
           code?: string | null
+          company_id?: string | null
           compatibility?: string | null
           created_at?: string | null
           description?: string | null
@@ -736,6 +745,7 @@ export type Database = {
           active: boolean
           avatar_url: string | null
           commercial_visible: boolean
+          company_id: string | null
           created_at: string | null
           deleted_at: string | null
           email: string | null
@@ -750,6 +760,7 @@ export type Database = {
           active?: boolean
           avatar_url?: string | null
           commercial_visible?: boolean
+          company_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           email?: string | null
@@ -764,6 +775,7 @@ export type Database = {
           active?: boolean
           avatar_url?: string | null
           commercial_visible?: boolean
+          company_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           email?: string | null
@@ -887,6 +899,7 @@ export type Database = {
           approved_at: string | null
           client_id: string | null
           client_name: string
+          company_id: string | null
           created_at: string | null
           created_by: string | null
           discount: number | null
@@ -941,6 +954,7 @@ export type Database = {
           approved_at?: string | null
           client_id?: string | null
           client_name?: string
+          company_id?: string | null
           created_at?: string | null
           created_by?: string | null
           discount?: number | null
@@ -995,6 +1009,7 @@ export type Database = {
           approved_at?: string | null
           client_id?: string | null
           client_name?: string
+          company_id?: string | null
           created_at?: string | null
           created_by?: string | null
           discount?: number | null
