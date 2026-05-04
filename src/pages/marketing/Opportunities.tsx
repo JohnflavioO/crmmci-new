@@ -189,21 +189,33 @@ export default function Opportunities() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                 <div className="bg-white p-2 rounded border border-emerald-100">
-                  <p className="text-[10px] text-muted-foreground uppercase">Analisados</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Analisados</p>
                   <p className="text-lg font-bold">{diagnosticReport.analyzed_quotes}</p>
                 </div>
                 <div className="bg-white p-2 rounded border border-emerald-100">
-                  <p className="text-[10px] text-muted-foreground uppercase">Criados</p>
+                  <p className="text-[10px] text-emerald-600 uppercase font-bold">Criados</p>
                   <p className="text-lg font-bold text-emerald-600">{diagnosticReport.created_count}</p>
                 </div>
                 <div className="bg-white p-2 rounded border border-emerald-100">
-                  <p className="text-[10px] text-muted-foreground uppercase">Ignorados</p>
+                  <p className="text-[10px] text-amber-600 uppercase font-bold">Incompatíveis</p>
                   <p className="text-lg font-bold text-amber-600">{diagnosticReport.ignored_count}</p>
                 </div>
                 <div className="bg-white p-2 rounded border border-emerald-100">
-                  <p className="text-[10px] text-muted-foreground uppercase">Removidos</p>
+                  <p className="text-[10px] text-red-600 uppercase font-bold">Vendedor Inválido</p>
+                  <p className="text-lg font-bold text-red-600">{diagnosticReport.invalid_seller_count || 0}</p>
+                </div>
+                <div className="bg-white p-2 rounded border border-emerald-100">
+                  <p className="text-[10px] text-red-600 uppercase font-bold">Cliente Inválido</p>
+                  <p className="text-lg font-bold text-red-600">{diagnosticReport.invalid_client_count || 0}</p>
+                </div>
+                <div className="bg-white p-2 rounded border border-emerald-100">
+                  <p className="text-[10px] text-blue-600 uppercase font-bold">Sem Relação</p>
+                  <p className="text-lg font-bold text-blue-600">{diagnosticReport.no_relation_count || 0}</p>
+                </div>
+                <div className="bg-white p-2 rounded border border-emerald-100">
+                  <p className="text-[10px] text-red-600 uppercase font-bold">Limpados</p>
                   <p className="text-lg font-bold text-red-600">{diagnosticReport.removed_count}</p>
                 </div>
               </div>
