@@ -65,7 +65,7 @@ export default function Opportunities() {
         .select(`
           *,
           cliente:clients(company_name, contact_name),
-          vendedor:profiles!vendedor_id(full_name),
+          vendedor:profiles!smart_opportunities_vendedor_id_fkey_profiles(full_name),
           base_prod:products!produto_base(name, category_principal, level),
           suggested_prod:products!produto_sugerido(name, category_principal, level)
         `)
