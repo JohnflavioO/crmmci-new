@@ -144,11 +144,11 @@ export default function Opportunities() {
               onClick={async () => {
                 try {
                   setIsGenerating(true);
-                  const { data, error } = await supabase.rpc('process_smart_opportunities_diagnostics');
+                  const { data, error } = await supabase.rpc('process_smart_opportunities_diagnostics') as { data: any, error: any };
                   if (error) throw error;
                   
                   setDiagnosticReport(data);
-                  toast.success(`${data.created_count} novas oportunidades geradas.`);
+                  toast.success(`${data?.created_count || 0} novas oportunidades geradas.`);
                   fetchOpportunities();
                 } catch (error: any) {
                   console.error('Erro ao gerar:', error);
