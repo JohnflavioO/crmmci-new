@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DollarSign, TrendingUp, Send, Handshake, CalendarDays } from 'lucide-react';
 
@@ -100,9 +101,10 @@ function getCurrentCycle(): { start: Date; end: Date; label: string; value: stri
 
 interface Props {
   quotes: QuoteForecast[];
+  onCardClick?: (label: string, quotes: QuoteForecast[]) => void;
 }
 
-export default function RevenueForecasting({ quotes }: Props) {
+export default function RevenueForecasting({ quotes, onCardClick }: Props) {
   const cycles = useMemo(() => generateCycles(13), []);
   const currentCycle = useMemo(() => getCurrentCycle(), []);
   const [selectedCycleValue, setSelectedCycleValue] = useState(currentCycle.value);
@@ -128,10 +130,10 @@ export default function RevenueForecasting({ quotes }: Props) {
   const forecastValue = closedValue;
 
   const items = [
-    { label: 'Em Negociação', value: negotiationValue, count: negotiation.length, icon: Handshake, color: 'text-amber-600', bg: 'bg-amber-100' },
-    { label: 'Propostas Enviadas', value: sentValue, count: sent.length, icon: Send, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { label: 'Fechados no Ciclo', value: closedValue, count: closed.length, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { label: 'Previsão Final', value: forecastValue, count: closed.length + negotiation.length + sent.length, icon: TrendingUp, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'Em Negociação', value: negotiationValue, count: negotiation.length, icon: Handshake, color: 'text-amber-600', bg: 'bg-amber-100', quotes: negotiation },
+    { label: 'Propostas Enviadas', value: sentValue, count: sent.length, icon: Send, color: 'text-blue-600', bg: 'bg-blue-100', quotes: sent },
+    { label: 'Fechados no Ciclo', value: closedValue, count: closed.length, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-100', quotes: closed },
+    { label: 'Previsão Final', value: forecastValue, count: closed.length + negotiation.length + sent.length, icon: TrendingUp, color: 'text-primary', bg: 'bg-primary/10', quotes: cycleQuotes },
   ];
 
   return (
@@ -154,15 +156,24 @@ export default function RevenueForecasting({ quotes }: Props) {
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {items.map(item => (
-          <Card key={item.label} className="shadow-card">
-            <CardContent className="p-3 md:p-4">
+          <Card 
+            key={item.label} 
+            className={cn(
+              "shadow-card transition-all duration-200 group",
+              onCardClick ? "hover:shadow-elevated hover:border-primary/50 cursor-pointer active:scale-[0.98]" : ""
+            )}
+            onClick={() => onCardClick?.(item.label, item.quotes)}
+          >
               <div className="flex items-center gap-2 mb-2">
                 <div className={`w-7 h-7 md:w-8 md:h-8 rounded-lg ${item.bg} flex items-center justify-center shrink-0`}>
                   <item.icon className={`h-3.5 w-3.5 md:h-4 md:w-4 ${item.color}`} />
                 </div>
                 <span className="text-[10px] md:text-xs text-muted-foreground ml-auto">{item.count} orç.</span>
               </div>
-              <p className="text-[10px] md:text-xs text-muted-foreground truncate">{item.label}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] md:text-xs text-muted-foreground truncate">{item.label}</p>
+                {onCardClick && <span className="text-[9px] text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity hidden md:inline">Ver detalhes</span>}
+              </div>
               <p className={`text-xs md:text-base font-bold ${item.color} truncate`}>{formatCurrency(item.value)}</p>
             </CardContent>
           </Card>
