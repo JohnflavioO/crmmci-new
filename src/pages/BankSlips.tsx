@@ -469,10 +469,14 @@ export default function BankSlips() {
         .from('profiles')
         .select('full_name')
         .eq('active', true)
-        .in('role', ['vendedor', 'comercial', 'admin', 'gestor']);
+        .in('role', ['vendedor', 'comercial']);
       
       if (data) {
-        const names = data.map(p => p.full_name).sort();
+        // Filtra usuários de teste (que contenham "teste" no nome)
+        const names = data
+          .map(p => p.full_name)
+          .filter(name => !name.toLowerCase().includes('teste'))
+          .sort();
         setSystemUsers(names);
       }
     };
