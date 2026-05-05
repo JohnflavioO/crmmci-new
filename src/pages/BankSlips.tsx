@@ -1045,10 +1045,10 @@ export default function BankSlips() {
               </Button>
             )}
             <Button variant="outline" className="gap-2" onClick={exportReport} disabled={filteredSlips.length === 0}>
-              <Download className="h-4 w-4" /> Exportar Relatório
+              <Download className="h-4 w-4" /> Relatório
             </Button>
             <Button variant="outline" className="gap-2" onClick={() => document.getElementById('excel-upload')?.click()}>
-              <FileSpreadsheet className="h-4 w-4" /> Importar Excel
+              <FileSpreadsheet className="h-4 w-4" /> Importar
             </Button>
             <input type="file" id="excel-upload" className="hidden" accept=".xlsx, .xls" onChange={handleFileUpload} />
           </div>
