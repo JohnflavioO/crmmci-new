@@ -720,9 +720,26 @@ export default function BankSlips() {
     setImporting(true);
     try {
       const validRows = parsedRows.filter(p => p.valid);
-      const batchId = crypto.randomUUID();
+      const totalValue = validRows.reduce((acc, row) => acc + (row.mapped.principal_amount || 0), 0);
+      
+      // Criar o lote primeiro
+      const { data: batch, error: batchError } = await supabase
+        .from('financial_import_batches' as any)
+        .insert({
+          company_id: profile?.company_id,
+          filename: importMeta.sheetName,
+          imported_by: user?.id,
+          total_records: validRows.length,
+          total_value: totalValue,
+          status: 'ativo'
+        })
+        .select()
+        .single();
 
-      // Anti-duplicação/correção: não usa valor na chave para permitir reimportar e corrigir Principal errado.
+      if (batchError) throw batchError;
+      const batchId = batch.id;
+
+      // Anti-duplicação/correção
       const { data: existing } = await supabase
         .from('bank_slips' as any)
         .select('id, nfe_number, client_name, due_date, principal_amount');
@@ -757,6 +774,7 @@ export default function BankSlips() {
           salesperson_name: m.salesperson_name,
           status: m.status,
           import_batch_id: batchId,
+          company_id: profile?.company_id
         };
         const existsIds = existingMap.get(k);
         if (existsIds?.length) {
@@ -780,10 +798,11 @@ export default function BankSlips() {
       setLastBatchId(batchId);
       localStorage.setItem('last_bank_slip_batch', batchId);
 
-      toast.success(`Importação concluída: ${inserted} novos, ${updatedCount} atualizados (Lote: ${batchId.slice(0, 8)}).`);
+      toast.success(`Importação concluída: ${inserted} novos, ${updatedCount} atualizados (Lote: ${importMeta.sheetName}).`);
       setIsImportDialogOpen(false);
       setParsedRows([]);
       loadData();
+      loadBatches();
     } catch (error: any) {
       toast.error('Erro ao importar: ' + error.message);
     } finally {
