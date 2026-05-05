@@ -462,6 +462,7 @@ export default function BankSlips() {
 
   useEffect(() => {
     loadData();
+    loadBatches();
     const fetchUsers = async () => {
       const { data } = await supabase
         .from('profiles')
@@ -475,7 +476,7 @@ export default function BankSlips() {
       }
     };
     fetchUsers();
-  }, [loadData]);
+  }, [loadData, loadBatches, filterBatch]);
 
   const stats = useMemo(() => {
     const today = startOfDay(new Date());
