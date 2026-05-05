@@ -48,6 +48,15 @@ interface BankSlip {
   days_late?: number; // Propriedade virtual para exibição
 }
 
+interface ImportBatch {
+  id: string;
+  filename: string;
+  import_date: string;
+  total_records: number;
+  total_value: number;
+  status: 'ativo' | 'arquivado';
+}
+
 interface ParsedRow {
   raw: any[];
   originalValues: {
