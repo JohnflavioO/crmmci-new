@@ -469,7 +469,7 @@ export default function BankSlips() {
         .from('profiles')
         .select('full_name')
         .eq('active', true)
-        .in('role', ['vendedor', 'comercial']);
+        .or('role.in.("vendedor","comercial"),full_name.eq."John Flavio"');
       
       if (data) {
         // Filtra usuários de teste (que contenham "teste" no nome)
