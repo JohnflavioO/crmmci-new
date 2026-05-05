@@ -540,9 +540,8 @@ export default function BankSlips() {
   }, [bankSlips]);
 
   const sellers = useMemo(() => {
-    const names = Array.from(new Set(bankSlips.map(s => s.salesperson_name || 'Sem Vendedor')));
-    return names.sort();
-  }, [bankSlips]);
+    return [...systemUsers].sort();
+  }, [systemUsers]);
 
   const months = useMemo(() => {
     const uniqueMonths = Array.from(new Set(bankSlips.map(s => {
