@@ -366,13 +366,32 @@ export default function BankSlips() {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
 
+  const loadBatches = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('financial_import_batches' as any)
+        .select('*')
+        .order('import_date', { ascending: false });
+
+      if (error) throw error;
+      setBatches(data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar lotes:', error);
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('bank_slips' as any)
-        .select('*')
-        .order('due_date', { ascending: true });
+        .select('*');
+
+      if (filterBatch !== 'all') {
+        query = query.eq('import_batch_id', filterBatch);
+      }
+
+      const { data, error } = await query.order('due_date', { ascending: true });
 
       if (error) throw error;
 
