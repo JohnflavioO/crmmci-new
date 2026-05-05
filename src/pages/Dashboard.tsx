@@ -12,7 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Users, DollarSign, TrendingUp, Clock, CheckCircle, XCircle, BarChart3, CreditCard, QrCode, FileBarChart, CircleDot, CheckCircle2, Plus, ClipboardList } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { FileText, Users, DollarSign, TrendingUp, Clock, CheckCircle, XCircle, BarChart3, CreditCard, QrCode, FileBarChart, CircleDot, CheckCircle2, Plus, ClipboardList, ArrowUpRight } from 'lucide-react';
 
 const statusLabels: Record<string, string> = {
   draft: 'Rascunho', sent: 'Enviado', approved: 'Aprovado', rejected: 'Rejeitado',
@@ -91,6 +93,24 @@ export default function Dashboard() {
   const [teamFilter, setTeamFilter] = useState('all');
   const [teamRecentQuotes, setTeamRecentQuotes] = useState<any[]>([]);
   const [teamTopClients, setTeamTopClients] = useState<TopClientInfo[]>([]);
+  const [detailsModal, setDetailsModal] = useState<{
+    open: boolean;
+    title: string;
+    vendedor?: string;
+    quotes?: any[];
+    clients?: any[];
+    stats?: { total: number; count: number; avg: number };
+  }>({ open: false, title: '' });
+
+  const openDetails = (title: string, data: { quotes?: any[]; clientsCount?: number; vendedor?: string; stats?: any }) => {
+    setDetailsModal({
+      open: true,
+      title,
+      vendedor: data.vendedor || (teamFilter === 'all' ? 'Time Inteiro' : sellers.find(s => s.user_id === teamFilter)?.full_name),
+      quotes: data.quotes,
+      stats: data.stats
+    });
+  };
 
   useEffect(() => {
     const loadOwnData = async () => {
@@ -248,22 +268,103 @@ export default function Dashboard() {
     );
   };
 
-  const renderStatsBlock = (stats: any, clientsCount: number) => (
-    <>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-3 md:mb-4">
-        <StatCard title="Total Orçamentos" value={stats.quotes} icon={FileText} />
-        <StatCard title="Clientes" value={clientsCount} icon={Users} />
-        <StatCard title="Valor Total" value={formatCurrency(stats.totalValue)} icon={DollarSign} />
-        <StatCard title="Ticket Médio" value={formatCurrency(stats.avgTicket)} icon={BarChart3} />
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
-        <StatCard title="Aprovados" value={stats.approved} icon={CheckCircle} className="border-l-4 border-l-green-500" />
-        <StatCard title="Pendentes" value={stats.pending} icon={Clock} className="border-l-4 border-l-yellow-500" />
-        <StatCard title="Rejeitados" value={stats.rejected} icon={XCircle} className="border-l-4 border-l-red-500" />
-        <StatCard title="Produtos" value={productsCount} icon={TrendingUp} />
-      </div>
-    </>
-  );
+  const renderStatsBlock = (stats: any, clientsCount: number, isTeam = false) => {
+    const vendedorNome = isTeam ? (teamFilter === 'all' ? 'Time Inteiro' : sellers.find(s => s.user_id === teamFilter)?.full_name) : 'Eu';
+    
+    return (
+      <>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-3 md:mb-4">
+          <StatCard 
+            title="Total Orçamentos" 
+            value={stats.quotes} 
+            icon={FileText} 
+            onClick={() => {
+              if (isTeam) {
+                // Para o time, já temos teamRecentQuotes carregado
+                openDetails("Total de Orçamentos", { quotes: teamRecentQuotes, vendedor: vendedorNome });
+              } else {
+                navigate('/quotes');
+              }
+            }}
+          />
+          <StatCard 
+            title="Clientes" 
+            value={clientsCount} 
+            icon={Users} 
+            onClick={() => navigate('/clients')}
+          />
+          <StatCard 
+            title="Valor Total" 
+            value={formatCurrency(stats.totalValue)} 
+            icon={DollarSign} 
+            onClick={() => {
+              if (isTeam) {
+                openDetails("Composição do Valor Total", { quotes: teamRecentQuotes, vendedor: vendedorNome });
+              }
+            }}
+          />
+          <StatCard 
+            title="Ticket Médio" 
+            value={formatCurrency(stats.avgTicket)} 
+            icon={BarChart3} 
+            onClick={() => {
+              if (isTeam) {
+                openDetails("Análise de Ticket Médio", { 
+                  quotes: teamRecentQuotes, 
+                  vendedor: vendedorNome,
+                  stats: { total: stats.totalValue, count: stats.quotes, avg: stats.avgTicket }
+                });
+              }
+            }}
+          />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
+          <StatCard 
+            title="Aprovados" 
+            value={stats.approved} 
+            icon={CheckCircle} 
+            className="border-l-4 border-l-green-500" 
+            onClick={() => {
+              if (isTeam) {
+                const filtered = teamRecentQuotes.filter(q => q.status === 'approved');
+                openDetails("Orçamentos Aprovados", { quotes: filtered, vendedor: vendedorNome });
+              }
+            }}
+          />
+          <StatCard 
+            title="Pendentes" 
+            value={stats.pending} 
+            icon={Clock} 
+            className="border-l-4 border-l-yellow-500" 
+            onClick={() => {
+              if (isTeam) {
+                const filtered = teamRecentQuotes.filter(q => ['draft', 'sent', 'pre_venda', 'pre_sale', 'contato_feito', 'contact_made', 'negociacao', 'negotiation'].includes(q.status));
+                openDetails("Orçamentos Pendentes", { quotes: filtered, vendedor: vendedorNome });
+              }
+            }}
+          />
+          <StatCard 
+            title="Rejeitados" 
+            value={stats.rejected} 
+            icon={XCircle} 
+            className="border-l-4 border-l-red-500" 
+            onClick={() => {
+              if (isTeam) {
+                const filtered = teamRecentQuotes.filter(q => q.status === 'rejected');
+                openDetails("Orçamentos Rejeitados", { quotes: filtered, vendedor: vendedorNome });
+              }
+            }}
+          />
+          <StatCard 
+            title="Produtos" 
+            value={productsCount} 
+            icon={TrendingUp} 
+            onClick={() => navigate('/products')}
+          />
+        </div>
+      </>
+    );
+  };
 
   // Simple dashboard for regular sellers
   if (!canSeeTeam) {
@@ -424,11 +525,14 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {renderStatsBlock(teamStats, teamClientsCount)}
-
+        {renderStatsBlock(teamStats, teamClientsCount, true)}
+  
         <div className="mb-4 md:mb-6">
           <h2 className="text-lg font-bold font-display mb-3">Previsão de Faturamento (Time)</h2>
-          <RevenueForecasting quotes={teamQuotes} />
+          <RevenueForecasting 
+            quotes={teamQuotes} 
+            onCardClick={(label, quotes) => openDetails(label, { quotes })}
+          />
         </div>
 
         <div className="mb-4 md:mb-6">
@@ -468,6 +572,84 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={detailsModal.open} onOpenChange={(open) => setDetailsModal(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="p-6 pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-xl font-display">{detailsModal.title}</DialogTitle>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="outline" className="font-normal">Vendedor: {detailsModal.vendedor}</Badge>
+                  {detailsModal.quotes && (
+                    <Badge variant="secondary" className="font-normal">{detailsModal.quotes.length} registros</Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-6 pt-2">
+            {detailsModal.stats && (
+              <div className="grid grid-cols-3 gap-4 mb-6 p-4 bg-muted/30 rounded-lg border">
+                <div>
+                  <p className="text-xs text-muted-foreground">Valor Acumulado</p>
+                  <p className="text-lg font-bold text-primary">{formatCurrency(detailsModal.stats.total)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Quantidade</p>
+                  <p className="text-lg font-bold">{detailsModal.stats.count} orçamentos</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Ticket Médio</p>
+                  <p className="text-lg font-bold text-emerald-600">{formatCurrency(detailsModal.stats.avg)}</p>
+                </div>
+              </div>
+            )}
+
+            {detailsModal.quotes && detailsModal.quotes.length > 0 ? (
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Número</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Vendedor</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {detailsModal.quotes.map((q) => (
+                      <TableRow key={q.id}>
+                        <TableCell className="font-medium text-xs">{q.quote_number}</TableCell>
+                        <TableCell className="text-xs max-w-[150px] truncate">{q.clients?.company_name || q.client_name || 'Sem cliente'}</TableCell>
+                        <TableCell className="text-xs">{getSellerName(q.created_by)}</TableCell>
+                        <TableCell>
+                          <Badge variant={statusVariants[q.status] || 'secondary'} className="text-[10px] px-1.5 py-0 h-5">
+                            {statusLabels[q.status] || q.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right text-xs font-semibold">{formatCurrency(parseFloat(q.total_amount) || 0)}</TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/quotes')}>
+                            <ArrowUpRight className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="py-12 text-center text-muted-foreground">
+                <p>Nenhum detalhe disponível para este indicador no momento.</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
