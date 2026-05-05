@@ -1218,6 +1218,8 @@ export default function BankSlips() {
                   <SelectTrigger><SelectValue placeholder="Vendedor" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos Vendedores</SelectItem>
+                    <SelectItem value="Standby">Standby</SelectItem>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     {sellers.map(s => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
                   </SelectContent>
                 </Select>
