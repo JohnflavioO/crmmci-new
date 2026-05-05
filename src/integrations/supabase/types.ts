@@ -128,7 +128,15 @@ export type Database = {
           updated_amount?: number
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bank_slips_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "financial_import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       clients: {
         Row: {
@@ -260,6 +268,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      financial_import_batches: {
+        Row: {
+          company_id: string
+          created_at: string
+          filename: string
+          id: string
+          import_date: string
+          imported_by: string
+          status: string
+          total_records: number
+          total_value: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          filename: string
+          id?: string
+          import_date?: string
+          imported_by: string
+          status?: string
+          total_records?: number
+          total_value?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          filename?: string
+          id?: string
+          import_date?: string
+          imported_by?: string
+          status?: string
+          total_records?: number
+          total_value?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       financial_records: {
         Row: {

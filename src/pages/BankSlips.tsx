@@ -48,6 +48,15 @@ interface BankSlip {
   days_late?: number; // Propriedade virtual para exibição
 }
 
+interface ImportBatch {
+  id: string;
+  filename: string;
+  import_date: string;
+  total_records: number;
+  total_value: number;
+  status: 'ativo' | 'arquivado';
+}
+
 interface ParsedRow {
   raw: any[];
   originalValues: {
@@ -323,7 +332,7 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
 // ---------- Componente ----------
 
 export default function BankSlips() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [bankSlips, setBankSlips] = useState<BankSlip[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
@@ -331,9 +340,12 @@ export default function BankSlips() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSeller, setFilterSeller] = useState('all');
   const [filterMonth, setFilterMonth] = useState('all');
+  const [filterBatch, setFilterBatch] = useState('all');
   const [activeView, setActiveView] = useState<'list' | 'sellers'>('list');
 
+  const [batches, setBatches] = useState<ImportBatch[]>([]);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isBatchManagementOpen, setIsBatchManagementOpen] = useState(false);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [importMeta, setImportMeta] = useState<{ totalRows: number; valid: number; invalid: number; sheetName: string }>({ totalRows: 0, valid: 0, invalid: 0, sheetName: '' });
   const [lastBatchId, setLastBatchId] = useState<string | null>(localStorage.getItem('last_bank_slip_batch'));
@@ -355,13 +367,32 @@ export default function BankSlips() {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
 
+  const loadBatches = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('financial_import_batches' as any)
+        .select('*')
+        .order('import_date', { ascending: false });
+
+      if (error) throw error;
+      setBatches((data || []) as any[]);
+    } catch (error: any) {
+      console.error('Erro ao carregar lotes:', error);
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('bank_slips' as any)
-        .select('*')
-        .order('due_date', { ascending: true });
+        .select('*');
+
+      if (filterBatch !== 'all') {
+        query = query.eq('import_batch_id', filterBatch);
+      }
+
+      const { data, error } = await query.order('due_date', { ascending: true });
 
       if (error) throw error;
 
@@ -432,6 +463,7 @@ export default function BankSlips() {
 
   useEffect(() => {
     loadData();
+    loadBatches();
     const fetchUsers = async () => {
       const { data } = await supabase
         .from('profiles')
@@ -445,7 +477,7 @@ export default function BankSlips() {
       }
     };
     fetchUsers();
-  }, [loadData]);
+  }, [loadData, loadBatches, filterBatch]);
 
   const stats = useMemo(() => {
     const today = startOfDay(new Date());
@@ -689,9 +721,26 @@ export default function BankSlips() {
     setImporting(true);
     try {
       const validRows = parsedRows.filter(p => p.valid);
-      const batchId = crypto.randomUUID();
+      const totalValue = validRows.reduce((acc, row) => acc + (row.mapped.principal_amount || 0), 0);
+      
+      // Criar o lote primeiro
+      const { data: batch, error: batchError } = await supabase
+        .from('financial_import_batches' as any)
+        .insert({
+          company_id: profile?.company_id,
+          filename: importMeta.sheetName,
+          imported_by: user?.id,
+          total_records: validRows.length,
+          total_value: totalValue,
+          status: 'ativo'
+        })
+        .select()
+        .single();
 
-      // Anti-duplicação/correção: não usa valor na chave para permitir reimportar e corrigir Principal errado.
+      if (batchError) throw batchError;
+      const batchId = (batch as any).id;
+
+      // Anti-duplicação/correção
       const { data: existing } = await supabase
         .from('bank_slips' as any)
         .select('id, nfe_number, client_name, due_date, principal_amount');
@@ -726,6 +775,7 @@ export default function BankSlips() {
           salesperson_name: m.salesperson_name,
           status: m.status,
           import_batch_id: batchId,
+          company_id: profile?.company_id
         };
         const existsIds = existingMap.get(k);
         if (existsIds?.length) {
@@ -749,10 +799,11 @@ export default function BankSlips() {
       setLastBatchId(batchId);
       localStorage.setItem('last_bank_slip_batch', batchId);
 
-      toast.success(`Importação concluída: ${inserted} novos, ${updatedCount} atualizados (Lote: ${batchId.slice(0, 8)}).`);
+      toast.success(`Importação concluída: ${inserted} novos, ${updatedCount} atualizados (Lote: ${importMeta.sheetName}).`);
       setIsImportDialogOpen(false);
       setParsedRows([]);
       loadData();
+      loadBatches();
     } catch (error: any) {
       toast.error('Erro ao importar: ' + error.message);
     } finally {
@@ -811,6 +862,43 @@ export default function BankSlips() {
       loadData();
     } catch (error: any) {
       toast.error('Erro ao salvar: ' + error.message);
+    }
+  };
+
+  const handleDeleteBatch = async (batchId: string) => {
+    if (!confirm('Deseja excluir este lote e TODOS os boletos vinculados a ele? Esta ação não pode ser desfeita.')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('financial_import_batches' as any)
+        .delete()
+        .eq('id', batchId);
+
+      if (error) throw error;
+      
+      toast.success('Lote e boletos excluídos com sucesso.');
+      loadData();
+      loadBatches();
+      if (filterBatch === batchId) setFilterBatch('all');
+    } catch (error: any) {
+      toast.error('Erro ao excluir lote: ' + error.message);
+    }
+  };
+
+  const handleArchiveBatch = async (batchId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'ativo' ? 'arquivado' : 'ativo';
+    try {
+      const { error } = await supabase
+        .from('financial_import_batches' as any)
+        .update({ status: newStatus })
+        .eq('id', batchId);
+
+      if (error) throw error;
+      
+      toast.success(`Lote ${newStatus === 'arquivado' ? 'arquivado' : 'reativado'} com sucesso.`);
+      loadBatches();
+    } catch (error: any) {
+      toast.error('Erro ao alterar status do lote: ' + error.message);
     }
   };
 
@@ -957,10 +1045,13 @@ export default function BankSlips() {
               </Button>
             )}
             <Button variant="outline" className="gap-2" onClick={exportReport} disabled={filteredSlips.length === 0}>
-              <Download className="h-4 w-4" /> Exportar Relatório
+              <Download className="h-4 w-4" /> Relatório
+            </Button>
+            <Button variant="outline" className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50" onClick={() => setIsBatchManagementOpen(true)}>
+              <List className="h-4 w-4" /> Lotes
             </Button>
             <Button variant="outline" className="gap-2" onClick={() => document.getElementById('excel-upload')?.click()}>
-              <FileSpreadsheet className="h-4 w-4" /> Importar Excel
+              <FileSpreadsheet className="h-4 w-4" /> Importar
             </Button>
             <input type="file" id="excel-upload" className="hidden" accept=".xlsx, .xls" onChange={handleFileUpload} />
           </div>
@@ -1099,6 +1190,21 @@ export default function BankSlips() {
                     <SelectItem value="Vencido">Vencido</SelectItem>
                     <SelectItem value="Pago">Pago</SelectItem>
                     <SelectItem value="Em negociação">Em negociação</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-full md:w-48">
+                <Select value={filterBatch} onValueChange={setFilterBatch}>
+                  <SelectTrigger className="whitespace-nowrap overflow-hidden text-left">
+                    <SelectValue placeholder="Lote / Importação" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os Lotes</SelectItem>
+                    {batches.filter(b => b.status === 'ativo' || b.id === filterBatch).map(b => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.filename} ({format(parseISO(b.import_date), 'dd/MM/yy')})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1580,6 +1686,81 @@ export default function BankSlips() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsHistoryModalOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isBatchManagementOpen} onOpenChange={setIsBatchManagementOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Gestão de Lotes de Importação</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-1 gap-4">
+              {batches.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">Nenhum lote encontrado.</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Arquivo</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead className="text-right">Registros</TableHead>
+                      <TableHead className="text-right">Valor Total</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {batches.map((batch) => (
+                      <TableRow key={batch.id} className={batch.status === 'arquivado' ? 'opacity-50' : ''}>
+                        <TableCell className="font-medium">{batch.filename}</TableCell>
+                        <TableCell>{format(parseISO(batch.import_date), 'dd/MM/yyyy HH:mm')}</TableCell>
+                        <TableCell className="text-right">{batch.total_records}</TableCell>
+                        <TableCell className="text-right font-semibold text-emerald-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(batch.total_value)}</TableCell>
+                        <TableCell>
+                          <Badge variant={batch.status === 'ativo' ? 'default' : 'secondary'}>
+                            {batch.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => {
+                                setFilterBatch(batch.id);
+                                setIsBatchManagementOpen(false);
+                              }}
+                            >
+                              Filtrar
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="text-amber-600"
+                              onClick={() => handleArchiveBatch(batch.id, batch.status)}
+                            >
+                              {batch.status === 'ativo' ? 'Arquivar' : 'Reativar'}
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="text-red-600"
+                              onClick={() => handleDeleteBatch(batch.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBatchManagementOpen(false)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
