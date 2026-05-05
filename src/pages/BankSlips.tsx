@@ -1200,7 +1200,7 @@ export default function BankSlips() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos os Lotes</SelectItem>
-                    {batches.map(b => (
+                    {batches.filter(b => b.status === 'ativo' || b.id === filterBatch).map(b => (
                       <SelectItem key={b.id} value={b.id}>
                         {b.filename} ({format(parseISO(b.import_date), 'dd/MM/yy')})
                       </SelectItem>
