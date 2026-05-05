@@ -1191,6 +1191,21 @@ export default function BankSlips() {
                 </Select>
               </div>
               <div className="w-full md:w-48">
+                <Select value={filterBatch} onValueChange={setFilterBatch}>
+                  <SelectTrigger className="whitespace-nowrap overflow-hidden text-left">
+                    <SelectValue placeholder="Lote / Importação" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os Lotes</SelectItem>
+                    {batches.map(b => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.filename} ({format(parseISO(b.import_date), 'dd/MM/yy')})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-full md:w-48">
                 <Select value={filterSeller} onValueChange={setFilterSeller}>
                   <SelectTrigger><SelectValue placeholder="Vendedor" /></SelectTrigger>
                   <SelectContent>
