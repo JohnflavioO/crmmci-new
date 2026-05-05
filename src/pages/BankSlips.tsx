@@ -1671,6 +1671,81 @@ export default function BankSlips() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={isBatchManagementOpen} onOpenChange={setIsBatchManagementOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Gestão de Lotes de Importação</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-1 gap-4">
+              {batches.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">Nenhum lote encontrado.</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Arquivo</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead className="text-right">Registros</TableHead>
+                      <TableHead className="text-right">Valor Total</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {batches.map((batch) => (
+                      <TableRow key={batch.id} className={batch.status === 'arquivado' ? 'opacity-50' : ''}>
+                        <TableCell className="font-medium">{batch.filename}</TableCell>
+                        <TableCell>{format(parseISO(batch.import_date), 'dd/MM/yyyy HH:mm')}</TableCell>
+                        <TableCell className="text-right">{batch.total_records}</TableCell>
+                        <TableCell className="text-right font-semibold text-emerald-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(batch.total_value)}</TableCell>
+                        <TableCell>
+                          <Badge variant={batch.status === 'ativo' ? 'default' : 'secondary'}>
+                            {batch.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => {
+                                setFilterBatch(batch.id);
+                                setIsBatchManagementOpen(false);
+                              }}
+                            >
+                              Filtrar
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="text-amber-600"
+                              onClick={() => handleArchiveBatch(batch.id, batch.status)}
+                            >
+                              {batch.status === 'ativo' ? 'Arquivar' : 'Reativar'}
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="text-red-600"
+                              onClick={() => handleDeleteBatch(batch.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBatchManagementOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
