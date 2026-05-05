@@ -162,8 +162,9 @@ export default function RevenueForecasting({ quotes, onCardClick }: Props) {
               "shadow-card transition-all duration-200 group",
               onCardClick ? "hover:shadow-elevated hover:border-primary/50 cursor-pointer active:scale-[0.98]" : ""
             )}
-            onClick={() => onCardClick?.(item.label, item.quotes)}
+            onClick={() => onCardClick?.(item.label, item.quotes as any)}
           >
+            <CardContent className="p-3 md:p-4">
               <div className="flex items-center gap-2 mb-2">
                 <div className={`w-7 h-7 md:w-8 md:h-8 rounded-lg ${item.bg} flex items-center justify-center shrink-0`}>
                   <item.icon className={`h-3.5 w-3.5 md:h-4 md:w-4 ${item.color}`} />
