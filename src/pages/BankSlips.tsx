@@ -510,7 +510,9 @@ export default function BankSlips() {
         (s.nfe_number || '').toLowerCase().includes(q) ||
         (s.reference || '').toLowerCase().includes(q);
       const matchesStatus = filterStatus === 'all' || s.status === filterStatus;
-      const matchesSeller = filterSeller === 'all' || (s.salesperson_name || 'Sem Vendedor') === filterSeller;
+      const matchesSeller = filterSeller === 'all' || 
+        (filterSeller === 'none' && !s.salesperson_name) ||
+        (s.salesperson_name === filterSeller);
       
       let matchesMonth = true;
       if (filterMonth !== 'all') {
