@@ -161,17 +161,27 @@ export default function Approvals() {
     if (!permanentDeleteTarget || permanentDeleteConfirm !== 'DELETAR') return;
     const userId = permanentDeleteTarget.user_id;
 
-    // Delete in order: user_roles, user_approvals, profiles
-    await db.from('user_roles').delete().eq('user_id', userId);
-    const { error: approvalError } = await db.from('user_approvals').delete().eq('user_id', userId);
-    if (approvalError) { toast.error('Erro ao deletar aprovação: ' + approvalError.message); return; }
-    const { error: profileError } = await db.from('profiles').delete().eq('user_id', userId);
-    if (profileError) { toast.error('Erro ao deletar perfil: ' + profileError.message); return; }
-
-    toast.success('Conta removida permanentemente');
-    setPermanentDeleteTarget(null);
-    setPermanentDeleteConfirm('');
-    load();
+    try {
+      // 1. Delete associated data first to avoid FK issues
+      await db.from('user_roles').delete().eq('user_id', userId);
+      await db.from('user_approvals').delete().eq('user_id', userId);
+      await db.from('import_logs').delete().eq('user_id', userId);
+      await db.from('followup_notification_logs').delete().eq('user_id', userId);
+      await db.from('user_push_tokens').delete().eq('user_id', userId);
+      
+      // 2. Delete profile (the trigger on_profile_deleted will handle deleting from auth.users)
+      const { error: profileError } = await db.from('profiles').delete().eq('user_id', userId);
+      if (profileError) throw profileError;
+      
+      toast.success('Conta removida permanentemente e e-mail liberado');
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      toast.error('Erro ao deletar permanentemente: ' + error.message);
+    } finally {
+      setPermanentDeleteTarget(null);
+      setPermanentDeleteConfirm('');
+      load();
+    }
   };
 
   const statusBadge = (status: string) => {
