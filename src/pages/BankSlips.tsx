@@ -345,6 +345,7 @@ export default function BankSlips() {
 
   const [batches, setBatches] = useState<ImportBatch[]>([]);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isBatchManagementOpen, setIsBatchManagementOpen] = useState(false);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [importMeta, setImportMeta] = useState<{ totalRows: number; valid: number; invalid: number; sheetName: string }>({ totalRows: 0, valid: 0, invalid: 0, sheetName: '' });
   const [lastBatchId, setLastBatchId] = useState<string | null>(localStorage.getItem('last_bank_slip_batch'));
