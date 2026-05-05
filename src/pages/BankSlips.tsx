@@ -864,6 +864,43 @@ export default function BankSlips() {
     }
   };
 
+  const handleDeleteBatch = async (batchId: string) => {
+    if (!confirm('Deseja excluir este lote e TODOS os boletos vinculados a ele? Esta ação não pode ser desfeita.')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('financial_import_batches' as any)
+        .delete()
+        .eq('id', batchId);
+
+      if (error) throw error;
+      
+      toast.success('Lote e boletos excluídos com sucesso.');
+      loadData();
+      loadBatches();
+      if (filterBatch === batchId) setFilterBatch('all');
+    } catch (error: any) {
+      toast.error('Erro ao excluir lote: ' + error.message);
+    }
+  };
+
+  const handleArchiveBatch = async (batchId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'ativo' ? 'arquivado' : 'ativo';
+    try {
+      const { error } = await supabase
+        .from('financial_import_batches' as any)
+        .update({ status: newStatus })
+        .eq('id', batchId);
+
+      if (error) throw error;
+      
+      toast.success(`Lote ${newStatus === 'arquivado' ? 'arquivado' : 'reativado'} com sucesso.`);
+      loadBatches();
+    } catch (error: any) {
+      toast.error('Erro ao alterar status do lote: ' + error.message);
+    }
+  };
+
   const handleInlineUpdate = async (id: string, field: string, value: any) => {
     const finalValue = value === 'none' ? null : value;
     const slip = bankSlips.find(s => s.id === id);
