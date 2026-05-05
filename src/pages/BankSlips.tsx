@@ -528,7 +528,7 @@ export default function BankSlips() {
   const sellerGroups = useMemo(() => {
     const groups: Record<string, any> = {};
     bankSlips.forEach(s => {
-      const seller = s.salesperson_name || 'Sem Vendedor';
+      const seller = s.salesperson_name || 'Nenhum';
       if (!groups[seller]) {
         groups[seller] = { name: seller, total: 0, pago: 0, vencido: 0, emAberto: 0, count: 0 };
       }
