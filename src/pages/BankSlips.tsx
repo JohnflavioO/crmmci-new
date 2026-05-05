@@ -374,7 +374,7 @@ export default function BankSlips() {
         .order('import_date', { ascending: false });
 
       if (error) throw error;
-      setBatches(data || []);
+      setBatches((data || []) as any[]);
     } catch (error: any) {
       console.error('Erro ao carregar lotes:', error);
     }
