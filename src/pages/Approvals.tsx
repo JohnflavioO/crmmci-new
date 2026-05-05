@@ -169,13 +169,9 @@ export default function Approvals() {
       await db.from('followup_notification_logs').delete().eq('user_id', userId);
       await db.from('user_push_tokens').delete().eq('user_id', userId);
       
-      // 2. Delete profile
+      // 2. Delete profile (the trigger on_profile_deleted will handle deleting from auth.users)
       const { error: profileError } = await db.from('profiles').delete().eq('user_id', userId);
       if (profileError) throw profileError;
-
-      // 3. Delete from auth.users (this is usually handled by a trigger or needs edge function/admin bypass)
-      // Since we are using the client, we might need to inform the user if this fails due to permissions
-      const { error: authError } = await db.from('auth_users_delete_helper').insert({ user_id: userId });
       
       toast.success('Conta removida permanentemente e e-mail liberado');
     } catch (error: any) {
