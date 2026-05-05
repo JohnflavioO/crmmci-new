@@ -737,7 +737,7 @@ export default function BankSlips() {
         .single();
 
       if (batchError) throw batchError;
-      const batchId = batch.id;
+      const batchId = (batch as any).id;
 
       // Anti-duplicação/correção
       const { data: existing } = await supabase
