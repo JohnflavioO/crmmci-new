@@ -469,10 +469,14 @@ export default function BankSlips() {
         .from('profiles')
         .select('full_name')
         .eq('active', true)
-        .in('role', ['vendedor', 'comercial', 'admin', 'gestor']);
+        .in('role', ['vendedor', 'comercial']);
       
       if (data) {
-        const names = data.map(p => p.full_name).sort();
+        // Filtra usuários de teste (que contenham "teste" no nome)
+        const names = data
+          .map(p => p.full_name)
+          .filter(name => !name.toLowerCase().includes('teste'))
+          .sort();
         setSystemUsers(names);
       }
     };
@@ -506,7 +510,9 @@ export default function BankSlips() {
         (s.nfe_number || '').toLowerCase().includes(q) ||
         (s.reference || '').toLowerCase().includes(q);
       const matchesStatus = filterStatus === 'all' || s.status === filterStatus;
-      const matchesSeller = filterSeller === 'all' || (s.salesperson_name || 'Sem Vendedor') === filterSeller;
+      const matchesSeller = filterSeller === 'all' || 
+        (filterSeller === 'none' && !s.salesperson_name) ||
+        (s.salesperson_name === filterSeller);
       
       let matchesMonth = true;
       if (filterMonth !== 'all') {
@@ -522,7 +528,7 @@ export default function BankSlips() {
   const sellerGroups = useMemo(() => {
     const groups: Record<string, any> = {};
     bankSlips.forEach(s => {
-      const seller = s.salesperson_name || 'Sem Vendedor';
+      const seller = s.salesperson_name || 'Nenhum';
       if (!groups[seller]) {
         groups[seller] = { name: seller, total: 0, pago: 0, vencido: 0, emAberto: 0, count: 0 };
       }
@@ -536,9 +542,8 @@ export default function BankSlips() {
   }, [bankSlips]);
 
   const sellers = useMemo(() => {
-    const names = Array.from(new Set(bankSlips.map(s => s.salesperson_name || 'Sem Vendedor')));
-    return names.sort();
-  }, [bankSlips]);
+    return [...systemUsers].sort();
+  }, [systemUsers]);
 
   const months = useMemo(() => {
     const uniqueMonths = Array.from(new Set(bankSlips.map(s => {
@@ -1213,6 +1218,8 @@ export default function BankSlips() {
                   <SelectTrigger><SelectValue placeholder="Vendedor" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos Vendedores</SelectItem>
+                    <SelectItem value="Standby">Standby</SelectItem>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     {sellers.map(s => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
                   </SelectContent>
                 </Select>
