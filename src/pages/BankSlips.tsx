@@ -332,7 +332,7 @@ const parseSheetRows = (rows: any[][]): { parsed: ParsedRow[]; headerIdx: number
 // ---------- Componente ----------
 
 export default function BankSlips() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [bankSlips, setBankSlips] = useState<BankSlip[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
@@ -340,8 +340,10 @@ export default function BankSlips() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSeller, setFilterSeller] = useState('all');
   const [filterMonth, setFilterMonth] = useState('all');
+  const [filterBatch, setFilterBatch] = useState('all');
   const [activeView, setActiveView] = useState<'list' | 'sellers'>('list');
 
+  const [batches, setBatches] = useState<ImportBatch[]>([]);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [importMeta, setImportMeta] = useState<{ totalRows: number; valid: number; invalid: number; sheetName: string }>({ totalRows: 0, valid: 0, invalid: 0, sheetName: '' });
