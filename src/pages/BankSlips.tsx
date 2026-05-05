@@ -1047,6 +1047,9 @@ export default function BankSlips() {
             <Button variant="outline" className="gap-2" onClick={exportReport} disabled={filteredSlips.length === 0}>
               <Download className="h-4 w-4" /> Relatório
             </Button>
+            <Button variant="outline" className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50" onClick={() => setIsBatchManagementOpen(true)}>
+              <List className="h-4 w-4" /> Lotes
+            </Button>
             <Button variant="outline" className="gap-2" onClick={() => document.getElementById('excel-upload')?.click()}>
               <FileSpreadsheet className="h-4 w-4" /> Importar
             </Button>
