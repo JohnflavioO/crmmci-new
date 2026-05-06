@@ -193,17 +193,23 @@ export default function Dashboard() {
 
   const myQuotes = allQuotes; // already filtered by created_by = user.id in query
   const selectedTeamSellers = useMemo(
-    () => (teamFilter === 'all' ? sellers : sellers.filter((seller) => seller.user_id === teamFilter)),
+    () => {
+      if (!Array.isArray(sellers)) return [];
+      return (teamFilter === 'all' ? sellers : sellers.filter((seller) => seller?.user_id === teamFilter));
+    },
     [sellers, teamFilter],
   );
 
-  const myStats = computeStats(myQuotes);
+  const myStats = useMemo(() => computeStats(Array.isArray(myQuotes) ? myQuotes : []), [myQuotes]);
+  
   const teamStats = useMemo(() => {
-    const quotes = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller.quotes_count || 0), 0);
-    const totalValue = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller.total_value || 0), 0);
-    const approved = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller.approved_count || 0), 0);
-    const pending = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller.pending_count || 0), 0);
-    const rejected = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller.rejected_count || 0), 0);
+    if (!Array.isArray(selectedTeamSellers)) return { quotes: 0, totalValue: 0, approved: 0, pending: 0, rejected: 0, avgTicket: 0 };
+    
+    const quotes = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller?.quotes_count || 0), 0);
+    const totalValue = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller?.total_value || 0), 0);
+    const approved = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller?.approved_count || 0), 0);
+    const pending = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller?.pending_count || 0), 0);
+    const rejected = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller?.rejected_count || 0), 0);
 
     return {
       quotes,
@@ -214,8 +220,12 @@ export default function Dashboard() {
       avgTicket: quotes > 0 ? totalValue / quotes : 0,
     };
   }, [selectedTeamSellers]);
+
   const teamClientsCount = useMemo(
-    () => selectedTeamSellers.reduce((sum, seller) => sum + Number(seller.clients_count || 0), 0),
+    () => {
+      if (!Array.isArray(selectedTeamSellers)) return 0;
+      return selectedTeamSellers.reduce((sum, seller) => sum + Number(seller?.clients_count || 0), 0);
+    },
     [selectedTeamSellers],
   );
   const teamQuotes = teamRecentQuotes;
