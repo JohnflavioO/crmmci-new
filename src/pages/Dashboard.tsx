@@ -82,9 +82,10 @@ function computeTopClients(quotes: any[]) {
 }
 
 export default function Dashboard() {
-  const { user, isGestor, isAdmin } = useAuth();
+  const { user, isGestor, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const canSeeTeam = isGestor; // Ajustado: apenas Gestores veem dashboard do time, Admin não.
+  // Ajustado: Gestores e Admins veem o dashboard do time.
+  const canSeeTeam = isGestor || isAdmin;
 
   const [allQuotes, setAllQuotes] = useState<any[]>([]);
   const [myClientsCount, setMyClientsCount] = useState(0);
@@ -93,6 +94,7 @@ export default function Dashboard() {
   const [teamFilter, setTeamFilter] = useState('all');
   const [teamRecentQuotes, setTeamRecentQuotes] = useState<any[]>([]);
   const [teamTopClients, setTeamTopClients] = useState<TopClientInfo[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
   const [detailsModal, setDetailsModal] = useState<{
     open: boolean;
     title: string;
@@ -103,10 +105,11 @@ export default function Dashboard() {
   }>({ open: false, title: '' });
 
   const openDetails = (title: string, data: { quotes?: any[]; clientsCount?: number; vendedor?: string; stats?: any }) => {
+    const currentVendedor = data.vendedor || (teamFilter === 'all' ? 'Time Inteiro' : (sellers.find(s => s.user_id === teamFilter)?.full_name || 'Vendedor Selecionado'));
     setDetailsModal({
       open: true,
       title,
-      vendedor: data.vendedor || (teamFilter === 'all' ? 'Time Inteiro' : sellers.find(s => s.user_id === teamFilter)?.full_name),
+      vendedor: currentVendedor,
       quotes: data.quotes,
       stats: data.stats
     });
@@ -114,12 +117,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const loadOwnData = async () => {
-      if (!user?.id) {
-        setAllQuotes([]);
-        setMyClientsCount(0);
-        setProductsCount(0);
-        return;
-      }
+      if (!user?.id) return;
 
       try {
         const [quotesRes, clientsRes, productsRes] = await Promise.all([
@@ -128,69 +126,70 @@ export default function Dashboard() {
           db.from('products').select('id', { count: 'exact', head: true }),
         ]);
 
-        if (quotesRes.error) {
-          console.error('[Dashboard] Quotes fetch error:', quotesRes.error);
-          if (quotesRes.error.code !== 'PGRST116') {
-            toast.error('Erro ao carregar orçamentos recentes');
-          }
-        }
-        if (clientsRes.error) console.error('[Dashboard] Clients count error:', clientsRes.error);
-        if (productsRes.error) console.error('[Dashboard] Products count error:', productsRes.error);
-
-        setAllQuotes(quotesRes.data || []);
-        setMyClientsCount(clientsRes.count ?? 0);
-        setProductsCount(productsRes.count ?? 0);
+        if (quotesRes.data) setAllQuotes(quotesRes.data);
+        if (clientsRes.count !== null) setMyClientsCount(clientsRes.count);
+        if (productsRes.count !== null) setProductsCount(productsRes.count);
       } catch (err) {
         console.error('[Dashboard] loadOwnData error:', err);
       }
-
     };
 
-    loadOwnData();
+    if (user?.id) loadOwnData();
   }, [user?.id]);
 
   useEffect(() => {
     const loadTeamData = async () => {
       if (!canSeeTeam || !user?.id) {
-        setSellers([]);
-        setTeamRecentQuotes([]);
-        setTeamTopClients([]);
+        setDataLoading(false);
         return;
       }
 
-      const activeOwner = teamFilter === 'all' ? null : teamFilter;
+      setDataLoading(true);
+      try {
+        const activeOwner = teamFilter === 'all' ? null : teamFilter;
 
-      const [sellerStatsRes, recentRes, topClientsRes] = await Promise.all([
-        db.rpc('get_team_dashboard_sellers'),
-        db.rpc('get_team_dashboard_recent_quotes', { p_owner: activeOwner, p_limit: 500 }),
-        db.rpc('get_team_dashboard_top_clients', { p_owner: activeOwner, p_limit: 5 }),
-      ]);
+        const [sellerStatsRes, recentRes, topClientsRes] = await Promise.all([
+          db.rpc('get_team_dashboard_sellers'),
+          db.rpc('get_team_dashboard_recent_quotes', { p_owner: activeOwner, p_limit: 500 }),
+          db.rpc('get_team_dashboard_top_clients', { p_owner: activeOwner, p_limit: 5 }),
+        ]);
 
-      const sellerRows = (sellerStatsRes.data || []).filter((seller: any) => seller?.full_name);
-      setSellers(sellerRows);
-      setTeamRecentQuotes(recentRes.data || []);
-      setTeamTopClients(
-        ((topClientsRes.data || []) as any[]).map((client) => ({
-          name: client.client_name || 'Sem nome',
-          total: Number(client.total_value) || 0,
-          count: Number(client.quotes_count) || 0,
-        }))
-      );
+        if (sellerStatsRes.data) {
+          const sellerRows = sellerStatsRes.data.filter((seller: any) => seller?.full_name);
+          setSellers(sellerRows);
+        }
+        
+        if (recentRes.data) setTeamRecentQuotes(recentRes.data);
+        
+        if (topClientsRes.data) {
+          setTeamTopClients(
+            (topClientsRes.data as any[]).map((client) => ({
+              name: client.client_name || 'Sem nome',
+              total: Number(client.total_value) || 0,
+              count: Number(client.quotes_count) || 0,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error('[Dashboard] loadTeamData error:', err);
+      } finally {
+        setDataLoading(false);
+      }
     };
 
-    loadTeamData();
+    if (canSeeTeam) loadTeamData();
+    else setDataLoading(false);
   }, [canSeeTeam, teamFilter, user?.id]);
 
   useEffect(() => {
-    if (!canSeeTeam && teamFilter !== 'all') {
+    if (!authLoading && !canSeeTeam && teamFilter !== 'all') {
       setTeamFilter('all');
-      return;
     }
 
-    if (canSeeTeam && teamFilter !== 'all' && sellers.length > 0 && !sellers.some((seller) => seller.user_id === teamFilter)) {
+    if (!authLoading && canSeeTeam && teamFilter !== 'all' && sellers.length > 0 && !sellers.some((seller) => seller.user_id === teamFilter)) {
       setTeamFilter('all');
     }
-  }, [canSeeTeam, sellers, teamFilter]);
+  }, [canSeeTeam, sellers, teamFilter, authLoading]);
 
   const myQuotes = allQuotes; // already filtered by created_by = user.id in query
   const selectedTeamSellers = useMemo(
