@@ -365,7 +365,17 @@ export default function Dashboard() {
     );
   };
 
-  // Simple dashboard for regular sellers
+  if (authLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Simple dashboard for regular sellers (or when team view is not available)
   if (!canSeeTeam) {
     return (
       <AppLayout>
@@ -427,14 +437,21 @@ export default function Dashboard() {
     );
   }
 
-  // Team dashboard for gestor
-  const teamPendingFollowUps = teamRecentQuotes.filter(q => 
-    q.followup_date && 
-    (isToday(new Date(q.followup_date + 'T12:00:00')) || isBefore(new Date(q.followup_date + 'T12:00:00'), startOfDay(new Date())))
-  ).length;
+  // Team dashboard for gestor/admin
+  const teamPendingFollowUps = Array.isArray(teamRecentQuotes) ? teamRecentQuotes.filter(q => {
+    if (!q.followup_date) return false;
+    try {
+      const dateStr = String(q.followup_date).includes('T') ? q.followup_date : `${q.followup_date}T12:00:00`;
+      const date = new Date(dateStr);
+      return isToday(date) || isBefore(date, startOfDay(new Date()));
+    } catch (e) {
+      return false;
+    }
+  }).length : 0;
 
   return (
     <AppLayout>
+
       <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold font-display">Dashboard</h1>
