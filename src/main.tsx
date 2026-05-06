@@ -1,11 +1,13 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import DiagnosticErrorBoundary from "./components/DiagnosticErrorBoundary";
 
 // 1. Detecção e limpeza de Service Worker problemático no Preview
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   const isPreview = window.location.hostname.includes('lovable.app') || 
-                   window.location.hostname.includes('lovableproject.com');
+                   window.location.hostname.includes('lovableproject.com') ||
+                   window.location.hostname.includes('localhost');
   
   if (isPreview) {
     navigator.serviceWorker.getRegistrations().then(registrations => {
@@ -49,7 +51,12 @@ window.onerror = (message, source, lineno, colno, error) => {
 const rootElement = document.getElementById("root");
 if (rootElement) {
   try {
-    createRoot(rootElement).render(<App />);
+    const root = createRoot(rootElement);
+    root.render(
+      <DiagnosticErrorBoundary>
+        <App />
+      </DiagnosticErrorBoundary>
+    );
   } catch (error) {
     console.error('[App] Erro crítico na renderização inicial:', error);
     rootElement.innerHTML = `
@@ -57,6 +64,7 @@ if (rootElement) {
         <div>
           <h1 style="font-size: 24px; margin-bottom: 16px;">Erro ao carregar o sistema</h1>
           <p style="opacity: 0.7; margin-bottom: 24px;">Ocorreu uma falha na inicialização inicial do React.</p>
+          <p style="color: #ef4444; font-size: 12px; font-family: monospace; margin-bottom: 20px;">${error instanceof Error ? error.message : String(error)}</p>
           <button onclick="window.location.reload()" style="background: #10b981; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: bold;">Tentar novamente</button>
         </div>
       </div>
