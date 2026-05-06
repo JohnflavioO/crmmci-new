@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import DiagnosticErrorBoundary from "./components/DiagnosticErrorBoundary";
+import DiagnosticErrorBoundary from "@/components/DiagnosticErrorBoundary";
 
 // 1. Detecção e limpeza de Service Worker problemático no Preview
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
