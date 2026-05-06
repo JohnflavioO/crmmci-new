@@ -159,10 +159,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Check for auth errors (invalid token)
         const hasAuthError = [approvedRes, adminRes, gestorRes, financeiroRes, logisticaRes].some(
-          r => r.error?.message?.includes('JWT') || r.error?.code === 'PGRST301'
+          r => r.error?.message?.includes('JWT') || r.error?.code === 'PGRST301' || r.error?.message?.includes('invalid input syntax for type uuid')
         );
         if (hasAuthError) {
-          console.warn('[Auth] JWT/auth error detected, signing out');
+          console.warn('[Auth] Critical auth error detected, signing out for safety');
           await supabase.auth.signOut();
           return;
         }
