@@ -32,40 +32,26 @@ import {
 } from 'recharts';
 
 const OS_STATUS_DATA = [
-  { name: 'Aguardando Peças', value: 8, color: '#f59e0b' },
-  { name: 'Em Manutenção', value: 5, color: '#3b82f6' },
-  { name: 'Finalizado', value: 12, color: '#10b981' },
-  { name: 'Entregue', value: 15, color: '#6366f1' },
+  { name: 'Aguardando Peças', value: 0, color: '#f59e0b' },
+  { name: 'Em Manutenção', value: 0, color: '#3b82f6' },
+  { name: 'Finalizado', value: 0, color: '#10b981' },
+  { name: 'Entregue', value: 0, color: '#6366f1' },
 ];
 
 const RECURRENT_FAILURES = [
-  { name: 'Tela Quebrada', total: 12 },
-  { name: 'Bateria Ruim', total: 8 },
-  { name: 'Câmera Não Foca', total: 6 },
-  { name: 'Não Liga', total: 5 },
-  { name: 'Botão Volume', total: 3 },
+  { name: 'Nenhuma falha registrada', total: 0 },
 ];
 
 const MOST_MAINTAINED = [
-  { name: 'iPhone 13', total: 10 },
-  { name: 'iPhone 11', total: 8 },
-  { name: 'iPad Pro', total: 5 },
-  { name: 'MacBook Air', total: 4 },
-  { name: 'iPhone XR', total: 3 },
+  { name: 'Sem dados', total: 0 },
 ];
 
-const MOST_USED_PRODUCTS = [
-  { name: 'Tela iPhone 13 Original', total: 12 },
-  { name: 'Bateria iPhone 11 High', total: 8 },
-  { name: 'Película Cerâmica', total: 15 },
-  { name: 'Parafuso Pentalobe', total: 24 },
-  { name: 'Conector de Carga 11', total: 4 },
-];
+const MOST_USED_PRODUCTS = [];
 
 const OS_BY_CATEGORY = [
-  { name: 'Garantia', value: 12, color: '#ec4899' },
-  { name: 'Orçamento', value: 38, color: '#8b5cf6' },
-  { name: 'Cortesia', value: 5, color: '#ef4444' },
+  { name: 'Garantia', value: 0, color: '#ec4899' },
+  { name: 'Orçamento', value: 0, color: '#8b5cf6' },
+  { name: 'Cortesia', value: 0, color: '#ef4444' },
 ];
 
 export default function SupportReports() {
