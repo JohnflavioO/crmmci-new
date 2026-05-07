@@ -56,6 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isGestor, setIsGestor] = useState(false);
   const [isFinanceiro, setIsFinanceiro] = useState(false);
   const [isLogistica, setIsLogistica] = useState(false);
+  const [isSupportTech, setIsSupportTech] = useState(false);
+  const [isSupportManager, setIsSupportManager] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string; avatar_url?: string; force_password_change?: boolean; company_id?: string } | null>(null);
   const [forcePasswordChange, setForcePasswordChange] = useState(false);
 
