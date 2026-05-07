@@ -103,6 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsGestor(false);
           setIsFinanceiro(false);
           setIsLogistica(false);
+          setIsSupportTech(false);
+          setIsSupportManager(false);
           setProfile(null);
           setLoading(false);
         } else if (newUserId !== currentUserId) {
