@@ -147,17 +147,7 @@ export default function SupportStock() {
                   />
                 </div>
 
-                <div className="col-span-6">
-                  <Label className="text-sm font-medium">Compatibilidade (Modelos)</Label>
-                  <Input 
-                    placeholder="Ex: Aputure 600d, 1200d..."
-                    value={form.compatibility} 
-                    onChange={e => setForm({ ...form, compatibility: e.target.value })} 
-                    className="mt-1.5"
-                  />
-                </div>
-
-                <div className="col-span-2">
+                <div className="col-span-4">
                   <Label className="text-sm font-medium">Localização</Label>
                   <Input 
                     placeholder="Gaveta B2"
