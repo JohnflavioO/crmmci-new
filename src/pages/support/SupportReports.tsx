@@ -223,7 +223,7 @@ export default function SupportReports() {
         {/* Equipamentos que mais dão manutenção */}
         <Card className="border-border shadow-sm col-span-1">
           <CardHeader>
-            <CardTitle className="text-sm font-bold uppercase text-muted-foreground">Equipamentos em Manutenção</CardTitle>
+            <CardTitle className="text-sm font-bold uppercase text-muted-foreground">EQUIPAMENTOS QUE MAIS DÃO MANUTENÇÃO</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
