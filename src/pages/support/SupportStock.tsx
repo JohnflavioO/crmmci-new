@@ -118,9 +118,9 @@ export default function SupportStock() {
                 </div>
 
                 <div className="col-span-3">
-                  <Label className="text-sm font-medium">Código / Part Number</Label>
+                  <Label className="text-sm font-medium">Código (SKU)</Label>
                   <Input 
-                    placeholder="Ex: PN-12345"
+                    placeholder="Ex: SKU-12345"
                     value={form.code} 
                     onChange={e => setForm({ ...form, code: e.target.value })} 
                     className="mt-1.5"
@@ -147,17 +147,7 @@ export default function SupportStock() {
                   />
                 </div>
 
-                <div className="col-span-6">
-                  <Label className="text-sm font-medium">Compatibilidade (Modelos)</Label>
-                  <Input 
-                    placeholder="Ex: Aputure 600d, 1200d..."
-                    value={form.compatibility} 
-                    onChange={e => setForm({ ...form, compatibility: e.target.value })} 
-                    className="mt-1.5"
-                  />
-                </div>
-
-                <div className="col-span-2">
+                <div className="col-span-4">
                   <Label className="text-sm font-medium">Localização</Label>
                   <Input 
                     placeholder="Gaveta B2"
@@ -177,7 +167,7 @@ export default function SupportStock() {
                   />
                 </div>
 
-                <div className="col-span-2">
+                <div className="col-span-3">
                   <Label className="text-sm font-medium">Custo (R$)</Label>
                   <Input 
                     type="number" 
@@ -189,8 +179,8 @@ export default function SupportStock() {
                   />
                 </div>
 
-                <div className="col-span-2">
-                  <Label className="text-sm font-medium">Preço de Venda (R$)</Label>
+                <div className="col-span-3">
+                  <Label className="text-sm font-medium">Preço (R$)</Label>
                   <Input 
                     type="number" 
                     step="0.01" 
@@ -201,17 +191,7 @@ export default function SupportStock() {
                   />
                 </div>
 
-                <div className="col-span-2">
-                  <Label className="text-sm font-medium">Qtd em Estoque</Label>
-                  <Input 
-                    type="number" 
-                    value={form.quantity} 
-                    onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} 
-                    className="mt-1.5"
-                  />
-                </div>
-
-                <div className="col-span-2">
+                <div className="col-span-3">
                   <Label className="text-sm font-medium">Estoque Mínimo</Label>
                   <Input 
                     type="number" 
