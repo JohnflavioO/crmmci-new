@@ -31,6 +31,14 @@ import { useEffect, useState } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
 import ProspectView from "./pages/ProspectView";
 import BankSlips from "./pages/BankSlips";
+import SupportLayout from "./components/support/SupportLayout";
+import SupportDashboard from "./pages/support/SupportDashboard";
+import SupportClients from "./pages/support/SupportClients";
+import SupportStock from "./pages/support/SupportStock";
+import SupportOrders from "./pages/support/SupportOrders";
+import SupportOrderDetail from "./pages/support/SupportOrderDetail";
+import SupportPlaceholder from "./pages/support/SupportPlaceholder";
+import PublicTracking from "./pages/support/PublicTracking";
 // import Opportunities from "./pages/marketing/Opportunities";
 
 const queryClient = new QueryClient({
@@ -110,7 +118,7 @@ function LoadingScreen() {
 }
 
 function AppRoutes() {
-  const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange, profile, signOut } = useAuth();
+  const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, isSupportTech, isSupportManager, isSupport, forcePasswordChange, profile, signOut } = useAuth();
   
   // Scanner de follow-up otimizado: roda apenas após o auth estar pronto e o usuário estar aprovado
   useFollowUpScanner();
