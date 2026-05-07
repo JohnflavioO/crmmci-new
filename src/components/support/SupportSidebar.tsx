@@ -24,14 +24,15 @@ export default function SupportSidebar({ onNavigate }: { onNavigate?: () => void
 
   return (
     <aside
-      className="w-full md:w-64 h-full md:h-screen md:fixed md:left-0 md:top-0 flex flex-col border-r border-sidebar-border"
-      style={{ background: 'var(--gradient-sidebar)' }}
+      className="w-full md:w-64 h-full md:h-screen md:fixed md:left-0 md:top-0 flex flex-col border-r border-slate-100 bg-white"
     >
-      <div className="p-4 flex items-center gap-3">
-        <img src="/mci-logo.png" alt="MCI Store" className="h-10 w-auto" />
+      <div className="p-6 flex items-center gap-3">
+        <div className="bg-slate-900 p-2 rounded-xl">
+          <Wrench className="h-6 w-6 text-white" />
+        </div>
         <div>
-          <h1 className="text-sm font-bold font-display text-sidebar-primary-foreground">MCI Store</h1>
-          <p className="text-[10px] text-sidebar-foreground/60">Suporte Técnico</p>
+          <h1 className="text-sm font-bold font-display text-slate-900 tracking-tight">MCI Tech</h1>
+          <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Suporte Técnico</p>
         </div>
       </div>
 
