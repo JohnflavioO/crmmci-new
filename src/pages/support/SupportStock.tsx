@@ -25,6 +25,7 @@ export default function SupportStock() {
   const [form, setForm] = useState<any>({
     name: '', code: '', manufacturer: '', compatibility: '', location: '',
     quantity: 0, min_quantity: 0, cost: 0, price: 0, notes: '', category: 'Outros',
+    unit_measure: 'UN'
   });
 
   const load = async () => {
