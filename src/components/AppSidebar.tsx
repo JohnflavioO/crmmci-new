@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake, Plug,
   Clock, ArrowDownCircle, AlertTriangle, FileBarChart, Truck, ClipboardList, TriangleAlert, MapPin, RefreshCw, Warehouse, Target, Sparkles,
+  Wrench,
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -225,6 +226,9 @@ export default function AppSidebar({ onNavigate }: Props) {
                 {adminGestorItems.map(item => <LinkItem key={item.to} {...item} />)}
                 {isAdmin && adminOnlyItems.map(item => <LinkItem key={item.to} {...item} />)}
               </>
+            )}
+
+            {(isSupport || isAdmin) && (
               <>
                 <div className="pt-4 pb-2 px-3">
                   <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Técnico</p>
