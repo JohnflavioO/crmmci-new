@@ -14,7 +14,7 @@ interface AuthContextType {
   isSupportTech: boolean;
   isSupportManager: boolean;
   isSupport: boolean;
-  profile: { full_name: string; phone: string; role: string; avatar_url?: string; company_id?: string } | null;
+  profile: { full_name: string; phone: string; role: string; avatar_url?: string; company_id?: string; can_access_support_manager?: boolean } | null;
   forcePasswordChange: boolean;
   signOut: () => Promise<void>;
 }
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLogistica, setIsLogistica] = useState(false);
   const [isSupportTech, setIsSupportTech] = useState(false);
   const [isSupportManager, setIsSupportManager] = useState(false);
-  const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string; avatar_url?: string; force_password_change?: boolean; company_id?: string } | null>(null);
+  const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string; avatar_url?: string; force_password_change?: boolean; company_id?: string; can_access_support_manager?: boolean } | null>(null);
   const [forcePasswordChange, setForcePasswordChange] = useState(false);
 
   // Safety timeout: never stay loading forever
@@ -153,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           safeBooleanRpc('is_logistica'),
           safeBooleanRpc('is_support_tech'),
           safeBooleanRpc('is_support_manager'),
-          supabase.from('profiles').select('full_name, phone, role, avatar_url, force_password_change, company_id').eq('user_id', user.id).maybeSingle(),
+          supabase.from('profiles').select('full_name, phone, role, avatar_url, force_password_change, company_id, can_access_support_manager').eq('user_id', user.id).maybeSingle(),
         ]);
 
         console.log('[Auth] Results:', {
