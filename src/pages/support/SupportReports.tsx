@@ -103,13 +103,13 @@ export default function SupportReports() {
               <Input type="date" id="end-date" defaultValue="2024-05-07" />
             </div>
             <div className="flex gap-2">
-              <Button className="flex-1 gap-2">
+              <Button className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700">
                 <Filter className="h-4 w-4" />
                 Filtrar
               </Button>
-              <Button variant="outline" className="flex-1 gap-2">
+              <Button variant="outline" className="flex-1 gap-2 border-border">
                 <X className="h-4 w-4" />
-                Limpar
+                Limpar Filtros
               </Button>
             </div>
             <div className="hidden md:block"></div>
