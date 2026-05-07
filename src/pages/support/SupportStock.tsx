@@ -99,20 +99,30 @@ export default function SupportStock() {
           <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditingItem(null); }}>
             <DialogTrigger asChild>
               <Button className="bg-primary hover:bg-primary/90">
-                <Plus className="h-4 w-4 mr-2" /> Novo Produto
+                <Plus className="h-4 w-4 mr-2" /> Nova Peça
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>{editingItem ? 'Editar Peça' : 'Novo Produto'}</DialogTitle>
+                <DialogTitle>{editingItem ? 'Editar Peça' : 'Nova Peça'}</DialogTitle>
               </DialogHeader>
               <div className="grid grid-cols-6 gap-4 pt-4">
-                <div className="col-span-6">
-                  <Label className="text-sm font-medium">Produto</Label>
+                <div className="col-span-3">
+                  <Label className="text-sm font-medium">Nome da Peça</Label>
                   <Input 
-                    placeholder="Nome da peça ou insumo"
+                    placeholder="Nome da peça"
                     value={form.name} 
                     onChange={e => setForm({ ...form, name: e.target.value })} 
+                    className="mt-1.5"
+                  />
+                </div>
+
+                <div className="col-span-3">
+                  <Label className="text-sm font-medium">Código / Part Number</Label>
+                  <Input 
+                    placeholder="Ex: PN-12345"
+                    value={form.code} 
+                    onChange={e => setForm({ ...form, code: e.target.value })} 
                     className="mt-1.5"
                   />
                 </div>
