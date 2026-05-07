@@ -33,7 +33,7 @@ interface Props {
 }
 
 export default function AppSidebar({ onNavigate }: Props) {
-  const { isAdmin, isGestor, isFinanceiro, isLogistica, signOut } = useAuth();
+  const { isAdmin, isGestor, isFinanceiro, isLogistica, isSupport, signOut } = useAuth();
   const location = useLocation();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -224,6 +224,12 @@ export default function AppSidebar({ onNavigate }: Props) {
                 </div>
                 {adminGestorItems.map(item => <LinkItem key={item.to} {...item} />)}
                 {isAdmin && adminOnlyItems.map(item => <LinkItem key={item.to} {...item} />)}
+              </>
+              <>
+                <div className="pt-4 pb-2 px-3">
+                  <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Técnico</p>
+                </div>
+                <LinkItem to="/suporte" icon={Wrench} label="Suporte Técnico" />
               </>
             )}
           </>
