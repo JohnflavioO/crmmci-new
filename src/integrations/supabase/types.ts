@@ -791,6 +791,7 @@ export type Database = {
         Row: {
           active: boolean
           avatar_url: string | null
+          can_access_support_manager: boolean | null
           commercial_visible: boolean
           company_id: string | null
           created_at: string | null
@@ -806,6 +807,7 @@ export type Database = {
         Insert: {
           active?: boolean
           avatar_url?: string | null
+          can_access_support_manager?: boolean | null
           commercial_visible?: boolean
           company_id?: string | null
           created_at?: string | null
@@ -821,6 +823,7 @@ export type Database = {
         Update: {
           active?: boolean
           avatar_url?: string | null
+          can_access_support_manager?: boolean | null
           commercial_visible?: boolean
           company_id?: string | null
           created_at?: string | null
