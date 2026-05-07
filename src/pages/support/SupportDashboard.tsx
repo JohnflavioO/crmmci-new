@@ -155,7 +155,7 @@ export default function SupportDashboard() {
             Filtros
           </Button>
           <Button size="sm" className="gap-2 bg-slate-900 hover:bg-slate-800 text-white" asChild>
-            <Link to="/suporte/os/nova">
+            <Link to="/suporte/os?new=true">
               <Plus className="h-4 w-4" />
               Nova OS
             </Link>
