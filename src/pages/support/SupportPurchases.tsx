@@ -29,10 +29,13 @@ interface PurchaseOrder {
   } | null;
 }
 
+import { NewPurchaseOrderDialog } from '@/components/support/NewPurchaseOrderDialog';
+
 export default function SupportPurchases() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const fetchOrders = async () => {
     try {
@@ -80,11 +83,21 @@ export default function SupportPurchases() {
           <h1 className="text-2xl font-bold font-display tracking-tight text-foreground">Ordens de Compra</h1>
           <p className="text-sm text-muted-foreground">Gestão de aquisição de peças e insumos</p>
         </div>
-        <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90 text-white">
+        <Button 
+          size="sm" 
+          className="gap-2 bg-primary hover:bg-primary/90 text-white"
+          onClick={() => setDialogOpen(true)}
+        >
           <Plus className="h-4 w-4" />
           Nova Ordem de Compra
         </Button>
       </div>
+
+      <NewPurchaseOrderDialog 
+        open={dialogOpen} 
+        onOpenChange={setDialogOpen} 
+        onSuccess={fetchOrders}
+      />
 
       <div className="flex flex-col md:flex-row gap-4 items-center bg-card p-4 rounded-xl border border-border shadow-sm">
         <div className="relative flex-1 w-full">
