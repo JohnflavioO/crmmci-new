@@ -32,40 +32,26 @@ import {
 } from 'recharts';
 
 const OS_STATUS_DATA = [
-  { name: 'Aguardando Peças', value: 8, color: '#f59e0b' },
-  { name: 'Em Manutenção', value: 5, color: '#3b82f6' },
-  { name: 'Finalizado', value: 12, color: '#10b981' },
-  { name: 'Entregue', value: 15, color: '#6366f1' },
+  { name: 'Aguardando Peças', value: 0, color: '#f59e0b' },
+  { name: 'Em Manutenção', value: 0, color: '#3b82f6' },
+  { name: 'Finalizado', value: 0, color: '#10b981' },
+  { name: 'Entregue', value: 0, color: '#6366f1' },
 ];
 
 const RECURRENT_FAILURES = [
-  { name: 'Tela Quebrada', total: 12 },
-  { name: 'Bateria Ruim', total: 8 },
-  { name: 'Câmera Não Foca', total: 6 },
-  { name: 'Não Liga', total: 5 },
-  { name: 'Botão Volume', total: 3 },
+  { name: 'Nenhuma falha registrada', total: 0 },
 ];
 
 const MOST_MAINTAINED = [
-  { name: 'iPhone 13', total: 10 },
-  { name: 'iPhone 11', total: 8 },
-  { name: 'iPad Pro', total: 5 },
-  { name: 'MacBook Air', total: 4 },
-  { name: 'iPhone XR', total: 3 },
+  { name: 'Sem dados', total: 0 },
 ];
 
-const MOST_USED_PRODUCTS = [
-  { name: 'Tela iPhone 13 Original', total: 12 },
-  { name: 'Bateria iPhone 11 High', total: 8 },
-  { name: 'Película Cerâmica', total: 15 },
-  { name: 'Parafuso Pentalobe', total: 24 },
-  { name: 'Conector de Carga 11', total: 4 },
-];
+const MOST_USED_PRODUCTS = [];
 
 const OS_BY_CATEGORY = [
-  { name: 'Garantia', value: 12, color: '#ec4899' },
-  { name: 'Orçamento', value: 38, color: '#8b5cf6' },
-  { name: 'Cortesia', value: 5, color: '#ef4444' },
+  { name: 'Garantia', value: 0, color: '#ec4899' },
+  { name: 'Orçamento', value: 0, color: '#8b5cf6' },
+  { name: 'Cortesia', value: 0, color: '#ef4444' },
 ];
 
 export default function SupportReports() {
@@ -127,48 +113,34 @@ export default function SupportReports() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-2">
-            <div className="space-y-2">
-              {[
-                { name: 'João Silva', val: 85 },
-                { name: 'Maria Santos', val: 72 },
-                { name: 'Ricardo Oliveira', val: 64 },
-              ].map((item, i) => (
-                <div key={i} className="flex flex-col gap-1">
-                  <div className="flex justify-between text-xs font-medium">
-                    <span>{item.name}</span>
-                    <span>{item.val}%</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${item.val}%` }}></div>
-                  </div>
-                </div>
-              ))}
+            <div className="flex flex-col items-center justify-center py-4 text-muted-foreground italic text-sm">
+              Sem dados de técnicos
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-border shadow-sm flex flex-col justify-center items-center p-6">
-          <div className="p-3 bg-green-50 rounded-full mb-3">
-            <FileText className="h-6 w-6 text-green-600" />
+        <Card className="bg-white border-border shadow-sm flex flex-col justify-center items-center p-6 text-center">
+          <div className="p-3 bg-blue-50 rounded-full mb-3">
+            <FileText className="h-6 w-6 text-blue-600" />
           </div>
-          <span className="text-3xl font-bold">40</span>
-          <span className="text-xs font-bold uppercase text-muted-foreground mt-1">Ordens de Serviços</span>
+          <span className="text-3xl font-bold">0</span>
+          <span className="text-xs font-bold uppercase text-muted-foreground mt-1 tracking-tight">Ordens de Serviços</span>
         </Card>
 
-        <Card className="bg-white border-border shadow-sm flex flex-col justify-center items-center p-6">
-          <div className="p-3 bg-purple-50 rounded-full mb-3">
-            <Building2 className="h-6 w-6 text-purple-600" />
+        <Card className="bg-white border-border shadow-sm flex flex-col justify-center items-center p-6 text-center">
+          <div className="p-3 bg-blue-50 rounded-full mb-3">
+            <Building2 className="h-6 w-6 text-blue-600" />
           </div>
-          <span className="text-3xl font-bold">12</span>
-          <span className="text-xs font-bold uppercase text-muted-foreground mt-1">Empresa</span>
+          <span className="text-3xl font-bold">0</span>
+          <span className="text-xs font-bold uppercase text-muted-foreground mt-1 tracking-tight">Empresa</span>
         </Card>
 
-        <Card className="bg-white border-border shadow-sm flex flex-col justify-center items-center p-6">
-          <div className="p-3 bg-orange-50 rounded-full mb-3">
-            <UserCircle className="h-6 w-6 text-orange-600" />
+        <Card className="bg-white border-border shadow-sm flex flex-col justify-center items-center p-6 text-center">
+          <div className="p-3 bg-blue-50 rounded-full mb-3">
+            <UserCircle className="h-6 w-6 text-blue-600" />
           </div>
-          <span className="text-3xl font-bold">85</span>
-          <span className="text-xs font-bold uppercase text-muted-foreground mt-1">Contatos</span>
+          <span className="text-3xl font-bold">0</span>
+          <span className="text-xs font-bold uppercase text-muted-foreground mt-1 tracking-tight">Contatos</span>
         </Card>
       </div>
 
@@ -243,20 +215,8 @@ export default function SupportReports() {
           <CardHeader>
             <CardTitle className="text-sm font-bold uppercase text-muted-foreground">Produtos Mais Utilizados</CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
-            <div className="px-6 py-2 space-y-4">
-              {MOST_USED_PRODUCTS.map((product, i) => (
-                <div key={i} className="flex items-center justify-between border-b border-muted pb-3 last:border-0 last:pb-0">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">{product.name}</span>
-                    <span className="text-[10px] text-muted-foreground uppercase font-bold">Consumo: {product.total} un.</span>
-                  </div>
-                  <div className="p-1.5 bg-muted rounded-md font-mono text-xs font-bold text-primary">
-                    #{i + 1}
-                  </div>
-                </div>
-              ))}
-            </div>
+          <CardContent className="h-[250px] flex items-center justify-center p-0 text-muted-foreground italic text-sm">
+            Nenhum produto utilizado
           </CardContent>
         </Card>
 
