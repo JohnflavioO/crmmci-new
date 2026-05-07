@@ -1752,6 +1752,8 @@ export type Database = {
           expected_delivery: string | null
           id: string
           notes: string | null
+          order_type: string | null
+          purchase_date: string | null
           received_at: string | null
           status: string
           supplier_id: string | null
@@ -1764,6 +1766,8 @@ export type Database = {
           expected_delivery?: string | null
           id?: string
           notes?: string | null
+          order_type?: string | null
+          purchase_date?: string | null
           received_at?: string | null
           status?: string
           supplier_id?: string | null
@@ -1776,6 +1780,8 @@ export type Database = {
           expected_delivery?: string | null
           id?: string
           notes?: string | null
+          order_type?: string | null
+          purchase_date?: string | null
           received_at?: string | null
           status?: string
           supplier_id?: string | null
