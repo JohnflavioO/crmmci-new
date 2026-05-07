@@ -45,6 +45,9 @@ export default function SupportStock() {
     
     const { data: brandList } = await supabase.from('technical_brands' as any).select('*').order('name');
     setBrands((brandList || []) as any[]);
+
+    const { data: maintList } = await supabase.from('technical_maintenances' as any).select('*').order('created_at', { ascending: false });
+    setMaintenances((maintList || []) as any[]);
   };
 
   const loadBrands = async () => {
@@ -61,6 +64,9 @@ export default function SupportStock() {
     const brand = (data as any[])?.[0];
     if (brand && open) {
       setForm((prev: any) => ({ ...prev, manufacturer: brand.name }));
+    }
+    if (brand && maintenanceOpen) {
+      setMForm((prev: any) => ({ ...prev, brand: brand.name }));
     }
     
     setNewBrandName('');
@@ -91,6 +97,25 @@ export default function SupportStock() {
     load();
   };
 
+  const saveMaintenance = async () => {
+    if (!mForm.brand || !mForm.model || !mForm.description) return toast.error('Marca, Modelo e Descrição são obrigatórios');
+    
+    if (editingMaintenance) {
+      const { error } = await supabase.from('technical_maintenances' as any).update(mForm).eq('id', editingMaintenance.id);
+      if (error) return toast.error(error.message);
+      toast.success('Manutenção atualizada');
+    } else {
+      const { error } = await supabase.from('technical_maintenances' as any).insert(mForm);
+      if (error) return toast.error(error.message);
+      toast.success('Manutenção cadastrada');
+    }
+    
+    setMaintenanceOpen(false);
+    setEditingMaintenance(null);
+    setMForm({ brand: '', model: '', description: '', technician: '', status: 'Aguardando', notes: '' });
+    load();
+  };
+
   const handleEdit = (item: any) => {
     setEditingItem(item);
     setForm({
@@ -104,11 +129,28 @@ export default function SupportStock() {
     setOpen(true);
   };
 
+  const handleEditMaintenance = (m: any) => {
+    setEditingMaintenance(m);
+    setMForm({
+      brand: m.brand, model: m.model, description: m.description,
+      technician: m.technician, status: m.status, notes: m.notes
+    });
+    setMaintenanceOpen(true);
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Deseja realmente excluir este item?')) return;
     const { error } = await supabase.from('technical_products' as any).delete().eq('id', id);
     if (error) return toast.error(error.message);
     toast.success('Item excluído');
+    load();
+  };
+
+  const handleDeleteMaintenance = async (id: string) => {
+    if (!confirm('Deseja realmente excluir esta manutenção?')) return;
+    const { error } = await supabase.from('technical_maintenances' as any).delete().eq('id', id);
+    if (error) return toast.error(error.message);
+    toast.success('Manutenção excluída');
     load();
   };
 
