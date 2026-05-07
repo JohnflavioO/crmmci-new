@@ -9,26 +9,34 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, AlertTriangle, Search, Tags, History, Printer, SlidersHorizontal, Package, MoreHorizontal, Pencil, Trash2, PlusCircle } from 'lucide-react';
+import { Plus, AlertTriangle, Search, Tags, History, Printer, SlidersHorizontal, Package, MoreHorizontal, Pencil, Trash2, PlusCircle, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const CATEGORIES = ['Aputure', 'Amaran', 'Astera', 'Creamsource', 'Outros'];
+const MAINTENANCE_STATUS = ['Aguardando', 'Em Manutenção', 'Pronto', 'Entregue'];
 
 export default function SupportStock() {
   const { user } = useAuth();
   const [items, setItems] = useState<any[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
+  const [maintenances, setMaintenances] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
+  const [maintenanceOpen, setMaintenanceOpen] = useState(false);
   const [brandDialogOpen, setBrandDialogOpen] = useState(false);
   const [newBrandName, setNewBrandName] = useState('');
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [editingMaintenance, setEditingMaintenance] = useState<any>(null);
   const [form, setForm] = useState<any>({
     name: '', code: '', manufacturer: '', compatibility: '', location: '',
     quantity: 0, min_quantity: 0, cost: 0, price: 0, notes: '', category: 'Outros',
     unit_measure: 'UN'
+  });
+  const [mForm, setMForm] = useState<any>({
+    brand: '', model: '', description: '', technician: '', status: 'Aguardando', notes: ''
   });
 
   const load = async () => {
@@ -37,6 +45,9 @@ export default function SupportStock() {
     
     const { data: brandList } = await supabase.from('technical_brands' as any).select('*').order('name');
     setBrands((brandList || []) as any[]);
+
+    const { data: maintList } = await supabase.from('technical_maintenances' as any).select('*').order('created_at', { ascending: false });
+    setMaintenances((maintList || []) as any[]);
   };
 
   const loadBrands = async () => {
@@ -53,6 +64,9 @@ export default function SupportStock() {
     const brand = (data as any[])?.[0];
     if (brand && open) {
       setForm((prev: any) => ({ ...prev, manufacturer: brand.name }));
+    }
+    if (brand && maintenanceOpen) {
+      setMForm((prev: any) => ({ ...prev, brand: brand.name }));
     }
     
     setNewBrandName('');
@@ -83,6 +97,25 @@ export default function SupportStock() {
     load();
   };
 
+  const saveMaintenance = async () => {
+    if (!mForm.brand || !mForm.model || !mForm.description) return toast.error('Marca, Modelo e Descrição são obrigatórios');
+    
+    if (editingMaintenance) {
+      const { error } = await supabase.from('technical_maintenances' as any).update(mForm).eq('id', editingMaintenance.id);
+      if (error) return toast.error(error.message);
+      toast.success('Manutenção atualizada');
+    } else {
+      const { error } = await supabase.from('technical_maintenances' as any).insert(mForm);
+      if (error) return toast.error(error.message);
+      toast.success('Manutenção cadastrada');
+    }
+    
+    setMaintenanceOpen(false);
+    setEditingMaintenance(null);
+    setMForm({ brand: '', model: '', description: '', technician: '', status: 'Aguardando', notes: '' });
+    load();
+  };
+
   const handleEdit = (item: any) => {
     setEditingItem(item);
     setForm({
@@ -96,11 +129,28 @@ export default function SupportStock() {
     setOpen(true);
   };
 
+  const handleEditMaintenance = (m: any) => {
+    setEditingMaintenance(m);
+    setMForm({
+      brand: m.brand, model: m.model, description: m.description,
+      technician: m.technician, status: m.status, notes: m.notes
+    });
+    setMaintenanceOpen(true);
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Deseja realmente excluir este item?')) return;
     const { error } = await supabase.from('technical_products' as any).delete().eq('id', id);
     if (error) return toast.error(error.message);
     toast.success('Item excluído');
+    load();
+  };
+
+  const handleDeleteMaintenance = async (id: string) => {
+    if (!confirm('Deseja realmente excluir esta manutenção?')) return;
+    const { error } = await supabase.from('technical_maintenances' as any).delete().eq('id', id);
+    if (error) return toast.error(error.message);
+    toast.success('Manutenção excluída');
     load();
   };
 
@@ -123,6 +173,93 @@ export default function SupportStock() {
           <p className="text-sm text-muted-foreground italic">Controle de peças e insumos técnicos</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Dialog open={maintenanceOpen} onOpenChange={(o) => { setMaintenanceOpen(o); if (!o) setEditingMaintenance(null); }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2 border-primary text-primary hover:bg-primary/5">
+                <Wrench className="h-4 w-4" /> Manutenção
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{editingMaintenance ? 'Editar Manutenção' : 'Nova Manutenção'}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Marca</Label>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 px-1 text-primary flex items-center gap-1 hover:bg-transparent"
+                        onClick={() => setBrandDialogOpen(true)}
+                      >
+                        <PlusCircle className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <Select value={mForm.brand} onValueChange={v => setMForm({ ...mForm, brand: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {brands.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Modelo</Label>
+                    <Input 
+                      placeholder="Ex: 600d Pro" 
+                      value={mForm.model} 
+                      onChange={e => setMForm({ ...mForm, model: e.target.value })} 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>O que fazer? (Serviço)</Label>
+                  <Textarea 
+                    placeholder="Descreva o problema ou serviço..." 
+                    value={mForm.description} 
+                    onChange={e => setMForm({ ...mForm, description: e.target.value })} 
+                    className="min-h-[80px]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Técnico</Label>
+                    <Input 
+                      placeholder="Nome do técnico" 
+                      value={mForm.technician} 
+                      onChange={e => setMForm({ ...mForm, technician: e.target.value })} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={mForm.status} onValueChange={v => setMForm({ ...mForm, status: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {MAINTENANCE_STATUS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Observações Internas</Label>
+                  <Input 
+                    placeholder="Notas extras..." 
+                    value={mForm.notes} 
+                    onChange={e => setMForm({ ...mForm, notes: e.target.value })} 
+                  />
+                </div>
+
+                <Button onClick={saveMaintenance} className="w-full">
+                  {editingMaintenance ? 'Salvar Alterações' : 'Cadastrar Manutenção'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditingItem(null); }}>
             <DialogTrigger asChild>
               <Button className="bg-primary hover:bg-primary/90">
@@ -354,102 +491,190 @@ export default function SupportStock() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Pesquise por nome, código ou fabricante..." 
-            className="pl-9"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-        <Button variant="outline" className="gap-2">
-          <SlidersHorizontal className="h-4 w-4" /> Filtros
-        </Button>
-      </div>
+      <Tabs defaultValue="stock" className="w-full">
+        <TabsList className="bg-muted/50 p-1">
+          <TabsTrigger value="stock" className="gap-2">
+            <Package className="h-4 w-4" /> Estoque de Peças
+          </TabsTrigger>
+          <TabsTrigger value="maintenance" className="gap-2">
+            <Wrench className="h-4 w-4" /> Manutenções
+          </TabsTrigger>
+        </TabsList>
 
-      <Card className="border-none shadow-sm overflow-hidden">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-muted/30">
-              <TableRow>
-                <TableHead className="w-[80px]">ID</TableHead>
-                <TableHead>Nome do Item</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead className="text-center">Qtd Atual</TableHead>
-                <TableHead className="text-right">Valor Unit.</TableHead>
-                <TableHead className="text-right">Valor Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((item, idx) => {
-                const status = getStatus(item);
-                const total = item.quantity * (Number(item.price) || 0);
-                return (
-                  <TableRow key={item.id} className="hover:bg-muted/20 transition-colors">
-                    <TableCell className="text-xs text-muted-foreground">#{idx + 1}</TableCell>
-                    <TableCell>
-                      <div className="font-medium">{item.name}</div>
-                      <div className="text-xs text-muted-foreground">{item.code || '-'}</div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="font-normal">{item.category}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center font-semibold">
-                      {item.quantity}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      R$ {Number(item.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <div className={`h-2 w-2 rounded-full ${
-                          status.color === 'success' ? 'bg-green-500' : 
-                          status.color === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
-                        }`} />
-                        <span className="text-sm">{status.label}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(item)}>
-                            <Pencil className="h-4 w-4 mr-2" /> Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(item.id)}>
-                            <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+        <TabsContent value="stock" className="mt-6 space-y-6">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Pesquise por nome, código ou fabricante..." 
+                className="pl-9"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+            <Button variant="outline" className="gap-2">
+              <SlidersHorizontal className="h-4 w-4" /> Filtros
+            </Button>
+          </div>
+
+          <Card className="border-none shadow-sm overflow-hidden">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow>
+                    <TableHead className="w-[80px]">ID</TableHead>
+                    <TableHead>Nome do Item</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead className="text-center">Qtd Atual</TableHead>
+                    <TableHead className="text-right">Valor Unit.</TableHead>
+                    <TableHead className="text-right">Valor Total</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
-                );
-              })}
-              {filtered.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10">
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <Package className="h-10 w-10 opacity-20" />
-                      <p>Nenhum item encontrado no estoque.</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((item, idx) => {
+                    const status = getStatus(item);
+                    const total = item.quantity * (Number(item.price) || 0);
+                    return (
+                      <TableRow key={item.id} className="hover:bg-muted/20 transition-colors">
+                        <TableCell className="text-xs text-muted-foreground">#{idx + 1}</TableCell>
+                        <TableCell>
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-xs text-muted-foreground">{item.code || '-'}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-normal">{item.category}</Badge>
+                        </TableCell>
+                        <TableCell className="text-center font-semibold">
+                          {item.quantity}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          R$ {Number(item.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            <div className={`h-2 w-2 rounded-full ${
+                              status.color === 'success' ? 'bg-green-500' : 
+                              status.color === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
+                            }`} />
+                            <span className="text-sm">{status.label}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(item)}>
+                                <Pencil className="h-4 w-4 mr-2" /> Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(item.id)}>
+                                <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {filtered.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-10">
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                          <Package className="h-10 w-10 opacity-20" />
+                          <p>Nenhum item encontrado no estoque.</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="maintenance" className="mt-6">
+          <Card className="border-none shadow-sm overflow-hidden">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow>
+                    <TableHead>Equipamento</TableHead>
+                    <TableHead>Serviço / Problema</TableHead>
+                    <TableHead>Técnico</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {maintenances.map((m) => (
+                    <TableRow key={m.id} className="hover:bg-muted/20 transition-colors">
+                      <TableCell>
+                        <div className="font-medium">{m.model}</div>
+                        <div className="text-xs text-muted-foreground">{m.brand}</div>
+                      </TableCell>
+                      <TableCell className="max-w-[300px] truncate">
+                        {m.description}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          {m.technician || '-'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={
+                          m.status === 'Pronto' ? 'default' : 
+                          m.status === 'Em Manutenção' ? 'secondary' : 
+                          m.status === 'Entregue' ? 'outline' : 'secondary'
+                        } className={`font-normal ${
+                          m.status === 'Pronto' ? 'bg-green-500 hover:bg-green-600 text-white' : 
+                          m.status === 'Em Manutenção' ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : ''
+                        }`}>
+                          {m.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditMaintenance(m)}>
+                              <Pencil className="h-4 w-4 mr-2" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteMaintenance(m.id)}>
+                              <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {maintenances.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-10">
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                          <Wrench className="h-10 w-10 opacity-20" />
+                          <p>Nenhuma manutenção registrada.</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -1363,6 +1363,53 @@ export type Database = {
         }
         Relationships: []
       }
+      technical_maintenances: {
+        Row: {
+          brand: string | null
+          created_at: string
+          description: string | null
+          id: string
+          model: string | null
+          notes: string | null
+          product_id: string | null
+          status: string | null
+          technician: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          model?: string | null
+          notes?: string | null
+          product_id?: string | null
+          status?: string | null
+          technician?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          model?: string | null
+          notes?: string | null
+          product_id?: string | null
+          status?: string | null
+          technician?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technical_maintenances_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "technical_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       technical_orders: {
         Row: {
           attachments: Json | null
