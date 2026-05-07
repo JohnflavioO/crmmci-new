@@ -106,58 +106,115 @@ export default function SupportStock() {
               <DialogHeader>
                 <DialogTitle>{editingItem ? 'Editar Peça' : 'Novo Produto'}</DialogTitle>
               </DialogHeader>
-              <div className="grid grid-cols-2 gap-3 pt-4">
-                <div className="col-span-2">
-                  <Label>Nome</Label>
-                  <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              <div className="grid grid-cols-6 gap-4 pt-4">
+                <div className="col-span-6">
+                  <Label className="text-sm font-medium">Produto</Label>
+                  <Input 
+                    placeholder="Nome da peça ou insumo"
+                    value={form.name} 
+                    onChange={e => setForm({ ...form, name: e.target.value })} 
+                    className="mt-1.5"
+                  />
                 </div>
-                <div>
-                  <Label>Código</Label>
-                  <Input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} />
-                </div>
-                <div>
-                  <Label>Fabricante</Label>
-                  <Input value={form.manufacturer} onChange={e => setForm({ ...form, manufacturer: e.target.value })} />
-                </div>
-                <div className="col-span-2">
-                  <Label>Compatibilidade</Label>
-                  <Input value={form.compatibility} onChange={e => setForm({ ...form, compatibility: e.target.value })} />
-                </div>
-                <div>
-                  <Label>Localização</Label>
-                  <Input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} />
-                </div>
-                <div>
-                  <Label>Categoria</Label>
+
+                <div className="col-span-3">
+                  <Label className="text-sm font-medium">Categoria</Label>
                   <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label>Quantidade</Label>
-                  <Input type="number" value={form.quantity} onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} />
+
+                <div className="col-span-3">
+                  <Label className="text-sm font-medium">Fornecedor</Label>
+                  <Input 
+                    placeholder="Nome do fornecedor"
+                    value={form.manufacturer} 
+                    onChange={e => setForm({ ...form, manufacturer: e.target.value })} 
+                    className="mt-1.5"
+                  />
                 </div>
-                <div>
-                  <Label>Mínimo</Label>
-                  <Input type="number" value={form.min_quantity} onChange={e => setForm({ ...form, min_quantity: Number(e.target.value) })} />
-                </div>
-                <div>
-                  <Label>Custo (R$)</Label>
-                  <Input type="number" step="0.01" value={form.cost} onChange={e => setForm({ ...form, cost: Number(e.target.value) })} />
-                </div>
-                <div>
-                  <Label>Preço de Venda (R$)</Label>
-                  <Input type="number" step="0.01" value={form.price} onChange={e => setForm({ ...form, price: Number(e.target.value) })} />
-                </div>
+
                 <div className="col-span-2">
-                  <Label>Observações</Label>
-                  <Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+                  <Label className="text-sm font-medium">Localização</Label>
+                  <Input 
+                    placeholder="Ex: Prateleira A1"
+                    value={form.location} 
+                    onChange={e => setForm({ ...form, location: e.target.value })} 
+                    className="mt-1.5"
+                  />
                 </div>
-                <Button onClick={save} className="col-span-2 mt-4">
-                  {editingItem ? 'Salvar Alterações' : 'Cadastrar Produto'}
+
+                <div className="col-span-2">
+                  <Label className="text-sm font-medium">Preço de Custo (R$)</Label>
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    placeholder="0,00"
+                    value={form.cost} 
+                    onChange={e => setForm({ ...form, cost: Number(e.target.value) })} 
+                    className="mt-1.5"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <Label className="text-sm font-medium">Preço de Venda (R$)</Label>
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    placeholder="0,00"
+                    value={form.price} 
+                    onChange={e => setForm({ ...form, price: Number(e.target.value) })} 
+                    className="mt-1.5"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <Label className="text-sm font-medium">Estoque Inicial</Label>
+                  <Input 
+                    type="number" 
+                    value={form.quantity} 
+                    onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} 
+                    className="mt-1.5"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <Label className="text-sm font-medium">Estoque Mínimo</Label>
+                  <Input 
+                    type="number" 
+                    value={form.min_quantity} 
+                    onChange={e => setForm({ ...form, min_quantity: Number(e.target.value) })} 
+                    className="mt-1.5"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <Label className="text-sm font-medium">Unidade de Medida</Label>
+                  <Select value={form.unit_measure} onValueChange={v => setForm({ ...form, unit_measure: v })}>
+                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {['UN', 'MT', 'KG', 'PCT', 'CX', 'LITRO'].map(u => (
+                        <SelectItem key={u} value={u}>{u}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="col-span-6">
+                  <Label className="text-sm font-medium">Descrição</Label>
+                  <Textarea 
+                    placeholder="Detalhes adicionais sobre o produto..."
+                    value={form.notes} 
+                    onChange={e => setForm({ ...form, notes: e.target.value })} 
+                    className="mt-1.5 min-h-[100px]"
+                  />
+                </div>
+
+                <Button onClick={save} className="col-span-6 mt-2 bg-primary hover:bg-primary/90">
+                  {editingItem ? 'Salvar Alterações' : 'Salvar Produto'}
                 </Button>
               </div>
             </DialogContent>
