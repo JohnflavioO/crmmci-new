@@ -25,6 +25,9 @@ export default function SupportClients() {
     whatsapp: '', 
     email: '', 
     address: '', 
+    city: '',
+    state: '',
+    zip_code: '',
     notes: '' 
   });
 
