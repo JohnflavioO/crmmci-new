@@ -172,6 +172,7 @@ function AppRoutes() {
       {(isSupport || isAdmin) && (
         <Route path="/suporte" element={<SupportLayout />}>
           <Route index element={<SupportDashboard />} />
+          <Route path="servicos" element={<SupportPlaceholder title="Serviços Técnicos" />} />
           <Route path="estoque" element={<SupportStock />} />
           <Route path="clientes" element={<SupportClients />} />
           <Route path="os" element={<SupportOrders />} />
