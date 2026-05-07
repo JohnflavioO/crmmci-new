@@ -46,9 +46,15 @@ export default function SupportStock() {
 
   const handleCreateBrand = async () => {
     if (!newBrandName.trim()) return toast.error('Nome da marca é obrigatório');
-    const { error } = await supabase.from('technical_brands' as any).insert({ name: newBrandName });
+    const { data, error } = await supabase.from('technical_brands' as any).insert({ name: newBrandName.trim() }).select();
     if (error) return toast.error(error.message);
     toast.success('Marca criada com sucesso');
+    
+    const brand = (data as any[])?.[0];
+    if (brand && open) {
+      setForm((prev: any) => ({ ...prev, manufacturer: brand.name }));
+    }
+    
     setNewBrandName('');
     setBrandDialogOpen(false);
     loadBrands();
