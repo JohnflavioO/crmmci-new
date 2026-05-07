@@ -113,48 +113,34 @@ export default function SupportReports() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-2">
-            <div className="space-y-2">
-              {[
-                { name: 'João Silva', val: 85 },
-                { name: 'Maria Santos', val: 72 },
-                { name: 'Ricardo Oliveira', val: 64 },
-              ].map((item, i) => (
-                <div key={i} className="flex flex-col gap-1">
-                  <div className="flex justify-between text-xs font-medium">
-                    <span>{item.name}</span>
-                    <span>{item.val}%</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${item.val}%` }}></div>
-                  </div>
-                </div>
-              ))}
+            <div className="flex flex-col items-center justify-center py-4 text-muted-foreground italic text-sm">
+              Sem dados de técnicos
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-border shadow-sm flex flex-col justify-center items-center p-6">
-          <div className="p-3 bg-green-50 rounded-full mb-3">
-            <FileText className="h-6 w-6 text-green-600" />
+        <Card className="bg-white border-border shadow-sm flex flex-col justify-center items-center p-6 text-center">
+          <div className="p-3 bg-blue-50 rounded-full mb-3">
+            <FileText className="h-6 w-6 text-blue-600" />
           </div>
-          <span className="text-3xl font-bold">40</span>
-          <span className="text-xs font-bold uppercase text-muted-foreground mt-1">Ordens de Serviços</span>
+          <span className="text-3xl font-bold">0</span>
+          <span className="text-xs font-bold uppercase text-muted-foreground mt-1 tracking-tight">Ordens de Serviços</span>
         </Card>
 
-        <Card className="bg-white border-border shadow-sm flex flex-col justify-center items-center p-6">
-          <div className="p-3 bg-purple-50 rounded-full mb-3">
-            <Building2 className="h-6 w-6 text-purple-600" />
+        <Card className="bg-white border-border shadow-sm flex flex-col justify-center items-center p-6 text-center">
+          <div className="p-3 bg-blue-50 rounded-full mb-3">
+            <Building2 className="h-6 w-6 text-blue-600" />
           </div>
-          <span className="text-3xl font-bold">12</span>
-          <span className="text-xs font-bold uppercase text-muted-foreground mt-1">Empresa</span>
+          <span className="text-3xl font-bold">0</span>
+          <span className="text-xs font-bold uppercase text-muted-foreground mt-1 tracking-tight">Empresa</span>
         </Card>
 
-        <Card className="bg-white border-border shadow-sm flex flex-col justify-center items-center p-6">
-          <div className="p-3 bg-orange-50 rounded-full mb-3">
-            <UserCircle className="h-6 w-6 text-orange-600" />
+        <Card className="bg-white border-border shadow-sm flex flex-col justify-center items-center p-6 text-center">
+          <div className="p-3 bg-blue-50 rounded-full mb-3">
+            <UserCircle className="h-6 w-6 text-blue-600" />
           </div>
-          <span className="text-3xl font-bold">85</span>
-          <span className="text-xs font-bold uppercase text-muted-foreground mt-1">Contatos</span>
+          <span className="text-3xl font-bold">0</span>
+          <span className="text-xs font-bold uppercase text-muted-foreground mt-1 tracking-tight">Contatos</span>
         </Card>
       </div>
 
