@@ -31,6 +31,14 @@ import { useEffect, useState } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
 import ProspectView from "./pages/ProspectView";
 import BankSlips from "./pages/BankSlips";
+import SupportLayout from "./components/support/SupportLayout";
+import SupportDashboard from "./pages/support/SupportDashboard";
+import SupportClients from "./pages/support/SupportClients";
+import SupportStock from "./pages/support/SupportStock";
+import SupportOrders from "./pages/support/SupportOrders";
+import SupportOrderDetail from "./pages/support/SupportOrderDetail";
+import SupportPlaceholder from "./pages/support/SupportPlaceholder";
+import PublicTracking from "./pages/support/PublicTracking";
 // import Opportunities from "./pages/marketing/Opportunities";
 
 const queryClient = new QueryClient({
@@ -110,7 +118,7 @@ function LoadingScreen() {
 }
 
 function AppRoutes() {
-  const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, forcePasswordChange, profile, signOut } = useAuth();
+  const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, isSupportTech, isSupportManager, isSupport, forcePasswordChange, profile, signOut } = useAuth();
   
   // Scanner de follow-up otimizado: roda apenas após o auth estar pronto e o usuário estar aprovado
   useFollowUpScanner();
@@ -132,8 +140,8 @@ function AppRoutes() {
   // O usuário só é considerado pendente se estiver logado, NÃO for admin/gestor/etc, e a flag isApproved for explicitamente falsa
   // Se não tiver perfil ainda, também consideramos como aguardando (ou em processo de criação)
   const isPendingApproval = user && !loading && 
-    !(profile?.role && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica'].includes(profile.role.toLowerCase())) &&
-    !isAdmin && !isGestor && !isFinanceiro && !isLogistica && !isApproved;
+    !(profile?.role && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica', 'support_tech', 'support_manager'].includes(profile.role.toLowerCase())) &&
+    !isAdmin && !isGestor && !isFinanceiro && !isLogistica && !isSupport && !isApproved;
 
 
 
@@ -142,6 +150,7 @@ function AppRoutes() {
     return (
       <Routes>
         <Route path="/quote/:token" element={<PublicQuote />} />
+        <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
         <Route path="*" element={<Auth />} />
       </Routes>
     );
@@ -152,10 +161,31 @@ function AppRoutes() {
 
   const isLogisticaOnly = isLogistica && !isAdmin && !isGestor && !isFinanceiro;
   const isFinanceiroOnly = isFinanceiro && !isGestor && !isAdmin;
+  const isSupportOnly = isSupport && !isAdmin && !isGestor && !isFinanceiro && !isLogistica;
 
   return (
     <Routes>
+      {/* Public tracking is always available */}
+      <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
+
+      {/* Support module */}
+      {(isSupport || isAdmin) && (
+        <Route path="/suporte" element={<SupportLayout />}>
+          <Route index element={<SupportDashboard />} />
+          <Route path="estoque" element={<SupportStock />} />
+          <Route path="clientes" element={<SupportClients />} />
+          <Route path="os" element={<SupportOrders />} />
+          <Route path="os/:id" element={<SupportOrderDetail />} />
+          <Route path="compras" element={<SupportPlaceholder title="Ordem de Compra" />} />
+          <Route path="orcamentos" element={<SupportPlaceholder title="Orçamentos Técnicos" />} />
+          <Route path="nuvem" element={<SupportPlaceholder title="Nuvem Técnica" />} />
+          <Route path="relatorios" element={<SupportPlaceholder title="Relatórios" />} />
+          <Route path="manutencao" element={<SupportPlaceholder title="Manutenção" />} />
+        </Route>
+      )}
+
       <Route path="/" element={
+        isSupportOnly ? <Navigate to="/suporte" replace /> :
         isLogisticaOnly ? <Navigate to="/logistics" replace /> :
         isFinanceiroOnly ? <Navigate to="/financial" replace /> :
         <Dashboard />

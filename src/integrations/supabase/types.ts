@@ -1294,6 +1294,268 @@ export type Database = {
           },
         ]
       }
+      technical_brands: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      technical_clients: {
+        Row: {
+          address: string | null
+          company_id: string | null
+          cpf_cnpj: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          equipments: Json | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          address?: string | null
+          company_id?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          equipments?: Json | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: string | null
+          company_id?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          equipments?: Json | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      technical_orders: {
+        Row: {
+          attachments: Json | null
+          brand: string | null
+          client_id: string | null
+          client_name: string
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          equipment: string | null
+          estimated_date: string | null
+          id: string
+          labor_value: number
+          model: string | null
+          os_number: string
+          parts_value: number
+          photos: Json | null
+          public_token: string | null
+          reported_defect: string | null
+          serial: string | null
+          shipping_value: number
+          status: string
+          technical_diagnosis: string | null
+          technician_id: string | null
+          technician_name: string | null
+          total_value: number
+          updated_at: string
+          warranty: string | null
+        }
+        Insert: {
+          attachments?: Json | null
+          brand?: string | null
+          client_id?: string | null
+          client_name?: string
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          equipment?: string | null
+          estimated_date?: string | null
+          id?: string
+          labor_value?: number
+          model?: string | null
+          os_number?: string
+          parts_value?: number
+          photos?: Json | null
+          public_token?: string | null
+          reported_defect?: string | null
+          serial?: string | null
+          shipping_value?: number
+          status?: string
+          technical_diagnosis?: string | null
+          technician_id?: string | null
+          technician_name?: string | null
+          total_value?: number
+          updated_at?: string
+          warranty?: string | null
+        }
+        Update: {
+          attachments?: Json | null
+          brand?: string | null
+          client_id?: string | null
+          client_name?: string
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          equipment?: string | null
+          estimated_date?: string | null
+          id?: string
+          labor_value?: number
+          model?: string | null
+          os_number?: string
+          parts_value?: number
+          photos?: Json | null
+          public_token?: string | null
+          reported_defect?: string | null
+          serial?: string | null
+          shipping_value?: number
+          status?: string
+          technical_diagnosis?: string | null
+          technician_id?: string | null
+          technician_name?: string | null
+          total_value?: number
+          updated_at?: string
+          warranty?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technical_orders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "technical_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      technical_products: {
+        Row: {
+          category: string | null
+          code: string | null
+          company_id: string | null
+          compatibility: string | null
+          cost: number
+          created_at: string
+          created_by: string | null
+          id: string
+          image_url: string | null
+          location: string | null
+          manufacturer: string | null
+          min_quantity: number
+          name: string
+          notes: string | null
+          price: number
+          quantity: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          code?: string | null
+          company_id?: string | null
+          compatibility?: string | null
+          cost?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image_url?: string | null
+          location?: string | null
+          manufacturer?: string | null
+          min_quantity?: number
+          name: string
+          notes?: string | null
+          price?: number
+          quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          code?: string | null
+          company_id?: string | null
+          compatibility?: string | null
+          cost?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image_url?: string | null
+          location?: string | null
+          manufacturer?: string | null
+          min_quantity?: number
+          name?: string
+          notes?: string | null
+          price?: number
+          quantity?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      technical_status_history: {
+        Row: {
+          created_at: string
+          id: string
+          new_status: string
+          notes: string | null
+          order_id: string
+          performed_by: string | null
+          performed_by_name: string | null
+          previous_status: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          new_status: string
+          notes?: string | null
+          order_id: string
+          performed_by?: string | null
+          performed_by_name?: string | null
+          previous_status?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          new_status?: string
+          notes?: string | null
+          order_id?: string
+          performed_by?: string | null
+          performed_by_name?: string | null
+          previous_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technical_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "technical_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_approvals: {
         Row: {
           approved_by: string | null
@@ -1382,6 +1644,7 @@ export type Database = {
     Functions: {
       delete_quote_cascade: { Args: { p_quote_id: string }; Returns: undefined }
       generate_quote_number: { Args: never; Returns: string }
+      generate_technical_os_number: { Args: never; Returns: string }
       get_public_quote_token: { Args: never; Returns: string }
       get_team_dashboard_recent_quotes: {
         Args: { p_limit?: number; p_owner?: string }
@@ -1426,6 +1689,9 @@ export type Database = {
       is_gestor: { Args: never; Returns: boolean }
       is_logistica: { Args: never; Returns: boolean }
       is_quote_owner: { Args: { p_quote_id: string }; Returns: boolean }
+      is_support_any: { Args: never; Returns: boolean }
+      is_support_manager: { Args: never; Returns: boolean }
+      is_support_tech: { Args: never; Returns: boolean }
       process_all_approved_quotes_opportunities: {
         Args: never
         Returns: number

@@ -11,6 +11,9 @@ interface AuthContextType {
   isGestor: boolean;
   isFinanceiro: boolean;
   isLogistica: boolean;
+  isSupportTech: boolean;
+  isSupportManager: boolean;
+  isSupport: boolean;
   profile: { full_name: string; phone: string; role: string; avatar_url?: string; company_id?: string } | null;
   forcePasswordChange: boolean;
   signOut: () => Promise<void>;
@@ -34,7 +37,9 @@ const safeBooleanRpc = async (functionName: string): Promise<BooleanRpcResult> =
 
 const AuthContext = createContext<AuthContextType>({
   user: null, session: null, loading: true,
-  isApproved: false, isAdmin: false, isGestor: false, isFinanceiro: false, isLogistica: false, profile: null, forcePasswordChange: false,
+  isApproved: false, isAdmin: false, isGestor: false, isFinanceiro: false, isLogistica: false,
+  isSupportTech: false, isSupportManager: false, isSupport: false,
+  profile: null, forcePasswordChange: false,
   signOut: async () => {},
 });
 
@@ -51,6 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isGestor, setIsGestor] = useState(false);
   const [isFinanceiro, setIsFinanceiro] = useState(false);
   const [isLogistica, setIsLogistica] = useState(false);
+  const [isSupportTech, setIsSupportTech] = useState(false);
+  const [isSupportManager, setIsSupportManager] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string; avatar_url?: string; force_password_change?: boolean; company_id?: string } | null>(null);
   const [forcePasswordChange, setForcePasswordChange] = useState(false);
 
@@ -96,6 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsGestor(false);
           setIsFinanceiro(false);
           setIsLogistica(false);
+          setIsSupportTech(false);
+          setIsSupportManager(false);
           setProfile(null);
           setLoading(false);
         } else if (newUserId !== currentUserId) {
@@ -136,12 +145,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const fetchData = async () => {
       try {
         console.log('[Auth] Fetching user data for:', user.id);
-        const [approvedRes, adminRes, gestorRes, financeiroRes, logisticaRes, profileRes] = await Promise.all([
+        const [approvedRes, adminRes, gestorRes, financeiroRes, logisticaRes, supportTechRes, supportManagerRes, profileRes] = await Promise.all([
           safeBooleanRpc('is_approved'),
           safeBooleanRpc('is_admin'),
           safeBooleanRpc('is_gestor'),
           safeBooleanRpc('is_financeiro'),
           safeBooleanRpc('is_logistica'),
+          safeBooleanRpc('is_support_tech'),
+          safeBooleanRpc('is_support_manager'),
           supabase.from('profiles').select('full_name, phone, role, avatar_url, force_password_change, company_id').eq('user_id', user.id).maybeSingle(),
         ]);
 
@@ -185,6 +196,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsGestor(gestorRes.data === true || normalizedRole === 'gestor');
         setIsFinanceiro(financeiroRes.data === true || normalizedRole === 'financeiro');
         setIsLogistica(logisticaRes.data === true || normalizedRole === 'logistica');
+        setIsSupportTech(supportTechRes.data === true || normalizedRole === 'support_tech');
+        setIsSupportManager(supportManagerRes.data === true || normalizedRole === 'support_manager');
         setProfile(profileRes.data as any);
         setForcePasswordChange(profileRes.data?.force_password_change === true);
         
@@ -213,7 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, profile, forcePasswordChange, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, isSupportTech, isSupportManager, isSupport: isSupportTech || isSupportManager, profile, forcePasswordChange, signOut }}>
       {children}
     </AuthContext.Provider>
   );
