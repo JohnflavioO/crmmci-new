@@ -9,26 +9,34 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, AlertTriangle, Search, Tags, History, Printer, SlidersHorizontal, Package, MoreHorizontal, Pencil, Trash2, PlusCircle } from 'lucide-react';
+import { Plus, AlertTriangle, Search, Tags, History, Printer, SlidersHorizontal, Package, MoreHorizontal, Pencil, Trash2, PlusCircle, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const CATEGORIES = ['Aputure', 'Amaran', 'Astera', 'Creamsource', 'Outros'];
+const MAINTENANCE_STATUS = ['Aguardando', 'Em Manutenção', 'Pronto', 'Entregue'];
 
 export default function SupportStock() {
   const { user } = useAuth();
   const [items, setItems] = useState<any[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
+  const [maintenances, setMaintenances] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
+  const [maintenanceOpen, setMaintenanceOpen] = useState(false);
   const [brandDialogOpen, setBrandDialogOpen] = useState(false);
   const [newBrandName, setNewBrandName] = useState('');
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [editingMaintenance, setEditingMaintenance] = useState<any>(null);
   const [form, setForm] = useState<any>({
     name: '', code: '', manufacturer: '', compatibility: '', location: '',
     quantity: 0, min_quantity: 0, cost: 0, price: 0, notes: '', category: 'Outros',
     unit_measure: 'UN'
+  });
+  const [mForm, setMForm] = useState<any>({
+    brand: '', model: '', description: '', technician: '', status: 'Aguardando', notes: ''
   });
 
   const load = async () => {
