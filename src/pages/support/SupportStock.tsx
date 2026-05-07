@@ -63,7 +63,8 @@ export default function SupportStock() {
       compatibility: item.compatibility, location: item.location,
       quantity: item.quantity, min_quantity: item.min_quantity,
       cost: Number(item.cost), price: Number(item.price),
-      notes: item.notes, category: item.category
+      notes: item.notes, category: item.category,
+      unit_measure: item.unit_measure || 'UN'
     });
     setOpen(true);
   };
