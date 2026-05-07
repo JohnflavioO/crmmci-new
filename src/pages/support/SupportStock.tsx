@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, AlertTriangle, Search, Tags, History, Printer, SlidersHorizontal, Package, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Plus, AlertTriangle, Search, Tags, History, Printer, SlidersHorizontal, Package, MoreHorizontal, Pencil, Trash2, PlusCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -19,8 +19,11 @@ const CATEGORIES = ['Aputure', 'Amaran', 'Astera', 'Creamsource', 'Outros'];
 export default function SupportStock() {
   const { user } = useAuth();
   const [items, setItems] = useState<any[]>([]);
+  const [brands, setBrands] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
+  const [brandDialogOpen, setBrandDialogOpen] = useState(false);
+  const [newBrandName, setNewBrandName] = useState('');
   const [editingItem, setEditingItem] = useState<any>(null);
   const [form, setForm] = useState<any>({
     name: '', code: '', manufacturer: '', compatibility: '', location: '',
@@ -29,8 +32,32 @@ export default function SupportStock() {
   });
 
   const load = async () => {
-    const { data } = await supabase.from('technical_products' as any).select('*').order('name');
-    setItems((data || []) as any[]);
+    const { data: products } = await supabase.from('technical_products' as any).select('*').order('name');
+    setItems((products || []) as any[]);
+    
+    const { data: brandList } = await supabase.from('technical_brands' as any).select('*').order('name');
+    setBrands((brandList || []) as any[]);
+  };
+
+  const loadBrands = async () => {
+    const { data: brandList } = await supabase.from('technical_brands' as any).select('*').order('name');
+    setBrands((brandList || []) as any[]);
+  };
+
+  const handleCreateBrand = async () => {
+    if (!newBrandName.trim()) return toast.error('Nome da marca é obrigatório');
+    const { data, error } = await supabase.from('technical_brands' as any).insert({ name: newBrandName.trim() }).select();
+    if (error) return toast.error(error.message);
+    toast.success('Marca criada com sucesso');
+    
+    const brand = (data as any[])?.[0];
+    if (brand && open) {
+      setForm((prev: any) => ({ ...prev, manufacturer: brand.name }));
+    }
+    
+    setNewBrandName('');
+    setBrandDialogOpen(false);
+    loadBrands();
   };
 
   useEffect(() => { load(); }, []);
@@ -138,13 +165,30 @@ export default function SupportStock() {
                 </div>
 
                 <div className="col-span-3">
-                  <Label className="text-sm font-medium">Fabricante / Fornecedor</Label>
-                  <Input 
-                    placeholder="Nome do fabricante"
-                    value={form.manufacturer} 
-                    onChange={e => setForm({ ...form, manufacturer: e.target.value })} 
-                    className="mt-1.5"
-                  />
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Fabricante</Label>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 px-1 text-primary flex items-center gap-1 hover:bg-transparent"
+                      onClick={() => setBrandDialogOpen(true)}
+                    >
+                      <PlusCircle className="h-3 w-3" /> Nova Marca
+                    </Button>
+                  </div>
+                  <Select value={form.manufacturer} onValueChange={v => setForm({ ...form, manufacturer: v })}>
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue placeholder="Selecione o fabricante" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {brands.map(b => (
+                        <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+                      ))}
+                      {brands.length === 0 && (
+                        <div className="p-2 text-xs text-muted-foreground text-center">Nenhuma marca cadastrada</div>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="col-span-4">
@@ -221,7 +265,67 @@ export default function SupportStock() {
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2">
-                <Tags className="h-4 w-4" /> Categorias
+                <Tags className="h-4 w-4" /> Marcas
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <div className="flex items-center justify-between pr-6">
+                  <DialogTitle>Marcas de Fabricantes</DialogTitle>
+                  <Button size="sm" onClick={() => setBrandDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-1" /> Nova
+                  </Button>
+                </div>
+              </DialogHeader>
+              <div className="space-y-2 pt-4 max-h-[400px] overflow-y-auto pr-2">
+                {brands.map(b => (
+                  <div key={b.id} className="flex items-center justify-between p-2 border rounded-md">
+                    <span>{b.name}</span>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
+                        if (!confirm('Deseja excluir esta marca?')) return;
+                        const { error } = await supabase.from('technical_brands' as any).delete().eq('id', b.id);
+                        if (error) return toast.error('Não é possível excluir: existem produtos vinculados a esta marca.');
+                        toast.success('Marca excluída');
+                        loadBrands();
+                      }}>
+                        <Trash2 className="h-3 w-3 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {brands.length === 0 && (
+                  <p className="text-center py-4 text-muted-foreground">Nenhuma marca cadastrada.</p>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={brandDialogOpen} onOpenChange={setBrandDialogOpen}>
+            <DialogContent className="sm:max-w-[400px]">
+              <DialogHeader>
+                <DialogTitle>Criar Nova Marca</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Nome da Marca</Label>
+                  <Input 
+                    placeholder="Ex: Aputure, Sony, etc" 
+                    value={newBrandName}
+                    onChange={e => setNewBrandName(e.target.value)}
+                  />
+                </div>
+                <Button className="w-full" onClick={handleCreateBrand}>
+                  Criar Marca
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Package className="h-4 w-4" /> Categorias
               </Button>
             </DialogTrigger>
             <DialogContent>
