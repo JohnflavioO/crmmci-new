@@ -1315,6 +1315,69 @@ export type Database = {
         }
         Relationships: []
       }
+      technical_budgets: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          created_by: string | null
+          discount: number | null
+          id: string
+          notes: string | null
+          status: string
+          technical_order_id: string | null
+          total_amount: number | null
+          total_parts: number | null
+          total_services: number | null
+          updated_at: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          discount?: number | null
+          id?: string
+          notes?: string | null
+          status?: string
+          technical_order_id?: string | null
+          total_amount?: number | null
+          total_parts?: number | null
+          total_services?: number | null
+          updated_at?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          discount?: number | null
+          id?: string
+          notes?: string | null
+          status?: string
+          technical_order_id?: string | null
+          total_amount?: number | null
+          total_parts?: number | null
+          total_services?: number | null
+          updated_at?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technical_budgets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "technical_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technical_budgets_technical_order_id_fkey"
+            columns: ["technical_order_id"]
+            isOneToOne: false
+            referencedRelation: "technical_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       technical_clients: {
         Row: {
           address: string | null
@@ -1372,6 +1435,42 @@ export type Database = {
           updated_at?: string
           whatsapp?: string | null
           zip_code?: string | null
+        }
+        Relationships: []
+      }
+      technical_cloud_files: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          file_type: string | null
+          file_url: string
+          id: string
+          name: string
+          updated_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          name: string
+          updated_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          name?: string
+          updated_at?: string | null
+          uploaded_by?: string | null
         }
         Relationships: []
       }
@@ -1601,6 +1700,131 @@ export type Database = {
         }
         Relationships: []
       }
+      technical_purchase_order_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          product_id: string | null
+          purchase_order_id: string | null
+          quantity: number
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          product_id?: string | null
+          purchase_order_id?: string | null
+          quantity?: number
+          total_price?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          product_id?: string | null
+          purchase_order_id?: string | null
+          quantity?: number
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technical_purchase_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "technical_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technical_purchase_order_items_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "technical_purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      technical_purchase_orders: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          expected_delivery: string | null
+          id: string
+          notes: string | null
+          received_at: string | null
+          status: string
+          supplier_id: string | null
+          total_amount: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          expected_delivery?: string | null
+          id?: string
+          notes?: string | null
+          received_at?: string | null
+          status?: string
+          supplier_id?: string | null
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          expected_delivery?: string | null
+          id?: string
+          notes?: string | null
+          received_at?: string | null
+          status?: string
+          supplier_id?: string | null
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technical_purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "technical_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      technical_services: {
+        Row: {
+          base_price: number | null
+          category: string | null
+          created_at: string | null
+          description: string | null
+          estimated_time: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          base_price?: number | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          estimated_time?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          base_price?: number | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          estimated_time?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       technical_status_history: {
         Row: {
           created_at: string
@@ -1641,6 +1865,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      technical_suppliers: {
+        Row: {
+          address: string | null
+          cnpj: string | null
+          contact_name: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          cnpj?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          cnpj?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       user_approvals: {
         Row: {

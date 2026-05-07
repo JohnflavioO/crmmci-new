@@ -8,8 +8,9 @@ import { cn } from '@/lib/utils';
 
 const items = [
   { to: '/suporte', icon: LayoutDashboard, label: 'Dashboard', end: true },
-  { to: '/suporte/estoque', icon: Package, label: 'Estoque' },
+  { to: '/suporte/servicos', icon: Wrench, label: 'Serviços' },
   { to: '/suporte/clientes', icon: Users, label: 'Clientes' },
+  { to: '/suporte/estoque', icon: Package, label: 'Estoque' },
   { to: '/suporte/os', icon: ClipboardList, label: 'Ordens de Serviço' },
   { to: '/suporte/compras', icon: ShoppingCart, label: 'Ordem de Compra' },
   { to: '/suporte/orcamentos', icon: FileText, label: 'Orçamentos' },
