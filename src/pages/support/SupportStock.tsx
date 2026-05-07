@@ -138,11 +138,21 @@ export default function SupportStock() {
                 </div>
 
                 <div className="col-span-3">
-                  <Label className="text-sm font-medium">Fornecedor</Label>
+                  <Label className="text-sm font-medium">Fabricante / Fornecedor</Label>
                   <Input 
-                    placeholder="Nome do fornecedor"
+                    placeholder="Nome do fabricante"
                     value={form.manufacturer} 
                     onChange={e => setForm({ ...form, manufacturer: e.target.value })} 
+                    className="mt-1.5"
+                  />
+                </div>
+
+                <div className="col-span-6">
+                  <Label className="text-sm font-medium">Compatibilidade (Modelos)</Label>
+                  <Input 
+                    placeholder="Ex: Aputure 600d, 1200d..."
+                    value={form.compatibility} 
+                    onChange={e => setForm({ ...form, compatibility: e.target.value })} 
                     className="mt-1.5"
                   />
                 </div>
@@ -150,7 +160,7 @@ export default function SupportStock() {
                 <div className="col-span-2">
                   <Label className="text-sm font-medium">Localização</Label>
                   <Input 
-                    placeholder="Ex: Prateleira A1"
+                    placeholder="Gaveta B2"
                     value={form.location} 
                     onChange={e => setForm({ ...form, location: e.target.value })} 
                     className="mt-1.5"
@@ -158,7 +168,19 @@ export default function SupportStock() {
                 </div>
 
                 <div className="col-span-2">
-                  <Label className="text-sm font-medium">Preço de Custo (R$)</Label>
+                  <Label className="text-sm font-medium">Unidade de Medida</Label>
+                  <Select value={form.unit_measure} onValueChange={v => setForm({ ...form, unit_measure: v })}>
+                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {['UN', 'MT', 'KG', 'PCT', 'CX', 'LITRO'].map(u => (
+                        <SelectItem key={u} value={u}>{u}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="col-span-2">
+                  <Label className="text-sm font-medium">Custo (R$)</Label>
                   <Input 
                     type="number" 
                     step="0.01" 
