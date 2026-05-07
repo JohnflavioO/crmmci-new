@@ -150,6 +150,7 @@ function AppRoutes() {
     return (
       <Routes>
         <Route path="/quote/:token" element={<PublicQuote />} />
+        <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
         <Route path="*" element={<Auth />} />
       </Routes>
     );
@@ -160,10 +161,31 @@ function AppRoutes() {
 
   const isLogisticaOnly = isLogistica && !isAdmin && !isGestor && !isFinanceiro;
   const isFinanceiroOnly = isFinanceiro && !isGestor && !isAdmin;
+  const isSupportOnly = isSupport && !isAdmin && !isGestor && !isFinanceiro && !isLogistica;
 
   return (
     <Routes>
+      {/* Public tracking is always available */}
+      <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
+
+      {/* Support module */}
+      {(isSupport || isAdmin) && (
+        <Route path="/suporte" element={<SupportLayout />}>
+          <Route index element={<SupportDashboard />} />
+          <Route path="estoque" element={<SupportStock />} />
+          <Route path="clientes" element={<SupportClients />} />
+          <Route path="os" element={<SupportOrders />} />
+          <Route path="os/:id" element={<SupportOrderDetail />} />
+          <Route path="compras" element={<SupportPlaceholder title="Ordem de Compra" />} />
+          <Route path="orcamentos" element={<SupportPlaceholder title="Orçamentos Técnicos" />} />
+          <Route path="nuvem" element={<SupportPlaceholder title="Nuvem Técnica" />} />
+          <Route path="relatorios" element={<SupportPlaceholder title="Relatórios" />} />
+          <Route path="manutencao" element={<SupportPlaceholder title="Manutenção" />} />
+        </Route>
+      )}
+
       <Route path="/" element={
+        isSupportOnly ? <Navigate to="/suporte" replace /> :
         isLogisticaOnly ? <Navigate to="/logistics" replace /> :
         isFinanceiroOnly ? <Navigate to="/financial" replace /> :
         <Dashboard />
