@@ -31,7 +31,7 @@ export default function SupportOrders() {
   const filterStatus = params.get('status') || '';
   const [orders, setOrders] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(params.get('new') === 'true');
   const [form, setForm] = useState<any>({
     client_id: '', client_name: '', equipment: '', brand: '', model: '', serial: '',
     reported_defect: '', status: 'recebido',
