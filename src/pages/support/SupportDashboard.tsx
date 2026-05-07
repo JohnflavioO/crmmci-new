@@ -138,23 +138,20 @@ export default function SupportDashboard() {
     <div className="space-y-6 pb-10">
       {/* Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar OS, Cliente ou Técnico..." 
-            className="pl-9 bg-white border-slate-200"
-          />
+        <div>
+          <h1 className="text-2xl font-bold font-display tracking-tight text-foreground">Dashboard Técnico</h1>
+          <p className="text-sm text-muted-foreground">Bem-vindo ao módulo de suporte MCI Tech</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2 border-slate-200">
+          <Button variant="outline" size="sm" className="gap-2">
             <Download className="h-4 w-4" />
             Exportar
           </Button>
-          <Button variant="outline" size="sm" className="gap-2 border-slate-200">
+          <Button variant="outline" size="sm" className="gap-2">
             <Filter className="h-4 w-4" />
             Filtros
           </Button>
-          <Button size="sm" className="gap-2 bg-slate-900 hover:bg-slate-800 text-white" asChild>
+          <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90 text-white" asChild>
             <Link to="/suporte/os?new=true">
               <Plus className="h-4 w-4" />
               Nova OS
@@ -166,11 +163,11 @@ export default function SupportDashboard() {
       {/* KPI Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((kpi, idx) => (
-          <Card key={idx} className="border-slate-100 shadow-sm overflow-hidden">
+          <Card key={idx} className="border-border shadow-sm overflow-hidden">
             <CardContent className="p-6">
               <div className="flex justify-between items-start mb-4">
-                <div className="p-2 bg-slate-50 rounded-lg">
-                  <kpi.icon className="h-5 w-5 text-slate-600" />
+                <div className="p-2 bg-muted rounded-lg">
+                  <kpi.icon className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div className={`flex items-center gap-1 text-xs font-medium ${kpi.isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {kpi.isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -178,9 +175,9 @@ export default function SupportDashboard() {
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-500">{kpi.title}</p>
-                <h3 className="text-2xl font-bold tracking-tight text-slate-900 mt-1">{kpi.value}</h3>
-                <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider font-semibold">{kpi.description}</p>
+                <p className="text-sm font-medium text-muted-foreground">{kpi.title}</p>
+                <h3 className="text-2xl font-bold tracking-tight text-foreground mt-1">{kpi.value}</h3>
+                <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{kpi.description}</p>
               </div>
             </CardContent>
           </Card>
@@ -189,10 +186,10 @@ export default function SupportDashboard() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Recent Orders List */}
-        <Card className="lg:col-span-2 border-slate-100 shadow-sm">
+        <Card className="lg:col-span-2 border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-lg font-bold">Ordens de Serviço Recentes</CardTitle>
-            <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" asChild>
+            <Button variant="ghost" size="sm" className="text-primary hover:text-primary/90 hover:bg-primary/10" asChild>
               <Link to="/suporte/os">Ver todas</Link>
             </Button>
           </CardHeader>
@@ -283,21 +280,21 @@ export default function SupportDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-slate-100 shadow-sm bg-slate-900 text-white">
+          <Card className="border-border shadow-sm">
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-4">
-                <div className="p-1.5 bg-slate-800 rounded-md">
-                  <Clock className="h-4 w-4 text-slate-400" />
+                <div className="p-1.5 bg-muted rounded-md">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <h4 className="font-semibold text-sm">Tempo Médio de Reparo</h4>
               </div>
               <div className="flex items-end gap-2">
                 <span className="text-3xl font-bold tracking-tight">3.2</span>
-                <span className="text-slate-400 text-sm mb-1">dias</span>
+                <span className="text-muted-foreground text-sm mb-1">dias</span>
               </div>
-              <p className="text-[10px] text-slate-500 mt-4 uppercase tracking-wider font-bold">Meta da Equipe: 2.5 dias</p>
-              <div className="mt-2 h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 w-[70%]" />
+              <p className="text-[10px] text-muted-foreground mt-4 uppercase tracking-wider font-bold">Meta da Equipe: 2.5 dias</p>
+              <div className="mt-2 h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-primary w-[70%]" />
               </div>
             </CardContent>
           </Card>
