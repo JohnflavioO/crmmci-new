@@ -204,7 +204,7 @@ export default function SupportStock() {
                 </div>
 
                 <div className="col-span-2">
-                  <Label className="text-sm font-medium">Estoque Inicial</Label>
+                  <Label className="text-sm font-medium">Qtd em Estoque</Label>
                   <Input 
                     type="number" 
                     value={form.quantity} 
@@ -223,30 +223,18 @@ export default function SupportStock() {
                   />
                 </div>
 
-                <div className="col-span-2">
-                  <Label className="text-sm font-medium">Unidade de Medida</Label>
-                  <Select value={form.unit_measure} onValueChange={v => setForm({ ...form, unit_measure: v })}>
-                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {['UN', 'MT', 'KG', 'PCT', 'CX', 'LITRO'].map(u => (
-                        <SelectItem key={u} value={u}>{u}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 <div className="col-span-6">
-                  <Label className="text-sm font-medium">Descrição</Label>
+                  <Label className="text-sm font-medium">Observações</Label>
                   <Textarea 
-                    placeholder="Detalhes adicionais sobre o produto..."
+                    placeholder="Detalhes técnicos adicionais..."
                     value={form.notes} 
                     onChange={e => setForm({ ...form, notes: e.target.value })} 
-                    className="mt-1.5 min-h-[100px]"
+                    className="mt-1.5 min-h-[80px]"
                   />
                 </div>
 
                 <Button onClick={save} className="col-span-6 mt-2 bg-primary hover:bg-primary/90">
-                  {editingItem ? 'Salvar Alterações' : 'Salvar Produto'}
+                  {editingItem ? 'Salvar Alterações' : 'Cadastrar Peça'}
                 </Button>
               </div>
             </DialogContent>
