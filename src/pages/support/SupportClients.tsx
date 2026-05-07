@@ -17,6 +17,7 @@ export default function SupportClients() {
   const [clients, setClients] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
+  const [search, setSearch] = useState('');
   const [form, setForm] = useState<any>({ 
     name: '', 
     cpf_cnpj: '', 
@@ -44,15 +45,22 @@ export default function SupportClients() {
     load();
   };
 
+  const filtered = clients.filter(c => 
+    c.name?.toLowerCase().includes(search.toLowerCase()) || 
+    c.cpf_cnpj?.includes(search) ||
+    c.email?.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Clientes Técnicos</h1>
-          <p className="text-sm text-muted-foreground">Cadastro de clientes da assistência</p>
-        </div>
+        <h1 className="text-2xl font-bold font-display">Clientes</h1>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if(!v) setStep(1); }}>
-          <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Novo Cliente</Button></DialogTrigger>
+          <DialogTrigger asChild>
+            <Button className="bg-[#00966d] hover:bg-[#007a58]">
+              <Plus className="h-4 w-4 mr-2" /> Novo Cliente
+            </Button>
+          </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <div className="flex items-center justify-between mb-2">
@@ -63,8 +71,8 @@ export default function SupportClients() {
                   </p>
                 </div>
                 <div className="flex gap-1">
-                  <div className={`h-1.5 w-6 rounded-full ${step >= 1 ? 'bg-emerald-600' : 'bg-gray-200'}`} />
-                  <div className={`h-1.5 w-6 rounded-full ${step >= 2 ? 'bg-emerald-600' : 'bg-gray-200'}`} />
+                  <div className={`h-1.5 w-8 rounded-full ${step >= 1 ? 'bg-[#00966d]' : 'bg-gray-200'}`} />
+                  <div className={`h-1.5 w-8 rounded-full ${step >= 2 ? 'bg-[#00966d]' : 'bg-gray-200'}`} />
                 </div>
               </div>
             </DialogHeader>
@@ -73,35 +81,35 @@ export default function SupportClients() {
               {step === 1 && (
                 <>
                   <div className="space-y-1.5">
-                    <Label>Nome Completo</Label>
+                    <Label className="text-sm font-medium">Nome Completo</Label>
                     <Input 
-                      placeholder="Ex: João Silva"
+                      placeholder=""
                       value={form.name} 
                       onChange={e => setForm({ ...form, name: e.target.value })} 
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>CPF / CNPJ</Label>
+                    <Label className="text-sm font-medium">CPF / CNPJ</Label>
                     <Input 
-                      placeholder="000.000.000-00"
+                      placeholder=""
                       value={form.cpf_cnpj} 
                       onChange={e => setForm({ ...form, cpf_cnpj: e.target.value })} 
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label>E-mail</Label>
+                      <Label className="text-sm font-medium">E-mail</Label>
                       <Input 
                         type="email"
-                        placeholder="email@exemplo.com"
+                        placeholder=""
                         value={form.email} 
                         onChange={e => setForm({ ...form, email: e.target.value })} 
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Telefone</Label>
+                      <Label className="text-sm font-medium">Telefone</Label>
                       <Input 
-                        placeholder="(00) 00000-0000"
+                        placeholder=""
                         value={form.phone} 
                         onChange={e => setForm({ ...form, phone: e.target.value })} 
                       />
@@ -113,25 +121,25 @@ export default function SupportClients() {
               {step === 2 && (
                 <>
                   <div className="space-y-1.5">
-                    <Label>Endereço</Label>
+                    <Label className="text-sm font-medium">Endereço</Label>
                     <Input 
-                      placeholder="Rua, número, bairro..."
+                      placeholder=""
                       value={form.address} 
                       onChange={e => setForm({ ...form, address: e.target.value })} 
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>WhatsApp (opcional)</Label>
+                    <Label className="text-sm font-medium">WhatsApp (opcional)</Label>
                     <Input 
-                      placeholder="(00) 00000-0000"
+                      placeholder=""
                       value={form.whatsapp} 
                       onChange={e => setForm({ ...form, whatsapp: e.target.value })} 
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Observações</Label>
+                    <Label className="text-sm font-medium">Observações</Label>
                     <Textarea 
-                      placeholder="Informações adicionais..."
+                      placeholder=""
                       className="min-h-[100px]"
                       value={form.notes} 
                       onChange={e => setForm({ ...form, notes: e.target.value })} 
@@ -140,30 +148,24 @@ export default function SupportClients() {
                 </>
               )}
 
-              <div className="flex gap-3 mt-6">
-                {step === 1 ? (
-                  <Button variant="ghost" onClick={() => setOpen(false)} className="flex-1">
-                    Cancelar
-                  </Button>
-                ) : (
-                  <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
-                    <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
-                  </Button>
-                )}
+              <div className="flex justify-between gap-3 mt-6">
+                <Button variant="ghost" onClick={() => { if(step > 1) setStep(1); else setOpen(false); }}>
+                  {step === 1 ? 'Cancelar' : 'Voltar'}
+                </Button>
                 
                 {step === 1 ? (
                   <Button 
                     onClick={() => setStep(2)} 
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                    className="bg-[#00966d] hover:bg-[#007a58] gap-2"
                   >
-                    Próximo <ArrowRight className="h-4 w-4 ml-2" />
+                    Próximo <ArrowRight className="h-4 w-4" />
                   </Button>
                 ) : (
                   <Button 
                     onClick={save} 
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                    className="bg-[#00966d] hover:bg-[#007a58]"
                   >
-                    Salvar Cliente
+                    Finalizar Cadastro
                   </Button>
                 )}
               </div>
@@ -172,29 +174,56 @@ export default function SupportClients() {
         </Dialog>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">{clients.length} cliente(s)</CardTitle></CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead><TableHead>CPF/CNPJ</TableHead><TableHead>Telefone</TableHead><TableHead>Email</TableHead>
+      <div className="relative">
+        <Input 
+          placeholder="Buscar por nome, documento ou email..." 
+          className="max-w-xl"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      </div>
+
+      <div className="border rounded-md">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50">
+              <TableHead>NOME / DOCUMENTO</TableHead>
+              <TableHead>CONTATO</TableHead>
+              <TableHead>ENDEREÇO</TableHead>
+              <TableHead className="text-right">AÇÕES</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map(c => (
+              <TableRow key={c.id}>
+                <TableCell>
+                  <div className="font-semibold">{c.name}</div>
+                  <div className="text-xs text-muted-foreground">{c.cpf_cnpj}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">{c.email}</div>
+                  <div className="text-sm">{c.phone}</div>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                  {c.address || '-'}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button variant="link" className="text-emerald-600 h-auto p-0 text-xs">
+                    Detalhes / Editar
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {clients.map(c => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.name}</TableCell>
-                  <TableCell>{c.cpf_cnpj}</TableCell>
-                  <TableCell>{c.phone}</TableCell>
-                  <TableCell>{c.email}</TableCell>
-                </TableRow>
-              ))}
-              {clients.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Nenhum cliente cadastrado</TableCell></TableRow>}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            ))}
+            {filtered.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center text-muted-foreground py-12">
+                  Nenhum cliente cadastrado.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
