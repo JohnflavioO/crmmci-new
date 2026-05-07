@@ -19,10 +19,11 @@ import { toast } from 'sonner';
 interface Maintenance {
   id: string;
   description: string;
-  type: string;
+  brand: string;
+  model: string;
   status: string;
-  scheduled_date: string;
   created_at: string;
+  technician: string;
 }
 
 export default function SupportMaintenance() {
@@ -35,7 +36,7 @@ export default function SupportMaintenance() {
       const { data, error } = await supabase
         .from('technical_maintenances')
         .select('*')
-        .order('scheduled_date', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setMaintenances(data || []);
@@ -53,12 +54,13 @@ export default function SupportMaintenance() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'concluido':
       case 'completed':
         return <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1"><CheckCircle2 className="h-3 w-3" /> Concluída</Badge>;
-      case 'overdue':
-        return <Badge className="bg-rose-500 hover:bg-rose-600 text-white gap-1"><AlertTriangle className="h-3 w-3" /> Atrasada</Badge>;
+      case 'pendente':
+        return <Badge variant="outline" className="gap-1"><Clock className="h-3 w-3" /> Pendente</Badge>;
       default:
-        return <Badge variant="outline" className="gap-1"><Clock className="h-3 w-3" /> Agendada</Badge>;
+        return <Badge variant="secondary" className="gap-1">{status}</Badge>;
     }
   };
 
@@ -103,9 +105,10 @@ export default function SupportMaintenance() {
           <table className="w-full text-sm text-left">
             <thead className="bg-muted/50 border-b border-border">
               <tr>
-                <th className="px-6 py-4 font-semibold">Data Agendada</th>
-                <th className="px-6 py-4 font-semibold">Descrição / Equipamento</th>
-                <th className="px-6 py-4 font-semibold">Tipo</th>
+                <th className="px-6 py-4 font-semibold">Data</th>
+                <th className="px-6 py-4 font-semibold">Equipamento</th>
+                <th className="px-6 py-4 font-semibold">Descrição</th>
+                <th className="px-6 py-4 font-semibold">Técnico</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold text-right">Ações</th>
               </tr>
@@ -119,13 +122,16 @@ export default function SupportMaintenance() {
                 maintenances.map((m) => (
                   <tr key={m.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap font-medium">
-                      {new Date(m.scheduled_date).toLocaleDateString('pt-BR')}
+                      {new Date(m.created_at).toLocaleDateString('pt-BR')}
+                    </td>
+                    <td className="px-6 py-4">
+                      {m.brand} {m.model}
                     </td>
                     <td className="px-6 py-4">
                       {m.description}
                     </td>
                     <td className="px-6 py-4">
-                      <Badge variant="secondary" className="font-normal capitalize">{m.type}</Badge>
+                      <Badge variant="secondary" className="font-normal capitalize">{m.technician || 'Não atribuído'}</Badge>
                     </td>
                     <td className="px-6 py-4">
                       {getStatusBadge(m.status)}

@@ -37,6 +37,12 @@ import SupportClients from "./pages/support/SupportClients";
 import SupportStock from "./pages/support/SupportStock";
 import SupportOrders from "./pages/support/SupportOrders";
 import SupportOrderDetail from "./pages/support/SupportOrderDetail";
+import SupportServices from "./pages/support/SupportServices";
+import SupportPurchases from "./pages/support/SupportPurchases";
+import SupportBudgets from "./pages/support/SupportBudgets";
+import SupportCloud from "./pages/support/SupportCloud";
+import SupportReports from "./pages/support/SupportReports";
+import SupportMaintenance from "./pages/support/SupportMaintenance";
 import SupportPlaceholder from "./pages/support/SupportPlaceholder";
 import PublicTracking from "./pages/support/PublicTracking";
 // import Opportunities from "./pages/marketing/Opportunities";
@@ -172,16 +178,16 @@ function AppRoutes() {
       {(isSupport || isAdmin) && (
         <Route path="/suporte" element={<SupportLayout />}>
           <Route index element={<SupportDashboard />} />
-          <Route path="servicos" element={<SupportPlaceholder title="Serviços Técnicos" />} />
+          <Route path="servicos" element={<SupportServices />} />
           <Route path="estoque" element={<SupportStock />} />
           <Route path="clientes" element={<SupportClients />} />
           <Route path="os" element={<SupportOrders />} />
           <Route path="os/:id" element={<SupportOrderDetail />} />
-          <Route path="compras" element={<SupportPlaceholder title="Ordem de Compra" />} />
-          <Route path="orcamentos" element={<SupportPlaceholder title="Orçamentos Técnicos" />} />
-          <Route path="nuvem" element={<SupportPlaceholder title="Nuvem Técnica" />} />
-          <Route path="relatorios" element={<SupportPlaceholder title="Relatórios" />} />
-          <Route path="manutencao" element={<SupportPlaceholder title="Manutenção" />} />
+          <Route path="compras" element={<SupportPurchases />} />
+          <Route path="orcamentos" element={<SupportBudgets />} />
+          <Route path="nuvem" element={<SupportCloud />} />
+          <Route path="relatorios" element={<SupportReports />} />
+          <Route path="manutencao" element={<SupportMaintenance />} />
         </Route>
       )}
 
