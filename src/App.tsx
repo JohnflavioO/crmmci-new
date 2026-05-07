@@ -178,7 +178,7 @@ function AppRoutes() {
       {(isSupport || isAdmin) && (
         <Route path="/suporte" element={<SupportLayout />}>
           <Route index element={<SupportDashboard />} />
-          
+          <Route path="dashboard" element={<SupportDashboard />} />
           <Route path="estoque" element={<SupportStock />} />
           <Route path="clientes" element={<SupportClients />} />
           <Route path="os" element={<SupportOrders />} />
@@ -191,30 +191,40 @@ function AppRoutes() {
         </Route>
       )}
 
-      <Route path="/" element={
-        isSupportOnly ? <Navigate to="/suporte" replace /> :
-        isLogisticaOnly ? <Navigate to="/logistics" replace /> :
-        isFinanceiroOnly ? <Navigate to="/financial" replace /> :
-        <Dashboard />
-      } />
-      <Route path="/clients" element={<Clients />} />
-      <Route path="/quotes" element={<Quotes />} />
-      <Route path="/products" element={<Products />} />
-      <Route path="/ecoflow" element={<EcoflowCalculator />} />
-      <Route path="/tasks" element={<Tasks />} />
-      <Route path="/metrics" element={<Metrics />} />
-      <Route path="/pipeline" element={<Pipeline />} />
-      <Route path="/quote/:token" element={<PublicQuote />} />
-      <Route path="/negociacoes" element={<Negociacoes />} />
-      <Route path="/prospect" element={<ProspectView />} />
-      <Route path="/reports" element={<Reports />} />
-      {/* <Route path="/opportunities" element={<Opportunities />} /> */}
-      <Route path="/logistics" element={<Logistics />} />
-      <Route path="/estoque-sc" element={<EstoqueSC />} />
-      {(isGestor || isFinanceiro) && <Route path="/financial" element={<Financial />} />}
-      {(isGestor || isFinanceiro) && <Route path="/bank-slips" element={<BankSlips />} />}
-      {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
-      {isAdmin && <Route path="/integrations" element={<Integrations />} />}
+      {/* Commercial/Main Routes */}
+      {!isSupportOnly && (
+        <>
+          <Route path="/" element={
+            isLogisticaOnly ? <Navigate to="/logistics" replace /> :
+            isFinanceiroOnly ? <Navigate to="/financial" replace /> :
+            <Dashboard />
+          } />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/clients" element={<Clients />} />
+          <Route path="/quotes" element={<Quotes />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/ecoflow" element={<EcoflowCalculator />} />
+          <Route path="/tasks" element={<Tasks />} />
+          <Route path="/metrics" element={<Metrics />} />
+          <Route path="/pipeline" element={<Pipeline />} />
+          <Route path="/quote/:token" element={<PublicQuote />} />
+          <Route path="/negociacoes" element={<Negociacoes />} />
+          <Route path="/prospect" element={<ProspectView />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/logistics" element={<Logistics />} />
+          <Route path="/estoque-sc" element={<EstoqueSC />} />
+          {(isGestor || isFinanceiro) && <Route path="/financial" element={<Financial />} />}
+          {(isGestor || isFinanceiro) && <Route path="/bank-slips" element={<BankSlips />} />}
+          {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
+          {isAdmin && <Route path="/integrations" element={<Integrations />} />}
+        </>
+      )}
+
+      {/* Redirect Support Only users away from commercial roots if they hit them */}
+      {isSupportOnly && (
+        <Route path="/" element={<Navigate to="/suporte" replace />} />
+      )}
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

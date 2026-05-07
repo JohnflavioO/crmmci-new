@@ -23,8 +23,12 @@ export default function Auth() {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        
+        // After successful login, we might need a small delay or a force refresh to ensure useAuth catches the new state
+        // but typically the onAuthStateChange in AuthProvider handles it.
+        // We can add a toast and let the App component handle the redirect based on the updated useAuth state.
         toast.success('Login realizado com sucesso!');
       } else {
         const { error } = await supabase.auth.signUp({

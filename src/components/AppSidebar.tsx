@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import UserProfileEditor from './UserProfileEditor';
 
 const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/quotes', icon: FileText, label: 'Orçamentos' },
   { to: '/clients', icon: Users, label: 'Clientes' },
   { to: '/prospect', icon: Target, label: 'Visão Prospect' },
@@ -21,12 +21,16 @@ const navItems = [
   { to: '/products', icon: Package, label: 'Produtos' },
 ];
 
-const adminGestorItems = [
-  { to: '/approvals', icon: UserCheck, label: 'Usuários' },
-];
-
-const adminOnlyItems = [
-  { to: '/integrations', icon: Plug, label: 'Integrações' },
+const supportMenuItems = [
+  { to: '/suporte', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/suporte/estoque', icon: Warehouse, label: 'Estoque' },
+  { to: '/suporte/clientes', icon: Users, label: 'Clientes' },
+  { to: '/suporte/os', icon: ClipboardList, label: 'Ordens de Serviço' },
+  { to: '/suporte/compras', icon: Truck, label: 'Ordem de Compra' },
+  { to: '/suporte/orcamentos', icon: Calculator, label: 'Orçamentos' },
+  { to: '/suporte/nuvem', icon: Sparkles, label: 'Nuvem' },
+  { to: '/suporte/relatorios', icon: BarChart3, label: 'Relatórios' },
+  { to: '/suporte/manutencao', icon: Wrench, label: 'Manutenção' },
 ];
 
 interface Props {
@@ -34,7 +38,7 @@ interface Props {
 }
 
 export default function AppSidebar({ onNavigate }: Props) {
-  const { isAdmin, isGestor, isFinanceiro, isLogistica, isSupport, signOut } = useAuth();
+  const { isAdmin, isGestor, isFinanceiro, isLogistica, isSupport, isSupportTech, isSupportManager, signOut } = useAuth();
   const location = useLocation();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -172,6 +176,41 @@ export default function AppSidebar({ onNavigate }: Props) {
     );
   }
 
+  const isSupportOnly = isSupport && !isAdmin && !isGestor && !isFinanceiro && !isLogistica;
+
+  if (isSupportOnly) {
+    return (
+      <aside className="w-full md:w-64 h-full md:h-screen md:fixed md:left-0 md:top-0 flex flex-col border-r border-sidebar-border"
+        style={{ background: 'var(--gradient-sidebar)' }}>
+        <div className="p-4 flex items-center gap-3">
+          <img src="/mci-logo.png" alt="MCI Store" className="h-10 w-auto" />
+          <div>
+            <h1 className="text-sm font-bold font-display text-sidebar-primary-foreground">MCI Store</h1>
+            <p className="text-[10px] text-sidebar-foreground/60">Suporte Técnico</p>
+          </div>
+        </div>
+        <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
+          {supportMenuItems.map(item => (
+            <LinkItem key={item.to} {...item} />
+          ))}
+        </nav>
+        <div className="p-4 border-t border-sidebar-border">
+          <div className="mb-3"><UserProfileEditor /></div>
+          <div className="flex items-center gap-2">
+            <button onClick={handleRefreshApp} disabled={refreshing}
+              className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]">
+              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} /> Atualizar
+            </button>
+            <button onClick={() => { signOut(); onNavigate?.(); }}
+              className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]">
+              <LogOut className="h-4 w-4" /> Sair
+            </button>
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside className="w-full md:w-64 h-full md:h-screen md:fixed md:left-0 md:top-0 flex flex-col border-r border-sidebar-border"
       style={{ background: 'var(--gradient-sidebar)' }}>
@@ -223,8 +262,8 @@ export default function AppSidebar({ onNavigate }: Props) {
                 <div className="pt-4 pb-2 px-3">
                   <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Admin</p>
                 </div>
-                {adminGestorItems.map(item => <LinkItem key={item.to} {...item} />)}
-                {isAdmin && adminOnlyItems.map(item => <LinkItem key={item.to} {...item} />)}
+                {[{ to: '/approvals', icon: UserCheck, label: 'Usuários' }].map(item => <LinkItem key={item.to} {...item} />)}
+                {isAdmin && [{ to: '/integrations', icon: Plug, label: 'Integrações' }].map(item => <LinkItem key={item.to} {...item} />)}
               </>
             )}
 
