@@ -37,7 +37,9 @@ const safeBooleanRpc = async (functionName: string): Promise<BooleanRpcResult> =
 
 const AuthContext = createContext<AuthContextType>({
   user: null, session: null, loading: true,
-  isApproved: false, isAdmin: false, isGestor: false, isFinanceiro: false, isLogistica: false, profile: null, forcePasswordChange: false,
+  isApproved: false, isAdmin: false, isGestor: false, isFinanceiro: false, isLogistica: false,
+  isSupportTech: false, isSupportManager: false, isSupport: false,
+  profile: null, forcePasswordChange: false,
   signOut: async () => {},
 });
 
