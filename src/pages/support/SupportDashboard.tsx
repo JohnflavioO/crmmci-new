@@ -138,19 +138,16 @@ export default function SupportDashboard() {
     <div className="space-y-6 pb-10">
       {/* Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar OS, Cliente ou Técnico..." 
-            className="pl-9 bg-white border-slate-200"
-          />
+        <div>
+          <h1 className="text-2xl font-bold font-display tracking-tight text-foreground">Dashboard Técnico</h1>
+          <p className="text-sm text-muted-foreground">Bem-vindo ao módulo de suporte MCI Tech</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2 border-slate-200">
+          <Button variant="outline" size="sm" className="gap-2">
             <Download className="h-4 w-4" />
             Exportar
           </Button>
-          <Button variant="outline" size="sm" className="gap-2 border-slate-200">
+          <Button variant="outline" size="sm" className="gap-2">
             <Filter className="h-4 w-4" />
             Filtros
           </Button>
