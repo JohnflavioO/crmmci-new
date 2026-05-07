@@ -32,40 +32,40 @@ import {
 } from 'recharts';
 
 const OS_STATUS_DATA = [
-  { name: 'Aguardando Peças', value: 400, color: '#f59e0b' },
-  { name: 'Em Manutenção', value: 300, color: '#3b82f6' },
-  { name: 'Finalizado', value: 300, color: '#10b981' },
-  { name: 'Entregue', value: 200, color: '#6366f1' },
+  { name: 'Aguardando Peças', value: 8, color: '#f59e0b' },
+  { name: 'Em Manutenção', value: 5, color: '#3b82f6' },
+  { name: 'Finalizado', value: 12, color: '#10b981' },
+  { name: 'Entregue', value: 15, color: '#6366f1' },
 ];
 
 const RECURRENT_FAILURES = [
-  { name: 'Não Liga', total: 45 },
-  { name: 'Troca de Tela', total: 32 },
-  { name: 'Bateria', total: 28 },
-  { name: 'Software', total: 15 },
-  { name: 'Carcaça', total: 12 },
+  { name: 'Tela Quebrada', total: 12 },
+  { name: 'Bateria Ruim', total: 8 },
+  { name: 'Câmera Não Foca', total: 6 },
+  { name: 'Não Liga', total: 5 },
+  { name: 'Botão Volume', total: 3 },
 ];
 
 const MOST_MAINTAINED = [
-  { name: 'iPhone 13', total: 24 },
-  { name: 'iPhone 12', total: 18 },
-  { name: 'S22 Ultra', total: 12 },
-  { name: 'MacBook Air', total: 8 },
+  { name: 'iPhone 13', total: 10 },
+  { name: 'iPhone 11', total: 8 },
   { name: 'iPad Pro', total: 5 },
+  { name: 'MacBook Air', total: 4 },
+  { name: 'iPhone XR', total: 3 },
 ];
 
 const MOST_USED_PRODUCTS = [
-  { name: 'Tela iPhone 13', total: 15 },
-  { name: 'Bateria iPhone 12', total: 12 },
-  { name: 'Conector de Carga', total: 10 },
-  { name: 'Parafuso Pentalobe', total: 8 },
-  { name: 'Cola B7000', total: 5 },
+  { name: 'Tela iPhone 13 Original', total: 12 },
+  { name: 'Bateria iPhone 11 High', total: 8 },
+  { name: 'Película Cerâmica', total: 15 },
+  { name: 'Parafuso Pentalobe', total: 24 },
+  { name: 'Conector de Carga 11', total: 4 },
 ];
 
 const OS_BY_CATEGORY = [
-  { name: 'Garantia', value: 150, color: '#ec4899' },
-  { name: 'Orçamento', value: 350, color: '#8b5cf6' },
-  { name: 'Retrabalho', value: 50, color: '#ef4444' },
+  { name: 'Garantia', value: 12, color: '#ec4899' },
+  { name: 'Orçamento', value: 38, color: '#8b5cf6' },
+  { name: 'Cortesia', value: 5, color: '#ef4444' },
 ];
 
 export default function SupportReports() {
@@ -151,7 +151,7 @@ export default function SupportReports() {
           <div className="p-3 bg-green-50 rounded-full mb-3">
             <FileText className="h-6 w-6 text-green-600" />
           </div>
-          <span className="text-3xl font-bold">1.248</span>
+          <span className="text-3xl font-bold">40</span>
           <span className="text-xs font-bold uppercase text-muted-foreground mt-1">Ordens de Serviços</span>
         </Card>
 
@@ -159,7 +159,7 @@ export default function SupportReports() {
           <div className="p-3 bg-purple-50 rounded-full mb-3">
             <Building2 className="h-6 w-6 text-purple-600" />
           </div>
-          <span className="text-3xl font-bold">452</span>
+          <span className="text-3xl font-bold">12</span>
           <span className="text-xs font-bold uppercase text-muted-foreground mt-1">Empresa</span>
         </Card>
 
@@ -167,7 +167,7 @@ export default function SupportReports() {
           <div className="p-3 bg-orange-50 rounded-full mb-3">
             <UserCircle className="h-6 w-6 text-orange-600" />
           </div>
-          <span className="text-3xl font-bold">894</span>
+          <span className="text-3xl font-bold">85</span>
           <span className="text-xs font-bold uppercase text-muted-foreground mt-1">Contatos</span>
         </Card>
       </div>
