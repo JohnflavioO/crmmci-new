@@ -36,7 +36,7 @@ export default function SupportSidebar({ onNavigate }: { onNavigate?: () => void
         </div>
       </div>
 
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-4 space-y-1 overflow-y-auto mt-2">
         {items.map(({ to, icon: Icon, label, end }) => {
           const active = end ? pathname === to : pathname === to || pathname.startsWith(to + '/');
           return (
@@ -45,26 +45,34 @@ export default function SupportSidebar({ onNavigate }: { onNavigate?: () => void
               to={to}
               onClick={onNavigate}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]',
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 min-h-[40px]',
                 active
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
+                  ? 'bg-slate-50 text-slate-900 shadow-sm ring-1 ring-slate-200/50'
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
               )}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className={cn("h-4 w-4", active ? "text-blue-600" : "text-slate-400")} />
               {label}
             </NavLink>
           );
         })}
       </nav>
 
-      <div className="p-4 border-t border-sidebar-border space-y-2">
+      <div className="p-4 border-t border-slate-50 space-y-4">
         {profile?.full_name && (
-          <p className="text-xs text-sidebar-foreground/60 truncate">{profile.full_name}</p>
+          <div className="px-2 flex items-center gap-2">
+            <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
+              {profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-900 truncate">{profile.full_name}</p>
+              <p className="text-[10px] text-slate-500 truncate capitalize">{profile.role?.replace('_', ' ')}</p>
+            </div>
+          </div>
         )}
         <button
           onClick={() => { signOut(); onNavigate?.(); }}
-          className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors w-full min-h-[44px]"
+          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors w-full"
         >
           <LogOut className="h-4 w-4" /> Sair
         </button>
