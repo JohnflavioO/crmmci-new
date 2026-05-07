@@ -34,7 +34,8 @@ export default function SupportOrders() {
   const [open, setOpen] = useState(params.get('new') === 'true');
   const [form, setForm] = useState<any>({
     client_id: '', client_name: '', equipment: '', brand: '', model: '', serial: '',
-    reported_defect: '', status: 'recebido',
+    reported_defect: '', status: 'recebido', os_type: 'Corretiva',
+    entry_date: new Date().toISOString().split('T')[0]
   });
 
   const load = async () => {
@@ -77,20 +78,42 @@ export default function SupportOrders() {
           <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova OS</Button></DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Nova Ordem de Serviço</DialogTitle></DialogHeader>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 pt-4">
               <div className="col-span-2">
                 <Label>Cliente</Label>
                 <Select value={form.client_id} onValueChange={v => setForm({ ...form, client_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Selecione o cliente..." /></SelectTrigger>
                   <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="col-span-2"><Label>Equipamento</Label><Input value={form.equipment} onChange={e => setForm({ ...form, equipment: e.target.value })} /></div>
+              <div>
+                <Label>Tipo de OS</Label>
+                <Select value={form.os_type} onValueChange={v => setForm({ ...form, os_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Corretiva">Corretiva</SelectItem>
+                    <SelectItem value="Preventiva">Preventiva</SelectItem>
+                    <SelectItem value="Garantia">Garantia</SelectItem>
+                    <SelectItem value="Orçamento">Orçamento</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Data de Entrada</Label>
+                <Input type="date" value={form.entry_date} onChange={e => setForm({ ...form, entry_date: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <Label>Equipamento</Label>
+                <Input value={form.equipment} placeholder="Ex: Câmera Sony A7III" onChange={e => setForm({ ...form, equipment: e.target.value })} />
+              </div>
               <div><Label>Marca</Label><Input value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} /></div>
               <div><Label>Modelo</Label><Input value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} /></div>
-              <div className="col-span-2"><Label>Serial</Label><Input value={form.serial} onChange={e => setForm({ ...form, serial: e.target.value })} /></div>
-              <div className="col-span-2"><Label>Defeito Relatado</Label><Textarea value={form.reported_defect} onChange={e => setForm({ ...form, reported_defect: e.target.value })} /></div>
-              <Button onClick={save} className="col-span-2">Criar OS</Button>
+              <div className="col-span-2"><Label>Serial / Número de Série</Label><Input value={form.serial} onChange={e => setForm({ ...form, serial: e.target.value })} /></div>
+              <div className="col-span-2"><Label>Defeito Relatado / Observações</Label><Textarea value={form.reported_defect} placeholder="Descreva o problema relatado pelo cliente..." onChange={e => setForm({ ...form, reported_defect: e.target.value })} /></div>
+              <div className="col-span-2 flex justify-end gap-2 mt-4">
+                <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button onClick={save} className="bg-[#00966d] hover:bg-[#007a58]">Criar Ordem de Serviço</Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

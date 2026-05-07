@@ -1318,48 +1318,60 @@ export type Database = {
       technical_clients: {
         Row: {
           address: string | null
+          city: string | null
           company_id: string | null
           cpf_cnpj: string | null
           created_at: string
           created_by: string | null
+          document_type: string | null
           email: string | null
           equipments: Json | null
           id: string
           name: string
           notes: string | null
           phone: string | null
+          state: string | null
           updated_at: string
           whatsapp: string | null
+          zip_code: string | null
         }
         Insert: {
           address?: string | null
+          city?: string | null
           company_id?: string | null
           cpf_cnpj?: string | null
           created_at?: string
           created_by?: string | null
+          document_type?: string | null
           email?: string | null
           equipments?: Json | null
           id?: string
           name: string
           notes?: string | null
           phone?: string | null
+          state?: string | null
           updated_at?: string
           whatsapp?: string | null
+          zip_code?: string | null
         }
         Update: {
           address?: string | null
+          city?: string | null
           company_id?: string | null
           cpf_cnpj?: string | null
           created_at?: string
           created_by?: string | null
+          document_type?: string | null
           email?: string | null
           equipments?: Json | null
           id?: string
           name?: string
           notes?: string | null
           phone?: string | null
+          state?: string | null
           updated_at?: string
           whatsapp?: string | null
+          zip_code?: string | null
         }
         Relationships: []
       }
@@ -1419,22 +1431,27 @@ export type Database = {
           company_id: string | null
           created_at: string
           created_by: string | null
+          entry_date: string | null
           equipment: string | null
           estimated_date: string | null
+          exit_date: string | null
           id: string
           labor_value: number
           model: string | null
           os_number: string
+          os_type: string | null
           parts_value: number
           photos: Json | null
           public_token: string | null
           reported_defect: string | null
           serial: string | null
+          services_value: number | null
           shipping_value: number
           status: string
           technical_diagnosis: string | null
           technician_id: string | null
           technician_name: string | null
+          technician_notes: string | null
           total_value: number
           updated_at: string
           warranty: string | null
@@ -1447,22 +1464,27 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           created_by?: string | null
+          entry_date?: string | null
           equipment?: string | null
           estimated_date?: string | null
+          exit_date?: string | null
           id?: string
           labor_value?: number
           model?: string | null
           os_number?: string
+          os_type?: string | null
           parts_value?: number
           photos?: Json | null
           public_token?: string | null
           reported_defect?: string | null
           serial?: string | null
+          services_value?: number | null
           shipping_value?: number
           status?: string
           technical_diagnosis?: string | null
           technician_id?: string | null
           technician_name?: string | null
+          technician_notes?: string | null
           total_value?: number
           updated_at?: string
           warranty?: string | null
@@ -1475,22 +1497,27 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           created_by?: string | null
+          entry_date?: string | null
           equipment?: string | null
           estimated_date?: string | null
+          exit_date?: string | null
           id?: string
           labor_value?: number
           model?: string | null
           os_number?: string
+          os_type?: string | null
           parts_value?: number
           photos?: Json | null
           public_token?: string | null
           reported_defect?: string | null
           serial?: string | null
+          services_value?: number | null
           shipping_value?: number
           status?: string
           technical_diagnosis?: string | null
           technician_id?: string | null
           technician_name?: string | null
+          technician_notes?: string | null
           total_value?: number
           updated_at?: string
           warranty?: string | null
@@ -1507,6 +1534,7 @@ export type Database = {
       }
       technical_products: {
         Row: {
+          brand: string | null
           category: string | null
           code: string | null
           company_id: string | null
@@ -1524,9 +1552,11 @@ export type Database = {
           price: number
           quantity: number
           unit_measure: string | null
+          unit_price: number | null
           updated_at: string
         }
         Insert: {
+          brand?: string | null
           category?: string | null
           code?: string | null
           company_id?: string | null
@@ -1544,9 +1574,11 @@ export type Database = {
           price?: number
           quantity?: number
           unit_measure?: string | null
+          unit_price?: number | null
           updated_at?: string
         }
         Update: {
+          brand?: string | null
           category?: string | null
           code?: string | null
           company_id?: string | null
@@ -1564,6 +1596,7 @@ export type Database = {
           price?: number
           quantity?: number
           unit_measure?: string | null
+          unit_price?: number | null
           updated_at?: string
         }
         Relationships: []

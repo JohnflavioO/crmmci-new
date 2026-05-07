@@ -25,6 +25,9 @@ export default function SupportClients() {
     whatsapp: '', 
     email: '', 
     address: '', 
+    city: '',
+    state: '',
+    zip_code: '',
     notes: '' 
   });
 
@@ -121,12 +124,22 @@ export default function SupportClients() {
               {step === 2 && (
                 <>
                   <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">Endereço</Label>
+                    <Label className="text-sm font-medium">Endereço Completo</Label>
                     <Input 
-                      placeholder=""
+                      placeholder="Rua, número, bairro..."
                       value={form.address} 
                       onChange={e => setForm({ ...form, address: e.target.value })} 
                     />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2 space-y-1.5">
+                      <Label className="text-sm font-medium">Cidade</Label>
+                      <Input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium">UF</Label>
+                      <Input value={form.state} onChange={e => setForm({ ...form, state: e.target.value })} />
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-sm font-medium">WhatsApp (opcional)</Label>

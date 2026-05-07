@@ -196,8 +196,8 @@ export default function SupportStock() {
           <div className="flex flex-wrap gap-2 items-center justify-between">
             <div className="flex gap-2">
               <Badge variant="secondary" className="cursor-pointer bg-primary text-white px-3 py-1">Todos</Badge>
-              {CATEGORIES.slice(0, 3).map(c => (
-                <Badge key={c} variant="outline" className="cursor-pointer hover:bg-muted px-3 py-1">{c}</Badge>
+              {brands.slice(0, 5).map(b => (
+                <Badge key={b.id} variant="outline" className="cursor-pointer hover:bg-muted px-3 py-1">{b.name}</Badge>
               ))}
             </div>
             <div className="flex gap-2">
