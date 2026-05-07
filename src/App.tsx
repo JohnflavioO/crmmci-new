@@ -37,7 +37,7 @@ import SupportClients from "./pages/support/SupportClients";
 import SupportStock from "./pages/support/SupportStock";
 import SupportOrders from "./pages/support/SupportOrders";
 import SupportOrderDetail from "./pages/support/SupportOrderDetail";
-import SupportServices from "./pages/support/SupportServices";
+
 import SupportPurchases from "./pages/support/SupportPurchases";
 import SupportBudgets from "./pages/support/SupportBudgets";
 import SupportCloud from "./pages/support/SupportCloud";
@@ -178,7 +178,7 @@ function AppRoutes() {
       {(isSupport || isAdmin) && (
         <Route path="/suporte" element={<SupportLayout />}>
           <Route index element={<SupportDashboard />} />
-          <Route path="servicos" element={<SupportServices />} />
+          
           <Route path="estoque" element={<SupportStock />} />
           <Route path="clientes" element={<SupportClients />} />
           <Route path="os" element={<SupportOrders />} />
