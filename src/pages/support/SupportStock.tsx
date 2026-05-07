@@ -168,15 +168,13 @@ export default function SupportStock() {
                 </div>
 
                 <div className="col-span-2">
-                  <Label className="text-sm font-medium">Unidade de Medida</Label>
-                  <Select value={form.unit_measure} onValueChange={v => setForm({ ...form, unit_measure: v })}>
-                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {['UN', 'MT', 'KG', 'PCT', 'CX', 'LITRO'].map(u => (
-                        <SelectItem key={u} value={u}>{u}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-sm font-medium">Un. por Pacote</Label>
+                  <Input 
+                    placeholder="Ex: 10"
+                    value={form.unit_measure} 
+                    onChange={e => setForm({ ...form, unit_measure: e.target.value })} 
+                    className="mt-1.5"
+                  />
                 </div>
 
                 <div className="col-span-2">
