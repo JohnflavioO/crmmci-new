@@ -143,12 +143,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const fetchData = async () => {
       try {
         console.log('[Auth] Fetching user data for:', user.id);
-        const [approvedRes, adminRes, gestorRes, financeiroRes, logisticaRes, profileRes] = await Promise.all([
+        const [approvedRes, adminRes, gestorRes, financeiroRes, logisticaRes, supportTechRes, supportManagerRes, profileRes] = await Promise.all([
           safeBooleanRpc('is_approved'),
           safeBooleanRpc('is_admin'),
           safeBooleanRpc('is_gestor'),
           safeBooleanRpc('is_financeiro'),
           safeBooleanRpc('is_logistica'),
+          safeBooleanRpc('is_support_tech'),
+          safeBooleanRpc('is_support_manager'),
           supabase.from('profiles').select('full_name, phone, role, avatar_url, force_password_change, company_id').eq('user_id', user.id).maybeSingle(),
         ]);
 
