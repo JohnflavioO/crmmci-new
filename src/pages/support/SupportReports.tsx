@@ -215,20 +215,8 @@ export default function SupportReports() {
           <CardHeader>
             <CardTitle className="text-sm font-bold uppercase text-muted-foreground">Produtos Mais Utilizados</CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
-            <div className="px-6 py-2 space-y-4">
-              {MOST_USED_PRODUCTS.map((product, i) => (
-                <div key={i} className="flex items-center justify-between border-b border-muted pb-3 last:border-0 last:pb-0">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">{product.name}</span>
-                    <span className="text-[10px] text-muted-foreground uppercase font-bold">Consumo: {product.total} un.</span>
-                  </div>
-                  <div className="p-1.5 bg-muted rounded-md font-mono text-xs font-bold text-primary">
-                    #{i + 1}
-                  </div>
-                </div>
-              ))}
-            </div>
+          <CardContent className="h-[250px] flex items-center justify-center p-0 text-muted-foreground italic text-sm">
+            Nenhum produto utilizado
           </CardContent>
         </Card>
 
