@@ -630,10 +630,13 @@ export default function SupportStock() {
                       </TableCell>
                       <TableCell>
                         <Badge variant={
-                          m.status === 'Pronto' ? 'success' : 
-                          m.status === 'Em Manutenção' ? 'warning' : 
+                          m.status === 'Pronto' ? 'default' : 
+                          m.status === 'Em Manutenção' ? 'secondary' : 
                           m.status === 'Entregue' ? 'outline' : 'secondary'
-                        } className="font-normal">
+                        } className={`font-normal ${
+                          m.status === 'Pronto' ? 'bg-green-500 hover:bg-green-600 text-white' : 
+                          m.status === 'Em Manutenção' ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : ''
+                        }`}>
                           {m.status}
                         </Badge>
                       </TableCell>
