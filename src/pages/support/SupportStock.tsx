@@ -161,13 +161,33 @@ export default function SupportStock() {
             </DialogContent>
           </Dialog>
           
-          <Button variant="outline" className="gap-2">
-            <Tags className="h-4 w-4" /> Categorias
-          </Button>
-          <Button variant="outline" className="gap-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Tags className="h-4 w-4" /> Categorias
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Categorias Disponíveis</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-2 pt-4">
+                {CATEGORIES.map(c => (
+                  <div key={c} className="flex items-center justify-between p-2 border rounded-md">
+                    <span>{c}</span>
+                    <Badge variant="secondary">Padrao</Badge>
+                  </div>
+                ))}
+                <p className="text-xs text-muted-foreground pt-2 italic">As categorias são predefinidas no sistema.</p>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Button variant="outline" className="gap-2" onClick={() => toast.info('Funcionalidade de histórico será implementada em breve.')}>
             <History className="h-4 w-4" /> Histórico
           </Button>
-          <Button variant="outline" className="gap-2">
+          
+          <Button variant="outline" className="gap-2" onClick={() => window.print()}>
             <Printer className="h-4 w-4" /> Imprimir Estoque
           </Button>
         </div>
