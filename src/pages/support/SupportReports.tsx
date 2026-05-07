@@ -177,7 +177,7 @@ export default function SupportReports() {
         {/* Status das O.S. */}
         <Card className="border-border shadow-sm col-span-1">
           <CardHeader>
-            <CardTitle className="text-sm font-bold uppercase text-muted-foreground">Status das O.S.</CardTitle>
+            <CardTitle className="text-sm font-bold uppercase text-muted-foreground">STATUS DAS O.S.</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
