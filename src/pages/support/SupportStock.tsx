@@ -173,6 +173,93 @@ export default function SupportStock() {
           <p className="text-sm text-muted-foreground italic">Controle de peças e insumos técnicos</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Dialog open={maintenanceOpen} onOpenChange={(o) => { setMaintenanceOpen(o); if (!o) setEditingMaintenance(null); }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2 border-primary text-primary hover:bg-primary/5">
+                <Wrench className="h-4 w-4" /> Manutenção
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{editingMaintenance ? 'Editar Manutenção' : 'Nova Manutenção'}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Marca</Label>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 px-1 text-primary flex items-center gap-1 hover:bg-transparent"
+                        onClick={() => setBrandDialogOpen(true)}
+                      >
+                        <PlusCircle className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <Select value={mForm.brand} onValueChange={v => setMForm({ ...mForm, brand: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {brands.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Modelo</Label>
+                    <Input 
+                      placeholder="Ex: 600d Pro" 
+                      value={mForm.model} 
+                      onChange={e => setMForm({ ...mForm, model: e.target.value })} 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>O que fazer? (Serviço)</Label>
+                  <Textarea 
+                    placeholder="Descreva o problema ou serviço..." 
+                    value={mForm.description} 
+                    onChange={e => setMForm({ ...mForm, description: e.target.value })} 
+                    className="min-h-[80px]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Técnico</Label>
+                    <Input 
+                      placeholder="Nome do técnico" 
+                      value={mForm.technician} 
+                      onChange={e => setMForm({ ...mForm, technician: e.target.value })} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={mForm.status} onValueChange={v => setMForm({ ...mForm, status: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {MAINTENANCE_STATUS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Observações Internas</Label>
+                  <Input 
+                    placeholder="Notas extras..." 
+                    value={mForm.notes} 
+                    onChange={e => setMForm({ ...mForm, notes: e.target.value })} 
+                  />
+                </div>
+
+                <Button onClick={saveMaintenance} className="w-full">
+                  {editingMaintenance ? 'Salvar Alterações' : 'Cadastrar Manutenção'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditingItem(null); }}>
             <DialogTrigger asChild>
               <Button className="bg-primary hover:bg-primary/90">
