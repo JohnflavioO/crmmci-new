@@ -11,6 +11,9 @@ interface AuthContextType {
   isGestor: boolean;
   isFinanceiro: boolean;
   isLogistica: boolean;
+  isSupportTech: boolean;
+  isSupportManager: boolean;
+  isSupport: boolean;
   profile: { full_name: string; phone: string; role: string; avatar_url?: string; company_id?: string } | null;
   forcePasswordChange: boolean;
   signOut: () => Promise<void>;
