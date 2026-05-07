@@ -194,6 +194,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsGestor(gestorRes.data === true || normalizedRole === 'gestor');
         setIsFinanceiro(financeiroRes.data === true || normalizedRole === 'financeiro');
         setIsLogistica(logisticaRes.data === true || normalizedRole === 'logistica');
+        setIsSupportTech(supportTechRes.data === true || normalizedRole === 'support_tech');
+        setIsSupportManager(supportManagerRes.data === true || normalizedRole === 'support_manager');
         setProfile(profileRes.data as any);
         setForcePasswordChange(profileRes.data?.force_password_change === true);
         
