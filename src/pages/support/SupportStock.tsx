@@ -491,102 +491,187 @@ export default function SupportStock() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Pesquise por nome, código ou fabricante..." 
-            className="pl-9"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-        <Button variant="outline" className="gap-2">
-          <SlidersHorizontal className="h-4 w-4" /> Filtros
-        </Button>
-      </div>
+      <Tabs defaultValue="stock" className="w-full">
+        <TabsList className="bg-muted/50 p-1">
+          <TabsTrigger value="stock" className="gap-2">
+            <Package className="h-4 w-4" /> Estoque de Peças
+          </TabsTrigger>
+          <TabsTrigger value="maintenance" className="gap-2">
+            <Wrench className="h-4 w-4" /> Manutenções
+          </TabsTrigger>
+        </TabsList>
 
-      <Card className="border-none shadow-sm overflow-hidden">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-muted/30">
-              <TableRow>
-                <TableHead className="w-[80px]">ID</TableHead>
-                <TableHead>Nome do Item</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead className="text-center">Qtd Atual</TableHead>
-                <TableHead className="text-right">Valor Unit.</TableHead>
-                <TableHead className="text-right">Valor Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((item, idx) => {
-                const status = getStatus(item);
-                const total = item.quantity * (Number(item.price) || 0);
-                return (
-                  <TableRow key={item.id} className="hover:bg-muted/20 transition-colors">
-                    <TableCell className="text-xs text-muted-foreground">#{idx + 1}</TableCell>
-                    <TableCell>
-                      <div className="font-medium">{item.name}</div>
-                      <div className="text-xs text-muted-foreground">{item.code || '-'}</div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="font-normal">{item.category}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center font-semibold">
-                      {item.quantity}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      R$ {Number(item.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <div className={`h-2 w-2 rounded-full ${
-                          status.color === 'success' ? 'bg-green-500' : 
-                          status.color === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
-                        }`} />
-                        <span className="text-sm">{status.label}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(item)}>
-                            <Pencil className="h-4 w-4 mr-2" /> Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(item.id)}>
-                            <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+        <TabsContent value="stock" className="mt-6 space-y-6">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Pesquise por nome, código ou fabricante..." 
+                className="pl-9"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+            <Button variant="outline" className="gap-2">
+              <SlidersHorizontal className="h-4 w-4" /> Filtros
+            </Button>
+          </div>
+
+          <Card className="border-none shadow-sm overflow-hidden">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow>
+                    <TableHead className="w-[80px]">ID</TableHead>
+                    <TableHead>Nome do Item</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead className="text-center">Qtd Atual</TableHead>
+                    <TableHead className="text-right">Valor Unit.</TableHead>
+                    <TableHead className="text-right">Valor Total</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
-                );
-              })}
-              {filtered.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10">
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <Package className="h-10 w-10 opacity-20" />
-                      <p>Nenhum item encontrado no estoque.</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((item, idx) => {
+                    const status = getStatus(item);
+                    const total = item.quantity * (Number(item.price) || 0);
+                    return (
+                      <TableRow key={item.id} className="hover:bg-muted/20 transition-colors">
+                        <TableCell className="text-xs text-muted-foreground">#{idx + 1}</TableCell>
+                        <TableCell>
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-xs text-muted-foreground">{item.code || '-'}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-normal">{item.category}</Badge>
+                        </TableCell>
+                        <TableCell className="text-center font-semibold">
+                          {item.quantity}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          R$ {Number(item.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            <div className={`h-2 w-2 rounded-full ${
+                              status.color === 'success' ? 'bg-green-500' : 
+                              status.color === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
+                            }`} />
+                            <span className="text-sm">{status.label}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(item)}>
+                                <Pencil className="h-4 w-4 mr-2" /> Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(item.id)}>
+                                <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {filtered.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-10">
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                          <Package className="h-10 w-10 opacity-20" />
+                          <p>Nenhum item encontrado no estoque.</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="maintenance" className="mt-6">
+          <Card className="border-none shadow-sm overflow-hidden">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow>
+                    <TableHead>Equipamento</TableHead>
+                    <TableHead>Serviço / Problema</TableHead>
+                    <TableHead>Técnico</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {maintenances.map((m) => (
+                    <TableRow key={m.id} className="hover:bg-muted/20 transition-colors">
+                      <TableCell>
+                        <div className="font-medium">{m.model}</div>
+                        <div className="text-xs text-muted-foreground">{m.brand}</div>
+                      </TableCell>
+                      <TableCell className="max-w-[300px] truncate">
+                        {m.description}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          {m.technician || '-'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={
+                          m.status === 'Pronto' ? 'success' : 
+                          m.status === 'Em Manutenção' ? 'warning' : 
+                          m.status === 'Entregue' ? 'outline' : 'secondary'
+                        } className="font-normal">
+                          {m.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditMaintenance(m)}>
+                              <Pencil className="h-4 w-4 mr-2" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteMaintenance(m.id)}>
+                              <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {maintenances.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-10">
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                          <Wrench className="h-10 w-10 opacity-20" />
+                          <p>Nenhuma manutenção registrada.</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
