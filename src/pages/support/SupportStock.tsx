@@ -99,20 +99,30 @@ export default function SupportStock() {
           <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditingItem(null); }}>
             <DialogTrigger asChild>
               <Button className="bg-primary hover:bg-primary/90">
-                <Plus className="h-4 w-4 mr-2" /> Novo Produto
+                <Plus className="h-4 w-4 mr-2" /> Nova Peça
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>{editingItem ? 'Editar Peça' : 'Novo Produto'}</DialogTitle>
+                <DialogTitle>{editingItem ? 'Editar Peça' : 'Nova Peça'}</DialogTitle>
               </DialogHeader>
               <div className="grid grid-cols-6 gap-4 pt-4">
-                <div className="col-span-6">
-                  <Label className="text-sm font-medium">Produto</Label>
+                <div className="col-span-3">
+                  <Label className="text-sm font-medium">Nome da Peça</Label>
                   <Input 
-                    placeholder="Nome da peça ou insumo"
+                    placeholder="Nome da peça"
                     value={form.name} 
                     onChange={e => setForm({ ...form, name: e.target.value })} 
+                    className="mt-1.5"
+                  />
+                </div>
+
+                <div className="col-span-3">
+                  <Label className="text-sm font-medium">Código / Part Number</Label>
+                  <Input 
+                    placeholder="Ex: PN-12345"
+                    value={form.code} 
+                    onChange={e => setForm({ ...form, code: e.target.value })} 
                     className="mt-1.5"
                   />
                 </div>
@@ -128,11 +138,21 @@ export default function SupportStock() {
                 </div>
 
                 <div className="col-span-3">
-                  <Label className="text-sm font-medium">Fornecedor</Label>
+                  <Label className="text-sm font-medium">Fabricante / Fornecedor</Label>
                   <Input 
-                    placeholder="Nome do fornecedor"
+                    placeholder="Nome do fabricante"
                     value={form.manufacturer} 
                     onChange={e => setForm({ ...form, manufacturer: e.target.value })} 
+                    className="mt-1.5"
+                  />
+                </div>
+
+                <div className="col-span-6">
+                  <Label className="text-sm font-medium">Compatibilidade (Modelos)</Label>
+                  <Input 
+                    placeholder="Ex: Aputure 600d, 1200d..."
+                    value={form.compatibility} 
+                    onChange={e => setForm({ ...form, compatibility: e.target.value })} 
                     className="mt-1.5"
                   />
                 </div>
@@ -140,7 +160,7 @@ export default function SupportStock() {
                 <div className="col-span-2">
                   <Label className="text-sm font-medium">Localização</Label>
                   <Input 
-                    placeholder="Ex: Prateleira A1"
+                    placeholder="Gaveta B2"
                     value={form.location} 
                     onChange={e => setForm({ ...form, location: e.target.value })} 
                     className="mt-1.5"
@@ -148,7 +168,19 @@ export default function SupportStock() {
                 </div>
 
                 <div className="col-span-2">
-                  <Label className="text-sm font-medium">Preço de Custo (R$)</Label>
+                  <Label className="text-sm font-medium">Unidade de Medida</Label>
+                  <Select value={form.unit_measure} onValueChange={v => setForm({ ...form, unit_measure: v })}>
+                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {['UN', 'MT', 'KG', 'PCT', 'CX', 'LITRO'].map(u => (
+                        <SelectItem key={u} value={u}>{u}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="col-span-2">
+                  <Label className="text-sm font-medium">Custo (R$)</Label>
                   <Input 
                     type="number" 
                     step="0.01" 
@@ -172,7 +204,7 @@ export default function SupportStock() {
                 </div>
 
                 <div className="col-span-2">
-                  <Label className="text-sm font-medium">Estoque Inicial</Label>
+                  <Label className="text-sm font-medium">Qtd em Estoque</Label>
                   <Input 
                     type="number" 
                     value={form.quantity} 
@@ -191,30 +223,18 @@ export default function SupportStock() {
                   />
                 </div>
 
-                <div className="col-span-2">
-                  <Label className="text-sm font-medium">Unidade de Medida</Label>
-                  <Select value={form.unit_measure} onValueChange={v => setForm({ ...form, unit_measure: v })}>
-                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {['UN', 'MT', 'KG', 'PCT', 'CX', 'LITRO'].map(u => (
-                        <SelectItem key={u} value={u}>{u}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 <div className="col-span-6">
-                  <Label className="text-sm font-medium">Descrição</Label>
+                  <Label className="text-sm font-medium">Observações</Label>
                   <Textarea 
-                    placeholder="Detalhes adicionais sobre o produto..."
+                    placeholder="Detalhes técnicos adicionais..."
                     value={form.notes} 
                     onChange={e => setForm({ ...form, notes: e.target.value })} 
-                    className="mt-1.5 min-h-[100px]"
+                    className="mt-1.5 min-h-[80px]"
                   />
                 </div>
 
                 <Button onClick={save} className="col-span-6 mt-2 bg-primary hover:bg-primary/90">
-                  {editingItem ? 'Salvar Alterações' : 'Salvar Produto'}
+                  {editingItem ? 'Salvar Alterações' : 'Cadastrar Peça'}
                 </Button>
               </div>
             </DialogContent>
