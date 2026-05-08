@@ -1380,10 +1380,24 @@ export default function Quotes() {
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Desconto (%)</Label>
-                          <Input type="number" step="0.1" min={0} max={100} value={item.discount_percent === 0 ? '' : item.discount_percent} disabled={item.is_gift}
-                            onChange={e => updateItem(idx, 'discount_percent', e.target.value)} 
-                            onFocus={e => e.target.select()}
-                            className={item.is_gift ? 'opacity-50' : ''} />
+                          <div className="relative">
+                            <Input 
+                              type="number" 
+                              step="0.1" 
+                              min={0} 
+                              max={100} 
+                              value={item.discount_percent === 0 ? '' : item.discount_percent} 
+                              disabled={item.is_gift}
+                              onChange={e => updateItem(idx, 'discount_percent', e.target.value)} 
+                              onFocus={e => e.target.select()}
+                              className={cn("pr-7", item.is_gift && "opacity-50")} 
+                            />
+                            {item.discount_percent !== 0 && item.discount_percent !== '' && !item.is_gift && (
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                                %
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Valor Unit.</Label>
