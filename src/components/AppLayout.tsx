@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import AppSidebar from './AppSidebar';
 import mciLogoMobile from '@/assets/mci-logo-mobile.png';
 import NotificationBell from './NotificationBell';
@@ -7,10 +7,29 @@ import PWAInstallPrompt from './PWAInstallPrompt';
 import { Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const { isSupportOnly, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && isSupportOnly) {
+      console.log('[AppLayout] Restricted access: support_tech redirected to support dashboard');
+      navigate('/suporte');
+    }
+  }, [isSupportOnly, loading, navigate]);
+
+  if (loading || isSupportOnly) {
+    return (
+      <div className="min-h-screen bg-[#0f2b26] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+      </div>
+    );
+  }
 
   if (isMobile) {
     return (

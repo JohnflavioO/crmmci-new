@@ -2,9 +2,10 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
   LayoutDashboard, Package, Users, ClipboardList, ShoppingCart, FileText,
-  Cloud, BarChart3, Wrench, LogOut,
+  Cloud, BarChart3, Wrench, LogOut, ArrowLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 const items = [
   { to: '/suporte', icon: LayoutDashboard, label: 'Dashboard', end: true },
@@ -20,8 +21,11 @@ const items = [
 ];
 
 export default function SupportSidebar({ onNavigate }: { onNavigate?: () => void }) {
-  const { signOut, profile } = useAuth();
+  const { signOut, profile, isAdmin, isGestor } = useAuth();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+
+  const canGoBackToCRM = isAdmin || isGestor;
 
   return (
     <aside 
@@ -58,7 +62,19 @@ export default function SupportSidebar({ onNavigate }: { onNavigate?: () => void
         })}
       </nav>
 
-      <div className="p-4 border-t border-sidebar-border space-y-4">
+      <div className="p-4 border-t border-sidebar-border space-y-2">
+        {canGoBackToCRM && (
+          <button
+            onClick={() => {
+              navigate('/dashboard');
+              onNavigate?.();
+            }}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px] bg-emerald-600/10 text-emerald-400 hover:bg-emerald-600/20 w-full"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            Voltar ao CRM
+          </button>
+        )}
         {profile?.full_name && (
           <div className="px-2 flex items-center gap-2">
             <div className="h-8 w-8 rounded-full bg-sidebar-accent/50 flex items-center justify-center text-[10px] font-bold text-sidebar-foreground">
