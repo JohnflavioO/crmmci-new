@@ -84,8 +84,8 @@ function computeTopClients(quotes: any[]) {
 export default function Dashboard() {
   const { user, isGestor, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  // Ajustado: Gestores e Admins veem o dashboard do time.
-  const canSeeTeam = isGestor || isAdmin;
+  // Ajustado: Apenas Gestores veem o dashboard do time.
+  const canSeeTeam = isGestor;
 
   const [allQuotes, setAllQuotes] = useState<any[]>([]);
   const [myClientsCount, setMyClientsCount] = useState(0);
@@ -447,7 +447,7 @@ export default function Dashboard() {
     );
   }
 
-  // Team dashboard for gestor/admin
+  // Team dashboard for gestor
   const teamPendingFollowUps = Array.isArray(teamRecentQuotes) ? teamRecentQuotes.filter(q => {
     if (!q.followup_date) return false;
     try {
