@@ -379,7 +379,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       item.brand || '',
       String(item.quantity || 1),
       isGift ? 'BRINDE' : fmt(unitPrice),
-      isGift ? '-' : (discPct ? `${Number(discPct.toFixed(2))}%` : ''),
+      isGift ? '-' : (discPct > 0 ? `${Number(discPct.toFixed(2))}%` : ''),
       isGift ? 'BRINDE' : fmt(priceWithDisc),
       isGift ? 'BRINDE' : fmt(parseFloat(item.line_total || item.total_price) || 0),
     ];
