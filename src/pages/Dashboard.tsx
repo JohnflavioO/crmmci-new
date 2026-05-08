@@ -447,7 +447,7 @@ export default function Dashboard() {
     );
   }
 
-  // Team dashboard for gestor/admin
+  // Team dashboard for gestor
   const teamPendingFollowUps = Array.isArray(teamRecentQuotes) ? teamRecentQuotes.filter(q => {
     if (!q.followup_date) return false;
     try {
