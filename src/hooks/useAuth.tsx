@@ -14,6 +14,7 @@ interface AuthContextType {
   isSupportTech: boolean;
   isSupportManager: boolean;
   isSupport: boolean;
+  isSupportOnly: boolean;
   profile: { full_name: string; phone: string; role: string; avatar_url?: string; company_id?: string; can_access_support_manager?: boolean } | null;
   forcePasswordChange: boolean;
   signOut: () => Promise<void>;
@@ -38,7 +39,7 @@ const safeBooleanRpc = async (functionName: string): Promise<BooleanRpcResult> =
 const AuthContext = createContext<AuthContextType>({
   user: null, session: null, loading: true,
   isApproved: false, isAdmin: false, isGestor: false, isFinanceiro: false, isLogistica: false,
-  isSupportTech: false, isSupportManager: false, isSupport: false,
+  isSupportTech: false, isSupportManager: false, isSupport: false, isSupportOnly: false,
   profile: null, forcePasswordChange: false,
   signOut: async () => {},
 });
@@ -226,7 +227,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, isSupportTech, isSupportManager, isSupport: isSupportTech || isSupportManager, profile, forcePasswordChange, signOut }}>
+    <AuthContext.Provider value={{ 
+      user, session, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, 
+      isSupportTech, isSupportManager, isSupport: isSupportTech || isSupportManager, 
+      isSupportOnly: (isSupportTech || isSupportManager) && !isAdmin && !isGestor && !isFinanceiro && !isLogistica,
+      profile, forcePasswordChange, signOut 
+    }}>
       {children}
     </AuthContext.Provider>
   );
