@@ -175,7 +175,7 @@ function AppRoutes() {
       <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
 
       {/* Support module */}
-      {(isSupport || isAdmin) && (
+      {(isSupport || isAdmin || isGestor) && (
         <Route path="/suporte" element={<SupportLayout />}>
           <Route index element={<SupportDashboard />} />
           <Route path="dashboard" element={<SupportDashboard />} />

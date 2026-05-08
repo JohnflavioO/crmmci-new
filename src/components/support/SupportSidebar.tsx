@@ -72,7 +72,7 @@ export default function SupportSidebar({ onNavigate }: { onNavigate?: () => void
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px] bg-emerald-600/10 text-emerald-400 hover:bg-emerald-600/20 w-full"
           >
             <ArrowLeft className="h-5 w-5" />
-            Voltar ao CRM
+            Voltar ao Dashboard
           </button>
         )}
         {profile?.full_name && (
