@@ -267,7 +267,7 @@ export default function AppSidebar({ onNavigate }: Props) {
               </>
             )}
 
-            {(isSupport || isAdmin) && (
+            {(isSupport || isAdmin || isGestor) && (
               <>
                 <div className="pt-4 pb-2 px-3">
                   <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Técnico</p>
