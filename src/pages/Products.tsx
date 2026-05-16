@@ -201,7 +201,7 @@ export default function Products() {
           <h1 className="text-xl md:text-2xl font-bold font-display">Produtos</h1>
           <p className="text-muted-foreground text-sm">Gerencie o catálogo de produtos</p>
         </div>
-        {isAdmin && (
+        {(isAdmin || isGestor) && (
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleFetchImages} disabled={fetchingImages}>
               <ImageDown className="h-4 w-4" />
