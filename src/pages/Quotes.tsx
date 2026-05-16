@@ -1373,10 +1373,15 @@ export default function Quotes() {
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs">Preço Unit. (R$)</Label>
-                          <Input type="number" step="0.01" value={item.unit_price === 0 ? '' : item.unit_price} disabled={item.is_gift}
+                          <Input 
+                            type="number" 
+                            step="0.01" 
+                            value={item.unit_price === 0 ? '' : item.unit_price} 
+                            disabled={true}
                             onChange={e => updateItem(idx, 'unit_price', e.target.value)} 
                             onFocus={e => e.target.select()}
-                            className={item.is_gift ? 'opacity-50' : ''} />
+                            className="bg-muted opacity-80 cursor-not-allowed" 
+                          />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Desconto (%)</Label>

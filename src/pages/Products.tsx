@@ -17,7 +17,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const db = supabase as any;
 
 export default function Products() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isGestor } = useAuth();
   const isMobile = useIsMobile();
   const [products, setProducts] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -201,7 +201,7 @@ export default function Products() {
           <h1 className="text-xl md:text-2xl font-bold font-display">Produtos</h1>
           <p className="text-muted-foreground text-sm">Gerencie o catálogo de produtos</p>
         </div>
-        {isAdmin && (
+        {(isAdmin || isGestor) && (
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleFetchImages} disabled={fetchingImages}>
               <ImageDown className="h-4 w-4" />
@@ -334,7 +334,7 @@ export default function Products() {
                     <p className="text-xs text-muted-foreground">{p.brand || '-'} • {p.code || '-'}</p>
                     <p className="text-sm font-semibold mt-1">{formatCurrency(parseFloat(p.price) || 0)}</p>
                   </div>
-                  {isAdmin && (
+                  {(isAdmin || isGestor) && (
                     <div className="flex flex-col gap-1 shrink-0">
                       <Button size="icon" variant="ghost" onClick={() => handleEdit(p)} className="h-10 w-10">
                         <Pencil className="h-4 w-4" />
@@ -357,7 +357,7 @@ export default function Products() {
                   <TableHead>Nome</TableHead>
                   <TableHead>Marca</TableHead>
                   <TableHead>Valor</TableHead>
-                  {isAdmin && <TableHead className="w-20">Ações</TableHead>}
+                  {(isAdmin || isGestor) && <TableHead className="w-20">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -377,7 +377,7 @@ export default function Products() {
                     <TableCell className="font-medium max-w-[200px] truncate">{p.name}</TableCell>
                     <TableCell>{p.brand || '-'}</TableCell>
                     <TableCell>{formatCurrency(parseFloat(p.price) || 0)}</TableCell>
-                    {isAdmin && (
+                    {(isAdmin || isGestor) && (
                       <TableCell>
                         <div className="flex gap-1">
                           <Button size="icon" variant="ghost" onClick={() => handleEdit(p)}>
