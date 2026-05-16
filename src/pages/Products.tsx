@@ -334,7 +334,7 @@ export default function Products() {
                     <p className="text-xs text-muted-foreground">{p.brand || '-'} • {p.code || '-'}</p>
                     <p className="text-sm font-semibold mt-1">{formatCurrency(parseFloat(p.price) || 0)}</p>
                   </div>
-                  {isAdmin && (
+                  {(isAdmin || isGestor) && (
                     <div className="flex flex-col gap-1 shrink-0">
                       <Button size="icon" variant="ghost" onClick={() => handleEdit(p)} className="h-10 w-10">
                         <Pencil className="h-4 w-4" />
