@@ -144,6 +144,7 @@ export type Database = {
           address_number: string | null
           cep: string | null
           city: string | null
+          client_type: string | null
           company: string | null
           company_id: string | null
           company_name: string | null
@@ -172,6 +173,7 @@ export type Database = {
           address_number?: string | null
           cep?: string | null
           city?: string | null
+          client_type?: string | null
           company?: string | null
           company_id?: string | null
           company_name?: string | null
@@ -200,6 +202,7 @@ export type Database = {
           address_number?: string | null
           cep?: string | null
           city?: string | null
+          client_type?: string | null
           company?: string | null
           company_id?: string | null
           company_name?: string | null
