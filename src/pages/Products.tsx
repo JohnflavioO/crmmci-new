@@ -377,7 +377,7 @@ export default function Products() {
                     <TableCell className="font-medium max-w-[200px] truncate">{p.name}</TableCell>
                     <TableCell>{p.brand || '-'}</TableCell>
                     <TableCell>{formatCurrency(parseFloat(p.price) || 0)}</TableCell>
-                    {isAdmin && (
+                    {(isAdmin || isGestor) && (
                       <TableCell>
                         <div className="flex gap-1">
                           <Button size="icon" variant="ghost" onClick={() => handleEdit(p)}>
