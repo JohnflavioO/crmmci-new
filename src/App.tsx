@@ -62,11 +62,12 @@ function LoadingScreen() {
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowRetry(true), 8000);
+    // Reduzido para 5 segundos para ser mais responsivo a problemas
+    const timer = setTimeout(() => setShowRetry(true), 5000);
     
     const checkErrors = () => {
       if (window.location.hash.includes('error=')) {
-        setErrorDetails('Erro na autenticação detectado.');
+        setErrorDetails('Erro na autenticação detectado no URL.');
       }
     };
     checkErrors();
@@ -75,10 +76,19 @@ function LoadingScreen() {
   }, []);
 
   const handleForceRecovery = () => {
+    console.log('[App] Executando recuperação forçada de sessão e cache...');
     localStorage.clear();
     sessionStorage.clear();
     if ('caches' in window) {
-      caches.keys().then(names => names.forEach(n => caches.delete(n)));
+      caches.keys().then(names => {
+        for (const name of names) caches.delete(name);
+      });
+    }
+    // Remove o service worker se existir
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        for (const registration of registrations) registration.unregister();
+      });
     }
     window.location.href = '/';
   };
@@ -92,16 +102,18 @@ function LoadingScreen() {
       <div className="text-center space-y-4 max-w-xs animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="space-y-1">
           <p className="text-xl font-bold text-white font-display tracking-tight">MCI Store CRM</p>
-          <p className="text-sm text-emerald-400/80 animate-pulse">Iniciando módulos do sistema...</p>
+          <p className="text-sm text-emerald-400/80 animate-pulse">Carregando sistema...</p>
         </div>
         
         {errorDetails && (
-          <p className="text-xs text-red-400 bg-red-950/30 p-2 rounded border border-red-500/20">{errorDetails}</p>
+          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <p className="text-xs text-red-400">{errorDetails}</p>
+          </div>
         )}
 
         {showRetry && (
           <div className="pt-4 space-y-3 animate-in zoom-in duration-300">
-            <p className="text-xs text-white/40">O sistema está demorando para responder.</p>
+            <p className="text-xs text-white/40">Isso está demorando mais que o esperado.</p>
             <div className="flex flex-col gap-2">
               <button 
                 onClick={() => window.location.reload()}
@@ -113,7 +125,7 @@ function LoadingScreen() {
                 onClick={handleForceRecovery}
                 className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 rounded-xl text-xs font-medium transition-all"
               >
-                Limpar Sessão e Cache
+                Limpar Cache e Sair
               </button>
             </div>
           </div>
