@@ -37,6 +37,7 @@ interface Client {
   notes: string;
   is_whatsapp: boolean;
   is_revenda: boolean;
+  client_type: string;
   created_by?: string;
   created_at?: string;
   last_interaction_at?: string;
@@ -46,7 +47,7 @@ const emptyClient: Omit<Client, 'id'> = {
   company_name: '', cpf_cnpj: '', city: '', state: '', phone: '', email: '',
   contact_name: '', address: '', address_number: '', complement: '',
   neighborhood: '', cep: '', contact_phone: '', contrib_icms: '', notes: '',
-  is_whatsapp: false, is_revenda: false,
+  is_whatsapp: false, is_revenda: false, client_type: '',
 };
 
 const db = supabase as any;
@@ -382,6 +383,7 @@ export default function Clients() {
     { value: 'neighborhood', label: 'Bairro' },
     { value: 'cep', label: 'CEP' },
     { value: 'notes', label: 'Observações' },
+    { value: 'client_type', label: 'Tipo de Cliente' },
   ];
 
   const handleFetchPreview = async () => {
@@ -655,6 +657,22 @@ export default function Clients() {
               <div className="sm:col-span-2 space-y-2">
                 <Label>Razão Social / Nome *</Label>
                 <Input value={form.company_name} onChange={e => updateForm('company_name', e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label>Tipo de Cliente</Label>
+                <Select value={form.client_type || 'none'} onValueChange={v => updateForm('client_type', v === 'none' ? '' : v)}>
+                  <SelectTrigger className="min-h-[44px]">
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Selecione o tipo</SelectItem>
+                    <SelectItem value="Cliente final">Cliente final</SelectItem>
+                    <SelectItem value="Produtor de conteúdo">Produtor de conteúdo</SelectItem>
+                    <SelectItem value="Produtor independente">Produtor independente</SelectItem>
+                    <SelectItem value="Produtora">Produtora</SelectItem>
+                    <SelectItem value="Locadora">Locadora</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>CPF/CNPJ</Label>
