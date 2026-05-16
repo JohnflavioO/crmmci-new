@@ -17,7 +17,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const db = supabase as any;
 
 export default function Products() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isGestor } = useAuth();
   const isMobile = useIsMobile();
   const [products, setProducts] = useState<any[]>([]);
   const [search, setSearch] = useState('');
