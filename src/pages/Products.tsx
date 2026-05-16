@@ -357,7 +357,7 @@ export default function Products() {
                   <TableHead>Nome</TableHead>
                   <TableHead>Marca</TableHead>
                   <TableHead>Valor</TableHead>
-                  {isAdmin && <TableHead className="w-20">Ações</TableHead>}
+                  {(isAdmin || isGestor) && <TableHead className="w-20">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
