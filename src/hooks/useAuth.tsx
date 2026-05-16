@@ -65,21 +65,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Safety timeout: never stay loading forever
   useEffect(() => {
     const isPreview = window.location.hostname.includes('lovable.app') || window.location.hostname.includes('lovableproject.com');
-    const timeoutDuration = isPreview ? 10000 : MAX_LOADING_MS; // Shorter but reasonable timeout
+    const timeoutDuration = isPreview ? 8000 : MAX_LOADING_MS;
 
     const timer = setTimeout(() => {
       setLoading(prev => {
         if (prev) {
-          console.warn(`[Auth] Loading timeout reached after ${timeoutDuration}ms, forcing loaded state. Env: ${import.meta.env.MODE}`);
-          // If stuck and in preview, we might want to ensure we're not stuck because of a session error
+          console.warn(`[Auth] Timeout atingido (${timeoutDuration}ms). Forçando estado carregado para evitar tela branca.`);
+          // Em preview, se estiver travado, tentamos garantir que o usuário veja a página de Auth se não houver sessão
           if (isPreview) {
-            console.log('[Auth] Stuck in preview, checking session health...');
             supabase.auth.getSession().then(({ data }) => {
               if (!data.session) {
-                console.log('[Auth] No session found during timeout, allowing fallback to Auth page');
+                console.log('[Auth] Nenhuma sessão encontrada no timeout, liberando para página de login');
                 setUser(null);
               }
-            });
+            }).catch(err => console.error('[Auth] Erro ao recuperar sessão no timeout:', err));
           }
           return false;
         }

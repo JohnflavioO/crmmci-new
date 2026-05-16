@@ -148,11 +148,7 @@ function AppRoutes() {
   }, [user, loading, profile]);
 
   if (loading) {
-    return (
-      <ErrorBoundary>
-        <LoadingScreen />
-      </ErrorBoundary>
-    );
+    return <LoadingScreen />;
   }
 
   // O usuário só é considerado pendente se estiver logado, NÃO for admin/gestor/etc, e a flag isApproved for explicitamente falsa
