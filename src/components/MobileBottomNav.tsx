@@ -4,10 +4,10 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 
 const commercialItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Métricas' },
   { to: '/quotes', icon: FileText, label: 'Orçamentos' },
+  { to: '/', icon: Zap, label: 'Central' },
   { to: '/clients', icon: Users, label: 'Clientes' },
-  { to: '/prospect', icon: Target, label: 'Prospect' },
   { to: '/pipeline', icon: Kanban, label: 'Funil' },
 ];
 
