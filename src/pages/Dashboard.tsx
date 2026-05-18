@@ -317,7 +317,6 @@ export default function Dashboard() {
               if (isTeam) {
                 openDetails("Composição do Valor Total", { quotes: teamRecentQuotes, vendedor: vendedorNome });
               } else {
-                // Vendedor vê sua própria lista de orçamentos
                 navigate('/quotes');
               }
             }}
@@ -350,7 +349,6 @@ export default function Dashboard() {
                 const filtered = teamRecentQuotes.filter(q => q.status === 'approved');
                 openDetails("Orçamentos Aprovados", { quotes: filtered, vendedor: vendedorNome });
               } else {
-                // Drill-down para vendedor: orçamentos aprovados
                 navigate('/quotes?status=approved');
               }
             }}
