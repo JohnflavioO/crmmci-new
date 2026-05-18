@@ -434,24 +434,22 @@ export default function OperationalCenter() {
                   }))}
                 />
 
-                {isGestor && (
-                  <OperationalCard 
-                    title="Top Vendedores (Faturamento)"
-                    count={data.manager.topSellers.length}
-                    priority="normal"
-                    icon={TrendingUp}
-                    description="Ranking de vendas confirmadas do mês"
-                    items={data.manager.topSellers.map((s: any, idx: number) => ({
-                      id: s.user_id,
-                      title: `${idx + 1}. ${s.full_name}`,
-                      subtitle: `${s.approved_count} aprovações`,
-                      origin: `R$ ${parseFloat(s.total_value).toLocaleString('pt-BR')}`,
-                      actions: [
-                        { label: 'Parabenizar', icon: Sparkles, onClick: () => toast.success(`Elogio enviado para ${s.full_name}!`) }
-                      ]
-                    }))}
-                  />
-                )}
+                <OperationalCard 
+                  title="Top Vendedores (Faturamento)"
+                  count={data.manager.topSellers.length}
+                  priority="normal"
+                  icon={TrendingUp}
+                  description="Ranking de vendas confirmadas do mês"
+                  items={data.manager.topSellers.map((s: any, idx: number) => ({
+                    id: s.user_id,
+                    title: `${idx + 1}. ${s.full_name}`,
+                    subtitle: `${s.approved_count} aprovações`,
+                    origin: `R$ ${parseFloat(s.total_value).toLocaleString('pt-BR')}`,
+                    actions: [
+                      { label: 'Parabenizar', icon: Sparkles, onClick: () => toast.success(`Elogio enviado para ${s.full_name}!`) }
+                    ]
+                  }))}
+                />
               </div>
             </section>
           )}
