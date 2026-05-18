@@ -8,7 +8,7 @@ import {
   DollarSign, Wrench, MessageSquare, ArrowRight,
   Zap, Calendar, Package, ClipboardList, Phone,
   ExternalLink, MoreHorizontal, User, Sparkles, Filter,
-  ArrowUpRight, AlertCircle, HelpCircle
+  ArrowUpRight, AlertCircle, HelpCircle, BarChart3
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
