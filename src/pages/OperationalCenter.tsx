@@ -177,7 +177,9 @@ export default function OperationalCenter() {
             stuckFunnels: stuckFunnels,
             forecastRisk: stuckFunnels.filter((q: any) => Number(q.total_amount) > 10000),
             topSellers: [...teamSellers].sort((a, b) => Number(b.total_value) - Number(a.total_value)).slice(0, 5),
-            alerts: []
+            alerts: [
+              ...(stuckFunnels.filter((q: any) => Number(q.total_amount) > 50000).map((q: any) => ({ type: 'high_value_stuck', data: q }))),
+            ]
           };
         }
 
