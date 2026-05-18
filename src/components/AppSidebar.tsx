@@ -9,25 +9,29 @@ import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import UserProfileEditor from './UserProfileEditor';
 
-const navItems = [
+const commercialItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/quotes', icon: FileText, label: 'Orçamentos' },
+  { to: '/quotes', icon: FileText, label: 'Orçamentos', color: '#15AFA1' },
   { to: '/clients', icon: Users, label: 'Clientes' },
   { to: '/prospect', icon: Target, label: 'Visão Prospect' },
   { to: '/pipeline', icon: Filter, label: 'Funil' },
   { to: '/negociacoes', icon: Handshake, label: 'Negociações' },
   { to: '/tasks', icon: ListChecks, label: 'Tarefas' },
+];
+
+const analyticItems = [
   { to: '/metrics', icon: BarChart3, label: 'Métricas' },
   { to: '/products', icon: Package, label: 'Produtos' },
+  { to: '/ecoflow', icon: Calculator, label: 'Calculadora Ecoflow' },
 ];
 
 const supportMenuItems = [
   { to: '/suporte', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/suporte/estoque', icon: Warehouse, label: 'Estoque' },
-  { to: '/suporte/clientes', icon: Users, label: 'Clientes' },
   { to: '/suporte/os', icon: ClipboardList, label: 'Ordens de Serviço' },
-  { to: '/suporte/compras', icon: Truck, label: 'Ordem de Compra' },
   { to: '/suporte/orcamentos', icon: Calculator, label: 'Orçamentos' },
+  { to: '/suporte/clientes', icon: Users, label: 'Clientes' },
+  { to: '/suporte/estoque', icon: Warehouse, label: 'Estoque' },
+  { to: '/suporte/compras', icon: Truck, label: 'Ordem de Compra' },
   { to: '/suporte/nuvem', icon: Sparkles, label: 'Nuvem' },
   { to: '/suporte/relatorios', icon: BarChart3, label: 'Relatórios' },
   { to: '/suporte/manutencao', icon: Wrench, label: 'Manutenção' },
@@ -233,23 +237,30 @@ export default function AppSidebar({ onNavigate }: Props) {
           </>
         ) : (
           <>
-            {navItems.map(item => (
-              <LinkItem key={item.to} {...item} color={item.to === '/quotes' ? '#15AFA1' : undefined} />
+            <div className="pt-2 pb-1 px-3">
+              <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Comercial</p>
+            </div>
+            {commercialItems.map(item => (
+              <LinkItem key={item.to} {...item} color={item.color} />
             ))}
 
-            <LinkItem to="/ecoflow" icon={Calculator} label="Calculadora Ecoflow" />
+            <div className="pt-4 pb-1 px-3">
+              <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Análise e Ferramentas</p>
+            </div>
+            {analyticItems.map(item => (
+              <LinkItem key={item.to} {...item} />
+            ))}
 
-            {/* Logistics menu for commercial users */}
-            <div className="pt-4 pb-2 px-3">
-              <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Logística</p>
+            <div className="pt-4 pb-1 px-3">
+              <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Operacional e Logística</p>
             </div>
             <LinkItem to="/logistics" icon={Truck} label="Acompanhamento" />
             <LinkItem to="/estoque-sc" icon={Warehouse} label="Estoque SC" />
 
             {(isGestor || isFinanceiro) && (
               <>
-                <div className="pt-4 pb-2 px-3">
-                  <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Financeiro</p>
+                <div className="pt-4 pb-1 px-3">
+                  <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Financeiro</p>
                 </div>
                 {financialMenuItems.map(item => (
                   <FinancialLinkItem key={item.to} {...item} />
@@ -259,20 +270,20 @@ export default function AppSidebar({ onNavigate }: Props) {
 
             {(isAdmin || isGestor) && (
               <>
-                <div className="pt-4 pb-2 px-3">
-                  <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Admin</p>
+                <div className="pt-4 pb-1 px-3">
+                  <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Administrativo</p>
                 </div>
-                {[{ to: '/approvals', icon: UserCheck, label: 'Usuários' }].map(item => <LinkItem key={item.to} {...item} />)}
+                {[{ to: '/approvals', icon: UserCheck, label: 'Aprovações' }].map(item => <LinkItem key={item.to} {...item} />)}
                 {isAdmin && [{ to: '/integrations', icon: Plug, label: 'Integrações' }].map(item => <LinkItem key={item.to} {...item} />)}
               </>
             )}
 
             {(isSupport || isAdmin || isGestor) && (
               <>
-                <div className="pt-4 pb-2 px-3">
-                  <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider">Técnico</p>
+                <div className="pt-4 pb-1 px-3">
+                  <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Suporte Técnico</p>
                 </div>
-                <LinkItem to="/suporte" icon={Wrench} label="Suporte Técnico" />
+                <LinkItem to="/suporte" icon={Wrench} label="Portal de Suporte" />
               </>
             )}
           </>
