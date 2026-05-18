@@ -3,14 +3,15 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake, Plug,
   Clock, ArrowDownCircle, AlertTriangle, FileBarChart, Truck, ClipboardList, TriangleAlert, MapPin, RefreshCw, Warehouse, Target, Sparkles,
-  Wrench,
+  Wrench, Zap
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import UserProfileEditor from './UserProfileEditor';
 
 const commercialItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/', icon: Zap, label: 'Central Operacional' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Métricas e Visão' },
   { to: '/quotes', icon: FileText, label: 'Orçamentos', color: '#15AFA1' },
   { to: '/clients', icon: Users, label: 'Clientes' },
   { to: '/prospect', icon: Target, label: 'Visão Prospect' },

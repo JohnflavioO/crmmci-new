@@ -10,6 +10,7 @@ import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import Auth from "./pages/Auth";
 import PendingApproval from "./pages/PendingApproval";
 import Dashboard from "./pages/Dashboard";
+import OperationalCenter from "./pages/OperationalCenter";
 import Clients from "./pages/Clients";
 import Quotes from "./pages/Quotes";
 import Approvals from "./pages/Approvals";
@@ -199,8 +200,9 @@ function AppRoutes() {
           <Route path="/" element={
             isLogisticaOnly ? <Navigate to="/logistics" replace /> :
             isFinanceiroOnly ? <Navigate to="/financial" replace /> :
-            <Dashboard />
+            <OperationalCenter />
           } />
+          <Route path="/operational" element={<OperationalCenter />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/quotes" element={<Quotes />} />
