@@ -300,7 +300,14 @@ export default function Dashboard() {
             title="Clientes" 
             value={clientsCount} 
             icon={Users} 
-            onClick={() => navigate('/clients')}
+            onClick={() => {
+              if (isTeam) {
+                // Para o time, podemos abrir um resumo de clientes
+                openDetails("Lista de Clientes", { vendedor: vendedorNome });
+              } else {
+                navigate('/clients');
+              }
+            }}
           />
           <StatCard 
             title="Valor Total" 
@@ -309,6 +316,9 @@ export default function Dashboard() {
             onClick={() => {
               if (isTeam) {
                 openDetails("Composição do Valor Total", { quotes: teamRecentQuotes, vendedor: vendedorNome });
+              } else {
+                // Vendedor vê sua própria lista de orçamentos
+                navigate('/quotes');
               }
             }}
           />
@@ -323,6 +333,8 @@ export default function Dashboard() {
                   vendedor: vendedorNome,
                   stats: { total: stats.totalValue, count: stats.quotes, avg: stats.avgTicket }
                 });
+              } else {
+                navigate('/metrics');
               }
             }}
           />
@@ -337,6 +349,9 @@ export default function Dashboard() {
               if (isTeam) {
                 const filtered = teamRecentQuotes.filter(q => q.status === 'approved');
                 openDetails("Orçamentos Aprovados", { quotes: filtered, vendedor: vendedorNome });
+              } else {
+                // Drill-down para vendedor: orçamentos aprovados
+                navigate('/quotes?status=approved');
               }
             }}
           />
@@ -349,6 +364,8 @@ export default function Dashboard() {
               if (isTeam) {
                 const filtered = teamRecentQuotes.filter(q => ['draft', 'sent', 'pre_venda', 'pre_sale', 'contato_feito', 'contact_made', 'negociacao', 'negotiation'].includes(q.status));
                 openDetails("Orçamentos Pendentes", { quotes: filtered, vendedor: vendedorNome });
+              } else {
+                navigate('/quotes?status=pending');
               }
             }}
           />
@@ -361,6 +378,8 @@ export default function Dashboard() {
               if (isTeam) {
                 const filtered = teamRecentQuotes.filter(q => q.status === 'rejected');
                 openDetails("Orçamentos Rejeitados", { quotes: filtered, vendedor: vendedorNome });
+              } else {
+                navigate('/quotes?status=rejected');
               }
             }}
           />

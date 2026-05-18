@@ -255,16 +255,25 @@ export default function Quotes() {
         .order('created_at', { ascending: false })
         .limit(200);
       
+      const params = new URLSearchParams(window.location.search);
+      const statusFilter = params.get('status');
+      
       if (isGestor) {
-        // Gestor pode filtrar entre seus próprios ou equipe
         if (responsibleFilter === 'me') {
           quotesQuery = quotesQuery.eq('created_by', user.id);
         } else if (responsibleFilter !== 'all') {
           quotesQuery = quotesQuery.eq('created_by', responsibleFilter);
         }
       } else {
-        // Vendedor e Admin vêem apenas seus próprios orçamentos
         quotesQuery = quotesQuery.eq('created_by', user.id);
+      }
+
+      if (statusFilter === 'approved') {
+        quotesQuery = quotesQuery.eq('status', 'approved');
+      } else if (statusFilter === 'pending') {
+        quotesQuery = quotesQuery.in('status', ['draft', 'sent', 'pre_venda', 'pre_sale', 'contato_feito', 'contact_made', 'negociacao', 'negotiation']);
+      } else if (statusFilter === 'rejected') {
+        quotesQuery = quotesQuery.eq('status', 'rejected');
       }
 
       const [q, c, s, p] = await Promise.all([
