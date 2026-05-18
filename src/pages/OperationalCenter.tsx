@@ -393,7 +393,7 @@ export default function OperationalCenter() {
           </section>
 
           {/* GESTOR SECTIONS */}
-          {(isGestor || isAdmin) && (
+          {isGestor && (
             <section className="space-y-4 pt-4">
               <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" /> Gestão de Performance
