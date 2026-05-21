@@ -659,12 +659,12 @@ function FinancialContent() {
                 {groupedBySeller.map(g => (
                   <TableRow key={g.uid}>
                     <TableCell className="text-xs font-medium">{g.name}</TableCell>
-                    <TableCell className="text-xs">{fmt(g.totalSold)}</TableCell>
-                    <TableCell className="text-xs text-emerald-600 font-semibold">{fmt(g.paidValue)}</TableCell>
-                    <TableCell className="text-xs text-blue-600 font-semibold">{fmt(g.openValue)}</TableCell>
+                    <TableCell className="text-xs">{maskValue(g.totalSold)}</TableCell>
+                    <TableCell className="text-xs text-emerald-600 font-semibold">{maskValue(g.paidValue)}</TableCell>
+                    <TableCell className="text-xs text-blue-600 font-semibold">{maskValue(g.openValue)}</TableCell>
                     <TableCell className="text-xs">
                       {g.overdueCount > 0 ? (
-                        <span className="text-red-600 font-semibold">{g.overdueCount} ({fmt(g.overdueValue)})</span>
+                        <span className="text-red-600 font-semibold">{g.overdueCount} ({maskValue(g.overdueValue)})</span>
                       ) : (
                         <span className="text-emerald-600">Nenhuma</span>
                       )}
@@ -841,7 +841,7 @@ function FinancialContent() {
                               <TableRow key={r.id}>
                                 <TableCell className="text-xs font-medium">{r.client_name || 'Sem cliente'}</TableCell>
                                 <TableCell className="text-xs">{pm?.label || r.payment_method || '-'}</TableCell>
-                                <TableCell className="text-xs font-semibold">{fmt(parseFloat(r.total_amount) || 0)}</TableCell>
+                                <TableCell className="text-xs font-semibold">{maskValue(parseFloat(r.total_amount) || 0)}</TableCell>
                                 <TableCell className="text-xs">{r.due_date ? format(new Date(r.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
                                 <TableCell><Badge className={cn('text-[10px]', st.color)}>{st.label}</Badge></TableCell>
                                 <TableCell className="text-xs">{r.amount_paid ? fmt(parseFloat(r.amount_paid)) : '-'}</TableCell>
