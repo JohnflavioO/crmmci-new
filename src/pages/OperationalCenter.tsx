@@ -1,5 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
+import { usePrivacy } from "@/hooks/usePrivacy";
 import AppLayout from "@/components/AppLayout";
+import PrivacyToggle from "@/components/PrivacyToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,7 +10,8 @@ import {
   DollarSign, Wrench, MessageSquare, ArrowRight,
   Zap, Calendar, Package, ClipboardList, Phone,
   ExternalLink, MoreHorizontal, User, Sparkles, Filter,
-  ArrowUpRight, AlertCircle, HelpCircle, BarChart3, RefreshCw
+  ArrowUpRight, AlertCircle, HelpCircle, BarChart3, RefreshCw,
+  Eye, EyeOff
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +38,7 @@ const PRIORITY_CONFIG = {
 
 export default function OperationalCenter() {
   const { user, profile, isAdmin, isGestor, isFinanceiro, isSupport } = useAuth();
+  const { maskValue } = usePrivacy();
   const [loading, setLoading] = useState(true);
   
   // Data states
@@ -288,10 +292,11 @@ export default function OperationalCenter() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <PrivacyToggle />
             <Button variant="outline" size="sm" className="gap-2" onClick={() => window.location.reload()}>
               <RefreshCw className="h-4 w-4" /> Atualizar
             </Button>
-            <Badge variant="secondary" className="px-4 py-1.5 rounded-full font-bold uppercase tracking-wider text-[10px]">
+            <Badge variant="secondary" className="px-4 py-1.5 rounded-full font-bold uppercase tracking-wider text-[10px] hidden sm:inline-flex">
               {isAdmin ? "Admin" : isGestor ? "Gestor" : isFinanceiro ? "Financeiro" : isSupport ? "Suporte" : "Comercial"}
             </Badge>
           </div>
@@ -334,7 +339,7 @@ export default function OperationalCenter() {
                   id: q.id,
                   title: q.clients?.company_name || q.client_name,
                   subtitle: `${differenceInDays(new Date(), new Date(q.updated_at))} dias sem retorno`,
-                  origin: `R$ ${parseFloat(q.total_amount).toLocaleString('pt-BR')}`,
+                  origin: maskValue(parseFloat(q.total_amount)),
                   actions: [
                     { label: 'WhatsApp', icon: Phone, onClick: () => handleQuickAction('whatsapp', q) },
                     { label: 'Abrir', icon: ExternalLink, onClick: () => handleQuickAction('open_quote', q) }
@@ -415,7 +420,7 @@ export default function OperationalCenter() {
                     id: s.user_id,
                     title: s.full_name,
                     subtitle: `${s.pending_count} orçamentos em aberto`,
-                    origin: `Total R$ ${parseFloat(s.total_value).toLocaleString('pt-BR')}`,
+                    origin: `Total ${maskValue(parseFloat(s.total_value))}`,
                     actions: [
                       { label: 'Cobrar', icon: MessageSquare, onClick: () => toast.info(`Lembrete enviado para ${s.full_name}`) },
                       { label: 'Abrir Dashboard', icon: BarChart3, onClick: () => window.location.href = `/dashboard?seller=${s.user_id}` }
