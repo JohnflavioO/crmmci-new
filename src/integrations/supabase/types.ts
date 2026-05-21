@@ -803,6 +803,7 @@ export type Database = {
           force_password_change: boolean
           full_name: string
           id: string
+          permissions: Json | null
           phone: string | null
           role: string | null
           user_id: string
@@ -819,6 +820,7 @@ export type Database = {
           force_password_change?: boolean
           full_name?: string
           id?: string
+          permissions?: Json | null
           phone?: string | null
           role?: string | null
           user_id: string
@@ -835,6 +837,7 @@ export type Database = {
           force_password_change?: boolean
           full_name?: string
           id?: string
+          permissions?: Json | null
           phone?: string | null
           role?: string | null
           user_id?: string
