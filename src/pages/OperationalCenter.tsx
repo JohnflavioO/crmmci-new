@@ -116,7 +116,10 @@ export default function OperationalCenter() {
 
         // --- GESTOR QUERIES ---
         if (isGestor || isAdmin) {
-          queries.push(db.rpc('get_team_dashboard_sellers'));
+          queries.push(db.rpc('get_team_dashboard_sellers').catch((err: any) => {
+            console.error('[Operational] Error in get_team_dashboard_sellers RPC:', err);
+            return { data: [], error: err };
+          }));
           queries.push(
             db.from('quotes')
               .select('*, clients(*), profiles!quotes_created_by_fkey(full_name)')
@@ -147,13 +150,16 @@ export default function OperationalCenter() {
           );
         }
 
-        const results = await Promise.all(queries);
+        const results = await Promise.all(queries.map(q => q.catch((err: any) => {
+          console.error('[Operational] Query error:', err);
+          return { data: [], error: err };
+        })));
         let resultIdx = 0;
 
-        const myQuotes = results[resultIdx++].data || [];
-        const myForgottenClients = results[resultIdx++].data || [];
-        const myOpportunities = results[resultIdx++].data || [];
-        const myTasks = results[resultIdx++].data || [];
+        const myQuotes = results[resultIdx++]?.data || [];
+        const myForgottenClients = results[resultIdx++]?.data || [];
+        const myOpportunities = results[resultIdx++]?.data || [];
+        const myTasks = results[resultIdx++]?.data || [];
 
         const overdueFollowups = myQuotes.filter((q: any) => q.followup_date && isBefore(new Date(q.followup_date), now));
         const noResponseProposals = myQuotes.filter((q: any) => q.status === 'sent' && isBefore(new Date(q.updated_at), subDays(now, 3)));
@@ -169,8 +175,8 @@ export default function OperationalCenter() {
         };
 
         if (isGestor || isAdmin) {
-          const teamSellers = results[resultIdx++].data || [];
-          const stuckFunnels = results[resultIdx++].data || [];
+          const teamSellers = results[resultIdx++]?.data || [];
+          const stuckFunnels = results[resultIdx++]?.data || [];
           
           newData.manager = {
             teamNoFollowup: teamSellers.filter((s: any) => Number(s.pending_count) > 5),
@@ -184,7 +190,7 @@ export default function OperationalCenter() {
         }
 
         if (isFinanceiro || isGestor || isAdmin) {
-          const slips = results[resultIdx++].data || [];
+          const slips = results[resultIdx++]?.data || [];
           newData.finance = {
             expiringSlips: slips.filter((s: any) => s.status === 'Vence hoje' || s.status === 'A vencer'),
             overdueSlips: slips.filter((s: any) => s.status === 'Vencido'),
@@ -194,7 +200,7 @@ export default function OperationalCenter() {
         }
 
         if (isSupport || isGestor || isAdmin) {
-          const orders = results[resultIdx++].data || [];
+          const orders = results[resultIdx++]?.data || [];
           newData.support = {
             overdueOS: orders.filter((o: any) => isBefore(new Date(o.created_at), subDays(now, 7))),
             waitingParts: orders.filter((o: any) => o.status === 'aguardando_peca'),
