@@ -27,7 +27,12 @@ const db = supabase as any;
 
 const COLORS = ['#15AFA1', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'];
 
-  // standard formatCurrency is now handled by hook
+  const formatCompact = (v: number) => {
+    if (v >= 1000000) return `R$ ${(v / 1000000).toFixed(1)}M`;
+    if (v >= 1000) return `R$ ${(v / 1000).toFixed(1)}k`;
+    return `R$ ${v.toFixed(0)}`;
+  };
+
 
 type Period = 'month' | '3months' | '6months' | 'custom';
 type ChartView = 'bar' | 'table';
