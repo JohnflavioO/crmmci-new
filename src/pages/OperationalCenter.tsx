@@ -175,8 +175,8 @@ export default function OperationalCenter() {
         };
 
         if (isGestor || isAdmin) {
-          const teamSellers = results[resultIdx++].data || [];
-          const stuckFunnels = results[resultIdx++].data || [];
+          const teamSellers = results[resultIdx++]?.data || [];
+          const stuckFunnels = results[resultIdx++]?.data || [];
           
           newData.manager = {
             teamNoFollowup: teamSellers.filter((s: any) => Number(s.pending_count) > 5),
@@ -190,7 +190,7 @@ export default function OperationalCenter() {
         }
 
         if (isFinanceiro || isGestor || isAdmin) {
-          const slips = results[resultIdx++].data || [];
+          const slips = results[resultIdx++]?.data || [];
           newData.finance = {
             expiringSlips: slips.filter((s: any) => s.status === 'Vence hoje' || s.status === 'A vencer'),
             overdueSlips: slips.filter((s: any) => s.status === 'Vencido'),
@@ -200,7 +200,7 @@ export default function OperationalCenter() {
         }
 
         if (isSupport || isGestor || isAdmin) {
-          const orders = results[resultIdx++].data || [];
+          const orders = results[resultIdx++]?.data || [];
           newData.support = {
             overdueOS: orders.filter((o: any) => isBefore(new Date(o.created_at), subDays(now, 7))),
             waitingParts: orders.filter((o: any) => o.status === 'aguardando_peca'),
