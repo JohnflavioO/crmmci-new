@@ -9,11 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Check, X, UserCheck, ShieldCheck, Trash2, RotateCcw, Eye, KeyRound, Loader2, Copy } from 'lucide-react';
+import { Check, X, UserCheck, ShieldCheck, Trash2, RotateCcw, Eye, KeyRound, Loader2, Copy, Shield } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+import UserPermissionsEditor from '@/components/UserPermissionsEditor';
 
 const db = supabase as any;
 
@@ -295,6 +297,21 @@ export default function Approvals() {
                     <TooltipContent><p className="text-xs">Resetar senha</p></TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+              )}
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button size="icon" variant="ghost" title="Permissões Avançadas">
+                      <Shield className="h-4 w-4 text-accent" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <UserPermissionsEditor 
+                      userId={a.user_id} 
+                      userName={a.profiles?.full_name || 'Usuário'} 
+                      userRole={currentRole} 
+                    />
+                  </DialogContent>
+                </Dialog>
               )}
             </div>
           )}
