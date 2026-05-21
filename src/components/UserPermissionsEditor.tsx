@@ -139,7 +139,7 @@ export default function UserPermissionsEditor({ userId, userName, userRole }: Us
         .maybeSingle();
 
       if (error) throw error;
-      setPermissions(data?.permissions || {});
+      setPermissions((data?.permissions as Record<string, boolean>) || {});
     } catch (error: any) {
       toast.error('Erro ao carregar permissões: ' + error.message);
     } finally {
