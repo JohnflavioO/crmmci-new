@@ -1,7 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { usePrivacy } from '@/hooks/usePrivacy';
 import AppLayout from '@/components/AppLayout';
+import PrivacyToggle from '@/components/PrivacyToggle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -25,14 +27,7 @@ const db = supabase as any;
 
 const COLORS = ['#15AFA1', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'];
 
-const formatCurrency = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-
-const formatCompact = (v: number) => {
-  if (v >= 1000000) return `R$ ${(v / 1000000).toFixed(1)}M`;
-  if (v >= 1000) return `R$ ${(v / 1000).toFixed(1)}k`;
-  return `R$ ${v.toFixed(0)}`;
-};
+  // standard formatCurrency is now handled by hook
 
 type Period = 'month' | '3months' | '6months' | 'custom';
 type ChartView = 'bar' | 'table';
@@ -40,6 +35,7 @@ type ChartMetric = 'quantity' | 'value';
 
 export default function Metrics() {
   const { user, isGestor, isAdmin } = useAuth();
+  const { maskValue, formatCurrency, isHidden } = usePrivacy();
   const canSeeAll = isGestor; // Only Gestor can see all and filter
   const isOnlyAdmin = isAdmin && !isGestor;
   const [quotes, setQuotes] = useState<any[]>([]);
@@ -203,7 +199,7 @@ export default function Metrics() {
         <p className="text-sm font-medium mb-1">{label}</p>
         {payload.map((p: any, i: number) => (
           <p key={i} className="text-sm" style={{ color: p.color }}>
-            {p.name}: {typeof p.value === 'number' && p.value > 100 ? formatCurrency(p.value) : p.value}
+            {p.name}: {typeof p.value === 'number' && p.value > 100 ? maskValue(p.value) : p.value}
           </p>
         ))}
       </div>
@@ -247,11 +243,21 @@ export default function Metrics() {
     <AppLayout>
       <div className="mb-4 md:mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-          <h1 className="text-xl md:text-2xl font-bold font-display">Negociações concluídas</h1>
-          <Button variant="outline" size="sm" className="min-h-[44px] sm:min-h-0 gap-2" onClick={handleExportCSV}>
-            <Grid3X3 className="h-4 w-4" />
-            Exportar para Planilha
-          </Button>
+          <div className="flex items-center justify-between w-full sm:w-auto">
+            <h1 className="text-xl md:text-2xl font-bold font-display">Negociações concluídas</h1>
+            <div className="sm:hidden">
+              <PrivacyToggle />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:block">
+              <PrivacyToggle />
+            </div>
+            <Button variant="outline" size="sm" className="min-h-[44px] sm:min-h-0 gap-2 flex-1 sm:flex-none" onClick={handleExportCSV}>
+              <Grid3X3 className="h-4 w-4" />
+              Exportar para Planilha
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
@@ -358,7 +364,7 @@ export default function Metrics() {
         <Card className="bg-amber-50 border-amber-100">
           <CardContent className="p-3 md:p-4">
             <p className="text-xs md:text-sm text-amber-700 mb-1">Em Negociação</p>
-            <p className="text-lg md:text-2xl font-bold text-amber-900">{formatCurrency(totalInNegotiation)}</p>
+            <p className="text-lg md:text-2xl font-bold text-amber-900">{maskValue(totalInNegotiation)}</p>
             <p className="text-[10px] md:text-xs text-amber-600 mt-0.5">{inNegotiation.length} negociação(ões)</p>
           </CardContent>
         </Card>

@@ -3,8 +3,10 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { usePrivacy } from '@/hooks/usePrivacy';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
+import PrivacyToggle from '@/components/PrivacyToggle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -55,6 +57,7 @@ const paymentMethodConfig: Record<string, { label: string; icon: any; color: str
 
 function FinancialContent() {
   const { user, isFinanceiro, profile } = useAuth();
+  const { maskValue, formatCurrency: privacyFormat } = usePrivacy();
   const isMobile = useIsMobile();
   const [searchParams] = useSearchParams();
   const [records, setRecords] = useState<any[]>([]);
