@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { PrivacyProvider } from "@/hooks/usePrivacy";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 
@@ -240,10 +241,12 @@ const App = () => {
       <TooltipProvider>
         <BrowserRouter>
           <AuthProvider>
-            <AppRoutes />
-            <Toaster />
-            <Sonner position="top-right" closeButton />
-            <PWAUpdatePrompt />
+            <PrivacyProvider>
+              <AppRoutes />
+              <Toaster />
+              <Sonner position="top-right" closeButton />
+              <PWAUpdatePrompt />
+            </PrivacyProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

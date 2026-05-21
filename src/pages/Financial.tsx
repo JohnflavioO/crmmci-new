@@ -3,8 +3,10 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { usePrivacy } from '@/hooks/usePrivacy';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
+import PrivacyToggle from '@/components/PrivacyToggle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -55,6 +57,7 @@ const paymentMethodConfig: Record<string, { label: string; icon: any; color: str
 
 function FinancialContent() {
   const { user, isFinanceiro, profile } = useAuth();
+  const { maskValue, formatCurrency: privacyFormat } = usePrivacy();
   const isMobile = useIsMobile();
   const [searchParams] = useSearchParams();
   const [records, setRecords] = useState<any[]>([]);
@@ -434,7 +437,7 @@ function FinancialContent() {
     }));
   }, [records]);
 
-  const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const fmt = (v: number) => privacyFormat(v);
 
   // Inline action buttons for each record row
   const renderActions = (r: any) => {
@@ -498,9 +501,12 @@ function FinancialContent() {
               </Button>
             ))}
           </div>
-          <Button variant="outline" size="sm" onClick={loadRecords} className="gap-2 h-8">
-            <RefreshCw className="h-4 w-4" /> {!isMobile && 'Atualizar'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <PrivacyToggle />
+            <Button variant="outline" size="sm" onClick={loadRecords} className="gap-2 h-8">
+              <RefreshCw className="h-4 w-4" /> {!isMobile && 'Atualizar'}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -508,8 +514,8 @@ function FinancialContent() {
         <>
           {/* Dashboard Cards */}
           <div className={cn("grid gap-3 md:gap-4 mb-4 md:mb-6", isMobile ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4")}>
-            <StatCard title="Total a Receber" value={fmt(totalReceivable)} icon={DollarSign} />
-            <StatCard title="Recebido no Mês" value={fmt(paidThisMonth)} icon={CircleDollarSign} />
+            <StatCard title="Total a Receber" value={totalReceivable} isCurrency icon={DollarSign} />
+            <StatCard title="Recebido no Mês" value={paidThisMonth} isCurrency icon={CircleDollarSign} />
             <StatCard title="Pendentes" value={pendingCount} icon={Clock} />
             <StatCard title="Baixas Realizadas" value={baixasCount} icon={CheckCircle2} />
           </div>
@@ -538,7 +544,7 @@ function FinancialContent() {
                         <p className="text-xs font-medium text-red-800">Contas Vencidas</p>
                         <p className="text-lg font-bold text-red-600">{problemStats.overdueCount}</p>
                       </div>
-                      <p className="text-xs text-red-600 font-semibold">{fmt(problemStats.overdueValue)}</p>
+                      <p className="text-xs text-red-600 font-semibold">{maskValue(problemStats.overdueValue)}</p>
                     </div>
                   )}
                   {problemStats.criticalCount > 0 && (
@@ -548,7 +554,7 @@ function FinancialContent() {
                         <p className="text-xs font-medium text-rose-800">Atraso Crítico (+30d)</p>
                         <p className="text-lg font-bold text-rose-600">{problemStats.criticalCount}</p>
                       </div>
-                      <p className="text-xs text-rose-600 font-semibold">{fmt(problemStats.criticalValue)}</p>
+                      <p className="text-xs text-rose-600 font-semibold">{maskValue(problemStats.criticalValue)}</p>
                     </div>
                   )}
                   {problemStats.highValueCount > 0 && (
@@ -594,7 +600,7 @@ function FinancialContent() {
                   <CardContent className="pt-0">
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div><span className="text-muted-foreground">Quantidade:</span> <strong>{ms.total}</strong></div>
-                      <div><span className="text-muted-foreground">Valor Total:</span> <strong>{fmt(ms.totalValue)}</strong></div>
+                      <div><span className="text-muted-foreground">Valor Total:</span> <strong>{maskValue(ms.totalValue)}</strong></div>
                       <div><span className="text-muted-foreground">Pendentes:</span> <strong className="text-yellow-600">{ms.pending}</strong></div>
                       <div><span className="text-muted-foreground">Pagos:</span> <strong className="text-emerald-600">{ms.paid}</strong></div>
                       <div className="col-span-2"><span className="text-muted-foreground">Vencidos:</span> <strong className="text-red-600">{ms.overdue}</strong></div>
@@ -653,12 +659,12 @@ function FinancialContent() {
                 {groupedBySeller.map(g => (
                   <TableRow key={g.uid}>
                     <TableCell className="text-xs font-medium">{g.name}</TableCell>
-                    <TableCell className="text-xs">{fmt(g.totalSold)}</TableCell>
-                    <TableCell className="text-xs text-emerald-600 font-semibold">{fmt(g.paidValue)}</TableCell>
-                    <TableCell className="text-xs text-blue-600 font-semibold">{fmt(g.openValue)}</TableCell>
+                    <TableCell className="text-xs">{maskValue(g.totalSold)}</TableCell>
+                    <TableCell className="text-xs text-emerald-600 font-semibold">{maskValue(g.paidValue)}</TableCell>
+                    <TableCell className="text-xs text-blue-600 font-semibold">{maskValue(g.openValue)}</TableCell>
                     <TableCell className="text-xs">
                       {g.overdueCount > 0 ? (
-                        <span className="text-red-600 font-semibold">{g.overdueCount} ({fmt(g.overdueValue)})</span>
+                        <span className="text-red-600 font-semibold">{g.overdueCount} ({maskValue(g.overdueValue)})</span>
                       ) : (
                         <span className="text-emerald-600">Nenhuma</span>
                       )}
@@ -835,10 +841,10 @@ function FinancialContent() {
                               <TableRow key={r.id}>
                                 <TableCell className="text-xs font-medium">{r.client_name || 'Sem cliente'}</TableCell>
                                 <TableCell className="text-xs">{pm?.label || r.payment_method || '-'}</TableCell>
-                                <TableCell className="text-xs font-semibold">{fmt(parseFloat(r.total_amount) || 0)}</TableCell>
+                                <TableCell className="text-xs font-semibold">{maskValue(parseFloat(r.total_amount) || 0)}</TableCell>
                                 <TableCell className="text-xs">{r.due_date ? format(new Date(r.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
                                 <TableCell><Badge className={cn('text-[10px]', st.color)}>{st.label}</Badge></TableCell>
-                                <TableCell className="text-xs">{r.amount_paid ? fmt(parseFloat(r.amount_paid)) : '-'}</TableCell>
+                                <TableCell className="text-xs">{r.amount_paid ? maskValue(parseFloat(r.amount_paid)) : '-'}</TableCell>
                                 {canEdit && <TableCell>{renderActions(r)}</TableCell>}
                               </TableRow>
                             );
