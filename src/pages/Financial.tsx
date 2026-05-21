@@ -844,7 +844,7 @@ function FinancialContent() {
                                 <TableCell className="text-xs font-semibold">{maskValue(parseFloat(r.total_amount) || 0)}</TableCell>
                                 <TableCell className="text-xs">{r.due_date ? format(new Date(r.due_date), 'dd/MM/yyyy') : '-'}</TableCell>
                                 <TableCell><Badge className={cn('text-[10px]', st.color)}>{st.label}</Badge></TableCell>
-                                <TableCell className="text-xs">{r.amount_paid ? fmt(parseFloat(r.amount_paid)) : '-'}</TableCell>
+                                <TableCell className="text-xs">{r.amount_paid ? maskValue(parseFloat(r.amount_paid)) : '-'}</TableCell>
                                 {canEdit && <TableCell>{renderActions(r)}</TableCell>}
                               </TableRow>
                             );
