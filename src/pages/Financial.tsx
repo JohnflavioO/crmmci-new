@@ -544,7 +544,7 @@ function FinancialContent() {
                         <p className="text-xs font-medium text-red-800">Contas Vencidas</p>
                         <p className="text-lg font-bold text-red-600">{problemStats.overdueCount}</p>
                       </div>
-                      <p className="text-xs text-red-600 font-semibold">{fmt(problemStats.overdueValue)}</p>
+                      <p className="text-xs text-red-600 font-semibold">{maskValue(problemStats.overdueValue)}</p>
                     </div>
                   )}
                   {problemStats.criticalCount > 0 && (
@@ -554,7 +554,7 @@ function FinancialContent() {
                         <p className="text-xs font-medium text-rose-800">Atraso Crítico (+30d)</p>
                         <p className="text-lg font-bold text-rose-600">{problemStats.criticalCount}</p>
                       </div>
-                      <p className="text-xs text-rose-600 font-semibold">{fmt(problemStats.criticalValue)}</p>
+                      <p className="text-xs text-rose-600 font-semibold">{maskValue(problemStats.criticalValue)}</p>
                     </div>
                   )}
                   {problemStats.highValueCount > 0 && (
@@ -600,7 +600,7 @@ function FinancialContent() {
                   <CardContent className="pt-0">
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div><span className="text-muted-foreground">Quantidade:</span> <strong>{ms.total}</strong></div>
-                      <div><span className="text-muted-foreground">Valor Total:</span> <strong>{fmt(ms.totalValue)}</strong></div>
+                      <div><span className="text-muted-foreground">Valor Total:</span> <strong>{maskValue(ms.totalValue)}</strong></div>
                       <div><span className="text-muted-foreground">Pendentes:</span> <strong className="text-yellow-600">{ms.pending}</strong></div>
                       <div><span className="text-muted-foreground">Pagos:</span> <strong className="text-emerald-600">{ms.paid}</strong></div>
                       <div className="col-span-2"><span className="text-muted-foreground">Vencidos:</span> <strong className="text-red-600">{ms.overdue}</strong></div>
