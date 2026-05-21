@@ -241,10 +241,12 @@ const App = () => {
       <TooltipProvider>
         <BrowserRouter>
           <AuthProvider>
-            <AppRoutes />
-            <Toaster />
-            <Sonner position="top-right" closeButton />
-            <PWAUpdatePrompt />
+            <PrivacyProvider>
+              <AppRoutes />
+              <Toaster />
+              <Sonner position="top-right" closeButton />
+              <PWAUpdatePrompt />
+            </PrivacyProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

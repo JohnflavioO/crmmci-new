@@ -4,8 +4,10 @@ import { isToday, isBefore, startOfDay } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { usePrivacy } from '@/hooks/usePrivacy';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
+import PrivacyToggle from '@/components/PrivacyToggle';
 import FollowUpAlerts from '@/components/FollowUpAlerts';
 import RevenueForecasting from '@/components/RevenueForecasting';
 import { Button } from '@/components/ui/button';
@@ -83,6 +85,7 @@ function computeTopClients(quotes: any[]) {
 
 export default function Dashboard() {
   const { user, isGestor, isAdmin, loading: authLoading } = useAuth();
+  const { maskValue, formatCurrency: privacyFormat } = usePrivacy();
   const navigate = useNavigate();
   // Ajustado: Apenas Gestores veem o dashboard do time.
   const canSeeTeam = isGestor;
@@ -233,8 +236,7 @@ export default function Dashboard() {
   const myTopClients = computeTopClients(myQuotes);
   const myRecent = myQuotes.slice(0, 8);
 
-  const formatCurrency = (v: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+  const formatCurrency = (v: number) => privacyFormat(v);
 
   const getSellerName = (userId: string) => {
     const s = sellers.find(s => s.user_id === userId);
@@ -265,9 +267,9 @@ export default function Dashboard() {
             <PsIcon className="h-3 w-3" /> {psConfig.label}
           </span>
           {parseFloat(q.shipping_cost) > 0 && (
-            <span className="text-xs text-muted-foreground">Frete: {formatCurrency(parseFloat(q.shipping_cost))}</span>
+            <span className="text-xs text-muted-foreground">Frete: {maskValue(parseFloat(q.shipping_cost))}</span>
           )}
-          <span className="text-sm font-medium">{formatCurrency(parseFloat(q.total_amount) || 0)}</span>
+          <span className="text-sm font-medium">{maskValue(parseFloat(q.total_amount) || 0)}</span>
           <Badge variant={statusVariants[q.status] || 'secondary'}
             className={q.status === 'approved' ? 'bg-[hsl(168,80%,45%)] text-white border-[hsl(168,80%,45%)]' : ''}>
             {statusLabels[q.status] || q.status}
@@ -311,7 +313,8 @@ export default function Dashboard() {
           />
           <StatCard 
             title="Valor Total" 
-            value={formatCurrency(stats.totalValue)} 
+            value={stats.totalValue} 
+            isCurrency={true}
             icon={DollarSign} 
             onClick={() => {
               if (isTeam) {
@@ -323,7 +326,8 @@ export default function Dashboard() {
           />
           <StatCard 
             title="Ticket Médio" 
-            value={formatCurrency(stats.avgTicket)} 
+            value={stats.avgTicket} 
+            isCurrency={true}
             icon={BarChart3} 
             onClick={() => {
               if (isTeam) {
@@ -407,11 +411,19 @@ export default function Dashboard() {
     return (
       <AppLayout>
         <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold font-display">Dashboard</h1>
-            <p className="text-muted-foreground text-sm">Visão geral do sistema</p>
+          <div className="flex items-center justify-between w-full sm:w-auto">
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold font-display">Dashboard</h1>
+              <p className="text-muted-foreground text-sm">Visão geral do sistema</p>
+            </div>
+            <div className="sm:hidden">
+              <PrivacyToggle />
+            </div>
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="hidden sm:block">
+              <PrivacyToggle />
+            </div>
             <Button variant="outline" onClick={() => navigate('/reports')} className="gap-2 min-h-[44px] flex-1 sm:flex-initial border-primary text-primary hover:bg-primary/5">
               <ClipboardList className="h-4 w-4" /> Relatórios
             </Button>
