@@ -298,6 +298,7 @@ export default function Approvals() {
                   </Tooltip>
                 </TooltipProvider>
               )}
+              {!isAdminUser && a.status === 'approved' && (
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button size="icon" variant="ghost" title="Permissões Avançadas">
