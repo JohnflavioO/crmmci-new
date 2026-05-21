@@ -437,7 +437,7 @@ function FinancialContent() {
     }));
   }, [records]);
 
-  const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const fmt = (v: number) => privacyFormat(v);
 
   // Inline action buttons for each record row
   const renderActions = (r: any) => {
@@ -501,9 +501,12 @@ function FinancialContent() {
               </Button>
             ))}
           </div>
-          <Button variant="outline" size="sm" onClick={loadRecords} className="gap-2 h-8">
-            <RefreshCw className="h-4 w-4" /> {!isMobile && 'Atualizar'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <PrivacyToggle />
+            <Button variant="outline" size="sm" onClick={loadRecords} className="gap-2 h-8">
+              <RefreshCw className="h-4 w-4" /> {!isMobile && 'Atualizar'}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -511,8 +514,8 @@ function FinancialContent() {
         <>
           {/* Dashboard Cards */}
           <div className={cn("grid gap-3 md:gap-4 mb-4 md:mb-6", isMobile ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4")}>
-            <StatCard title="Total a Receber" value={fmt(totalReceivable)} icon={DollarSign} />
-            <StatCard title="Recebido no Mês" value={fmt(paidThisMonth)} icon={CircleDollarSign} />
+            <StatCard title="Total a Receber" value={totalReceivable} isCurrency icon={DollarSign} />
+            <StatCard title="Recebido no Mês" value={paidThisMonth} isCurrency icon={CircleDollarSign} />
             <StatCard title="Pendentes" value={pendingCount} icon={Clock} />
             <StatCard title="Baixas Realizadas" value={baixasCount} icon={CheckCircle2} />
           </div>
