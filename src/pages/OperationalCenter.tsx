@@ -455,7 +455,7 @@ export default function OperationalCenter() {
                     id: s.user_id,
                     title: `${idx + 1}. ${s.full_name}`,
                     subtitle: `${s.approved_count} aprovações`,
-                    origin: `R$ ${parseFloat(s.total_value).toLocaleString('pt-BR')}`,
+                    origin: maskValue(parseFloat(s.total_value)),
                     actions: [
                       { label: 'Parabenizar', icon: Sparkles, onClick: () => toast.success(`Elogio enviado para ${s.full_name}!`) }
                     ]
@@ -481,7 +481,7 @@ export default function OperationalCenter() {
                   items={data.finance.expiringSlips.filter((s: any) => s.status === 'Vence hoje').slice(0, 5).map((s: any) => ({
                     id: s.id,
                     title: s.client_name,
-                    subtitle: `Vence hoje: R$ ${s.updated_amount.toLocaleString('pt-BR')}`,
+                    subtitle: `Vence hoje: ${maskValue(s.updated_amount)}`,
                     origin: s.dda || 'DDA',
                     actions: [
                       { label: 'Abrir', icon: ExternalLink, onClick: () => handleQuickAction('open_slip', s) }
@@ -499,7 +499,7 @@ export default function OperationalCenter() {
                     id: s.id,
                     title: s.client_name,
                     subtitle: `Vencido há ${differenceInDays(new Date(), new Date(s.due_date))} dias`,
-                    origin: `R$ ${s.updated_amount.toLocaleString('pt-BR')}`,
+                    origin: maskValue(s.updated_amount),
                     actions: [
                       { label: 'Cobrar', icon: DollarSign, onClick: () => handleQuickAction('open_slip', s) },
                       { label: 'WhatsApp', icon: Phone, onClick: () => handleQuickAction('whatsapp', s) }
@@ -516,7 +516,7 @@ export default function OperationalCenter() {
                   items={data.finance.priorityCollections.slice(0, 5).map((s: any) => ({
                     id: s.id,
                     title: s.client_name,
-                    subtitle: `R$ ${s.updated_amount.toLocaleString('pt-BR')}`,
+                    subtitle: maskValue(s.updated_amount),
                     origin: 'Ticket Alto',
                     actions: [
                       { label: 'Ação Rápida', icon: Zap, onClick: () => handleQuickAction('open_slip', s) }
