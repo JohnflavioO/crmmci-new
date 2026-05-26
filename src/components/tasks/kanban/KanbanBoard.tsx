@@ -231,10 +231,10 @@ export default function KanbanBoard({ onTaskClick, onAddTask, refreshTrigger }: 
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => renameColumn(column.id, column.name)}>
+                  <DropdownMenuItem onClick={() => handleRenameColumn(column.id, column.name, column.color)}>
                     <Pencil className="h-4 w-4 mr-2" /> Renomear
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => deleteColumn(column.id, column.tasks.length)} className="text-destructive">
+                  <DropdownMenuItem onClick={() => setDeleteAlert({ isOpen: true, columnId: column.id, tasksCount: column.tasks.length })} className="text-destructive">
                     <Trash2 className="h-4 w-4 mr-2" /> Excluir
                   </DropdownMenuItem>
                 </DropdownMenuContent>
