@@ -26,6 +26,8 @@ import {
   MessageSquare, History, ShieldAlert, Handshake
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { ActionMenu } from '@/components/ActionMenu';
+import { Pencil, Trash2, ExternalLink } from 'lucide-react';
 
 import FinancialSellerRanking from '@/components/financial/FinancialSellerRanking';
 import FinancialActionsDoDia from '@/components/financial/FinancialActionsDoDia';
@@ -444,27 +446,40 @@ function FinancialContent() {
     if (!canEdit) return null;
     const isPaidOrCancelled = ['pago', 'cancelado'].includes(r.financial_status);
     return (
-      <div className="flex gap-1 flex-wrap">
-        {!isPaidOrCancelled && (
-          <>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => handleOpenBaixa(r)}>
-              <ArrowDownCircle className="h-3 w-3" /> Baixa
-            </Button>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => handleStatusChange(r, 'pago', 'liquidacao')}>
-              <CheckCircle2 className="h-3 w-3" /> Liquidar
-            </Button>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => handleStatusChange(r, 'em_renegociacao', 'renegociacao')}>
-              <Handshake className="h-3 w-3" /> Reneg.
-            </Button>
-          </>
-        )}
-        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => { setNoteRecord(r); setNoteText(''); }}>
-          <MessageSquare className="h-3 w-3" /> Obs.
-        </Button>
-        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => handleViewHistory(r)}>
-          <History className="h-3 w-3" /> Hist.
-        </Button>
-      </div>
+      <ActionMenu 
+        actions={[
+          { 
+            label: "Registrar Baixa", 
+            icon: ArrowDownCircle, 
+            onClick: () => handleOpenBaixa(r),
+            isPrimary: true,
+            disabled: isPaidOrCancelled
+          },
+          { 
+            label: "Liquidar Agora", 
+            icon: CheckCircle2, 
+            onClick: () => handleStatusChange(r, 'pago', 'liquidacao'),
+            disabled: isPaidOrCancelled
+          },
+          { 
+            label: "Renegociar", 
+            icon: Handshake, 
+            onClick: () => handleStatusChange(r, 'em_renegociacao', 'renegociacao'),
+            disabled: isPaidOrCancelled
+          },
+          { 
+            label: "Adicionar Obs.", 
+            icon: MessageSquare, 
+            onClick: () => { setNoteRecord(r); setNoteText(''); },
+            isSecondary: true
+          },
+          { 
+            label: "Ver Histórico", 
+            icon: History, 
+            onClick: () => handleViewHistory(r)
+          }
+        ]}
+      />
     );
   };
 

@@ -9,10 +9,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil, Trash2, MessageCircle, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { ActionMenu } from '@/components/ActionMenu';
 
 export const STATUS_OPTIONS = [
   { key: 'recebido', label: 'Recebido' },
@@ -126,17 +127,53 @@ export default function SupportOrders() {
             <TableHeader>
               <TableRow>
                 <TableHead>OS</TableHead><TableHead>Cliente</TableHead><TableHead>Equipamento</TableHead>
-                <TableHead>Status</TableHead><TableHead className="text-right">Total</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {orders.map(o => (
-                <TableRow key={o.id} className="cursor-pointer">
-                  <TableCell><Link to={`/suporte/os/${o.id}`} className="font-medium text-primary">{o.os_number}</Link></TableCell>
+                <TableRow key={o.id} className="hover:bg-muted/50 transition-colors">
+                  <TableCell><Link to={`/suporte/os/${o.id}`} className="font-medium text-primary hover:underline">{o.os_number}</Link></TableCell>
                   <TableCell>{o.client_name}</TableCell>
                   <TableCell>{o.equipment}</TableCell>
-                  <TableCell><Badge variant="secondary">{STATUS_OPTIONS.find(s => s.key === o.status)?.label || o.status}</Badge></TableCell>
-                  <TableCell className="text-right">R$ {Number(o.total_value || 0).toFixed(2)}</TableCell>
+                  <TableCell><Badge variant="secondary" className="font-normal">{STATUS_OPTIONS.find(s => s.key === o.status)?.label || o.status}</Badge></TableCell>
+                  <TableCell className="text-right font-medium">R$ {Number(o.total_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                  <TableCell className="text-right">
+                    <ActionMenu 
+                      className="justify-end"
+                      actions={[
+                        { 
+                          label: "Ver Detalhes", 
+                          icon: ExternalLink, 
+                          onClick: () => window.location.href = `/suporte/os/${o.id}`,
+                          isPrimary: true
+                        },
+                        { 
+                          label: "WhatsApp", 
+                          icon: MessageCircle, 
+                          onClick: () => {
+                            const phone = o.clients?.phone || o.phone || '';
+                            if (phone) window.open(`https://wa.me/${phone.replace(/\D/g, '')}`, '_blank');
+                            else toast.error("Telefone não disponível");
+                          },
+                          className: "text-green-600"
+                        },
+                        { 
+                          label: "Excluir", 
+                          icon: Trash2, 
+                          onClick: async () => {
+                            if (!confirm('Deseja excluir esta OS?')) return;
+                            const { error } = await supabase.from('technical_orders' as any).delete().eq('id', o.id);
+                            if (error) toast.error(error.message);
+                            else { toast.success('OS excluída'); load(); }
+                          },
+                          variant: 'destructive'
+                        }
+                      ]} 
+                    />
+                  </TableCell>
                 </TableRow>
               ))}
               {orders.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Nenhuma OS</TableCell></TableRow>}

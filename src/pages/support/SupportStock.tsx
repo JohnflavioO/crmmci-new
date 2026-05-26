@@ -9,9 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, AlertTriangle, Search, Tags, History, Printer, SlidersHorizontal, Package, MoreHorizontal, Pencil, Trash2, PlusCircle, Wrench, Download, Upload, FileJson, FileSpreadsheet, FileText } from 'lucide-react';
+import { Plus, AlertTriangle, Search, Tags, History, Printer, SlidersHorizontal, Package, MoreHorizontal, Pencil, Trash2, PlusCircle, Wrench, Download, Upload, FileJson, FileSpreadsheet, FileText, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { ActionMenu } from '@/components/ActionMenu';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -379,14 +380,23 @@ export default function SupportStock() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(item)}>
-                          <Pencil className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(item.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <ActionMenu 
+                        className="justify-end"
+                        actions={[
+                          { 
+                            label: "Editar", 
+                            icon: Pencil, 
+                            onClick: () => handleEdit(item),
+                            isPrimary: true
+                          },
+                          { 
+                            label: "Excluir", 
+                            icon: Trash2, 
+                            onClick: () => handleDelete(item.id),
+                            variant: 'destructive'
+                          }
+                        ]} 
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

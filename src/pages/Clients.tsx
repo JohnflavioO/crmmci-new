@@ -10,10 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2, MessageCircle, Store } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2, MessageCircle, Store, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { ActionMenu } from '@/components/ActionMenu';
 import ClientFilterBar from '@/components/clients/ClientFilterBar';
 import ClientFilterDrawer, { emptyFilters } from '@/components/clients/ClientFilterDrawer';
 import { useClientFilters } from '@/components/clients/useClientFilters';
@@ -930,14 +931,30 @@ export default function Clients() {
                       <TableCell className="text-xs text-muted-foreground">{getSellerName(c.created_by || '')}</TableCell>
                     )}
                     <TableCell>
-                      <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => handleEdit(c)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleDelete(c.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+                      <ActionMenu 
+                        actions={[
+                          { 
+                            label: "WhatsApp", 
+                            icon: MessageCircle, 
+                            onClick: () => window.open(`https://wa.me/${c.phone?.replace(/\D/g, '')}`, '_blank'),
+                            isPrimary: true,
+                            disabled: !c.phone,
+                            className: "text-green-600"
+                          },
+                          { 
+                            label: "Editar", 
+                            icon: Pencil, 
+                            onClick: () => handleEdit(c),
+                            isSecondary: true
+                          },
+                          { 
+                            label: "Excluir", 
+                            icon: Trash2, 
+                            onClick: () => handleDelete(c.id),
+                            variant: 'destructive'
+                          }
+                        ]} 
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

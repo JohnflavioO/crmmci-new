@@ -26,6 +26,7 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import { ActionMenu } from "@/components/ActionMenu";
 
 const db = supabase as any;
 
@@ -656,41 +657,16 @@ function OperationalCard({ title, count, priority, icon: Icon, description, item
                 
                 <div className="flex items-center gap-1 ml-3">
                   {item.actions && item.actions.length > 0 && (
-                    <>
-                      {item.actions.slice(0, 1).map((act: any, idx: number) => (
-                        <Button 
-                          key={idx}
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10" 
-                          onClick={(e) => { e.stopPropagation(); act.onClick(); }}
-                          title={act.label}
-                        >
-                          <act.icon className="h-4 w-4" />
-                        </Button>
-                      ))}
-                      
-                      {item.actions.length > 1 && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            {item.actions.map((act: any, idx: number) => (
-                              <DropdownMenuItem key={idx} onClick={act.onClick} className="gap-2 cursor-pointer">
-                                <act.icon className="h-4 w-4" />
-                                <span>{act.label}</span>
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </>
+                    <ActionMenu 
+                      actions={item.actions.map((act: any) => ({
+                        ...act,
+                        isPrimary: act.label === 'WhatsApp' || act.label === 'Follow-up' || act.label === 'Cobrar',
+                        isSecondary: act.label === 'Abrir' || act.label === 'Ver Detalhes' || act.label === 'Abrir Cliente'
+                      }))}
+                    />
                   )}
                   {(!item.actions || item.actions.length === 0) && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground opacity-0 group-hover/item:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground opacity-0 group-hover/item:opacity-100 transition-opacity" onClick={item.onClick}>
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   )}

@@ -7,10 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Plus, ArrowRight, ArrowLeft, Pencil, Trash2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { Progress } from '@/components/ui/progress';
+import { ActionMenu } from '@/components/ActionMenu';
 
 export default function SupportClients() {
   const { user } = useAuth();
@@ -18,6 +19,7 @@ export default function SupportClients() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [search, setSearch] = useState('');
+  const [editingClient, setEditingClient] = useState<any>(null);
   const [form, setForm] = useState<any>({ 
     name: '', 
     cpf_cnpj: '', 
@@ -39,11 +41,21 @@ export default function SupportClients() {
 
   const save = async () => {
     if (!form.name) return toast.error('Nome obrigatório');
-    const { error } = await supabase.from('technical_clients' as any).insert({ ...form, created_by: user?.id });
+    
+    let error;
+    if (editingClient) {
+      const { error: err } = await supabase.from('technical_clients' as any).update(form).eq('id', editingClient.id);
+      error = err;
+    } else {
+      const { error: err } = await supabase.from('technical_clients' as any).insert({ ...form, created_by: user?.id });
+      error = err;
+    }
+    
     if (error) return toast.error(error.message);
-    toast.success('Cliente cadastrado');
+    toast.success(editingClient ? 'Cliente atualizado' : 'Cliente cadastrado');
     setOpen(false);
     setStep(1);
+    setEditingClient(null);
     setForm({ name: '', cpf_cnpj: '', phone: '', whatsapp: '', email: '', address: '', notes: '' });
     load();
   };
@@ -58,7 +70,7 @@ export default function SupportClients() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold font-display">Clientes</h1>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if(!v) setStep(1); }}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if(!v) { setStep(1); setEditingClient(null); setForm({ name: '', cpf_cnpj: '', phone: '', whatsapp: '', email: '', address: '', notes: '' }); } }}>
           <DialogTrigger asChild>
             <Button className="bg-[#00966d] hover:bg-[#007a58]">
               <Plus className="h-4 w-4 mr-2" /> Novo Cliente
@@ -221,9 +233,43 @@ export default function SupportClients() {
                   {c.address || '-'}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="link" className="text-emerald-600 h-auto p-0 text-xs">
-                    Detalhes / Editar
-                  </Button>
+                  <ActionMenu 
+                    className="justify-end"
+                    actions={[
+                      { 
+                        label: "WhatsApp", 
+                        icon: MessageCircle, 
+                        onClick: () => {
+                          const phone = c.whatsapp || c.phone || '';
+                          if (phone) window.open(`https://wa.me/${phone.replace(/\D/g, '')}`, '_blank');
+                          else toast.error("Telefone não disponível");
+                        },
+                        isPrimary: true,
+                        className: "text-green-600"
+                      },
+                      { 
+                        label: "Editar", 
+                        icon: Pencil, 
+                        onClick: () => {
+                          setEditingClient(c);
+                          setForm(c);
+                          setOpen(true);
+                        },
+                        isSecondary: true
+                      },
+                      { 
+                        label: "Excluir", 
+                        icon: Trash2, 
+                        onClick: async () => {
+                          if (!confirm('Excluir este cliente?')) return;
+                          const { error } = await supabase.from('technical_clients' as any).delete().eq('id', c.id);
+                          if (error) toast.error(error.message);
+                          else { toast.success('Cliente excluído'); load(); }
+                        },
+                        variant: 'destructive'
+                      }
+                    ]} 
+                  />
                 </TableCell>
               </TableRow>
             ))}
