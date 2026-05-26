@@ -143,10 +143,41 @@ export default function SupportBudgets() {
                   </div>
                 </div>
                 
-                <Button variant="ghost" className="w-full text-primary hover:text-primary hover:bg-primary/5 text-xs font-bold gap-2">
-                  <FileText className="h-3.5 w-3.5" />
-                  Visualizar PDF
-                </Button>
+                <div className="flex justify-center pt-2 border-t border-border">
+                  <ActionMenu 
+                    className="w-full justify-center"
+                    actions={[
+                      { 
+                        label: "Visualizar PDF", 
+                        icon: FileText, 
+                        onClick: () => toast.info("Visualizando PDF..."),
+                        isPrimary: true
+                      },
+                      { 
+                        label: "WhatsApp", 
+                        icon: MessageCircle, 
+                        onClick: () => toast.info("Enviando WhatsApp..."),
+                        className: "text-green-600"
+                      },
+                      { 
+                        label: "Editar", 
+                        icon: Pencil, 
+                        onClick: () => toast.info("Editando orçamento...")
+                      },
+                      { 
+                        label: "Excluir", 
+                        icon: Trash2, 
+                        onClick: async () => {
+                          if (!confirm('Excluir orçamento?')) return;
+                          const { error } = await supabase.from('technical_budgets').delete().eq('id', budget.id);
+                          if (error) toast.error(error.message);
+                          else { toast.success('Orçamento excluído'); fetchBudgets(); }
+                        },
+                        variant: 'destructive'
+                      }
+                    ]} 
+                  />
+                </div>
               </CardContent>
             </Card>
           ))
