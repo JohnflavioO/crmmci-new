@@ -34,7 +34,9 @@ export default function KanbanBoard({ onTaskClick, refreshTrigger }: KanbanBoard
         .select(`
           *,
           quote:quotes(quote_number, client_name, total),
-          client:clients(name)
+          client:clients(name),
+          checklist:task_checklists(id, is_completed),
+          comments:task_comments(id)
         `)
         .eq('board_id', boards.id)
         .order('position', { ascending: true });
