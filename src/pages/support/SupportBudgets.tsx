@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { ActionMenu } from '@/components/ActionMenu';
+import { Pencil, Trash2, MessageCircle } from 'lucide-react';
 
 interface Budget {
   id: string;
