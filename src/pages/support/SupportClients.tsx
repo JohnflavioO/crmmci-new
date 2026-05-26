@@ -41,11 +41,21 @@ export default function SupportClients() {
 
   const save = async () => {
     if (!form.name) return toast.error('Nome obrigatório');
-    const { error } = await supabase.from('technical_clients' as any).insert({ ...form, created_by: user?.id });
+    
+    let error;
+    if (editingClient) {
+      const { error: err } = await supabase.from('technical_clients' as any).update(form).eq('id', editingClient.id);
+      error = err;
+    } else {
+      const { error: err } = await supabase.from('technical_clients' as any).insert({ ...form, created_by: user?.id });
+      error = err;
+    }
+    
     if (error) return toast.error(error.message);
-    toast.success('Cliente cadastrado');
+    toast.success(editingClient ? 'Cliente atualizado' : 'Cliente cadastrado');
     setOpen(false);
     setStep(1);
+    setEditingClient(null);
     setForm({ name: '', cpf_cnpj: '', phone: '', whatsapp: '', email: '', address: '', notes: '' });
     load();
   };
