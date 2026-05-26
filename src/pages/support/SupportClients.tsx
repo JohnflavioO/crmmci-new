@@ -70,7 +70,7 @@ export default function SupportClients() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold font-display">Clientes</h1>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if(!v) setStep(1); }}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if(!v) { setStep(1); setEditingClient(null); setForm({ name: '', cpf_cnpj: '', phone: '', whatsapp: '', email: '', address: '', notes: '' }); } }}>
           <DialogTrigger asChild>
             <Button className="bg-[#00966d] hover:bg-[#007a58]">
               <Plus className="h-4 w-4 mr-2" /> Novo Cliente
