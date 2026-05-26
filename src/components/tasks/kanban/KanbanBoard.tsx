@@ -93,8 +93,16 @@ export default function KanbanBoard({ onTaskClick, refreshTrigger }: KanbanBoard
 
       if (error) throw error;
       
-      // Optionally re-position other tasks in columns
-      // For simplicity in this first pass, we just update the moved one.
+      // Add activity history
+      if (source.droppableId !== destination.droppableId) {
+        await db.from('task_activities').insert({
+          task_id: draggableId,
+          user_id: (await supabase.auth.getUser()).data.user?.id,
+          activity_type: 'task_moved',
+          old_value: sourceCol.name,
+          new_value: destCol.name
+        });
+      }
     } catch (error: any) {
       toast.error('Erro ao mover tarefa: ' + error.message);
       loadData(); // Revert
