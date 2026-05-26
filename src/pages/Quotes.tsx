@@ -1642,41 +1642,54 @@ export default function Quotes() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        {q.clients?.phone && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            title="WhatsApp com PDF"
-                            disabled={whatsappLoading === q.id}
-                            onClick={() => handleWhatsAppWithPdf(q)}
-                          >
-                            {whatsappLoading === q.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin text-green-600" />
-                            ) : (
-                              <MessageCircle className="h-4 w-4 text-green-600" />
-                            )}
-                          </Button>
-                        )}
-                        <Button size="icon" variant="ghost" onClick={() => handleCopyPublicLink(q)} title="Link Público de Aprovação">
-                          <Link2 className="h-4 w-4 text-primary" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleDuplicate(q)} title="Duplicar Orçamento">
-                          <Copy className="h-4 w-4 text-blue-600" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => setChatQuote({ id: q.id, number: q.quote_number })} title="Chat Interno">
-                          <MessageSquare className="h-4 w-4 text-primary" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleExportPdf(q)} title="Exportar PDF">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleEdit(q)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleDelete(q.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+                      <ActionMenu 
+                        actions={[
+                          { 
+                            label: "WhatsApp com PDF", 
+                            icon: MessageCircle, 
+                            onClick: () => handleWhatsAppWithPdf(q),
+                            isPrimary: true,
+                            isLoading: whatsappLoading === q.id,
+                            className: "text-green-600",
+                            disabled: !q.clients?.phone
+                          },
+                          { 
+                            label: "Link Público", 
+                            icon: Link2, 
+                            onClick: () => handleCopyPublicLink(q),
+                            className: "text-primary"
+                          },
+                          { 
+                            label: "Duplicar", 
+                            icon: Copy, 
+                            onClick: () => handleDuplicate(q),
+                            className: "text-blue-600"
+                          },
+                          { 
+                            label: "Chat Interno", 
+                            icon: MessageSquare, 
+                            onClick: () => setChatQuote({ id: q.id, number: q.quote_number }),
+                            className: "text-primary"
+                          },
+                          { 
+                            label: "Exportar PDF", 
+                            icon: Download, 
+                            onClick: () => handleExportPdf(q)
+                          },
+                          { 
+                            label: "Editar", 
+                            icon: Pencil, 
+                            onClick: () => handleEdit(q),
+                            isSecondary: true
+                          },
+                          { 
+                            label: "Excluir", 
+                            icon: Trash2, 
+                            onClick: () => handleDelete(q.id),
+                            variant: 'destructive'
+                          }
+                        ]} 
+                      />
                     </TableCell>
                   </TableRow>
                   );
