@@ -607,6 +607,20 @@ export default function Tasks() {
         </DialogContent>
       </Dialog>
 
+      {/* Task Details Modal */}
+      <TaskDetailsModal 
+        isOpen={detailsOpen}
+        task={activeTask}
+        onClose={() => {
+          setDetailsOpen(false);
+          setActiveTask(null);
+        }}
+        onUpdate={() => {
+          setRefreshTrigger(p => p + 1);
+          load();
+        }}
+      />
+
       {/* Dialog Scripts de Mensagem */}
       <Dialog open={scriptsOpen} onOpenChange={setScriptsOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
