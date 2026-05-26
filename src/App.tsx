@@ -201,7 +201,7 @@ function AppRoutes() {
           <Route path="/" element={
             isLogisticaOnly ? <Navigate to="/logistics" replace /> :
             isFinanceiroOnly ? <Navigate to="/financial" replace /> :
-            <OperationalCenter />
+            <Navigate to="/dashboard" replace />
           } />
           <Route path="/operational" element={<OperationalCenter />} />
           <Route path="/dashboard" element={<Dashboard />} />
