@@ -188,9 +188,21 @@ export default function KanbanBoard({ onTaskClick, onAddTask, refreshTrigger }: 
                 <h3 className="font-semibold text-sm uppercase tracking-wider">{column.name}</h3>
                 <Badge variant="secondary" className="ml-1 text-[10px]">{column.tasks.length}</Badge>
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => renameColumn(column.id, column.name)}>
+                    <Pencil className="h-4 w-4 mr-2" /> Renomear
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => deleteColumn(column.id, column.tasks.length)} className="text-destructive">
+                    <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <Droppable droppableId={column.id}>
