@@ -208,13 +208,14 @@ export default function Tasks() {
     setDialogOpen(true); 
   };
 
-  const openEdit = (t: Task) => {
+  const openEdit = (t: Task | any) => {
     setEditing(t);
     setForm({
       title: t.title, description: t.description || '', task_type: t.task_type,
       status: t.status, priority: t.priority,
       due_date: t.due_date ? new Date(t.due_date).toISOString().slice(0, 16) : '',
       quote_id: t.quote_id || '', client_id: t.client_id || '',
+      column_id: t.column_id || '',
     });
     setDialogOpen(true);
   };
