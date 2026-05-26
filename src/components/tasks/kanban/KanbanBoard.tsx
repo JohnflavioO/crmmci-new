@@ -13,10 +13,11 @@ const db = supabase as any;
 
 interface KanbanBoardProps {
   onTaskClick: (task: any) => void;
+  onAddTask: (columnId: string, status: string) => void;
   refreshTrigger: number;
 }
 
-export default function KanbanBoard({ onTaskClick, refreshTrigger }: KanbanBoardProps) {
+export default function KanbanBoard({ onTaskClick, onAddTask, refreshTrigger }: KanbanBoardProps) {
   const [columns, setColumns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
