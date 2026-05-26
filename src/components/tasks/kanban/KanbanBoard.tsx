@@ -112,6 +112,29 @@ export default function KanbanBoard({ onTaskClick, onAddTask, refreshTrigger }: 
     }
   };
 
+  const addColumn = async () => {
+    const name = prompt('Nome da nova coluna:');
+    if (!name) return;
+    
+    try {
+      const { data: boards } = await db.from('task_boards').select('id').eq('is_default', true).single();
+      if (!boards) return;
+
+      const { error } = await db.from('task_columns').insert({
+        name,
+        board_id: boards.id,
+        position: columns.length,
+        color: '#94a3b8'
+      });
+
+      if (error) throw error;
+      toast.success('Coluna criada!');
+      loadData();
+    } catch (error: any) {
+      toast.error('Erro ao criar coluna: ' + error.message);
+    }
+  };
+
   if (loading) return <div className="p-8 text-center">Carregando quadro...</div>;
 
   return (
