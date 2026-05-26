@@ -259,7 +259,7 @@ export default function KanbanBoard({ onTaskClick, onAddTask, refreshTrigger }: 
           </div>
         ))}
 
-        <div className="min-w-[300px] border-2 border-dashed rounded-xl flex items-center justify-center p-6 text-muted-foreground hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => {/* Open column management */}}>
+        <div className="min-w-[300px] border-2 border-dashed rounded-xl flex items-center justify-center p-6 text-muted-foreground hover:bg-muted/30 transition-colors cursor-pointer" onClick={addColumn}>
           <div className="text-center">
             <Plus className="h-6 w-6 mx-auto mb-2 opacity-50" />
             <p className="text-sm font-medium">Nova Coluna</p>
