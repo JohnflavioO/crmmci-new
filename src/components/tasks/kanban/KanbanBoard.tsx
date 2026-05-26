@@ -354,6 +354,35 @@ export default function KanbanBoard({ onTaskClick, onAddTask, refreshTrigger }: 
           </div>
         </div>
       </div>
+
+      <ColumnModal
+        isOpen={columnModal.isOpen}
+        onClose={() => setColumnModal(prev => ({ ...prev, isOpen: false }))}
+        onSave={onSaveColumn}
+        title={columnModal.title}
+        initialName={columnModal.initialName}
+        initialColor={columnModal.initialColor}
+        existingNames={columns.map(c => c.name)}
+      />
+
+      <AlertDialog open={deleteAlert.isOpen} onOpenChange={(open) => setDeleteAlert(prev => ({ ...prev, isOpen: open }))}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deseja excluir esta coluna?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteAlert.tasksCount > 0 
+                ? `Esta coluna possui ${deleteAlert.tasksCount} tarefas. Elas serão excluídas permanentemente. Esta ação não pode ser desfeita.` 
+                : "Esta ação excluirá a coluna permanentemente do seu quadro Kanban."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteColumn} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl">
+              Excluir Coluna
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DragDropContext>
   );
 }
