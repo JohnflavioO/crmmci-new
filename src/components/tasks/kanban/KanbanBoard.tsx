@@ -4,10 +4,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Plus, MoreVertical, Calendar, User, DollarSign, Tag, MessageSquare, CheckSquare } from 'lucide-react';
+import { 
+  Plus, MoreVertical, Calendar, User, DollarSign, Tag, 
+  MessageSquare, CheckSquare, Pencil, Trash2 
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const db = supabase as any;
 
