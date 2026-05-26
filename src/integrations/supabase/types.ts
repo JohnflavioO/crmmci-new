@@ -1240,47 +1240,235 @@ export type Database = {
           },
         ]
       }
+      task_activities: {
+        Row: {
+          activity_type: string
+          created_at: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_activities_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_boards: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      task_checklists: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_completed: boolean | null
+          position: number
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_completed?: boolean | null
+          position?: number
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_completed?: boolean | null
+          position?: number
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_checklists_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_columns: {
+        Row: {
+          board_id: string
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          board_id: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          updated_at?: string
+        }
+        Update: {
+          board_id?: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_columns_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "task_boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          task_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          task_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          task_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
+          board_id: string | null
           client_id: string | null
+          column_id: string | null
           completed_at: string | null
           created_at: string
           description: string | null
           due_date: string | null
           id: string
+          position: number
           priority: string
           quote_id: string | null
           status: string
+          tags: string[] | null
           task_type: string
           title: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          board_id?: string | null
           client_id?: string | null
+          column_id?: string | null
           completed_at?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
           id?: string
+          position?: number
           priority?: string
           quote_id?: string | null
           status?: string
+          tags?: string[] | null
           task_type?: string
           title: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          board_id?: string | null
           client_id?: string | null
+          column_id?: string | null
           completed_at?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
           id?: string
+          position?: number
           priority?: string
           quote_id?: string | null
           status?: string
+          tags?: string[] | null
           task_type?: string
           title?: string
           updated_at?: string
@@ -1288,10 +1476,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "tasks_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "task_boards"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tasks_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_column_id_fkey"
+            columns: ["column_id"]
+            isOneToOne: false
+            referencedRelation: "task_columns"
             referencedColumns: ["id"]
           },
           {

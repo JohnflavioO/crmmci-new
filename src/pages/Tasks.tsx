@@ -15,9 +15,11 @@ import { toast } from 'sonner';
 import {
   Plus, Search, Pencil, Trash2, CheckCircle2, Clock, AlertTriangle,
   Phone, CreditCard, Truck, MessageCircle, MoreHorizontal,
-  CircleDot, ListChecks, Filter, Copy, Sparkles,
+  CircleDot, ListChecks, Filter, Copy, Sparkles, LayoutDashboard, Table as TableIcon,
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import KanbanBoard from '@/components/tasks/kanban/KanbanBoard';
+import TaskDetailsModal from '@/components/tasks/modals/TaskDetailsModal';
 
 const db = supabase as any;
 
@@ -141,10 +143,13 @@ export default function Tasks() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [scriptsOpen, setScriptsOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [form, setForm] = useState({
     title: '', description: '', task_type: 'contato', status: 'pendente',
     priority: 'média', due_date: '', quote_id: '', client_id: '',
@@ -230,6 +235,7 @@ export default function Tasks() {
     }
     setDialogOpen(false);
     resetForm();
+    setRefreshTrigger(p => p + 1);
     load();
   };
 
@@ -237,6 +243,7 @@ export default function Tasks() {
     if (!confirm('Excluir esta tarefa?')) return;
     await db.from('tasks').delete().eq('id', id);
     toast.success('Tarefa excluída');
+    setRefreshTrigger(p => p + 1);
     load();
   };
 
@@ -246,6 +253,7 @@ export default function Tasks() {
       status: newStatus,
       completed_at: newStatus === 'concluida' ? new Date().toISOString() : null,
     }).eq('id', t.id);
+    setRefreshTrigger(p => p + 1);
     load();
   };
 
@@ -291,13 +299,33 @@ export default function Tasks() {
       <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold font-display flex items-center gap-2">
-            <ListChecks className="h-6 md:h-7 w-6 md:w-7 text-accent" /> Tarefas
+            <ListChecks className="h-6 md:h-7 w-6 md:w-7 text-accent" /> Central de Tarefas
           </h1>
-          <p className="text-muted-foreground text-sm">Gerencie suas atividades e acompanhamentos</p>
+          <p className="text-muted-foreground text-sm">Organize seu fluxo de trabalho visualmente</p>
         </div>
-        <Button onClick={openNew} className="bg-accent hover:bg-accent/90 text-accent-foreground min-h-[44px] w-full sm:w-auto">
-          <Plus className="h-4 w-4 mr-2" /> Criar tarefa
-        </Button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="bg-muted p-1 rounded-lg flex gap-1 mr-2">
+            <Button 
+              variant={viewMode === 'kanban' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="h-8 px-2"
+              onClick={() => setViewMode('kanban')}
+            >
+              <LayoutDashboard className="h-4 w-4 mr-1" /> Kanban
+            </Button>
+            <Button 
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="h-8 px-2"
+              onClick={() => setViewMode('list')}
+            >
+              <TableIcon className="h-4 w-4 mr-1" /> Lista
+            </Button>
+          </div>
+          <Button onClick={openNew} className="bg-accent hover:bg-accent/90 text-accent-foreground min-h-[44px] flex-1 sm:flex-none">
+            <Plus className="h-4 w-4 mr-2" /> Criar tarefa
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -344,145 +372,172 @@ export default function Tasks() {
         </div>
       </div>
 
-      {/* Task List */}
-      <Card className="shadow-card mb-4">
-        <CardContent className="pt-4 md:pt-6">
-          {filtered.length === 0 ? (
-            <div className="text-center py-12">
-              <ListChecks className="mx-auto h-12 w-12 text-muted-foreground/30" />
-              <p className="text-muted-foreground mt-3">Nenhuma tarefa encontrada</p>
-            </div>
-          ) : isMobile ? (
-            <div className="space-y-3">
-              {filtered.map(t => {
-                const st = statusConfig[t.status] || statusConfig.pendente;
-                const tt = taskTypes[t.task_type] || taskTypes.outro;
-                const pr = priorityConfig[t.priority] || priorityConfig.média;
-                const TtIcon = tt.icon;
-                return (
-                  <div key={t.id} className={`p-3 rounded-lg border bg-muted/30 space-y-2 ${t.status === 'concluida' ? 'opacity-60' : ''}`}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => toggleComplete(t)}
-                          className={`w-6 h-6 rounded border-2 flex items-center justify-center shrink-0 ${t.status === 'concluida' ? 'bg-accent border-accent text-accent-foreground' : 'border-muted-foreground/30'}`}>
-                          {t.status === 'concluida' && <CheckCircle2 className="h-3 w-3" />}
-                        </button>
-                        <div>
-                          <p className={`font-medium text-sm ${t.status === 'concluida' ? 'line-through' : ''}`}>{t.title}</p>
-                          {t.client?.name && <p className="text-xs text-muted-foreground">{t.client.name}</p>}
-                        </div>
-                      </div>
-                      <TtIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className={tt.color}>{tt.label}</Badge>
-                      <Badge variant="outline" className={st.color}>{st.label}</Badge>
-                      <Badge variant="outline" className={pr.color}>{pr.label}</Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{formatDate(t.due_date)}</span>
-                      {t.quote && <span className="text-primary">{t.quote.client_name} #{t.quote.quote_number}</span>}
-                    </div>
-                    <div className="flex gap-1 pt-1 border-t">
-                      <Button size="sm" variant="ghost" onClick={() => openScripts(t)} className="min-h-[44px] flex-1">
-                        <Sparkles className="h-4 w-4 text-purple-500" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(t)} className="min-h-[44px] flex-1">
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => remove(t.id)} className="min-h-[44px] flex-1">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10"></TableHead>
-                    <TableHead>Tarefa</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Prioridade</TableHead>
-                    <TableHead>Data/Hora</TableHead>
-                    <TableHead>Negociação</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead className="w-28">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map(t => {
-                    const st = statusConfig[t.status] || statusConfig.pendente;
-                    const tt = taskTypes[t.task_type] || taskTypes.outro;
-                    const pr = priorityConfig[t.priority] || priorityConfig.média;
-                    const StIcon = st.icon;
-                    const TtIcon = tt.icon;
-                    return (
-                      <TableRow key={t.id} className={t.status === 'concluida' ? 'opacity-60' : ''}>
-                        <TableCell>
+      {/* Content Area */}
+      {viewMode === 'kanban' ? (
+        <div className="flex-1 min-h-0 overflow-hidden -mx-4 px-4 pb-4">
+          <KanbanBoard 
+            refreshTrigger={refreshTrigger} 
+            onTaskClick={(t) => {
+              setActiveTask(t);
+              setDetailsOpen(true);
+            }} 
+          />
+        </div>
+      ) : (
+        <Card className="shadow-card mb-4">
+          <CardContent className="pt-4 md:pt-6">
+            {filtered.length === 0 ? (
+              <div className="text-center py-12">
+                <ListChecks className="mx-auto h-12 w-12 text-muted-foreground/30" />
+                <p className="text-muted-foreground mt-3">Nenhuma tarefa encontrada</p>
+              </div>
+            ) : isMobile ? (
+              <div className="space-y-3">
+                {filtered.map(t => {
+                  const st = statusConfig[t.status] || statusConfig.pendente;
+                  const tt = taskTypes[t.task_type] || taskTypes.outro;
+                  const pr = priorityConfig[t.priority] || priorityConfig.média;
+                  const TtIcon = tt.icon;
+                  return (
+                    <div key={t.id} className={`p-3 rounded-lg border bg-muted/30 space-y-2 ${t.status === 'concluida' ? 'opacity-60' : ''}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
                           <button onClick={() => toggleComplete(t)}
-                            className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${t.status === 'concluida' ? 'bg-accent border-accent text-accent-foreground' : 'border-muted-foreground/30 hover:border-accent'}`}>
+                            className={`w-6 h-6 rounded border-2 flex items-center justify-center shrink-0 ${t.status === 'concluida' ? 'bg-accent border-accent text-accent-foreground' : 'border-muted-foreground/30'}`}>
                             {t.status === 'concluida' && <CheckCircle2 className="h-3 w-3" />}
                           </button>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <TtIcon className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className={`font-medium ${t.status === 'concluida' ? 'line-through' : ''}`}>{t.title}</p>
-                              {t.client?.name && <p className="text-xs text-muted-foreground">{t.client.name}</p>}
-                            </div>
+                          <div>
+                            <p className={`font-medium text-sm ${t.status === 'concluida' ? 'line-through' : ''}`}>{t.title}</p>
+                            {t.client?.name && <p className="text-xs text-muted-foreground">{t.client.name}</p>}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={tt.color}>{tt.label}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={st.color}>
-                            <StIcon className="h-3 w-3 mr-1" />{st.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={pr.color}>{pr.label}</Badge>
-                        </TableCell>
-                        <TableCell className="text-sm">{formatDate(t.due_date)}</TableCell>
-                        <TableCell>
-                          {t.quote ? (
-                            <div>
-                              <p className="text-sm font-medium text-primary">{t.quote.client_name}</p>
-                              <p className="text-xs text-muted-foreground">#{t.quote.quote_number}</p>
+                        </div>
+                        <TtIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className={tt.color}>{tt.label}</Badge>
+                        <Badge variant="outline" className={st.color}>{st.label}</Badge>
+                        <Badge variant="outline" className={pr.color}>{pr.label}</Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{formatDate(t.due_date)}</span>
+                        {t.quote && <span className="text-primary">{t.quote.client_name} #{t.quote.quote_number}</span>}
+                      </div>
+                      <div className="flex gap-1 pt-1 border-t">
+                        <Button size="sm" variant="ghost" onClick={() => openScripts(t)} className="min-h-[44px] flex-1">
+                          <Sparkles className="h-4 w-4 text-purple-500" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => openEdit(t)} className="min-h-[44px] flex-1">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => remove(t.id)} className="min-h-[44px] flex-1">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10"></TableHead>
+                      <TableHead>Tarefa</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Prioridade</TableHead>
+                      <TableHead>Data/Hora</TableHead>
+                      <TableHead>Negociação</TableHead>
+                      <TableHead>Valor</TableHead>
+                      <TableHead className="w-28">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map(t => {
+                      const st = statusConfig[t.status] || statusConfig.pendente;
+                      const tt = taskTypes[t.task_type] || taskTypes.outro;
+                      const pr = priorityConfig[t.priority] || priorityConfig.média;
+                      const StIcon = st.icon;
+                      const TtIcon = tt.icon;
+                      return (
+                        <TableRow key={t.id} className={t.status === 'concluida' ? 'opacity-60' : ''}>
+                          <TableCell>
+                            <button onClick={() => toggleComplete(t)}
+                              className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${t.status === 'concluida' ? 'bg-accent border-accent text-accent-foreground' : 'border-muted-foreground/30 hover:border-accent'}`}>
+                              {t.status === 'concluida' && <CheckCircle2 className="h-3 w-3" />}
+                            </button>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <TtIcon className="h-4 w-4 text-muted-foreground" />
+                              <div>
+                                <p className={`font-medium ${t.status === 'concluida' ? 'line-through' : ''}`}>{t.title}</p>
+                                {t.client?.name && <p className="text-xs text-muted-foreground">{t.client.name}</p>}
+                              </div>
                             </div>
-                          ) : '-'}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {t.quote?.total ? formatCurrency(t.quote.total) : '-'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button size="icon" variant="ghost" onClick={() => openScripts(t)} title="Scripts de mensagem">
-                              <Sparkles className="h-4 w-4 text-purple-500" />
-                            </Button>
-                            <Button size="icon" variant="ghost" onClick={() => openEdit(t)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button size="icon" variant="ghost" onClick={() => remove(t.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={tt.color}>{tt.label}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={st.color}>
+                              <StIcon className="h-3 w-3 mr-1" />{st.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={pr.color}>{pr.label}</Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">{formatDate(t.due_date)}</TableCell>
+                          <TableCell>
+                            {t.quote ? (
+                              <div>
+                                <p className="text-sm font-medium text-primary">{t.quote.client_name}</p>
+                                <p className="text-xs text-muted-foreground">#{t.quote.quote_number}</p>
+                              </div>
+                            ) : '-'}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {t.quote?.total ? formatCurrency(t.quote.total) : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button size="icon" variant="ghost" onClick={() => openScripts(t)} title="Scripts de mensagem">
+                                <Sparkles className="h-4 w-4 text-purple-500" />
+                              </Button>
+                              <Button size="icon" variant="ghost" onClick={() => openEdit(t)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" onClick={() => remove(t.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Task Details Modal */}
+      <TaskDetailsModal 
+        isOpen={detailsOpen}
+        task={activeTask}
+        onClose={() => {
+          setDetailsOpen(false);
+          setActiveTask(null);
+        }}
+        onUpdate={() => {
+          setRefreshTrigger(p => p + 1);
+          load();
+        }}
+      />
+
 
       {/* Dialog Nova/Editar Tarefa */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -567,6 +622,20 @@ export default function Tasks() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Task Details Modal */}
+      <TaskDetailsModal 
+        isOpen={detailsOpen}
+        task={activeTask}
+        onClose={() => {
+          setDetailsOpen(false);
+          setActiveTask(null);
+        }}
+        onUpdate={() => {
+          setRefreshTrigger(p => p + 1);
+          load();
+        }}
+      />
 
       {/* Dialog Scripts de Mensagem */}
       <Dialog open={scriptsOpen} onOpenChange={setScriptsOpen}>
