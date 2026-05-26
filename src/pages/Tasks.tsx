@@ -196,11 +196,17 @@ export default function Tasks() {
   useEffect(() => { load(); loadSelects(); }, []);
 
   const resetForm = () => {
-    setForm({ title: '', description: '', task_type: 'contato', status: 'pendente', priority: 'média', due_date: '', quote_id: '', client_id: '' });
+    setForm({ title: '', description: '', task_type: 'contato', status: 'pendente', priority: 'média', due_date: '', quote_id: '', client_id: '', column_id: '' });
     setEditing(null);
   };
 
-  const openNew = () => { resetForm(); setDialogOpen(true); };
+  const openNew = (defaultValues?: Partial<typeof form>) => { 
+    resetForm(); 
+    if (defaultValues) {
+      setForm(prev => ({ ...prev, ...defaultValues }));
+    }
+    setDialogOpen(true); 
+  };
 
   const openEdit = (t: Task) => {
     setEditing(t);
