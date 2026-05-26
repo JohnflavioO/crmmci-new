@@ -62,13 +62,14 @@ export default function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: Ta
     setActivities(act || []);
   };
 
-  const addActivity = async (action: string, details?: string) => {
+  const addActivity = async (type: string, oldVal?: string, newVal?: string) => {
     if (!task) return;
     await db.from('task_activities').insert({
       task_id: task.id,
       user_id: (await supabase.auth.getUser()).data.user?.id,
-      action,
-      details
+      activity_type: type,
+      old_value: oldVal,
+      new_value: newVal
     });
   };
 
@@ -86,7 +87,7 @@ export default function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: Ta
       toast.error('Erro ao adicionar comentário');
     } else {
       setComment('');
-      await addActivity('comentou', comment.substring(0, 50));
+      await addActivity('comment', undefined, comment.substring(0, 50));
       loadDetails();
       toast.success('Comentário enviado');
     }
@@ -105,7 +106,7 @@ export default function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: Ta
     if (error) {
       toast.error('Erro ao adicionar item');
     } else {
-      await addActivity('adicionou item no checklist', newChecklistItem);
+      await addActivity('checklist_add', undefined, newChecklistItem);
       setNewChecklistItem('');
       loadDetails();
     }
@@ -117,7 +118,7 @@ export default function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: Ta
     }).eq('id', item.id);
 
     if (!error) {
-      await addActivity(item.is_completed ? 'marcou como pendente' : 'concluiu item', item.content);
+      await addActivity('checklist_toggle', item.is_completed ? 'completed' : 'pending', !item.is_completed ? 'completed' : 'pending');
       loadDetails();
     }
   };
@@ -125,7 +126,7 @@ export default function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: Ta
   const removeChecklistItem = async (id: string, content: string) => {
     const { error } = await db.from('task_checklists').delete().eq('id', id);
     if (!error) {
-      await addActivity('removeu item do checklist', content);
+      await addActivity('checklist_remove', content, undefined);
       loadDetails();
     }
   };
@@ -211,7 +212,7 @@ export default function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: Ta
                 <div className="h-5 w-5 rounded-full bg-accent flex items-center justify-center text-[10px] font-bold">
                   {task.user_id?.substring(0, 1).toUpperCase() || 'M'}
                 </div>
-                <span className="text-sm font-medium">MCI User</span>
+                <span className="text-sm font-medium">Equipe MCI</span>
               </div>
             </div>
             <div className="space-y-1 col-span-2">
@@ -441,12 +442,12 @@ export default function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: Ta
                     <div key={act.id} className="relative flex flex-col gap-1 animate-in slide-in-from-left duration-300" style={{ animationDelay: `${idx * 30}ms` }}>
                       <div className="absolute -left-[20px] h-3.5 w-3.5 rounded-full bg-accent ring-4 ring-background shadow-sm" />
                       <div className="flex items-center justify-between">
-                        <p className="text-[11px] font-bold uppercase tracking-tight">Equipe <span className="text-primary">{act.action}</span></p>
+                        <p className="text-[11px] font-bold uppercase tracking-tight">Equipe <span className="text-primary">{act.activity_type}</span></p>
                         <p className="text-[10px] text-muted-foreground">{format(new Date(act.created_at), 'HH:mm', { locale: ptBR })}</p>
                       </div>
-                      {act.details && (
+                      {act.new_value && (
                         <div className="bg-muted/30 p-2.5 rounded-lg border text-xs text-muted-foreground italic leading-snug">
-                          "{act.details}"
+                          "{act.new_value}"
                         </div>
                       )}
                       <p className="text-[10px] text-muted-foreground mt-0.5">{format(new Date(act.created_at), 'dd/MM/yyyy', { locale: ptBR })}</p>
