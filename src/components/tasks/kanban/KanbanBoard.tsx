@@ -40,6 +40,27 @@ interface KanbanBoardProps {
 export default function KanbanBoard({ onTaskClick, onAddTask, refreshTrigger }: KanbanBoardProps) {
   const [columns, setColumns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [columnModal, setColumnModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    initialName: string;
+    initialColor: string;
+    columnId?: string;
+  }>({
+    isOpen: false,
+    title: 'Criar nova coluna',
+    initialName: '',
+    initialColor: '#94a3b8'
+  });
+  const [deleteAlert, setDeleteAlert] = useState<{
+    isOpen: boolean;
+    columnId: string;
+    tasksCount: number;
+  }>({
+    isOpen: false,
+    columnId: '',
+    tasksCount: 0
+  });
 
   const loadData = async () => {
     try {
