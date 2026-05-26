@@ -222,9 +222,43 @@ export default function SupportClients() {
                   {c.address || '-'}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="link" className="text-emerald-600 h-auto p-0 text-xs">
-                    Detalhes / Editar
-                  </Button>
+                  <ActionMenu 
+                    className="justify-end"
+                    actions={[
+                      { 
+                        label: "WhatsApp", 
+                        icon: MessageCircle, 
+                        onClick: () => {
+                          const phone = c.whatsapp || c.phone || '';
+                          if (phone) window.open(`https://wa.me/${phone.replace(/\D/g, '')}`, '_blank');
+                          else toast.error("Telefone não disponível");
+                        },
+                        isPrimary: true,
+                        className: "text-green-600"
+                      },
+                      { 
+                        label: "Editar", 
+                        icon: Pencil, 
+                        onClick: () => {
+                          setEditingClient(c);
+                          setForm(c);
+                          setOpen(true);
+                        },
+                        isSecondary: true
+                      },
+                      { 
+                        label: "Excluir", 
+                        icon: Trash2, 
+                        onClick: async () => {
+                          if (!confirm('Excluir este cliente?')) return;
+                          const { error } = await supabase.from('technical_clients' as any).delete().eq('id', c.id);
+                          if (error) toast.error(error.message);
+                          else { toast.success('Cliente excluído'); load(); }
+                        },
+                        variant: 'destructive'
+                      }
+                    ]} 
+                  />
                 </TableCell>
               </TableRow>
             ))}
