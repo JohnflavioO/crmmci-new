@@ -330,7 +330,7 @@ export default function Tasks() {
               <TableIcon className="h-4 w-4 mr-1" /> Lista
             </Button>
           </div>
-          <Button onClick={openNew} className="bg-accent hover:bg-accent/90 text-accent-foreground min-h-[44px] flex-1 sm:flex-none">
+          <Button onClick={() => openNew()} className="bg-accent hover:bg-accent/90 text-accent-foreground min-h-[44px] flex-1 sm:flex-none">
             <Plus className="h-4 w-4 mr-2" /> Criar tarefa
           </Button>
         </div>
