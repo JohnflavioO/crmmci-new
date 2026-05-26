@@ -144,6 +144,37 @@ export default function KanbanBoard({ onTaskClick, onAddTask, refreshTrigger }: 
     }
   };
 
+  const deleteColumn = async (columnId: string, tasksCount: number) => {
+    if (tasksCount > 0) {
+      if (!confirm(`Esta coluna possui ${tasksCount} tarefas. Elas serão excluídas permanentemente. Deseja continuar?`)) return;
+    } else {
+      if (!confirm('Deseja excluir esta coluna?')) return;
+    }
+
+    try {
+      const { error } = await db.from('task_columns').delete().eq('id', columnId);
+      if (error) throw error;
+      toast.success('Coluna excluída!');
+      loadData();
+    } catch (error: any) {
+      toast.error('Erro ao excluir coluna: ' + error.message);
+    }
+  };
+
+  const renameColumn = async (columnId: string, currentName: string) => {
+    const newName = prompt('Novo nome da coluna:', currentName);
+    if (!newName || newName === currentName) return;
+
+    try {
+      const { error } = await db.from('task_columns').update({ name: newName }).eq('id', columnId);
+      if (error) throw error;
+      toast.success('Coluna renomeada!');
+      loadData();
+    } catch (error: any) {
+      toast.error('Erro ao renomear coluna: ' + error.message);
+    }
+  };
+
   if (loading) return <div className="p-8 text-center">Carregando quadro...</div>;
 
   return (
