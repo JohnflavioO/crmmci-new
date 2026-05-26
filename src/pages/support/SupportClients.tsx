@@ -7,10 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Plus, ArrowRight, ArrowLeft, Pencil, Trash2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { Progress } from '@/components/ui/progress';
+import { ActionMenu } from '@/components/ActionMenu';
 
 export default function SupportClients() {
   const { user } = useAuth();
