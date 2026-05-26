@@ -12,7 +12,7 @@ import UserProfileEditor from './UserProfileEditor';
 const commercialItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Métricas e Visão' },
   { to: '/quotes', icon: FileText, label: 'Orçamentos', color: '#15AFA1' },
-  { to: '/', icon: Zap, label: 'Central Operacional' },
+  { to: '/operational', icon: Zap, label: 'Central Operacional' },
   { to: '/clients', icon: Users, label: 'Clientes' },
   { to: '/prospect', icon: Target, label: 'Visão Prospect' },
   { to: '/pipeline', icon: Filter, label: 'Funil' },

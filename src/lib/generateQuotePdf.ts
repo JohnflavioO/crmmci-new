@@ -121,10 +121,11 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80);
     doc.text(`Validade da Proposta: ${quote.proposal_validity}`, W - margin, infoY + 4, { align: 'right' });
+    y += 4; // Add extra margin when validity is present
   }
 
   // Client Data - Two Column Layout to save space
-  y += 5;
+  y += 6; // Increased from 5 to 6 for better breathing room
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5); // Slightly smaller to be more compact
   doc.setTextColor(0);
