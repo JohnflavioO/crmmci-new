@@ -34,7 +34,9 @@ export default function KanbanBoard({ onTaskClick, refreshTrigger }: KanbanBoard
         .select(`
           *,
           quote:quotes(quote_number, client_name, total),
-          client:clients(name)
+          client:clients(name),
+          checklist:task_checklists(id, is_completed),
+          comments:task_comments(id)
         `)
         .eq('board_id', boards.id)
         .order('position', { ascending: true });
@@ -93,8 +95,16 @@ export default function KanbanBoard({ onTaskClick, refreshTrigger }: KanbanBoard
 
       if (error) throw error;
       
-      // Optionally re-position other tasks in columns
-      // For simplicity in this first pass, we just update the moved one.
+      // Add activity history
+      if (source.droppableId !== destination.droppableId) {
+        await db.from('task_activities').insert({
+          task_id: draggableId,
+          user_id: (await supabase.auth.getUser()).data.user?.id,
+          activity_type: 'task_moved',
+          old_value: sourceCol.name,
+          new_value: destCol.name
+        });
+      }
     } catch (error: any) {
       toast.error('Erro ao mover tarefa: ' + error.message);
       loadData(); // Revert
@@ -181,13 +191,18 @@ export default function KanbanBoard({ onTaskClick, refreshTrigger }: KanbanBoard
                                   </Badge>
                                 )}
                                 <div className="flex items-center gap-2">
-                                  {/* Stats placeholder */}
-                                  <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                                    <CheckSquare className="h-3 w-3" /> 0
-                                  </div>
-                                  <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                                    <MessageSquare className="h-3 w-3" /> 0
-                                  </div>
+                                  {task.checklist && task.checklist.length > 0 && (
+                                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded-md">
+                                      <CheckSquare className="h-3 w-3" />
+                                      {task.checklist.filter((i: any) => i.is_completed).length}/{task.checklist.length}
+                                    </div>
+                                  )}
+                                  {task.comments && task.comments.length > 0 && (
+                                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded-md">
+                                      <MessageSquare className="h-3 w-3" />
+                                      {task.comments.length}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex -space-x-1.5">
