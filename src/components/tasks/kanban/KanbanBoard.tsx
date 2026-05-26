@@ -153,57 +153,61 @@ export default function KanbanBoard({ onTaskClick, onAddTask, refreshTrigger }: 
     }
   };
 
-  const addColumn = async () => {
-    const name = prompt('Nome da nova coluna:');
-    if (!name) return;
-    
+  const handleAddColumn = () => {
+    setColumnModal({
+      isOpen: true,
+      title: 'Criar nova coluna',
+      initialName: '',
+      initialColor: '#94a3b8'
+    });
+  };
+
+  const handleRenameColumn = (columnId: string, currentName: string, currentColor: string) => {
+    setColumnModal({
+      isOpen: true,
+      title: 'Editar coluna',
+      initialName: currentName,
+      initialColor: currentColor || '#94a3b8',
+      columnId
+    });
+  };
+
+  const onSaveColumn = async (name: string, color: string) => {
     try {
-      const { data: boards } = await db.from('task_boards').select('id').eq('is_default', true).single();
-      if (!boards) return;
+      if (columnModal.columnId) {
+        // Update
+        const { error } = await db.from('task_columns').update({ name, color }).eq('id', columnModal.columnId);
+        if (error) throw error;
+        toast.success('Coluna atualizada!');
+      } else {
+        // Create
+        const { data: boards } = await db.from('task_boards').select('id').eq('is_default', true).single();
+        if (!boards) return;
 
-      const { error } = await db.from('task_columns').insert({
-        name,
-        board_id: boards.id,
-        position: columns.length,
-        color: '#94a3b8'
-      });
+        const { error } = await db.from('task_columns').insert({
+          name,
+          board_id: boards.id,
+          position: columns.length,
+          color
+        });
 
-      if (error) throw error;
-      toast.success('Coluna criada!');
+        if (error) throw error;
+        toast.success('Coluna criada!');
+      }
       loadData();
     } catch (error: any) {
-      toast.error('Erro ao criar coluna: ' + error.message);
+      toast.error('Erro ao salvar coluna: ' + error.message);
     }
   };
 
-  const deleteColumn = async (columnId: string, tasksCount: number) => {
-    if (tasksCount > 0) {
-      if (!confirm(`Esta coluna possui ${tasksCount} tarefas. Elas serão excluídas permanentemente. Deseja continuar?`)) return;
-    } else {
-      if (!confirm('Deseja excluir esta coluna?')) return;
-    }
-
+  const confirmDeleteColumn = async () => {
     try {
-      const { error } = await db.from('task_columns').delete().eq('id', columnId);
+      const { error } = await db.from('task_columns').delete().eq('id', deleteAlert.columnId);
       if (error) throw error;
       toast.success('Coluna excluída!');
       loadData();
     } catch (error: any) {
       toast.error('Erro ao excluir coluna: ' + error.message);
-    }
-  };
-
-  const renameColumn = async (columnId: string, currentName: string) => {
-    const newName = prompt('Novo nome da coluna:', currentName);
-    if (!newName || newName === currentName) return;
-
-    try {
-      const { error } = await db.from('task_columns').update({ name: newName }).eq('id', columnId);
-      if (error) throw error;
-      toast.success('Coluna renomeada!');
-      loadData();
-    } catch (error: any) {
-      toast.error('Erro ao renomear coluna: ' + error.message);
     }
   };
 
