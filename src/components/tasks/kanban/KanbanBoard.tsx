@@ -222,7 +222,15 @@ export default function KanbanBoard({ onTaskClick, onAddTask, refreshTrigger }: 
               )}
             </Droppable>
             
-            <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground mt-2 h-9 text-xs" onClick={() => {/* Open quick add */}}>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start text-muted-foreground hover:text-foreground mt-2 h-9 text-xs" 
+              onClick={() => {
+                const status = column.name.toLowerCase().includes('conclu') ? 'concluida' : 
+                               column.name.toLowerCase().includes('andamento') ? 'em_andamento' : 'pendente';
+                onAddTask(column.id, status);
+              }}
+            >
               <Plus className="h-3 w-3 mr-2" /> Adicionar tarefa
             </Button>
           </div>
