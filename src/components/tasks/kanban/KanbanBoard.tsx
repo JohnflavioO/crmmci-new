@@ -4,19 +4,29 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Plus, MoreVertical, Calendar, User, DollarSign, Tag, MessageSquare, CheckSquare } from 'lucide-react';
+import { 
+  Plus, MoreVertical, Calendar, User, DollarSign, Tag, 
+  MessageSquare, CheckSquare, Pencil, Trash2 
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const db = supabase as any;
 
 interface KanbanBoardProps {
   onTaskClick: (task: any) => void;
+  onAddTask: (columnId: string, status: string) => void;
   refreshTrigger: number;
 }
 
-export default function KanbanBoard({ onTaskClick, refreshTrigger }: KanbanBoardProps) {
+export default function KanbanBoard({ onTaskClick, onAddTask, refreshTrigger }: KanbanBoardProps) {
   const [columns, setColumns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -111,6 +121,60 @@ export default function KanbanBoard({ onTaskClick, refreshTrigger }: KanbanBoard
     }
   };
 
+  const addColumn = async () => {
+    const name = prompt('Nome da nova coluna:');
+    if (!name) return;
+    
+    try {
+      const { data: boards } = await db.from('task_boards').select('id').eq('is_default', true).single();
+      if (!boards) return;
+
+      const { error } = await db.from('task_columns').insert({
+        name,
+        board_id: boards.id,
+        position: columns.length,
+        color: '#94a3b8'
+      });
+
+      if (error) throw error;
+      toast.success('Coluna criada!');
+      loadData();
+    } catch (error: any) {
+      toast.error('Erro ao criar coluna: ' + error.message);
+    }
+  };
+
+  const deleteColumn = async (columnId: string, tasksCount: number) => {
+    if (tasksCount > 0) {
+      if (!confirm(`Esta coluna possui ${tasksCount} tarefas. Elas serão excluídas permanentemente. Deseja continuar?`)) return;
+    } else {
+      if (!confirm('Deseja excluir esta coluna?')) return;
+    }
+
+    try {
+      const { error } = await db.from('task_columns').delete().eq('id', columnId);
+      if (error) throw error;
+      toast.success('Coluna excluída!');
+      loadData();
+    } catch (error: any) {
+      toast.error('Erro ao excluir coluna: ' + error.message);
+    }
+  };
+
+  const renameColumn = async (columnId: string, currentName: string) => {
+    const newName = prompt('Novo nome da coluna:', currentName);
+    if (!newName || newName === currentName) return;
+
+    try {
+      const { error } = await db.from('task_columns').update({ name: newName }).eq('id', columnId);
+      if (error) throw error;
+      toast.success('Coluna renomeada!');
+      loadData();
+    } catch (error: any) {
+      toast.error('Erro ao renomear coluna: ' + error.message);
+    }
+  };
+
   if (loading) return <div className="p-8 text-center">Carregando quadro...</div>;
 
   return (
@@ -124,9 +188,21 @@ export default function KanbanBoard({ onTaskClick, refreshTrigger }: KanbanBoard
                 <h3 className="font-semibold text-sm uppercase tracking-wider">{column.name}</h3>
                 <Badge variant="secondary" className="ml-1 text-[10px]">{column.tasks.length}</Badge>
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => renameColumn(column.id, column.name)}>
+                    <Pencil className="h-4 w-4 mr-2" /> Renomear
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => deleteColumn(column.id, column.tasks.length)} className="text-destructive">
+                    <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <Droppable droppableId={column.id}>
@@ -221,13 +297,21 @@ export default function KanbanBoard({ onTaskClick, refreshTrigger }: KanbanBoard
               )}
             </Droppable>
             
-            <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground mt-2 h-9 text-xs" onClick={() => {/* Open quick add */}}>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start text-muted-foreground hover:text-foreground mt-2 h-9 text-xs" 
+              onClick={() => {
+                const status = column.name.toLowerCase().includes('conclu') ? 'concluida' : 
+                               column.name.toLowerCase().includes('andamento') ? 'em_andamento' : 'pendente';
+                onAddTask(column.id, status);
+              }}
+            >
               <Plus className="h-3 w-3 mr-2" /> Adicionar tarefa
             </Button>
           </div>
         ))}
 
-        <div className="min-w-[300px] border-2 border-dashed rounded-xl flex items-center justify-center p-6 text-muted-foreground hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => {/* Open column management */}}>
+        <div className="min-w-[300px] border-2 border-dashed rounded-xl flex items-center justify-center p-6 text-muted-foreground hover:bg-muted/30 transition-colors cursor-pointer" onClick={addColumn}>
           <div className="text-center">
             <Plus className="h-6 w-6 mx-auto mb-2 opacity-50" />
             <p className="text-sm font-medium">Nova Coluna</p>
