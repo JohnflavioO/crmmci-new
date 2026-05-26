@@ -153,6 +153,7 @@ export default function Tasks() {
   const [form, setForm] = useState({
     title: '', description: '', task_type: 'contato', status: 'pendente',
     priority: 'média', due_date: '', quote_id: '', client_id: '',
+    column_id: '',
   });
 
   const load = async () => {
