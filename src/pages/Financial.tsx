@@ -26,6 +26,8 @@ import {
   MessageSquare, History, ShieldAlert, Handshake
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { ActionMenu } from '@/components/ActionMenu';
+import { Pencil, Trash2, ExternalLink } from 'lucide-react';
 
 import FinancialSellerRanking from '@/components/financial/FinancialSellerRanking';
 import FinancialActionsDoDia from '@/components/financial/FinancialActionsDoDia';
