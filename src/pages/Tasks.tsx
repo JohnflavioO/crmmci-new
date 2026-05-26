@@ -519,7 +519,22 @@ export default function Tasks() {
                 </TableBody>
               </Table>
             </div>
-          )}
+      )}
+
+      {/* Task Details Modal */}
+      <TaskDetailsModal 
+        isOpen={detailsOpen}
+        task={activeTask}
+        onClose={() => {
+          setDetailsOpen(false);
+          setActiveTask(null);
+        }}
+        onUpdate={() => {
+          setRefreshTrigger(p => p + 1);
+          load();
+        }}
+      />
+
         </CardContent>
       </Card>
 
