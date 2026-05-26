@@ -299,13 +299,33 @@ export default function Tasks() {
       <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold font-display flex items-center gap-2">
-            <ListChecks className="h-6 md:h-7 w-6 md:w-7 text-accent" /> Tarefas
+            <ListChecks className="h-6 md:h-7 w-6 md:w-7 text-accent" /> Central de Tarefas
           </h1>
-          <p className="text-muted-foreground text-sm">Gerencie suas atividades e acompanhamentos</p>
+          <p className="text-muted-foreground text-sm">Organize seu fluxo de trabalho visualmente</p>
         </div>
-        <Button onClick={openNew} className="bg-accent hover:bg-accent/90 text-accent-foreground min-h-[44px] w-full sm:w-auto">
-          <Plus className="h-4 w-4 mr-2" /> Criar tarefa
-        </Button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="bg-muted p-1 rounded-lg flex gap-1 mr-2">
+            <Button 
+              variant={viewMode === 'kanban' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="h-8 px-2"
+              onClick={() => setViewMode('kanban')}
+            >
+              <LayoutDashboard className="h-4 w-4 mr-1" /> Kanban
+            </Button>
+            <Button 
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="h-8 px-2"
+              onClick={() => setViewMode('list')}
+            >
+              <TableIcon className="h-4 w-4 mr-1" /> Lista
+            </Button>
+          </div>
+          <Button onClick={openNew} className="bg-accent hover:bg-accent/90 text-accent-foreground min-h-[44px] flex-1 sm:flex-none">
+            <Plus className="h-4 w-4 mr-2" /> Criar tarefa
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
