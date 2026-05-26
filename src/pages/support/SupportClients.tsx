@@ -19,6 +19,7 @@ export default function SupportClients() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [search, setSearch] = useState('');
+  const [editingClient, setEditingClient] = useState<any>(null);
   const [form, setForm] = useState<any>({ 
     name: '', 
     cpf_cnpj: '', 
