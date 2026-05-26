@@ -17,6 +17,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import ColumnModal from './ColumnModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const db = supabase as any;
 
@@ -29,6 +40,27 @@ interface KanbanBoardProps {
 export default function KanbanBoard({ onTaskClick, onAddTask, refreshTrigger }: KanbanBoardProps) {
   const [columns, setColumns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [columnModal, setColumnModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    initialName: string;
+    initialColor: string;
+    columnId?: string;
+  }>({
+    isOpen: false,
+    title: 'Criar nova coluna',
+    initialName: '',
+    initialColor: '#94a3b8'
+  });
+  const [deleteAlert, setDeleteAlert] = useState<{
+    isOpen: boolean;
+    columnId: string;
+    tasksCount: number;
+  }>({
+    isOpen: false,
+    columnId: '',
+    tasksCount: 0
+  });
 
   const loadData = async () => {
     try {
@@ -121,57 +153,61 @@ export default function KanbanBoard({ onTaskClick, onAddTask, refreshTrigger }: 
     }
   };
 
-  const addColumn = async () => {
-    const name = prompt('Nome da nova coluna:');
-    if (!name) return;
-    
+  const handleAddColumn = () => {
+    setColumnModal({
+      isOpen: true,
+      title: 'Criar nova coluna',
+      initialName: '',
+      initialColor: '#94a3b8'
+    });
+  };
+
+  const handleRenameColumn = (columnId: string, currentName: string, currentColor: string) => {
+    setColumnModal({
+      isOpen: true,
+      title: 'Editar coluna',
+      initialName: currentName,
+      initialColor: currentColor || '#94a3b8',
+      columnId
+    });
+  };
+
+  const onSaveColumn = async (name: string, color: string) => {
     try {
-      const { data: boards } = await db.from('task_boards').select('id').eq('is_default', true).single();
-      if (!boards) return;
+      if (columnModal.columnId) {
+        // Update
+        const { error } = await db.from('task_columns').update({ name, color }).eq('id', columnModal.columnId);
+        if (error) throw error;
+        toast.success('Coluna atualizada!');
+      } else {
+        // Create
+        const { data: boards } = await db.from('task_boards').select('id').eq('is_default', true).single();
+        if (!boards) return;
 
-      const { error } = await db.from('task_columns').insert({
-        name,
-        board_id: boards.id,
-        position: columns.length,
-        color: '#94a3b8'
-      });
+        const { error } = await db.from('task_columns').insert({
+          name,
+          board_id: boards.id,
+          position: columns.length,
+          color
+        });
 
-      if (error) throw error;
-      toast.success('Coluna criada!');
+        if (error) throw error;
+        toast.success('Coluna criada!');
+      }
       loadData();
     } catch (error: any) {
-      toast.error('Erro ao criar coluna: ' + error.message);
+      toast.error('Erro ao salvar coluna: ' + error.message);
     }
   };
 
-  const deleteColumn = async (columnId: string, tasksCount: number) => {
-    if (tasksCount > 0) {
-      if (!confirm(`Esta coluna possui ${tasksCount} tarefas. Elas serão excluídas permanentemente. Deseja continuar?`)) return;
-    } else {
-      if (!confirm('Deseja excluir esta coluna?')) return;
-    }
-
+  const confirmDeleteColumn = async () => {
     try {
-      const { error } = await db.from('task_columns').delete().eq('id', columnId);
+      const { error } = await db.from('task_columns').delete().eq('id', deleteAlert.columnId);
       if (error) throw error;
       toast.success('Coluna excluída!');
       loadData();
     } catch (error: any) {
       toast.error('Erro ao excluir coluna: ' + error.message);
-    }
-  };
-
-  const renameColumn = async (columnId: string, currentName: string) => {
-    const newName = prompt('Novo nome da coluna:', currentName);
-    if (!newName || newName === currentName) return;
-
-    try {
-      const { error } = await db.from('task_columns').update({ name: newName }).eq('id', columnId);
-      if (error) throw error;
-      toast.success('Coluna renomeada!');
-      loadData();
-    } catch (error: any) {
-      toast.error('Erro ao renomear coluna: ' + error.message);
     }
   };
 
@@ -195,10 +231,10 @@ export default function KanbanBoard({ onTaskClick, onAddTask, refreshTrigger }: 
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => renameColumn(column.id, column.name)}>
+                  <DropdownMenuItem onClick={() => handleRenameColumn(column.id, column.name, column.color)}>
                     <Pencil className="h-4 w-4 mr-2" /> Renomear
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => deleteColumn(column.id, column.tasks.length)} className="text-destructive">
+                  <DropdownMenuItem onClick={() => setDeleteAlert({ isOpen: true, columnId: column.id, tasksCount: column.tasks.length })} className="text-destructive">
                     <Trash2 className="h-4 w-4 mr-2" /> Excluir
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -311,13 +347,42 @@ export default function KanbanBoard({ onTaskClick, onAddTask, refreshTrigger }: 
           </div>
         ))}
 
-        <div className="min-w-[300px] border-2 border-dashed rounded-xl flex items-center justify-center p-6 text-muted-foreground hover:bg-muted/30 transition-colors cursor-pointer" onClick={addColumn}>
+        <div className="min-w-[300px] border-2 border-dashed rounded-xl flex items-center justify-center p-6 text-muted-foreground hover:bg-muted/30 transition-colors cursor-pointer" onClick={handleAddColumn}>
           <div className="text-center">
             <Plus className="h-6 w-6 mx-auto mb-2 opacity-50" />
             <p className="text-sm font-medium">Nova Coluna</p>
           </div>
         </div>
       </div>
+
+      <ColumnModal
+        isOpen={columnModal.isOpen}
+        onClose={() => setColumnModal(prev => ({ ...prev, isOpen: false }))}
+        onSave={onSaveColumn}
+        title={columnModal.title}
+        initialName={columnModal.initialName}
+        initialColor={columnModal.initialColor}
+        existingNames={columns.map(c => c.name)}
+      />
+
+      <AlertDialog open={deleteAlert.isOpen} onOpenChange={(open) => setDeleteAlert(prev => ({ ...prev, isOpen: open }))}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deseja excluir esta coluna?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteAlert.tasksCount > 0 
+                ? `Esta coluna possui ${deleteAlert.tasksCount} tarefas. Elas serão excluídas permanentemente. Esta ação não pode ser desfeita.` 
+                : "Esta ação excluirá a coluna permanentemente do seu quadro Kanban."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteColumn} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl">
+              Excluir Coluna
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DragDropContext>
   );
 }
