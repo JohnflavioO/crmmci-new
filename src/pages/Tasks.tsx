@@ -15,9 +15,11 @@ import { toast } from 'sonner';
 import {
   Plus, Search, Pencil, Trash2, CheckCircle2, Clock, AlertTriangle,
   Phone, CreditCard, Truck, MessageCircle, MoreHorizontal,
-  CircleDot, ListChecks, Filter, Copy, Sparkles,
+  CircleDot, ListChecks, Filter, Copy, Sparkles, LayoutDashboard, Table as TableIcon,
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import KanbanBoard from '@/components/tasks/kanban/KanbanBoard';
+import TaskDetailsModal from '@/components/tasks/modals/TaskDetailsModal';
 
 const db = supabase as any;
 
@@ -141,10 +143,13 @@ export default function Tasks() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [scriptsOpen, setScriptsOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [form, setForm] = useState({
     title: '', description: '', task_type: 'contato', status: 'pendente',
     priority: 'média', due_date: '', quote_id: '', client_id: '',
@@ -230,6 +235,7 @@ export default function Tasks() {
     }
     setDialogOpen(false);
     resetForm();
+    setRefreshTrigger(p => p + 1);
     load();
   };
 
@@ -237,6 +243,7 @@ export default function Tasks() {
     if (!confirm('Excluir esta tarefa?')) return;
     await db.from('tasks').delete().eq('id', id);
     toast.success('Tarefa excluída');
+    setRefreshTrigger(p => p + 1);
     load();
   };
 
@@ -246,6 +253,7 @@ export default function Tasks() {
       status: newStatus,
       completed_at: newStatus === 'concluida' ? new Date().toISOString() : null,
     }).eq('id', t.id);
+    setRefreshTrigger(p => p + 1);
     load();
   };
 
@@ -344,15 +352,26 @@ export default function Tasks() {
         </div>
       </div>
 
-      {/* Task List */}
-      <Card className="shadow-card mb-4">
-        <CardContent className="pt-4 md:pt-6">
-          {filtered.length === 0 ? (
-            <div className="text-center py-12">
-              <ListChecks className="mx-auto h-12 w-12 text-muted-foreground/30" />
-              <p className="text-muted-foreground mt-3">Nenhuma tarefa encontrada</p>
-            </div>
-          ) : isMobile ? (
+      {/* Content Area */}
+      {viewMode === 'kanban' ? (
+        <div className="flex-1 min-h-0 overflow-hidden -mx-4 px-4 pb-4">
+          <KanbanBoard 
+            refreshTrigger={refreshTrigger} 
+            onTaskClick={(t) => {
+              setActiveTask(t);
+              setDetailsOpen(true);
+            }} 
+          />
+        </div>
+      ) : (
+        <Card className="shadow-card mb-4">
+          <CardContent className="pt-4 md:pt-6">
+            {filtered.length === 0 ? (
+              <div className="text-center py-12">
+                <ListChecks className="mx-auto h-12 w-12 text-muted-foreground/30" />
+                <p className="text-muted-foreground mt-3">Nenhuma tarefa encontrada</p>
+              </div>
+            ) : isMobile ? (
             <div className="space-y-3">
               {filtered.map(t => {
                 const st = statusConfig[t.status] || statusConfig.pendente;
