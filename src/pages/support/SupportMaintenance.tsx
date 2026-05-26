@@ -140,9 +140,33 @@ export default function SupportMaintenance() {
                       {getStatusBadge(m.status)}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Settings className="h-4 w-4" />
-                      </Button>
+                      <ActionMenu 
+                        className="justify-end"
+                        actions={[
+                          { 
+                            label: "Editar", 
+                            icon: Pencil, 
+                            onClick: () => toast.info("Editar manutenção em breve"),
+                            isPrimary: true
+                          },
+                          { 
+                            label: "Configurar", 
+                            icon: Settings, 
+                            onClick: () => toast.info("Configurações da manutenção")
+                          },
+                          { 
+                            label: "Excluir", 
+                            icon: Trash2, 
+                            onClick: async () => {
+                              if (!confirm('Excluir manutenção?')) return;
+                              const { error } = await supabase.from('technical_maintenances').delete().eq('id', m.id);
+                              if (error) toast.error(error.message);
+                              else { toast.success('Manutenção excluída'); fetchMaintenances(); }
+                            },
+                            variant: 'destructive'
+                          }
+                        ]} 
+                      />
                     </td>
                   </tr>
                 ))
