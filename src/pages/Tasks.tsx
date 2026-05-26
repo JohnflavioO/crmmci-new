@@ -229,6 +229,7 @@ export default function Tasks() {
       quote_id: (form.quote_id && form.quote_id !== 'none') ? form.quote_id : null,
       client_id: (form.client_id && form.client_id !== 'none') ? form.client_id : null,
       completed_at: form.status === 'concluida' ? new Date().toISOString() : null,
+      column_id: form.column_id || null,
     };
 
     if (editing) {
@@ -237,6 +238,21 @@ export default function Tasks() {
       toast.success('Tarefa atualizada!');
     } else {
       payload.user_id = user?.id;
+      
+      // If no column_id, we should try to find the first column of the default board
+      if (!payload.column_id) {
+        const { data: board } = await db.from('task_boards').select('id').eq('is_default', true).single();
+        if (board) {
+          payload.board_id = board.id;
+          const { data: col } = await db.from('task_columns').select('id').eq('board_id', board.id).order('position', { ascending: true }).limit(1).single();
+          if (col) payload.column_id = col.id;
+        }
+      } else {
+        // If we have column_id, we need board_id too
+        const { data: col } = await db.from('task_columns').select('board_id').eq('id', payload.column_id).single();
+        if (col) payload.board_id = col.board_id;
+      }
+
       const { error } = await db.from('tasks').insert(payload);
       if (error) { toast.error(error.message); return; }
       toast.success('Tarefa criada!');
