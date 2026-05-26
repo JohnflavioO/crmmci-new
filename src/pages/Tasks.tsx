@@ -405,6 +405,9 @@ export default function Tasks() {
               setActiveTask(t);
               setDetailsOpen(true);
             }} 
+            onAddTask={(columnId, status) => {
+              openNew({ column_id: columnId, status });
+            }}
           />
         </div>
       ) : (
