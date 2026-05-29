@@ -137,8 +137,11 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   if (client) {
     // Column 1: Identification
     doc.setFont('helvetica', 'bold');
-    doc.text(`Cliente: ${client?.company_name || client?.name || quote.client_name || ''}`, margin, leftY); 
-    leftY += 3.5;
+    const clientLabel = `Cliente: ${client?.company_name || client?.name || quote.client_name || ''}`;
+    const clientCol1Width = (W / 2) - margin - 4;
+    const clientLines = doc.splitTextToSize(clientLabel, clientCol1Width);
+    doc.text(clientLines, margin, leftY);
+    leftY += clientLines.length * 3.5;
     doc.setFont('helvetica', 'normal');
     if (client.cpf_cnpj) { doc.text(`CPF/CNPJ: ${client.cpf_cnpj}`, margin, leftY); leftY += 3.5; }
     if (client.email) { doc.text(`Email: ${client.email}`, margin, leftY); leftY += 3.5; }
