@@ -19,12 +19,19 @@ export const usePrivacy = () => {
 
 export const PrivacyProvider = ({ children }: { children: ReactNode }) => {
   const [isHidden, setIsHidden] = useState<boolean>(() => {
-    const saved = localStorage.getItem('mci_privacy_hidden');
-    return saved === 'true';
+    try {
+      return localStorage.getItem('mci_privacy_hidden') === 'true';
+    } catch {
+      return false;
+    }
   });
 
   useEffect(() => {
-    localStorage.setItem('mci_privacy_hidden', String(isHidden));
+    try {
+      localStorage.setItem('mci_privacy_hidden', String(isHidden));
+    } catch {
+      // Navegadores com armazenamento bloqueado continuam funcionando sem persistir esta preferência.
+    }
   }, [isHidden]);
 
   const togglePrivacy = () => setIsHidden(prev => !prev);
