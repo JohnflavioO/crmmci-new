@@ -1,5 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
+import { clearLocalAppStateAndReload } from '@/lib/browserRecovery';
 
 interface Props {
   children: ReactNode;
@@ -29,19 +30,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   };
 
   handleClearAndReload = () => {
-    try {
-      localStorage.clear();
-      sessionStorage.clear();
-      if ('caches' in window) {
-        caches.keys().then(names => names.forEach(n => caches.delete(n)));
-      }
-      navigator.serviceWorker?.getRegistrations().then(regs =>
-        regs.forEach(r => r.unregister())
-      );
-    } catch {
-      // ignore
-    }
-    setTimeout(() => window.location.reload(), 300);
+    void clearLocalAppStateAndReload();
   };
 
   render() {
