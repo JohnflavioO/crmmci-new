@@ -365,7 +365,7 @@ export default function BankSlips() {
   const [isBatchManagementOpen, setIsBatchManagementOpen] = useState(false);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [importMeta, setImportMeta] = useState<{ totalRows: number; valid: number; invalid: number; sheetName: string }>({ totalRows: 0, valid: 0, invalid: 0, sheetName: '' });
-  const [lastBatchId, setLastBatchId] = useState<string | null>(localStorage.getItem('last_bank_slip_batch'));
+  const [lastBatchId, setLastBatchId] = useState<string | null>(() => readLastBankSlipBatch());
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedSlip, setSelectedSlip] = useState<BankSlip | null>(null);
@@ -625,7 +625,7 @@ export default function BankSlips() {
 
       toast.success(`Importação desfeita com sucesso!`);
       setLastBatchId(null);
-      localStorage.removeItem('last_bank_slip_batch');
+      writeLastBankSlipBatch(null);
       loadData();
     } catch (error: any) {
       toast.error('Erro ao desfazer importação: ' + error.message);
@@ -819,7 +819,7 @@ export default function BankSlips() {
       }
 
       setLastBatchId(batchId);
-      localStorage.setItem('last_bank_slip_batch', batchId);
+      writeLastBankSlipBatch(batchId);
 
       toast.success(`Importação concluída: ${inserted} novos, ${updatedCount} atualizados (Lote: ${importMeta.sheetName}).`);
       setIsImportDialogOpen(false);
