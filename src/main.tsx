@@ -2,6 +2,22 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
+// One-time cache buster: limpa SW e caches obsoletos após deploy
+const CACHE_VERSION = "v2026-06-01-1";
+if (typeof window !== "undefined" && localStorage.getItem("__cache_version") !== CACHE_VERSION) {
+  localStorage.setItem("__cache_version", CACHE_VERSION);
+  if ("caches" in window) {
+    caches.keys().then((names) => names.forEach((n) => caches.delete(n)));
+  }
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      regs.forEach((r) => r.unregister());
+      if (regs.length) setTimeout(() => window.location.reload(), 300);
+    });
+  }
+}
+
+
 // Watchdog UI injection for early recovery
 const injectWatchdogUI = (root: HTMLElement) => {
   root.innerHTML = `
