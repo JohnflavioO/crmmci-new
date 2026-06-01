@@ -158,11 +158,13 @@ function AppRoutes() {
 
   if (!user) {
     return (
-      <Routes>
-        <Route path="/quote/:token" element={<PublicQuote />} />
-        <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
-        <Route path="*" element={<Auth />} />
-      </Routes>
+      <Suspense fallback={<LoadingScreen />}>
+        <Routes>
+          <Route path="/quote/:token" element={<PublicQuote />} />
+          <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
+          <Route path="*" element={<Auth />} />
+        </Routes>
+      </Suspense>
     );
   }
 
