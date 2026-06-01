@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
+import { clearLocalAppStateAndReload, runOneTimeCacheRefresh } from "./lib/browserRecovery";
 import App from "./App.tsx";
 import "./index.css";
-import { clearLocalAppStateAndReload, runOneTimeCacheRefresh } from "./lib/browserRecovery";
 
 runOneTimeCacheRefresh();
 

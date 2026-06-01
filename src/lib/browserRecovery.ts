@@ -1,7 +1,54 @@
-const CACHE_VERSION = "v2026-06-01-2";
+const CACHE_VERSION = "v2026-06-01-3";
 
-const safeStorage = (storage: Storage | undefined, action: (storage: Storage) => void | string | null) => {
+const createMemoryStorage = (): Storage => {
+  const store = new Map<string, string>();
+  return {
+    get length() {
+      return store.size;
+    },
+    clear: () => store.clear(),
+    getItem: (key: string) => store.get(key) ?? null,
+    key: (index: number) => Array.from(store.keys())[index] ?? null,
+    removeItem: (key: string) => store.delete(key),
+    setItem: (key: string, value: string) => store.set(key, String(value)),
+  };
+};
+
+const ensureSafeStorage = (name: "localStorage" | "sessionStorage") => {
+  if (typeof window === "undefined") return undefined;
+
   try {
+    const storage = window[name];
+    const testKey = `__mci_storage_test_${Date.now()}`;
+    storage.setItem(testKey, "1");
+    storage.removeItem(testKey);
+    return storage;
+  } catch {
+    const fallback = createMemoryStorage();
+    try {
+      Object.defineProperty(window, name, {
+        configurable: true,
+        value: fallback,
+      });
+    } catch {
+      // Se o navegador bloquear a redefinição, seguimos com o fallback em memória.
+    }
+    return fallback;
+  }
+};
+
+export const installBrowserSafetyGuards = () => {
+  ensureSafeStorage("localStorage");
+  ensureSafeStorage("sessionStorage");
+};
+
+installBrowserSafetyGuards();
+
+const getSafeStorage = (name: "localStorage" | "sessionStorage") => ensureSafeStorage(name);
+
+const safeStorage = (name: "localStorage" | "sessionStorage", action: (storage: Storage) => void | string | null) => {
+  try {
+    const storage = getSafeStorage(name);
     if (!storage) return null;
     return action(storage) ?? null;
   } catch {
@@ -50,11 +97,11 @@ export const reloadWithCacheBust = () => {
 
 export const runOneTimeCacheRefresh = () => {
   const key = "__mci_cache_version";
-  const currentVersion = safeStorage(window.localStorage, (storage) => storage.getItem(key));
+  const currentVersion = safeStorage("localStorage", (storage) => storage.getItem(key));
 
   if (currentVersion === CACHE_VERSION) return;
 
-  safeStorage(window.localStorage, (storage) => storage.setItem(key, CACHE_VERSION));
+  safeStorage("localStorage", (storage) => storage.setItem(key, CACHE_VERSION));
 
   void clearBrowserCachesAndWorkers().then(({ clearedCaches, unregisteredWorkers }) => {
     const alreadyReloaded = new URL(window.location.href).searchParams.get("__mci_cache") === CACHE_VERSION;
@@ -65,16 +112,16 @@ export const runOneTimeCacheRefresh = () => {
 };
 
 export const clearLocalAppStateAndReload = async () => {
-  safeStorage(window.localStorage, (storage) => storage.clear());
-  safeStorage(window.sessionStorage, (storage) => storage.clear());
+  safeStorage("localStorage", (storage) => storage.clear());
+  safeStorage("sessionStorage", (storage) => storage.clear());
   await clearBrowserCachesAndWorkers();
   reloadWithCacheBust();
 };
 
 export const shouldRetryChunkLoad = () => {
   const key = "__mci_chunk_retry";
-  const retried = safeStorage(window.sessionStorage, (storage) => storage.getItem(key));
+  const retried = safeStorage("sessionStorage", (storage) => storage.getItem(key));
   if (retried === CACHE_VERSION) return false;
-  safeStorage(window.sessionStorage, (storage) => storage.setItem(key, CACHE_VERSION));
+  safeStorage("sessionStorage", (storage) => storage.setItem(key, CACHE_VERSION));
   return true;
 };
