@@ -174,6 +174,7 @@ function AppRoutes() {
   const isSupportOnly = isSupport && !isAdmin && !isGestor && !isFinanceiro && !isLogistica;
 
   return (
+    <Suspense fallback={<LoadingScreen />}>
     <Routes>
       {/* Public tracking is always available */}
       <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
@@ -232,6 +233,7 @@ function AppRoutes() {
 
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </Suspense>
   );
 }
 
