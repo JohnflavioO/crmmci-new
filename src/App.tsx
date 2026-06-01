@@ -248,16 +248,18 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <BrowserRouter>
-          <AuthProvider>
-            <PrivacyProvider>
-              <AppRoutes />
-              <Toaster />
-              <Sonner position="top-right" closeButton />
-              <PWAUpdatePrompt />
-            </PrivacyProvider>
-          </AuthProvider>
-        </BrowserRouter>
+        <ErrorBoundary>
+          <BrowserRouter>
+            <AuthProvider>
+              <PrivacyProvider>
+                <AppRoutes />
+                <Toaster />
+                <Sonner position="top-right" closeButton />
+                <PWAUpdatePrompt />
+              </PrivacyProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </ErrorBoundary>
       </TooltipProvider>
     </QueryClientProvider>
   );
