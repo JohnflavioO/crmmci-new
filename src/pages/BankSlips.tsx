@@ -26,6 +26,23 @@ import { parseCurrencyBR } from '@/utils/currency';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 
+const readLastBankSlipBatch = () => {
+  try {
+    return localStorage.getItem('last_bank_slip_batch');
+  } catch {
+    return null;
+  }
+};
+
+const writeLastBankSlipBatch = (batchId: string | null) => {
+  try {
+    if (batchId) localStorage.setItem('last_bank_slip_batch', batchId);
+    else localStorage.removeItem('last_bank_slip_batch');
+  } catch {
+    // O módulo financeiro segue funcionando mesmo se o navegador bloquear armazenamento local.
+  }
+};
+
 interface BankSlip {
   id: string;
   dda: string;
