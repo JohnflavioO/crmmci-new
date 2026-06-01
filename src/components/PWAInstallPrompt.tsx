@@ -25,7 +25,12 @@ export default function PWAInstallPrompt() {
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
     setIsIOS(ios);
 
-    const dismissed = localStorage.getItem('pwa-install-dismissed');
+    let dismissed: string | null = null;
+    try {
+      dismissed = localStorage.getItem('pwa-install-dismissed');
+    } catch {
+      dismissed = null;
+    }
     if (dismissed && Date.now() - Number(dismissed) < 7 * 24 * 60 * 60 * 1000) return;
 
     if (!standalone) {
@@ -56,7 +61,11 @@ export default function PWAInstallPrompt() {
 
   const dismiss = () => {
     setShowBanner(false);
-    localStorage.setItem('pwa-install-dismissed', String(Date.now()));
+    try {
+      localStorage.setItem('pwa-install-dismissed', String(Date.now()));
+    } catch {
+      // Sem armazenamento local, apenas fecha o aviso nesta sessão.
+    }
   };
 
   return (
