@@ -9,6 +9,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
+import { clearLocalAppStateAndReload, clearBrowserCachesAndWorkers, isLikelyChunkLoadError, reloadWithCacheBust, shouldRetryChunkLoad } from "@/lib/browserRecovery";
 
 // Eager — pequenas / sempre necessárias
 import Auth from "./pages/Auth";
@@ -16,38 +17,49 @@ import PendingApproval from "./pages/PendingApproval";
 import NotFound from "./pages/NotFound";
 import ForcePasswordChange from "./pages/ForcePasswordChange";
 
-// Lazy — code-splitting acelera muito o preview e o load inicial
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const OperationalCenter = lazy(() => import("./pages/OperationalCenter"));
-const Clients = lazy(() => import("./pages/Clients"));
-const Quotes = lazy(() => import("./pages/Quotes"));
-const Approvals = lazy(() => import("./pages/Approvals"));
-const Products = lazy(() => import("./pages/Products"));
-const EcoflowCalculator = lazy(() => import("./pages/EcoflowCalculator"));
-const Tasks = lazy(() => import("./pages/Tasks"));
-const Metrics = lazy(() => import("./pages/Metrics"));
-const Pipeline = lazy(() => import("./pages/Pipeline"));
-const Reports = lazy(() => import("./pages/Reports"));
-const PublicQuote = lazy(() => import("./pages/PublicQuote"));
-const Negociacoes = lazy(() => import("./pages/Negociacoes"));
-const Integrations = lazy(() => import("./pages/Integrations"));
-const Financial = lazy(() => import("./pages/Financial"));
-const Logistics = lazy(() => import("./pages/Logistics"));
-const EstoqueSC = lazy(() => import("./pages/EstoqueSC"));
-const ProspectView = lazy(() => import("./pages/ProspectView"));
-const BankSlips = lazy(() => import("./pages/BankSlips"));
-const SupportLayout = lazy(() => import("./components/support/SupportLayout"));
-const SupportDashboard = lazy(() => import("./pages/support/SupportDashboard"));
-const SupportClients = lazy(() => import("./pages/support/SupportClients"));
-const SupportStock = lazy(() => import("./pages/support/SupportStock"));
-const SupportOrders = lazy(() => import("./pages/support/SupportOrders"));
-const SupportOrderDetail = lazy(() => import("./pages/support/SupportOrderDetail"));
-const SupportPurchases = lazy(() => import("./pages/support/SupportPurchases"));
-const SupportBudgets = lazy(() => import("./pages/support/SupportBudgets"));
-const SupportCloud = lazy(() => import("./pages/support/SupportCloud"));
-const SupportReports = lazy(() => import("./pages/support/SupportReports"));
-const SupportMaintenance = lazy(() => import("./pages/support/SupportMaintenance"));
-const PublicTracking = lazy(() => import("./pages/support/PublicTracking"));
+const lazyWithRecovery = <T extends { default: React.ComponentType<any> }>(loader: () => Promise<T>) =>
+  lazy(() =>
+    loader().catch(async (error) => {
+      if (isLikelyChunkLoadError(error) && shouldRetryChunkLoad()) {
+        await clearBrowserCachesAndWorkers();
+        reloadWithCacheBust();
+      }
+      throw error;
+    })
+  );
+
+// Lazy — code-splitting acelera muito o preview e se recupera de chunks antigos em cache
+const Dashboard = lazyWithRecovery(() => import("./pages/Dashboard"));
+const OperationalCenter = lazyWithRecovery(() => import("./pages/OperationalCenter"));
+const Clients = lazyWithRecovery(() => import("./pages/Clients"));
+const Quotes = lazyWithRecovery(() => import("./pages/Quotes"));
+const Approvals = lazyWithRecovery(() => import("./pages/Approvals"));
+const Products = lazyWithRecovery(() => import("./pages/Products"));
+const EcoflowCalculator = lazyWithRecovery(() => import("./pages/EcoflowCalculator"));
+const Tasks = lazyWithRecovery(() => import("./pages/Tasks"));
+const Metrics = lazyWithRecovery(() => import("./pages/Metrics"));
+const Pipeline = lazyWithRecovery(() => import("./pages/Pipeline"));
+const Reports = lazyWithRecovery(() => import("./pages/Reports"));
+const PublicQuote = lazyWithRecovery(() => import("./pages/PublicQuote"));
+const Negociacoes = lazyWithRecovery(() => import("./pages/Negociacoes"));
+const Integrations = lazyWithRecovery(() => import("./pages/Integrations"));
+const Financial = lazyWithRecovery(() => import("./pages/Financial"));
+const Logistics = lazyWithRecovery(() => import("./pages/Logistics"));
+const EstoqueSC = lazyWithRecovery(() => import("./pages/EstoqueSC"));
+const ProspectView = lazyWithRecovery(() => import("./pages/ProspectView"));
+const BankSlips = lazyWithRecovery(() => import("./pages/BankSlips"));
+const SupportLayout = lazyWithRecovery(() => import("./components/support/SupportLayout"));
+const SupportDashboard = lazyWithRecovery(() => import("./pages/support/SupportDashboard"));
+const SupportClients = lazyWithRecovery(() => import("./pages/support/SupportClients"));
+const SupportStock = lazyWithRecovery(() => import("./pages/support/SupportStock"));
+const SupportOrders = lazyWithRecovery(() => import("./pages/support/SupportOrders"));
+const SupportOrderDetail = lazyWithRecovery(() => import("./pages/support/SupportOrderDetail"));
+const SupportPurchases = lazyWithRecovery(() => import("./pages/support/SupportPurchases"));
+const SupportBudgets = lazyWithRecovery(() => import("./pages/support/SupportBudgets"));
+const SupportCloud = lazyWithRecovery(() => import("./pages/support/SupportCloud"));
+const SupportReports = lazyWithRecovery(() => import("./pages/support/SupportReports"));
+const SupportMaintenance = lazyWithRecovery(() => import("./pages/support/SupportMaintenance"));
+const PublicTracking = lazyWithRecovery(() => import("./pages/support/PublicTracking"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
