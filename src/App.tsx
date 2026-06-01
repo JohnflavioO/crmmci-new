@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { PrivacyProvider } from "@/hooks/usePrivacy";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
 import { clearLocalAppStateAndReload, clearBrowserCachesAndWorkers, isLikelyChunkLoadError, reloadWithCacheBust, shouldRetryChunkLoad } from "@/lib/browserRecovery";
 
@@ -17,7 +17,7 @@ import PendingApproval from "./pages/PendingApproval";
 import NotFound from "./pages/NotFound";
 import ForcePasswordChange from "./pages/ForcePasswordChange";
 
-const lazyWithRecovery = <T extends { default: React.ComponentType<any> }>(loader: () => Promise<T>) =>
+const lazyWithRecovery = <T extends { default: ComponentType<any> }>(loader: () => Promise<T>) =>
   lazy(() =>
     loader().catch(async (error) => {
       if (isLikelyChunkLoadError(error) && shouldRetryChunkLoad()) {
@@ -91,14 +91,7 @@ function LoadingScreen() {
   }, []);
 
   const handleForceRecovery = () => {
-    localStorage.clear();
-    sessionStorage.clear();
-    if ('caches' in window) {
-      caches.keys().then(names => {
-        for (const name of names) caches.delete(name);
-      });
-    }
-    window.location.href = '/';
+    void clearLocalAppStateAndReload();
   };
 
   return (
