@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown, Download } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -28,16 +28,37 @@ export default function Products() {
   const [scraping, setScraping] = useState(false);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [exporting, setExporting] = useState(false);
   const [fetchingImages, setFetchingImages] = useState(false);
   const [imageProgress, setImageProgress] = useState({ current: 0, total: 0, found: 0 });
 
   const loadProducts = async () => {
-    const { data } = await db.from('products')
-      .select('*')
-      .order('name')
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    const query = db.from('products')
+      .select('*', { count: 'exact' })
+      .order('name');
+
+    if (search.trim()) {
+      const term = search.trim().replace(/[%,]/g, '');
+      query.or(`name.ilike.%${term}%,brand.ilike.%${term}%,code.ilike.%${term}%,sku.ilike.%${term}%,description.ilike.%${term}%`);
+    }
+
+    const { data, count, error } = await query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     setProducts(data || []);
+    setTotalProducts(count ?? 0);
   };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (page !== 0) setPage(0);
+      else loadProducts();
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => { loadProducts(); }, [page]);
 
@@ -184,15 +205,46 @@ export default function Products() {
     }
   };
 
+  const csvValue = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+
+  const handleExportProducts = async () => {
+    setExporting(true);
+    try {
+      const allProducts: any[] = [];
+      const batchSize = 1000;
+      for (let from = 0; ; from += batchSize) {
+        const { data, error } = await db.from('products')
+          .select('sku, code, name, brand, description, price, image_url')
+          .order('name')
+          .range(from, from + batchSize - 1);
+        if (error) throw error;
+        allProducts.push(...(data || []));
+        if (!data || data.length < batchSize) break;
+      }
+
+      const rows = [
+        ['SKU', 'Código', 'Nome', 'Marca', 'Descrição', 'Valor', 'URL da Imagem'],
+        ...allProducts.map((p) => [p.sku, p.code, p.name, p.brand, p.description, p.price, p.image_url]),
+      ];
+      const csv = `\uFEFF${rows.map((row) => row.map(csvValue).join(';')).join('\n')}`;
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `produtos-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success(`${allProducts.length} produtos exportados em CSV.`);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao exportar produtos');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-  const filtered = products.filter((p: any) =>
-    p.name?.toLowerCase().includes(search.toLowerCase()) ||
-    p.brand?.toLowerCase().includes(search.toLowerCase()) ||
-    p.code?.toLowerCase().includes(search.toLowerCase()) ||
-    p.sku?.toLowerCase().includes(search.toLowerCase())
-  );
+  const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE));
 
   return (
     <AppLayout>
@@ -201,8 +253,13 @@ export default function Products() {
           <h1 className="text-xl md:text-2xl font-bold font-display">Produtos</h1>
           <p className="text-muted-foreground text-sm">Gerencie o catálogo de produtos</p>
         </div>
-        {(isAdmin || isGestor) && (
-          <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleExportProducts} disabled={exporting}>
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Exportar CSV
+          </Button>
+          {(isAdmin || isGestor) && (
+            <>
             <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleFetchImages} disabled={fetchingImages}>
               <ImageDown className="h-4 w-4" />
               {fetchingImages ? 'Buscando...' : 'Buscar Imagens'}
@@ -284,8 +341,9 @@ export default function Products() {
               </div>
             </DialogContent>
           </Dialog>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       {fetchingImages && (
@@ -303,24 +361,25 @@ export default function Products() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar produto..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+              <Input placeholder="Buscar em todos os produtos por nome, código, SKU, marca ou descrição..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
             </div>
-            <div className="flex gap-2 text-sm text-muted-foreground">
+            <div className="flex gap-2 text-sm text-muted-foreground items-center flex-wrap">
+              <span className="px-2">{totalProducts} produto(s)</span>
               <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="min-h-[44px] sm:min-h-0">Anterior</Button>
-              <span className="flex items-center px-2">Pág. {page + 1}</span>
-              <Button variant="outline" size="sm" disabled={products.length < PAGE_SIZE} onClick={() => setPage(p => p + 1)} className="min-h-[44px] sm:min-h-0">Próxima</Button>
+              <span className="flex items-center px-2">Pág. {page + 1} de {totalPages}</span>
+              <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage(p => p + 1)} className="min-h-[44px] sm:min-h-0">Próxima</Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          {filtered.length === 0 ? (
+          {products.length === 0 ? (
             <div className="text-center py-12">
               <Package className="mx-auto h-12 w-12 text-muted-foreground/30" />
               <p className="text-muted-foreground mt-3">Nenhum produto encontrado</p>
             </div>
           ) : isMobile ? (
             <div className="space-y-3">
-              {filtered.map((p: any) => (
+              {products.map((p: any) => (
                 <div key={p.id} className="p-3 rounded-lg border bg-muted/30 flex gap-3">
                   {p.image_url ? (
                     <img src={p.image_url} alt={p.name} className="w-14 h-14 object-contain rounded shrink-0" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
@@ -361,7 +420,7 @@ export default function Products() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((p: any) => (
+                {products.map((p: any) => (
                   <TableRow key={p.id}>
                     <TableCell>
                       {p.image_url ? (
