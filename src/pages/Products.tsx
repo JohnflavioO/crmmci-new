@@ -365,14 +365,14 @@ export default function Products() {
           </div>
         </CardHeader>
         <CardContent>
-          {filtered.length === 0 ? (
+          {products.length === 0 ? (
             <div className="text-center py-12">
               <Package className="mx-auto h-12 w-12 text-muted-foreground/30" />
               <p className="text-muted-foreground mt-3">Nenhum produto encontrado</p>
             </div>
           ) : isMobile ? (
             <div className="space-y-3">
-              {filtered.map((p: any) => (
+              {products.map((p: any) => (
                 <div key={p.id} className="p-3 rounded-lg border bg-muted/30 flex gap-3">
                   {p.image_url ? (
                     <img src={p.image_url} alt={p.name} className="w-14 h-14 object-contain rounded shrink-0" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
@@ -413,7 +413,7 @@ export default function Products() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((p: any) => (
+                {products.map((p: any) => (
                   <TableRow key={p.id}>
                     <TableCell>
                       {p.image_url ? (
