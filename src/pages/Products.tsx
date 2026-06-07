@@ -35,7 +35,7 @@ export default function Products() {
 
   const loadProducts = async () => {
     const query = db.from('products')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('name');
 
     if (search.trim()) {
@@ -205,15 +205,46 @@ export default function Products() {
     }
   };
 
+  const csvValue = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+
+  const handleExportProducts = async () => {
+    setExporting(true);
+    try {
+      const allProducts: any[] = [];
+      const batchSize = 1000;
+      for (let from = 0; ; from += batchSize) {
+        const { data, error } = await db.from('products')
+          .select('sku, code, name, brand, description, price, image_url')
+          .order('name')
+          .range(from, from + batchSize - 1);
+        if (error) throw error;
+        allProducts.push(...(data || []));
+        if (!data || data.length < batchSize) break;
+      }
+
+      const rows = [
+        ['SKU', 'Código', 'Nome', 'Marca', 'Descrição', 'Valor', 'URL da Imagem'],
+        ...allProducts.map((p) => [p.sku, p.code, p.name, p.brand, p.description, p.price, p.image_url]),
+      ];
+      const csv = `\uFEFF${rows.map((row) => row.map(csvValue).join(';')).join('\n')}`;
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `produtos-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success(`${allProducts.length} produtos exportados em CSV.`);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao exportar produtos');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-  const filtered = products.filter((p: any) =>
-    p.name?.toLowerCase().includes(search.toLowerCase()) ||
-    p.brand?.toLowerCase().includes(search.toLowerCase()) ||
-    p.code?.toLowerCase().includes(search.toLowerCase()) ||
-    p.sku?.toLowerCase().includes(search.toLowerCase())
-  );
+  const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE));
 
   return (
     <AppLayout>
