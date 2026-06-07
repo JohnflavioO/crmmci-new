@@ -1,6 +1,5 @@
 import { createRoot } from "react-dom/client";
 import { clearLocalAppStateAndReload, runOneTimeCacheRefresh } from "./lib/browserRecovery";
-import App from "./App.tsx";
 import "./index.css";
 
 runOneTimeCacheRefresh();
@@ -41,11 +40,12 @@ const startWatchdog = () => {
 
 const watchdog = startWatchdog();
 
-const initApp = () => {
+const initApp = async () => {
   const rootElement = document.getElementById("root");
   if (!rootElement) return;
 
   try {
+    const { default: App } = await import("./App.tsx");
     const root = createRoot(rootElement);
     root.render(<App />);
     
@@ -63,4 +63,4 @@ const initApp = () => {
   }
 };
 
-initApp();
+void initApp();
