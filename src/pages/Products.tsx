@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown, Download } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -28,16 +28,37 @@ export default function Products() {
   const [scraping, setScraping] = useState(false);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [exporting, setExporting] = useState(false);
   const [fetchingImages, setFetchingImages] = useState(false);
   const [imageProgress, setImageProgress] = useState({ current: 0, total: 0, found: 0 });
 
   const loadProducts = async () => {
-    const { data } = await db.from('products')
+    const query = db.from('products')
       .select('*')
-      .order('name')
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      .order('name');
+
+    if (search.trim()) {
+      const term = search.trim().replace(/[%,]/g, '');
+      query.or(`name.ilike.%${term}%,brand.ilike.%${term}%,code.ilike.%${term}%,sku.ilike.%${term}%,description.ilike.%${term}%`);
+    }
+
+    const { data, count, error } = await query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     setProducts(data || []);
+    setTotalProducts(count ?? 0);
   };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (page !== 0) setPage(0);
+      else loadProducts();
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => { loadProducts(); }, [page]);
 
