@@ -1,4 +1,4 @@
-const CACHE_VERSION = "v2026-06-01-3";
+const CACHE_VERSION = "v2026-06-07-1";
 
 const createMemoryStorage = (): Storage => {
   const store = new Map<string, string>();
