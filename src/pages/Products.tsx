@@ -253,8 +253,13 @@ export default function Products() {
           <h1 className="text-xl md:text-2xl font-bold font-display">Produtos</h1>
           <p className="text-muted-foreground text-sm">Gerencie o catálogo de produtos</p>
         </div>
-        {(isAdmin || isGestor) && (
-          <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleExportProducts} disabled={exporting}>
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Exportar CSV
+          </Button>
+          {(isAdmin || isGestor) && (
+            <>
             <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleFetchImages} disabled={fetchingImages}>
               <ImageDown className="h-4 w-4" />
               {fetchingImages ? 'Buscando...' : 'Buscar Imagens'}
@@ -336,8 +341,9 @@ export default function Products() {
               </div>
             </DialogContent>
           </Dialog>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       {fetchingImages && (
@@ -355,12 +361,13 @@ export default function Products() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar produto..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+              <Input placeholder="Buscar em todos os produtos por nome, código, SKU, marca ou descrição..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
             </div>
-            <div className="flex gap-2 text-sm text-muted-foreground">
+            <div className="flex gap-2 text-sm text-muted-foreground items-center flex-wrap">
+              <span className="px-2">{totalProducts} produto(s)</span>
               <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="min-h-[44px] sm:min-h-0">Anterior</Button>
-              <span className="flex items-center px-2">Pág. {page + 1}</span>
-              <Button variant="outline" size="sm" disabled={products.length < PAGE_SIZE} onClick={() => setPage(p => p + 1)} className="min-h-[44px] sm:min-h-0">Próxima</Button>
+              <span className="flex items-center px-2">Pág. {page + 1} de {totalPages}</span>
+              <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage(p => p + 1)} className="min-h-[44px] sm:min-h-0">Próxima</Button>
             </div>
           </div>
         </CardHeader>
