@@ -850,6 +850,7 @@ export type Database = {
           category: string | null
           code: string | null
           description: string
+          description_layout: string
           discount_percent: number | null
           id: string
           image_url: string | null
@@ -870,6 +871,7 @@ export type Database = {
           category?: string | null
           code?: string | null
           description?: string
+          description_layout?: string
           discount_percent?: number | null
           id?: string
           image_url?: string | null
@@ -890,6 +892,7 @@ export type Database = {
           category?: string | null
           code?: string | null
           description?: string
+          description_layout?: string
           discount_percent?: number | null
           id?: string
           image_url?: string | null

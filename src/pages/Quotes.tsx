@@ -90,11 +90,13 @@ interface QuoteItem {
   line_total: number;
   image_url: string;
   is_gift: boolean;
+  description_layout?: 'compact' | 'expanded';
 }
 
 const emptyItem = (): QuoteItem => ({
   item_number: 1, product_code: '', quantity: 1, model: '', brand: '',
   specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0, image_url: '', is_gift: false,
+  description_layout: 'compact',
 });
 
 const shippingMethods = [
@@ -549,6 +551,7 @@ export default function Quotes() {
         specifications: item.specifications, unit_price: Number(item.unit_price) || 0,
         discount_percent: Number(item.discount_percent) || 0, unit_total: item.unit_total,
         line_total: item.line_total, image_url: item.image_url, is_gift: item.is_gift,
+        description_layout: item.description_layout || 'compact',
       }));
 
       if (validItems.length > 0) {
@@ -1382,7 +1385,24 @@ export default function Quotes() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Especificações</Label>
+                        <div className="flex items-center justify-between gap-2">
+                          <Label className="text-xs">Especificações</Label>
+                          <div className="flex items-center gap-2">
+                            <Label className="text-xs text-muted-foreground">Layout no PDF:</Label>
+                            <Select
+                              value={item.description_layout || 'compact'}
+                              onValueChange={v => updateItem(idx, 'description_layout', v)}
+                            >
+                              <SelectTrigger className="h-7 w-36 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="compact">Compacto (curto)</SelectItem>
+                                <SelectItem value="expanded">Expandido (completo)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
                         <Textarea value={item.specifications} rows={2}
                           onChange={e => updateItem(idx, 'specifications', e.target.value)} />
                       </div>

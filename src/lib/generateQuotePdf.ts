@@ -313,23 +313,23 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   items.forEach((item: any, i: number) => {
     const model = normalizeCellText(item.model || item.description || '');
     const specs = item.specifications ? `(${normalizeCellText(item.specifications)})` : '';
-    
-    // Compact, bounded description: show up to 2 lines of model + 1 line of specs
+    const isExpanded = item.description_layout === 'expanded';
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.6);
     resetTextSpacing();
-    
-    // Show up to 3 lines for model if no specs, or 2 lines model + 1 line specs
-    const splitModel = wrapCellText(model, cols[3].w - 3, specs ? 2 : 3); 
-    
+
+    const modelMaxLines = isExpanded ? 999 : (specs ? 2 : 3);
+    const splitModel = wrapCellText(model, cols[3].w - 3, modelMaxLines);
+
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.1);
-    const splitSpecs = specs ? wrapCellText(specs, cols[3].w - 3, 1) : [];
-    
-    // Calculate required row height based on content
+    const specsMaxLines = isExpanded ? 999 : 1;
+    const splitSpecs = specs ? wrapCellText(specs, cols[3].w - 3, specsMaxLines) : [];
+
     const totalLines = Math.max(1, splitModel.length + splitSpecs.length);
-    const lineHeight = 3.6; 
-    const contentHeight = (totalLines * lineHeight) + 4; 
+    const lineHeight = 3.6;
+    const contentHeight = (totalLines * lineHeight) + 4;
     const rowHeight = Math.max(baseRowHeight, contentHeight);
 
     checkPage(rowHeight + 2);
