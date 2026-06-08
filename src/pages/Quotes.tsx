@@ -1385,7 +1385,24 @@ export default function Quotes() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Especificações</Label>
+                        <div className="flex items-center justify-between gap-2">
+                          <Label className="text-xs">Especificações</Label>
+                          <div className="flex items-center gap-2">
+                            <Label className="text-xs text-muted-foreground">Layout no PDF:</Label>
+                            <Select
+                              value={item.description_layout || 'compact'}
+                              onValueChange={v => updateItem(idx, 'description_layout', v)}
+                            >
+                              <SelectTrigger className="h-7 w-36 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="compact">Compacto (curto)</SelectItem>
+                                <SelectItem value="expanded">Expandido (completo)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
                         <Textarea value={item.specifications} rows={2}
                           onChange={e => updateItem(idx, 'specifications', e.target.value)} />
                       </div>
