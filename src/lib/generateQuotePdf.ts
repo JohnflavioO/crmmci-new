@@ -319,12 +319,12 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     doc.setFontSize(7.6);
     resetTextSpacing();
 
-    const modelMaxLines = isExpanded ? 999 : (specs ? 2 : 3);
+    const modelMaxLines = isExpanded ? 4 : (specs ? 2 : 3);
     const splitModel = wrapCellText(model, cols[3].w - 3, modelMaxLines);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.1);
-    const specsMaxLines = isExpanded ? 999 : 1;
+    const specsMaxLines = isExpanded ? 3 : 1;
     const splitSpecs = specs ? wrapCellText(specs, cols[3].w - 3, specsMaxLines) : [];
 
     const totalLines = Math.max(1, splitModel.length + splitSpecs.length);
