@@ -551,6 +551,7 @@ export default function Quotes() {
         specifications: item.specifications, unit_price: Number(item.unit_price) || 0,
         discount_percent: Number(item.discount_percent) || 0, unit_total: item.unit_total,
         line_total: item.line_total, image_url: item.image_url, is_gift: item.is_gift,
+        description_layout: item.description_layout || 'compact',
       }));
 
       if (validItems.length > 0) {
