@@ -90,11 +90,13 @@ interface QuoteItem {
   line_total: number;
   image_url: string;
   is_gift: boolean;
+  description_layout?: 'compact' | 'expanded';
 }
 
 const emptyItem = (): QuoteItem => ({
   item_number: 1, product_code: '', quantity: 1, model: '', brand: '',
   specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0, image_url: '', is_gift: false,
+  description_layout: 'compact',
 });
 
 const shippingMethods = [
