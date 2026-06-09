@@ -139,6 +139,11 @@ export default function Logistics() {
   const [nfUploading, setNfUploading] = useState(false);
   const nfFileRef = useRef<HTMLInputElement>(null);
 
+  // Date filter (additive)
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
   const canOperate = isLogistica;
 
   const fetchData = useCallback(async () => {
