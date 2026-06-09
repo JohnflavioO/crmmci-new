@@ -992,6 +992,24 @@ export default function Logistics() {
                   </div>
                 </div>
                 <div>
+                  <Label>Link de Rastreamento (transportadora)</Label>
+                  <div className="flex gap-2">
+                    <Input value={editTrackingUrl} onChange={e => setEditTrackingUrl(e.target.value)} placeholder="https://..." />
+                    {editTrackingUrl && (
+                      <>
+                        <Button type="button" size="icon" variant="outline" onClick={() => { navigator.clipboard.writeText(editTrackingUrl); toast.success('Link copiado'); }} title="Copiar">
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <a href={editTrackingUrl} target="_blank" rel="noreferrer">
+                          <Button type="button" size="icon" variant="outline" title="Abrir">
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </a>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div>
                   <Label>Data Envio</Label>
                   <Input type="date" value={editDataEnvio} onChange={e => setEditDataEnvio(e.target.value)} />
                 </div>
