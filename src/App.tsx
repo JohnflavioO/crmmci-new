@@ -187,6 +187,7 @@ function AppRoutes() {
     <Routes>
       {/* Public tracking is always available */}
       <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
+      <Route path="/rastreio/pedido/:token" element={<LogisticsTracking />} />
 
       {/* Support module */}
       {(isSupport || isAdmin || isGestor) && (
