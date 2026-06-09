@@ -522,6 +522,21 @@ export default function Logistics() {
         });
       }
 
+      // History entry for tracking changes
+      const rastreioChanged = (editRastreio || '') !== previousRastreio;
+      const trackingUrlChanged = (editTrackingUrl || '') !== previousTrackingUrl;
+      if (rastreioChanged || trackingUrlChanged) {
+        await db.from('logistics_action_history').insert({
+          logistics_record_id: editRecord.id,
+          action_type: 'tracking_update',
+          previous_status: previousStatus,
+          new_status: editStatus,
+          notes: `Rastreio atualizado${editRastreio ? `: ${editRastreio}` : ''}${editTrackingUrl ? ` (link: ${editTrackingUrl})` : ''}`,
+          performed_by: user?.id,
+          performed_by_name: profile?.full_name || '',
+        });
+      }
+
       toast.success('Registro logístico atualizado');
       setEditRecord(null);
       fetchData();
