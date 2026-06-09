@@ -832,10 +832,24 @@ export default function Logistics() {
 
         {/* Detail Dialog */}
         <Dialog open={!!detailRecord} onOpenChange={() => setDetailRecord(null)}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>Detalhes do Pedido</DialogTitle></DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 flex-wrap">
+                Detalhes do Pedido
+                {detailRecord?.is_incompleto && <Badge variant="destructive" className="text-xs">Incompleto</Badge>}
+              </DialogTitle>
+            </DialogHeader>
             {detailRecord && (
-              <div className="space-y-3 text-sm">
+              <div className="space-y-4 text-sm">
+                {/* Progress */}
+                <div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                    <span>Progresso do Pedido</span>
+                    <span>{STATUS_PROGRESS[detailRecord.logistics_status] ?? 0}%</span>
+                  </div>
+                  <Progress value={STATUS_PROGRESS[detailRecord.logistics_status] ?? 0} />
+                </div>
+
                 <div className="grid grid-cols-2 gap-2">
                   <div><span className="text-muted-foreground">Orçamento:</span> <strong>{detailRecord.quote_number}</strong></div>
                   <div><span className="text-muted-foreground">Cliente:</span> <strong>{detailRecord.client_name}</strong></div>
@@ -853,8 +867,76 @@ export default function Logistics() {
                   <div><span className="text-muted-foreground">Data Envio:</span> <strong>{detailRecord.data_envio ? format(new Date(detailRecord.data_envio), 'dd/MM/yyyy') : '-'}</strong></div>
                   <div><span className="text-muted-foreground">Entrega:</span> <strong>{detailRecord.data_entrega ? format(new Date(detailRecord.data_entrega), 'dd/MM/yyyy') : '-'}</strong></div>
                 </div>
+
+                {/* Tracking URL */}
+                {detailRecord.tracking_url && (
+                  <div className="p-2 rounded border bg-muted/30 flex items-center gap-2">
+                    <LinkIcon className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-xs truncate flex-1" title={detailRecord.tracking_url}>{detailRecord.tracking_url}</span>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { navigator.clipboard.writeText(detailRecord.tracking_url || ''); toast.success('Link copiado'); }} title="Copiar">
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                    <a href={detailRecord.tracking_url} target="_blank" rel="noreferrer">
+                      <Button size="icon" variant="ghost" className="h-7 w-7" title="Abrir">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Button>
+                    </a>
+                  </div>
+                )}
+
+                {/* Public client portal link */}
+                <div className="p-2 rounded border bg-primary/5 flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground flex-1">Link público para o cliente acompanhar o pedido</span>
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => copyTrackingLink(detailRecord)}>
+                    <Copy className="h-3 w-3 mr-1" /> Copiar link
+                  </Button>
+                  {detailRecord.public_token && (
+                    <a href={`/rastreio/pedido/${detailRecord.public_token}`} target="_blank" rel="noreferrer">
+                      <Button size="sm" variant="ghost" className="h-7 text-xs">
+                        <ExternalLink className="h-3 w-3 mr-1" /> Abrir
+                      </Button>
+                    </a>
+                  )}
+                </div>
+
+                {/* Itens do Pedido (faturamento parcial) */}
+                {detailItems.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <strong className="text-sm">Itens do Pedido</strong>
+                      {detailRecord.is_incompleto && <Badge variant="destructive" className="text-xs">Incompleto</Badge>}
+                    </div>
+                    <div className="space-y-2">
+                      {detailItems.map(it => {
+                        const st = detailItemStatus[it.id] || 'pendente';
+                        return (
+                          <div key={it.id} className="flex items-center gap-2 p-2 rounded border">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium truncate">{it.product_code || `Item ${it.item_number || ''}`}</p>
+                              <p className="text-xs text-muted-foreground truncate">{it.description || ''} {it.quantity ? `· Qtd: ${it.quantity}` : ''}</p>
+                            </div>
+                            {canOperate ? (
+                              <Select value={st} onValueChange={(v) => setItemStatus(it.id, v)}>
+                                <SelectTrigger className="h-7 w-[130px] text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pendente">Pendente</SelectItem>
+                                  <SelectItem value="faturado">Faturado</SelectItem>
+                                  <SelectItem value="enviado">Enviado</SelectItem>
+                                  <SelectItem value="entregue">Entregue</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">{st}</Badge>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {detailRecord.nf_pdf_url && (
-                  <div className="pt-2">
+                  <div className="pt-1">
                     <Button size="sm" variant="outline" onClick={() => downloadNfPdf(detailRecord)}>
                       <FileDown className="h-4 w-4 mr-1" /> Baixar PDF da NF
                     </Button>
@@ -867,6 +949,7 @@ export default function Logistics() {
             )}
           </DialogContent>
         </Dialog>
+
 
         {/* Edit Dialog */}
         <Dialog open={!!editRecord} onOpenChange={() => setEditRecord(null)}>
