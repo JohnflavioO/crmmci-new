@@ -20,7 +20,9 @@ import {
   Truck, PackageCheck, FileText, Search, Eye, Download, ClipboardList,
   AlertTriangle, MapPin, RefreshCw, Clock, CheckCircle2,
   TriangleAlert, History, ArrowRight, Upload, FileDown, X,
+  Copy, ExternalLink, Calendar as CalendarIcon, Link as LinkIcon,
 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { generateQuotePdf } from '@/lib/generateQuotePdf';
 import LogisticsWorkQueue from '@/components/logistics/LogisticsWorkQueue';
