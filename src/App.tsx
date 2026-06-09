@@ -168,6 +168,7 @@ function AppRoutes() {
         <Routes>
           <Route path="/quote/:token" element={<PublicQuote />} />
           <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
+          <Route path="/rastreio/pedido/:token" element={<LogisticsTracking />} />
           <Route path="*" element={<Auth />} />
         </Routes>
       </Suspense>
