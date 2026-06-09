@@ -74,7 +74,7 @@ const paymentStatusLabels: Record<string, { label: string; icon: any; className:
   liquidado: { label: 'Liquidado', icon: CheckCircle2, className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
 };
 
-const installmentOptions = Array.from({ length: 10 }, (_, i) => i + 1);
+const installmentOptions = Array.from({ length: 12 }, (_, i) => i + 1);
 
 interface QuoteItem {
   id?: string;
