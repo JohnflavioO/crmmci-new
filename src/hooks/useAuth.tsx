@@ -62,34 +62,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string; avatar_url?: string; force_password_change?: boolean; company_id?: string; can_access_support_manager?: boolean } | null>(null);
   const [forcePasswordChange, setForcePasswordChange] = useState(false);
 
-  // Safety timeout: never stay loading forever
+  // Safety timeout: never stay loading forever.
+  // IMPORTANT: only force loading=false when there is NO active session. If the user is
+  // signed in we keep waiting for fetchData to finish — forcing loading=false too early
+  // makes the app render PendingApproval/Navigate momentarily and then re-render with the
+  // real role, which the user perceives as an "Iniciando sistema..." loop when switching
+  // between sections.
   useEffect(() => {
-    const isPreview = window.location.hostname.includes('lovable.app') || 
-                      window.location.hostname.includes('lovableproject.com') ||
-                      window.location.hostname.includes('lovable.dev');
-    
-    // Tempo reduzido para 6 segundos em preview para ser mais agressivo contra tela branca
-    const timeoutDuration = isPreview ? 6000 : MAX_LOADING_MS;
-
     const timer = setTimeout(() => {
       setLoading(prev => {
-        if (prev) {
-          console.warn(`[Auth] Timeout atingido (${timeoutDuration}ms). Forçando carregamento para evitar tela branca.`);
-          
-          // Se estamos presos no loading, tentamos verificar a sessão uma última vez de forma direta
-          supabase.auth.getSession().then(({ data }) => {
-            if (!data.session) {
-              console.log('[Auth] Timeout: Nenhuma sessão encontrada, direcionando para login.');
-              setUser(null);
-            }
-          }).catch(err => console.error('[Auth] Erro ao recuperar sessão no timeout:', err));
-          
-          return false;
-        }
+        if (!prev) return prev;
+        supabase.auth.getSession().then(({ data }) => {
+          if (!data.session) {
+            console.warn('[Auth] Timeout sem sessão. Forçando login.');
+            setUser(null);
+            setLoading(false);
+          } else {
+            console.log('[Auth] Timeout com sessão ativa — mantendo loading até o fetch concluir.');
+          }
+        }).catch(err => {
+          console.error('[Auth] Erro ao recuperar sessão no timeout:', err);
+          setLoading(false);
+        });
         return prev;
       });
-    }, timeoutDuration);
-    
+    }, MAX_LOADING_MS);
+
     return () => clearTimeout(timer);
   }, []);
 
