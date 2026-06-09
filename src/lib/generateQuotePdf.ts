@@ -444,14 +444,50 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   y += 5;
 
   // Payment/Shipping info
-  checkPage(20);
+  checkPage(30);
   doc.setFontSize(7);
   doc.setTextColor(60);
   doc.setFont('helvetica', 'normal');
   const shippingLabels: Record<string, string> = {
     correios: 'Correios', mao_propria: 'Mão Própria', retirada: 'Retirada', transportadora: 'Transportadora',
   };
-  if (quote.payment_terms) { doc.text(`Forma de Pagamento: ${quote.payment_terms}`, margin, y); y += 3; }
+  const paymentMethodLabels: Record<string, string> = {
+    pix: 'PIX', cartao: 'Cartão de Crédito', boleto: 'Boleto',
+  };
+  const fmtDate = (d?: string | null) => (d ? d.split('-').reverse().join('/') : '');
+  const describePayment = (method?: string | null, installments?: number | null, date?: string | null, value?: number | null) => {
+    if (!method) return '';
+    const label = paymentMethodLabels[method] || method;
+    const parts: string[] = [label];
+    if ((method === 'cartao' || method === 'boleto') && installments && installments > 1) {
+      parts.push(`${installments}x`);
+    }
+    if (method === 'pix' && date) parts.push(`em ${fmtDate(date)}`);
+    if (value && value > 0) parts.push(`(${fmt(value)})`);
+    return parts.join(' ');
+  };
+
+  if (quote.is_split_payment) {
+    doc.setFont('helvetica', 'bold');
+    doc.text('Forma de Pagamento: Pagamento Dividido', margin, y); y += 3;
+    doc.setFont('helvetica', 'normal');
+    const p1 = describePayment(quote.split_method_1, quote.split_installments_1, quote.split_date_1, quote.split_value_1);
+    const p2 = describePayment(quote.split_method_2, quote.split_installments_2, quote.split_date_2, quote.split_value_2);
+    if (p1) { doc.text(`  • 1º Pagamento: ${p1}`, margin, y); y += 3; }
+    if (p2) { doc.text(`  • 2º Pagamento: ${p2}`, margin, y); y += 3; }
+  } else if (quote.payment_method) {
+    const pdesc = describePayment(quote.payment_method, quote.installments, quote.payment_date, null);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Forma de Pagamento: `, margin, y);
+    const lblW = doc.getTextWidth('Forma de Pagamento: ');
+    doc.setFont('helvetica', 'normal');
+    doc.text(pdesc, margin + lblW, y);
+    y += 3;
+  }
+  if (quote.payment_terms) {
+    const ptLines = doc.splitTextToSize(`Condições: ${quote.payment_terms}`, cw);
+    doc.text(ptLines, margin, y); y += ptLines.length * 3;
+  }
   if (quote.shipping_deadline) { doc.text(`Prazo de Envio: ${quote.shipping_deadline}`, margin, y); y += 3; }
   if (quote.shipping_method) { doc.text(`Forma de Envio: ${shippingLabels[quote.shipping_method] || quote.shipping_method}`, margin, y); y += 3; }
   if (quote.proposal_validity) { doc.text(`Validade da Proposta: ${quote.proposal_validity}`, margin, y); y += 3; }
