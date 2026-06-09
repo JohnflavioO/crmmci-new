@@ -477,13 +477,21 @@ export default function Logistics() {
       return;
     }
 
+    if (editStatus === 'entregue' && editRecord.is_incompleto) {
+      toast.error('Pedido marcado como Incompleto (há itens pendentes). Conclua os itens antes de finalizar.');
+      return;
+    }
+
     try {
       const previousStatus = editRecord.logistics_status;
+      const previousRastreio = editRecord.codigo_rastreio || '';
+      const previousTrackingUrl = editRecord.tracking_url || '';
       const updates: any = {
         logistics_status: editStatus,
         nf_numero: editNfNumero || null,
         nf_data: editNfData || null,
         codigo_rastreio: editRastreio || null,
+        tracking_url: editTrackingUrl || null,
         transportadora: editTransportadora || null,
         observacao_logistica: editObs || null,
         data_envio: editDataEnvio || null,
@@ -497,6 +505,7 @@ export default function Logistics() {
       if (editStatus === 'entregue' && !editRecord.data_entrega) {
         updates.data_entrega = new Date().toISOString().split('T')[0];
       }
+
 
       const { error } = await db.from('logistics_records').update(updates).eq('id', editRecord.id);
       if (error) throw error;
