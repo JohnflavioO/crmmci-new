@@ -64,6 +64,9 @@ interface LogisticsRecord {
   entrada_at: string | null;
   created_at: string;
   updated_at: string;
+  tracking_url?: string | null;
+  public_token?: string | null;
+  is_incompleto?: boolean | null;
   quote_number?: string;
   client_name?: string;
   salesperson?: string;
@@ -74,6 +77,29 @@ interface LogisticsRecord {
   client_id?: string;
   quote_status?: string;
 }
+
+interface QuoteItem {
+  id: string;
+  item_number: number | null;
+  product_code: string | null;
+  description: string | null;
+  quantity: number | null;
+}
+
+const STATUS_PROGRESS: Record<string, number> = {
+  aguardando_entrada: 20,
+  entrada_realizada: 20,
+  emitindo_nf: 40,
+  nf_emitida: 40,
+  em_separacao: 60,
+  pronto_envio: 60,
+  enviado: 80,
+  em_transporte: 80,
+  entregue: 100,
+  problema_logistico: 10,
+};
+
+type DateFilter = 'all' | 'today' | '7d' | 'month' | 'custom';
 
 export default function Logistics() {
   const { user, isLogistica, profile } = useAuth();
