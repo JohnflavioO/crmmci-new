@@ -60,6 +60,7 @@ const SupportCloud = lazyWithRecovery(() => import("./pages/support/SupportCloud
 const SupportReports = lazyWithRecovery(() => import("./pages/support/SupportReports"));
 const SupportMaintenance = lazyWithRecovery(() => import("./pages/support/SupportMaintenance"));
 const PublicTracking = lazyWithRecovery(() => import("./pages/support/PublicTracking"));
+const LogisticsTracking = lazyWithRecovery(() => import("./pages/LogisticsTracking"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
