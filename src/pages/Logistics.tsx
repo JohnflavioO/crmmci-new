@@ -20,7 +20,9 @@ import {
   Truck, PackageCheck, FileText, Search, Eye, Download, ClipboardList,
   AlertTriangle, MapPin, RefreshCw, Clock, CheckCircle2,
   TriangleAlert, History, ArrowRight, Upload, FileDown, X,
+  Copy, ExternalLink, Calendar as CalendarIcon, Link as LinkIcon,
 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { generateQuotePdf } from '@/lib/generateQuotePdf';
 import LogisticsWorkQueue from '@/components/logistics/LogisticsWorkQueue';
@@ -62,6 +64,9 @@ interface LogisticsRecord {
   entrada_at: string | null;
   created_at: string;
   updated_at: string;
+  tracking_url?: string | null;
+  public_token?: string | null;
+  is_incompleto?: boolean | null;
   quote_number?: string;
   client_name?: string;
   salesperson?: string;
@@ -72,6 +77,29 @@ interface LogisticsRecord {
   client_id?: string;
   quote_status?: string;
 }
+
+interface QuoteItem {
+  id: string;
+  item_number: number | null;
+  product_code: string | null;
+  description: string | null;
+  quantity: number | null;
+}
+
+const STATUS_PROGRESS: Record<string, number> = {
+  aguardando_entrada: 20,
+  entrada_realizada: 20,
+  emitindo_nf: 40,
+  nf_emitida: 40,
+  em_separacao: 60,
+  pronto_envio: 60,
+  enviado: 80,
+  em_transporte: 80,
+  entregue: 100,
+  problema_logistico: 10,
+};
+
+type DateFilter = 'all' | 'today' | '7d' | 'month' | 'custom';
 
 export default function Logistics() {
   const { user, isLogistica, profile } = useAuth();
@@ -88,11 +116,14 @@ export default function Logistics() {
 
   // Dialog states
   const [detailRecord, setDetailRecord] = useState<LogisticsRecord | null>(null);
+  const [detailItems, setDetailItems] = useState<QuoteItem[]>([]);
+  const [detailItemStatus, setDetailItemStatus] = useState<Record<string, string>>({});
   const [editRecord, setEditRecord] = useState<LogisticsRecord | null>(null);
   const [editStatus, setEditStatus] = useState('');
   const [editNfNumero, setEditNfNumero] = useState('');
   const [editNfData, setEditNfData] = useState('');
   const [editRastreio, setEditRastreio] = useState('');
+  const [editTrackingUrl, setEditTrackingUrl] = useState('');
   const [editTransportadora, setEditTransportadora] = useState('');
   const [editObs, setEditObs] = useState('');
   const [editDataEnvio, setEditDataEnvio] = useState('');
@@ -107,6 +138,11 @@ export default function Logistics() {
   const [nfFile, setNfFile] = useState<File | null>(null);
   const [nfUploading, setNfUploading] = useState(false);
   const nfFileRef = useRef<HTMLInputElement>(null);
+
+  // Date filter (additive)
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const canOperate = isLogistica;
 
@@ -201,13 +237,36 @@ export default function Logistics() {
       );
     }
 
+    // Date filter (additive) — uses created_at
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      let from: Date | null = null;
+      let to: Date | null = null;
+      if (dateFilter === 'today') {
+        from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (dateFilter === '7d') {
+        from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else if (dateFilter === 'month') {
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+      } else if (dateFilter === 'custom') {
+        if (dateFrom) from = new Date(dateFrom + 'T00:00:00');
+        if (dateTo) to = new Date(dateTo + 'T23:59:59');
+      }
+      list = list.filter(r => {
+        const d = new Date(r.created_at);
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+        return true;
+      });
+    }
+
     if (tab === 'nf') list = list.filter(r => ['aguardando_entrada', 'entrada_realizada', 'emitindo_nf'].includes(r.logistics_status) || (!r.nf_numero && !['nf_emitida', 'pronto_envio', 'enviado', 'em_transporte', 'entregue'].includes(r.logistics_status)));
     if (tab === 'envios') list = list.filter(r => ['pronto_envio', 'enviado', 'em_transporte'].includes(r.logistics_status));
     if (tab === 'rastreamento') list = list.filter(r => r.logistics_status === 'enviado' || r.logistics_status === 'em_transporte' || r.codigo_rastreio);
     if (tab === 'problemas') list = list.filter(r => r.logistics_status === 'problema_logistico');
 
     return list;
-  }, [records, statusFilter, sellerFilter, search, tab]);
+  }, [records, statusFilter, sellerFilter, search, tab, dateFilter, dateFrom, dateTo]);
 
   const stats = useMemo(() => {
     const s = { aguardando: 0, emitindoNf: 0, prontoEnvio: 0, enviados: 0, transporte: 0, entregues: 0, problemas: 0, semRastreio: 0 };
@@ -230,9 +289,64 @@ export default function Logistics() {
     setEditNfNumero(r.nf_numero || '');
     setEditNfData(r.nf_data || '');
     setEditRastreio(r.codigo_rastreio || '');
+    setEditTrackingUrl(r.tracking_url || '');
     setEditTransportadora(r.transportadora || '');
     setEditObs(r.observacao_logistica || '');
     setEditDataEnvio(r.data_envio || '');
+  };
+
+  // Open detail with items + item-statuses
+  const openDetail = async (r: LogisticsRecord) => {
+    setDetailRecord(r);
+    setDetailItems([]);
+    setDetailItemStatus({});
+    try {
+      const { data: items } = await db.from('quote_items').select('id, item_number, product_code, description, quantity').eq('quote_id', r.quote_id).order('item_number');
+      setDetailItems((items || []) as QuoteItem[]);
+      const { data: statuses } = await db.from('logistics_item_status').select('quote_item_id, item_status').eq('logistics_record_id', r.id);
+      const map: Record<string, string> = {};
+      (statuses || []).forEach((s: any) => { map[s.quote_item_id] = s.item_status; });
+      setDetailItemStatus(map);
+    } catch (e) {
+      console.error('openDetail error', e);
+    }
+  };
+
+  const setItemStatus = async (quoteItemId: string, newStatus: string) => {
+    if (!detailRecord) return;
+    try {
+      const existing = detailItemStatus[quoteItemId];
+      if (existing) {
+        const { error } = await db.from('logistics_item_status')
+          .update({ item_status: newStatus, updated_by: user?.id, updated_by_name: profile?.full_name || '' })
+          .eq('logistics_record_id', detailRecord.id).eq('quote_item_id', quoteItemId);
+        if (error) throw error;
+      } else {
+        const { error } = await db.from('logistics_item_status').insert({
+          logistics_record_id: detailRecord.id,
+          quote_item_id: quoteItemId,
+          item_status: newStatus,
+          updated_by: user?.id,
+          updated_by_name: profile?.full_name || '',
+        });
+        if (error) throw error;
+      }
+      setDetailItemStatus(prev => ({ ...prev, [quoteItemId]: newStatus }));
+      toast.success('Status do item atualizado');
+      fetchData();
+    } catch (e: any) {
+      toast.error('Erro: ' + (e.message || ''));
+    }
+  };
+
+  const copyTrackingLink = (r: LogisticsRecord) => {
+    if (!r.public_token) {
+      toast.error('Token não disponível ainda. Atualize a página.');
+      return;
+    }
+    const url = `${window.location.origin}/rastreio/pedido/${r.public_token}`;
+    navigator.clipboard.writeText(url);
+    toast.success('Link do cliente copiado');
   };
 
   // Open NF registration modal
@@ -363,13 +477,21 @@ export default function Logistics() {
       return;
     }
 
+    if (editStatus === 'entregue' && editRecord.is_incompleto) {
+      toast.error('Pedido marcado como Incompleto (há itens pendentes). Conclua os itens antes de finalizar.');
+      return;
+    }
+
     try {
       const previousStatus = editRecord.logistics_status;
+      const previousRastreio = editRecord.codigo_rastreio || '';
+      const previousTrackingUrl = editRecord.tracking_url || '';
       const updates: any = {
         logistics_status: editStatus,
         nf_numero: editNfNumero || null,
         nf_data: editNfData || null,
         codigo_rastreio: editRastreio || null,
+        tracking_url: editTrackingUrl || null,
         transportadora: editTransportadora || null,
         observacao_logistica: editObs || null,
         data_envio: editDataEnvio || null,
@@ -384,6 +506,7 @@ export default function Logistics() {
         updates.data_entrega = new Date().toISOString().split('T')[0];
       }
 
+
       const { error } = await db.from('logistics_records').update(updates).eq('id', editRecord.id);
       if (error) throw error;
 
@@ -394,6 +517,21 @@ export default function Logistics() {
           previous_status: previousStatus,
           new_status: editStatus,
           notes: editObs || null,
+          performed_by: user?.id,
+          performed_by_name: profile?.full_name || '',
+        });
+      }
+
+      // History entry for tracking changes
+      const rastreioChanged = (editRastreio || '') !== previousRastreio;
+      const trackingUrlChanged = (editTrackingUrl || '') !== previousTrackingUrl;
+      if (rastreioChanged || trackingUrlChanged) {
+        await db.from('logistics_action_history').insert({
+          logistics_record_id: editRecord.id,
+          action_type: 'tracking_update',
+          previous_status: previousStatus,
+          new_status: editStatus,
+          notes: `Rastreio atualizado${editRastreio ? `: ${editRastreio}` : ''}${editTrackingUrl ? ` (link: ${editTrackingUrl})` : ''}`,
           performed_by: user?.id,
           performed_by_name: profile?.full_name || '',
         });
@@ -489,16 +627,38 @@ export default function Logistics() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold">Logística</h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground flex items-center gap-2">
               {canOperate ? 'Gestão operacional de pedidos' : 'Acompanhamento dos seus pedidos'}
+              <span className="text-xs px-2 py-0.5 rounded bg-muted">{format(new Date(), 'dd/MM/yyyy')}</span>
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
-            <RefreshCw className={cn("h-4 w-4 mr-1", loading && "animate-spin")} /> Atualizar
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
+              <SelectTrigger className="w-[160px] h-9">
+                <CalendarIcon className="h-3.5 w-3.5 mr-1" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todo o período</SelectItem>
+                <SelectItem value="today">Hoje</SelectItem>
+                <SelectItem value="7d">Últimos 7 dias</SelectItem>
+                <SelectItem value="month">Este mês</SelectItem>
+                <SelectItem value="custom">Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+            {dateFilter === 'custom' && (
+              <>
+                <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 w-[150px]" />
+                <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9 w-[150px]" />
+              </>
+            )}
+            <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+              <RefreshCw className={cn("h-4 w-4 mr-1", loading && "animate-spin")} /> Atualizar
+            </Button>
+          </div>
         </div>
 
         {/* Dashboard Tab */}
@@ -590,7 +750,7 @@ export default function Logistics() {
                   isMobile={isMobile}
                   onEdit={openEdit}
                   onDownloadPdf={downloadPdf}
-                  onViewDetail={setDetailRecord}
+                  onViewDetail={openDetail}
                   onViewHistory={viewHistory}
                   onQuickStatus={quickStatusChange}
                   onRegisterNf={openNfRegistration}
@@ -613,7 +773,7 @@ export default function Logistics() {
                   isMobile={isMobile}
                   onEdit={openEdit}
                   onDownloadPdf={downloadPdf}
-                  onViewDetail={setDetailRecord}
+                  onViewDetail={openDetail}
                   onViewHistory={viewHistory}
                   onQuickStatus={quickStatusChange}
                   onRegisterNf={openNfRegistration}
@@ -679,7 +839,7 @@ export default function Logistics() {
                 isMobile={isMobile}
                 onEdit={openEdit}
                 onDownloadPdf={downloadPdf}
-                onViewDetail={setDetailRecord}
+                onViewDetail={openDetail}
                 onViewHistory={viewHistory}
                 onQuickStatus={quickStatusChange}
                 onRegisterNf={openNfRegistration}
@@ -694,10 +854,24 @@ export default function Logistics() {
 
         {/* Detail Dialog */}
         <Dialog open={!!detailRecord} onOpenChange={() => setDetailRecord(null)}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>Detalhes do Pedido</DialogTitle></DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 flex-wrap">
+                Detalhes do Pedido
+                {detailRecord?.is_incompleto && <Badge variant="destructive" className="text-xs">Incompleto</Badge>}
+              </DialogTitle>
+            </DialogHeader>
             {detailRecord && (
-              <div className="space-y-3 text-sm">
+              <div className="space-y-4 text-sm">
+                {/* Progress */}
+                <div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                    <span>Progresso do Pedido</span>
+                    <span>{STATUS_PROGRESS[detailRecord.logistics_status] ?? 0}%</span>
+                  </div>
+                  <Progress value={STATUS_PROGRESS[detailRecord.logistics_status] ?? 0} />
+                </div>
+
                 <div className="grid grid-cols-2 gap-2">
                   <div><span className="text-muted-foreground">Orçamento:</span> <strong>{detailRecord.quote_number}</strong></div>
                   <div><span className="text-muted-foreground">Cliente:</span> <strong>{detailRecord.client_name}</strong></div>
@@ -715,8 +889,76 @@ export default function Logistics() {
                   <div><span className="text-muted-foreground">Data Envio:</span> <strong>{detailRecord.data_envio ? format(new Date(detailRecord.data_envio), 'dd/MM/yyyy') : '-'}</strong></div>
                   <div><span className="text-muted-foreground">Entrega:</span> <strong>{detailRecord.data_entrega ? format(new Date(detailRecord.data_entrega), 'dd/MM/yyyy') : '-'}</strong></div>
                 </div>
+
+                {/* Tracking URL */}
+                {detailRecord.tracking_url && (
+                  <div className="p-2 rounded border bg-muted/30 flex items-center gap-2">
+                    <LinkIcon className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-xs truncate flex-1" title={detailRecord.tracking_url}>{detailRecord.tracking_url}</span>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { navigator.clipboard.writeText(detailRecord.tracking_url || ''); toast.success('Link copiado'); }} title="Copiar">
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                    <a href={detailRecord.tracking_url} target="_blank" rel="noreferrer">
+                      <Button size="icon" variant="ghost" className="h-7 w-7" title="Abrir">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Button>
+                    </a>
+                  </div>
+                )}
+
+                {/* Public client portal link */}
+                <div className="p-2 rounded border bg-primary/5 flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground flex-1">Link público para o cliente acompanhar o pedido</span>
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => copyTrackingLink(detailRecord)}>
+                    <Copy className="h-3 w-3 mr-1" /> Copiar link
+                  </Button>
+                  {detailRecord.public_token && (
+                    <a href={`/rastreio/pedido/${detailRecord.public_token}`} target="_blank" rel="noreferrer">
+                      <Button size="sm" variant="ghost" className="h-7 text-xs">
+                        <ExternalLink className="h-3 w-3 mr-1" /> Abrir
+                      </Button>
+                    </a>
+                  )}
+                </div>
+
+                {/* Itens do Pedido (faturamento parcial) */}
+                {detailItems.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <strong className="text-sm">Itens do Pedido</strong>
+                      {detailRecord.is_incompleto && <Badge variant="destructive" className="text-xs">Incompleto</Badge>}
+                    </div>
+                    <div className="space-y-2">
+                      {detailItems.map(it => {
+                        const st = detailItemStatus[it.id] || 'pendente';
+                        return (
+                          <div key={it.id} className="flex items-center gap-2 p-2 rounded border">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium truncate">{it.product_code || `Item ${it.item_number || ''}`}</p>
+                              <p className="text-xs text-muted-foreground truncate">{it.description || ''} {it.quantity ? `· Qtd: ${it.quantity}` : ''}</p>
+                            </div>
+                            {canOperate ? (
+                              <Select value={st} onValueChange={(v) => setItemStatus(it.id, v)}>
+                                <SelectTrigger className="h-7 w-[130px] text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pendente">Pendente</SelectItem>
+                                  <SelectItem value="faturado">Faturado</SelectItem>
+                                  <SelectItem value="enviado">Enviado</SelectItem>
+                                  <SelectItem value="entregue">Entregue</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">{st}</Badge>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {detailRecord.nf_pdf_url && (
-                  <div className="pt-2">
+                  <div className="pt-1">
                     <Button size="sm" variant="outline" onClick={() => downloadNfPdf(detailRecord)}>
                       <FileDown className="h-4 w-4 mr-1" /> Baixar PDF da NF
                     </Button>
@@ -729,6 +971,7 @@ export default function Logistics() {
             )}
           </DialogContent>
         </Dialog>
+
 
         {/* Edit Dialog */}
         <Dialog open={!!editRecord} onOpenChange={() => setEditRecord(null)}>
@@ -768,6 +1011,24 @@ export default function Logistics() {
                   <div>
                     <Label>Transportadora</Label>
                     <Input value={editTransportadora} onChange={e => setEditTransportadora(e.target.value)} placeholder="Transportadora" />
+                  </div>
+                </div>
+                <div>
+                  <Label>Link de Rastreamento (transportadora)</Label>
+                  <div className="flex gap-2">
+                    <Input value={editTrackingUrl} onChange={e => setEditTrackingUrl(e.target.value)} placeholder="https://..." />
+                    {editTrackingUrl && (
+                      <>
+                        <Button type="button" size="icon" variant="outline" onClick={() => { navigator.clipboard.writeText(editTrackingUrl); toast.success('Link copiado'); }} title="Copiar">
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <a href={editTrackingUrl} target="_blank" rel="noreferrer">
+                          <Button type="button" size="icon" variant="outline" title="Abrir">
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </a>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div>

@@ -60,6 +60,7 @@ const SupportCloud = lazyWithRecovery(() => import("./pages/support/SupportCloud
 const SupportReports = lazyWithRecovery(() => import("./pages/support/SupportReports"));
 const SupportMaintenance = lazyWithRecovery(() => import("./pages/support/SupportMaintenance"));
 const PublicTracking = lazyWithRecovery(() => import("./pages/support/PublicTracking"));
+const LogisticsTracking = lazyWithRecovery(() => import("./pages/LogisticsTracking"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -167,6 +168,7 @@ function AppRoutes() {
         <Routes>
           <Route path="/quote/:token" element={<PublicQuote />} />
           <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
+          <Route path="/rastreio/pedido/:token" element={<LogisticsTracking />} />
           <Route path="*" element={<Auth />} />
         </Routes>
       </Suspense>
@@ -185,6 +187,7 @@ function AppRoutes() {
     <Routes>
       {/* Public tracking is always available */}
       <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
+      <Route path="/rastreio/pedido/:token" element={<LogisticsTracking />} />
 
       {/* Support module */}
       {(isSupport || isAdmin || isGestor) && (

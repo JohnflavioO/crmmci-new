@@ -542,6 +542,54 @@ export type Database = {
           },
         ]
       }
+      logistics_item_status: {
+        Row: {
+          created_at: string
+          id: string
+          item_status: string
+          logistics_record_id: string
+          quote_item_id: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_status?: string
+          logistics_record_id: string
+          quote_item_id: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_status?: string
+          logistics_record_id?: string
+          quote_item_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logistics_item_status_logistics_record_id_fkey"
+            columns: ["logistics_record_id"]
+            isOneToOne: false
+            referencedRelation: "logistics_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "logistics_item_status_quote_item_id_fkey"
+            columns: ["quote_item_id"]
+            isOneToOne: false
+            referencedRelation: "quote_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       logistics_records: {
         Row: {
           codigo_rastreio: string | null
@@ -551,6 +599,7 @@ export type Database = {
           entrada_at: string | null
           entrada_by: string | null
           id: string
+          is_incompleto: boolean
           logistics_status: string
           nf_chave_acesso: string | null
           nf_data: string | null
@@ -559,7 +608,9 @@ export type Database = {
           nf_xml_url: string | null
           observacao_logistica: string | null
           origem_nf: string | null
+          public_token: string
           quote_id: string
+          tracking_url: string | null
           transportadora: string | null
           ultima_sincronizacao_nf: string | null
           updated_at: string
@@ -572,6 +623,7 @@ export type Database = {
           entrada_at?: string | null
           entrada_by?: string | null
           id?: string
+          is_incompleto?: boolean
           logistics_status?: string
           nf_chave_acesso?: string | null
           nf_data?: string | null
@@ -580,7 +632,9 @@ export type Database = {
           nf_xml_url?: string | null
           observacao_logistica?: string | null
           origem_nf?: string | null
+          public_token?: string
           quote_id: string
+          tracking_url?: string | null
           transportadora?: string | null
           ultima_sincronizacao_nf?: string | null
           updated_at?: string
@@ -593,6 +647,7 @@ export type Database = {
           entrada_at?: string | null
           entrada_by?: string | null
           id?: string
+          is_incompleto?: boolean
           logistics_status?: string
           nf_chave_acesso?: string | null
           nf_data?: string | null
@@ -601,7 +656,9 @@ export type Database = {
           nf_xml_url?: string | null
           observacao_logistica?: string | null
           origem_nf?: string | null
+          public_token?: string
           quote_id?: string
+          tracking_url?: string | null
           transportadora?: string | null
           ultima_sincronizacao_nf?: string | null
           updated_at?: string
