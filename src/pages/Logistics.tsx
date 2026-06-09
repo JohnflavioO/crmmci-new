@@ -289,9 +289,64 @@ export default function Logistics() {
     setEditNfNumero(r.nf_numero || '');
     setEditNfData(r.nf_data || '');
     setEditRastreio(r.codigo_rastreio || '');
+    setEditTrackingUrl(r.tracking_url || '');
     setEditTransportadora(r.transportadora || '');
     setEditObs(r.observacao_logistica || '');
     setEditDataEnvio(r.data_envio || '');
+  };
+
+  // Open detail with items + item-statuses
+  const openDetail = async (r: LogisticsRecord) => {
+    setDetailRecord(r);
+    setDetailItems([]);
+    setDetailItemStatus({});
+    try {
+      const { data: items } = await db.from('quote_items').select('id, item_number, product_code, description, quantity').eq('quote_id', r.quote_id).order('item_number');
+      setDetailItems((items || []) as QuoteItem[]);
+      const { data: statuses } = await db.from('logistics_item_status').select('quote_item_id, item_status').eq('logistics_record_id', r.id);
+      const map: Record<string, string> = {};
+      (statuses || []).forEach((s: any) => { map[s.quote_item_id] = s.item_status; });
+      setDetailItemStatus(map);
+    } catch (e) {
+      console.error('openDetail error', e);
+    }
+  };
+
+  const setItemStatus = async (quoteItemId: string, newStatus: string) => {
+    if (!detailRecord) return;
+    try {
+      const existing = detailItemStatus[quoteItemId];
+      if (existing) {
+        const { error } = await db.from('logistics_item_status')
+          .update({ item_status: newStatus, updated_by: user?.id, updated_by_name: profile?.full_name || '' })
+          .eq('logistics_record_id', detailRecord.id).eq('quote_item_id', quoteItemId);
+        if (error) throw error;
+      } else {
+        const { error } = await db.from('logistics_item_status').insert({
+          logistics_record_id: detailRecord.id,
+          quote_item_id: quoteItemId,
+          item_status: newStatus,
+          updated_by: user?.id,
+          updated_by_name: profile?.full_name || '',
+        });
+        if (error) throw error;
+      }
+      setDetailItemStatus(prev => ({ ...prev, [quoteItemId]: newStatus }));
+      toast.success('Status do item atualizado');
+      fetchData();
+    } catch (e: any) {
+      toast.error('Erro: ' + (e.message || ''));
+    }
+  };
+
+  const copyTrackingLink = (r: LogisticsRecord) => {
+    if (!r.public_token) {
+      toast.error('Token não disponível ainda. Atualize a página.');
+      return;
+    }
+    const url = `${window.location.origin}/rastreio/pedido/${r.public_token}`;
+    navigator.clipboard.writeText(url);
+    toast.success('Link do cliente copiado');
   };
 
   // Open NF registration modal
