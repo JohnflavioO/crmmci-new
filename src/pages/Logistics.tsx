@@ -728,7 +728,7 @@ export default function Logistics() {
                   isMobile={isMobile}
                   onEdit={openEdit}
                   onDownloadPdf={downloadPdf}
-                  onViewDetail={setDetailRecord}
+                  onViewDetail={openDetail}
                   onViewHistory={viewHistory}
                   onQuickStatus={quickStatusChange}
                   onRegisterNf={openNfRegistration}
@@ -751,7 +751,7 @@ export default function Logistics() {
                   isMobile={isMobile}
                   onEdit={openEdit}
                   onDownloadPdf={downloadPdf}
-                  onViewDetail={setDetailRecord}
+                  onViewDetail={openDetail}
                   onViewHistory={viewHistory}
                   onQuickStatus={quickStatusChange}
                   onRegisterNf={openNfRegistration}
@@ -817,7 +817,7 @@ export default function Logistics() {
                 isMobile={isMobile}
                 onEdit={openEdit}
                 onDownloadPdf={downloadPdf}
-                onViewDetail={setDetailRecord}
+                onViewDetail={openDetail}
                 onViewHistory={viewHistory}
                 onQuickStatus={quickStatusChange}
                 onRegisterNf={openNfRegistration}
