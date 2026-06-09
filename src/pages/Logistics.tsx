@@ -237,13 +237,36 @@ export default function Logistics() {
       );
     }
 
+    // Date filter (additive) — uses created_at
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      let from: Date | null = null;
+      let to: Date | null = null;
+      if (dateFilter === 'today') {
+        from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (dateFilter === '7d') {
+        from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else if (dateFilter === 'month') {
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+      } else if (dateFilter === 'custom') {
+        if (dateFrom) from = new Date(dateFrom + 'T00:00:00');
+        if (dateTo) to = new Date(dateTo + 'T23:59:59');
+      }
+      list = list.filter(r => {
+        const d = new Date(r.created_at);
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+        return true;
+      });
+    }
+
     if (tab === 'nf') list = list.filter(r => ['aguardando_entrada', 'entrada_realizada', 'emitindo_nf'].includes(r.logistics_status) || (!r.nf_numero && !['nf_emitida', 'pronto_envio', 'enviado', 'em_transporte', 'entregue'].includes(r.logistics_status)));
     if (tab === 'envios') list = list.filter(r => ['pronto_envio', 'enviado', 'em_transporte'].includes(r.logistics_status));
     if (tab === 'rastreamento') list = list.filter(r => r.logistics_status === 'enviado' || r.logistics_status === 'em_transporte' || r.codigo_rastreio);
     if (tab === 'problemas') list = list.filter(r => r.logistics_status === 'problema_logistico');
 
     return list;
-  }, [records, statusFilter, sellerFilter, search, tab]);
+  }, [records, statusFilter, sellerFilter, search, tab, dateFilter, dateFrom, dateTo]);
 
   const stats = useMemo(() => {
     const s = { aguardando: 0, emitindoNf: 0, prontoEnvio: 0, enviados: 0, transporte: 0, entregues: 0, problemas: 0, semRastreio: 0 };
