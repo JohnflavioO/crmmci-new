@@ -116,11 +116,14 @@ export default function Logistics() {
 
   // Dialog states
   const [detailRecord, setDetailRecord] = useState<LogisticsRecord | null>(null);
+  const [detailItems, setDetailItems] = useState<QuoteItem[]>([]);
+  const [detailItemStatus, setDetailItemStatus] = useState<Record<string, string>>({});
   const [editRecord, setEditRecord] = useState<LogisticsRecord | null>(null);
   const [editStatus, setEditStatus] = useState('');
   const [editNfNumero, setEditNfNumero] = useState('');
   const [editNfData, setEditNfData] = useState('');
   const [editRastreio, setEditRastreio] = useState('');
+  const [editTrackingUrl, setEditTrackingUrl] = useState('');
   const [editTransportadora, setEditTransportadora] = useState('');
   const [editObs, setEditObs] = useState('');
   const [editDataEnvio, setEditDataEnvio] = useState('');
