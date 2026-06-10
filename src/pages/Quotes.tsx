@@ -891,7 +891,7 @@ export default function Quotes() {
             <div className="space-y-6 mt-4">
               {/* Client, Salesperson, Status */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                <div className="space-y-2 md:col-span-6 lg:col-span-7">
+                <div className="space-y-2 md:col-span-12 lg:col-span-8">
                   <Label className="text-sm font-semibold mb-1 block">
                     Cliente <span className="text-red-500">*</span>
                   </Label>
@@ -906,17 +906,17 @@ export default function Quotes() {
                     <SelectTrigger className="h-11 text-sm border-2 focus:ring-primary/20 transition-all bg-white shadow-sm px-4">
                       <SelectValue placeholder="Selecione um cliente..." />
                     </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
+                    <SelectContent className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                       {clients.map((c: any) => (
                         <SelectItem key={c.id} value={c.id} className="py-2.5">
-                          <span className="font-medium text-sm">{c.company_name || c.name}</span>
+                          <span className="font-medium text-sm whitespace-normal text-left">{c.company_name || c.name}</span>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2 md:col-span-3 lg:col-span-3">
-                  <Label>Vendedor</Label>
+                <div className="space-y-2 md:col-span-12 lg:col-span-4">
+                  <Label className="text-sm font-semibold">Vendedor</Label>
                   {!isAdmin && !isGestor ? (
                     <Input value={form.salesperson || profile?.full_name || ''} readOnly className="bg-muted cursor-not-allowed" />
                   ) : (
