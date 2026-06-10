@@ -162,6 +162,14 @@ export default function Clients() {
   };
 
   const handleSave = async () => {
+    if (!form.phone || form.phone.trim().length < 8) {
+      toast.error('O campo Celular/Telefone é obrigatório.');
+      return;
+    }
+    if (!form.email || !form.email.trim() || !form.email.includes('@')) {
+      toast.error('O campo E-mail é obrigatório e deve ser válido.');
+      return;
+    }
     if (form.is_revenda) {
       if (!form.contrib_icms || !form.contrib_icms.trim()) {
         toast.error('Clientes do tipo revenda precisam ter Inscrição Estadual preenchida.');
@@ -172,6 +180,7 @@ export default function Clients() {
         return;
       }
     }
+
     try {
       if (editingClient) {
         const { error } = await db.from('clients').update(form).eq('id', editingClient.id);
