@@ -248,14 +248,18 @@ export default function Dashboard() {
     const psConfig = paymentStatusConfig[q.payment_status] || paymentStatusConfig.pendente;
     const PsIcon = psConfig.icon;
     const clientLabel = q.clients?.company_name || q.client_name || 'Sem cliente';
+    const clientPhone = q.clients?.phone;
     return (
-      <div key={q.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-muted/50 gap-2">
-        <div>
-          <p className="font-medium text-sm">{q.quote_number}</p>
-          <p className="text-xs text-muted-foreground">
-            {clientLabel}
-            {showSeller && <span className="ml-2 text-xs opacity-60">• {getSellerName(q.created_by)}</span>}
-          </p>
+      <div key={q.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-muted/50 gap-2 hover:bg-muted/80 transition-colors border border-transparent hover:border-primary/10">
+        <div className="flex-1 min-w-0 pr-4">
+          <p className="font-bold text-sm text-primary mb-0.5">{q.quote_number}</p>
+          <div className="flex flex-col gap-0.5">
+            <p className="text-sm font-semibold text-foreground truncate max-w-full" title={clientLabel}>
+              {clientLabel}
+            </p>
+            {clientPhone && <p className="text-[10px] text-muted-foreground opacity-80">{clientPhone}</p>}
+            {showSeller && <p className="text-[10px] text-muted-foreground italic font-medium opacity-60">Vendedor: {getSellerName(q.created_by)}</p>}
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {pmConfig && (

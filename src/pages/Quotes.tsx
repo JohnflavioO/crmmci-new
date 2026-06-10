@@ -74,7 +74,7 @@ const paymentStatusLabels: Record<string, { label: string; icon: any; className:
   liquidado: { label: 'Liquidado', icon: CheckCircle2, className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
 };
 
-const installmentOptions = Array.from({ length: 12 }, (_, i) => i + 1);
+const installmentOptions = Array.from({ length: 24 }, (_, i) => i + 1);
 
 interface QuoteItem {
   id?: string;
@@ -890,9 +890,11 @@ export default function Quotes() {
 
             <div className="space-y-6 mt-4">
               {/* Client, Salesperson, Status */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label>Cliente *</Label>
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <div className="space-y-2 md:col-span-6 lg:col-span-7">
+                  <Label className="text-sm font-semibold mb-1 block">
+                    Cliente <span className="text-red-500">*</span>
+                  </Label>
                   <Select value={form.client_id} onValueChange={v => {
                     const selectedClient = clients.find((c: any) => c.id === v);
                     setForm(p => ({
@@ -901,15 +903,19 @@ export default function Quotes() {
                       is_reseller: selectedClient?.is_revenda || false,
                     }));
                   }}>
-                    <SelectTrigger><SelectValue placeholder="Selecionar cliente" /></SelectTrigger>
-                    <SelectContent>
+                    <SelectTrigger className="h-11 text-sm border-2 focus:ring-primary/20 transition-all bg-white shadow-sm px-4">
+                      <SelectValue placeholder="Selecione um cliente..." />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
                       {clients.map((c: any) => (
-                        <SelectItem key={c.id} value={c.id}>{c.company_name || c.name}</SelectItem>
+                        <SelectItem key={c.id} value={c.id} className="py-2.5">
+                          <span className="font-medium text-sm">{c.company_name || c.name}</span>
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 md:col-span-3 lg:col-span-3">
                   <Label>Vendedor</Label>
                   {!isAdmin && !isGestor ? (
                     <Input value={form.salesperson || profile?.full_name || ''} readOnly className="bg-muted cursor-not-allowed" />
