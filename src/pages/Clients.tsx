@@ -774,11 +774,12 @@ export default function Clients() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Celular</Label>
-                <Input value={form.phone} inputMode="tel" onChange={e => {
+                <Label>Celular *</Label>
+                <Input value={form.phone} inputMode="tel" required onChange={e => {
                   updateForm('phone', e.target.value);
                   setForm(prev => ({ ...prev, phone: e.target.value, is_whatsapp: detectWhatsApp(e.target.value) }));
                 }} />
+
                 <div className="flex items-center gap-2 mt-1">
                   <Checkbox
                     checked={form.is_whatsapp}
@@ -790,9 +791,10 @@ export default function Clients() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>E-mail</Label>
-                <Input type="email" inputMode="email" value={form.email} onChange={e => updateForm('email', e.target.value)} />
+                <Label>E-mail *</Label>
+                <Input type="email" inputMode="email" required value={form.email} onChange={e => updateForm('email', e.target.value)} />
               </div>
+
               <div className="space-y-2">
                 <Label>Nome do Responsável</Label>
                 <Input value={form.contact_name} onChange={e => updateForm('contact_name', e.target.value)} />
