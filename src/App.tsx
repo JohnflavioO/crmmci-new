@@ -157,7 +157,8 @@ function AppRoutes() {
   // Se não tiver perfil ainda, também consideramos como aguardando (ou em processo de criação)
   const isPendingApproval = user && !loading && 
     !(profile?.role && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica', 'support_tech', 'support_manager'].includes(profile.role.toLowerCase())) &&
-    !isAdmin && !isGestor && !isFinanceiro && !isLogistica && !isSupport && !isApproved;
+    !isAdmin && !isGestor && !isFinanceiro && !isLogistica && !isSupportTech && !isSupportManager && !isApproved;
+
 
 
 

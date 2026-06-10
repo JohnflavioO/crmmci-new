@@ -63,33 +63,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [forcePasswordChange, setForcePasswordChange] = useState(false);
 
   // Safety timeout: never stay loading forever.
-  // IMPORTANT: only force loading=false when there is NO active session. If the user is
-  // signed in we keep waiting for fetchData to finish — forcing loading=false too early
-  // makes the app render PendingApproval/Navigate momentarily and then re-render with the
-  // real role, which the user perceives as an "Iniciando sistema..." loop when switching
-  // between sections.
   useEffect(() => {
     const timer = setTimeout(() => {
       setLoading(prev => {
         if (!prev) return prev;
-        supabase.auth.getSession().then(({ data }) => {
-          if (!data.session) {
-            console.warn('[Auth] Timeout sem sessão. Forçando login.');
-            setUser(null);
-            setLoading(false);
-          } else {
-            console.log('[Auth] Timeout com sessão ativa — mantendo loading até o fetch concluir.');
-          }
-        }).catch(err => {
-          console.error('[Auth] Erro ao recuperar sessão no timeout:', err);
-          setLoading(false);
-        });
-        return prev;
+        console.warn('[Auth] Safety timeout reached, forcing loading=false');
+        return false;
       });
     }, MAX_LOADING_MS);
 
     return () => clearTimeout(timer);
   }, []);
+
 
   useEffect(() => {
     let currentUserId: string | null = null;
