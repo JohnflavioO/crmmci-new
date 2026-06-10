@@ -77,8 +77,8 @@ function LoadingScreen() {
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
   useEffect(() => {
-    // 4 segundos para mostrar opção de retry se o loading screen não sumir
-    const timer = setTimeout(() => setShowRetry(true), 4000);
+    // 2 segundos para mostrar opção de retry se o loading screen não sumir
+    const timer = setTimeout(() => setShowRetry(true), 2000);
     
     const checkErrors = () => {
       const params = new URLSearchParams(window.location.hash.replace('#', '?'));

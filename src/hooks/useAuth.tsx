@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn('[Auth] Safety timeout reached, forcing loading=false');
         return false;
       });
-    }, MAX_LOADING_MS);
+    }, 8000); // Reduzi para 8 segundos para ser mais responsivo
 
     return () => clearTimeout(timer);
   }, []);
