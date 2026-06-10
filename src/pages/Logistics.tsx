@@ -1160,6 +1160,7 @@ export default function Logistics() {
   );
 }
 
+
 // Records list component
 function RecordsList({
   records, canOperate, isMobile, onEdit, onDownloadPdf, onViewDetail, onViewHistory, onQuickStatus, onRegisterNf, onDownloadNfPdf, getNextStatus, fmt, StatusBadge,
