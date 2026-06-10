@@ -445,6 +445,8 @@ export default function Quotes() {
 
       const selectedClient = clients.find((c: any) => c.id === form.client_id);
 
+      // Validate reseller IE
+      if (form.is_reseller) {
         const ie = selectedClient?.contrib_icms?.replace(/[.\-/\s]/g, '') || '';
         if (!ie || ie.length < 8 || ie.length > 14) {
           toast.error('Clientes do tipo revenda precisam ter Inscrição Estadual válida cadastrada antes de continuar.', {
