@@ -930,24 +930,52 @@ export default function Quotes() {
                     </Select>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Rascunho</SelectItem>
-                      <SelectItem value="pre_venda">Pré-venda</SelectItem>
-                      <SelectItem value="contato_feito">Contato Feito</SelectItem>
-                      <SelectItem value="sent">Proposta Enviada</SelectItem>
-                      <SelectItem value="negociacao">Negociação</SelectItem>
-                      <SelectItem value="approved">Aprovado</SelectItem>
-                      <SelectItem value="rejected">Rejeitado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Validade da Proposta</Label>
-                  <Input value={form.proposal_validity} onChange={e => setForm(p => ({ ...p, proposal_validity: e.target.value }))} placeholder="Ex: 15 dias" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 md:col-span-12 lg:col-span-12 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Status</Label>
+                    <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
+                      <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Rascunho</SelectItem>
+                        <SelectItem value="pre_venda">Pré-venda</SelectItem>
+                        <SelectItem value="contato_feito">Contato Feito</SelectItem>
+                        <SelectItem value="sent">Proposta Enviada</SelectItem>
+                        <SelectItem value="negociacao">Negociação</SelectItem>
+                        <SelectItem value="approved">Aprovado</SelectItem>
+                        <SelectItem value="rejected">Rejeitado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Validade da Proposta</Label>
+                    <Input className="h-10" value={form.proposal_validity} onChange={e => setForm(p => ({ ...p, proposal_validity: e.target.value }))} placeholder="Ex: 15 dias" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Data de Follow-up</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full h-10 justify-start text-left font-normal",
+                            !form.followup_date && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {form.followup_date ? safeFormatDate(form.followup_date) : <span>Selecionar data</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={form.followup_date ? new Date(form.followup_date + 'T12:00:00') : undefined}
+                          onSelect={handleFollowupDateChange}
+                          initialFocus
+                          locale={ptBR}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
               </div>
 
