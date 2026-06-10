@@ -445,21 +445,6 @@ export default function Quotes() {
 
       const selectedClient = clients.find((c: any) => c.id === form.client_id);
       
-      // Validação de Celular e E-mail obrigatórios
-      if (selectedClient && !editingQuote) {
-        if (!selectedClient.phone || selectedClient.phone.trim().length < 8) {
-          toast.error('O campo de Celular/Telefone do cliente é obrigatório para gerar o orçamento.', {
-            description: 'Edite o cadastro do cliente e informe o telefone.'
-          });
-          return;
-        }
-        if (!selectedClient.email || !selectedClient.email.includes('@')) {
-          toast.error('O campo de E-mail do cliente é obrigatório para gerar o orçamento.', {
-            description: 'Edite o cadastro do cliente e informe um e-mail válido.'
-          });
-          return;
-        }
-      }
 
 
       // Validate reseller IE
