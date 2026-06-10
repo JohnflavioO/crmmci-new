@@ -891,7 +891,7 @@ export default function Quotes() {
             <div className="space-y-6 mt-4">
               {/* Client, Salesperson, Status */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                <div className="space-y-2 md:col-span-6 lg:col-span-7">
+                <div className="space-y-2 md:col-span-12 lg:col-span-8">
                   <Label className="text-sm font-semibold mb-1 block">
                     Cliente <span className="text-red-500">*</span>
                   </Label>
@@ -906,17 +906,17 @@ export default function Quotes() {
                     <SelectTrigger className="h-11 text-sm border-2 focus:ring-primary/20 transition-all bg-white shadow-sm px-4">
                       <SelectValue placeholder="Selecione um cliente..." />
                     </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
+                    <SelectContent className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                       {clients.map((c: any) => (
                         <SelectItem key={c.id} value={c.id} className="py-2.5">
-                          <span className="font-medium text-sm">{c.company_name || c.name}</span>
+                          <span className="font-medium text-sm whitespace-normal text-left">{c.company_name || c.name}</span>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2 md:col-span-3 lg:col-span-3">
-                  <Label>Vendedor</Label>
+                <div className="space-y-2 md:col-span-12 lg:col-span-4">
+                  <Label className="text-sm font-semibold">Vendedor</Label>
                   {!isAdmin && !isGestor ? (
                     <Input value={form.salesperson || profile?.full_name || ''} readOnly className="bg-muted cursor-not-allowed" />
                   ) : (
@@ -930,24 +930,52 @@ export default function Quotes() {
                     </Select>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Rascunho</SelectItem>
-                      <SelectItem value="pre_venda">Pré-venda</SelectItem>
-                      <SelectItem value="contato_feito">Contato Feito</SelectItem>
-                      <SelectItem value="sent">Proposta Enviada</SelectItem>
-                      <SelectItem value="negociacao">Negociação</SelectItem>
-                      <SelectItem value="approved">Aprovado</SelectItem>
-                      <SelectItem value="rejected">Rejeitado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Validade da Proposta</Label>
-                  <Input value={form.proposal_validity} onChange={e => setForm(p => ({ ...p, proposal_validity: e.target.value }))} placeholder="Ex: 15 dias" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 md:col-span-12 lg:col-span-12 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Status</Label>
+                    <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
+                      <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Rascunho</SelectItem>
+                        <SelectItem value="pre_venda">Pré-venda</SelectItem>
+                        <SelectItem value="contato_feito">Contato Feito</SelectItem>
+                        <SelectItem value="sent">Proposta Enviada</SelectItem>
+                        <SelectItem value="negociacao">Negociação</SelectItem>
+                        <SelectItem value="approved">Aprovado</SelectItem>
+                        <SelectItem value="rejected">Rejeitado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Validade da Proposta</Label>
+                    <Input className="h-10" value={form.proposal_validity} onChange={e => setForm(p => ({ ...p, proposal_validity: e.target.value }))} placeholder="Ex: 15 dias" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Data de Follow-up</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full h-10 justify-start text-left font-normal",
+                            !form.followup_date && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {form.followup_date ? safeFormatDate(form.followup_date) : <span>Selecionar data</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={form.followup_date ? new Date(form.followup_date + 'T12:00:00') : undefined}
+                          onSelect={handleFollowupDateChange}
+                          initialFocus
+                          locale={ptBR}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
               </div>
 
