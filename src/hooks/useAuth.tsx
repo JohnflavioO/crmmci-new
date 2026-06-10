@@ -133,7 +133,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const fetchData = async () => {
       try {
         console.log('[Auth] Fetching user data for:', user.id);
-        const [approvedRes, adminRes, gestorRes, financeiroRes, logisticaRes, supportTechRes, supportManagerRes, profileRes] = await Promise.all([
+        
+        // Buscamos o perfil primeiro para evitar múltiplas chamadas RPC se falhar
+        const profileRes = await supabase
+          .from('profiles')
+          .select('full_name, phone, role, avatar_url, force_password_change, company_id, can_access_support_manager')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (cancelled) return;
+
+        if (profileRes.error) {
+          console.error('[Auth] Profile fetch error:', profileRes.error);
+        }
+
+        const [approvedRes, adminRes, gestorRes, financeiroRes, logisticaRes, supportTechRes, supportManagerRes] = await Promise.all([
           safeBooleanRpc('is_approved'),
           safeBooleanRpc('is_admin'),
           safeBooleanRpc('is_gestor'),
@@ -141,8 +155,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           safeBooleanRpc('is_logistica'),
           safeBooleanRpc('is_support_tech'),
           safeBooleanRpc('is_support_manager'),
-          supabase.from('profiles').select('full_name, phone, role, avatar_url, force_password_change, company_id, can_access_support_manager').eq('user_id', user.id).maybeSingle(),
         ]);
+
+        if (cancelled) return;
 
         console.log('[Auth] Results:', {
           approved: approvedRes.data,
@@ -151,34 +166,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           financeiro: financeiroRes.data,
           logistica: logisticaRes.data,
           profile: profileRes.data,
-          error: profileRes.error
         });
-
-        if (cancelled) return;
-
-        // Check for auth errors (invalid token)
-        const hasAuthError = [approvedRes, adminRes, gestorRes, financeiroRes, logisticaRes].some(
-          r => r.error?.message?.includes('JWT') || r.error?.code === 'PGRST301' || r.error?.message?.includes('invalid input syntax for type uuid')
-        );
-        if (hasAuthError) {
-          console.warn('[Auth] Critical auth error detected, signing out for safety');
-          await supabase.auth.signOut();
-          return;
-        }
 
         const normalizedRole = profileRes.data?.role?.toLowerCase();
         const approvedByRole = !!normalizedRole && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica'].includes(normalizedRole);
 
-        // Se o usuário tem o perfil com role correta, ele está aprovado
         const approvedState = approvedRes.data === true || approvedByRole;
         
-        console.log('[Auth] Final state mapping:', {
-          role: normalizedRole,
-          approvedByRole,
-          rpcApproved: approvedRes.data,
-          finalApproved: approvedState
-        });
-
         setIsApproved(approvedState);
         setIsAdmin(adminRes.data === true || normalizedRole === 'admin');
         setIsGestor(gestorRes.data === true || normalizedRole === 'gestor');
@@ -190,7 +184,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setForcePasswordChange(profileRes.data?.force_password_change === true);
         
         setLoading(false);
-
       } catch (e) {
         console.error('[Auth] fetchUserData error:', e);
       } finally {
