@@ -47,6 +47,7 @@ const initialProducts = [
 export default function ContractGenerator() {
   const { user, profile } = useAuth();
   const [view, setView] = useState<'list' | 'create'>('list');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [contracts, setContracts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
