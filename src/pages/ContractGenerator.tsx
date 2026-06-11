@@ -199,13 +199,20 @@ export default function ContractGenerator() {
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve();
         img.onerror = () => reject(new Error('logo'));
-        img.src = '/mci-logo-contract.png';
+        img.src = '/mci-logo-contract.jpg';
       });
+      const maxW = 400;
+      const scale = Math.min(1, maxW / img.naturalWidth);
+      const w = Math.round(img.naturalWidth * scale);
+      const h = Math.round(img.naturalHeight * scale);
       const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext('2d')!.drawImage(img, 0, 0);
-      return { data: canvas.toDataURL('image/png'), w: img.naturalWidth, h: img.naturalHeight };
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      return { data: canvas.toDataURL('image/jpeg', 0.75), w, h };
     } catch {
       return null;
     }
@@ -213,7 +220,7 @@ export default function ContractGenerator() {
 
   const createPDFDocument = async (contractOrForm: any) => {
     const data = getContractData(contractOrForm);
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 15;
@@ -225,8 +232,9 @@ export default function ContractGenerator() {
     if (logo) {
       const logoW = 32;
       const logoH = logoW * (logo.h / logo.w);
-      doc.addImage(logo.data, 'PNG', (pageWidth - logoW) / 2, 8, logoW, logoH);
+      doc.addImage(logo.data, 'JPEG', (pageWidth - logoW) / 2, 8, logoW, logoH, undefined, 'FAST');
       headerBottom = 8 + logoH + 2;
+
     } else {
       doc.setFontSize(18);
       doc.setTextColor(15, 43, 38);
