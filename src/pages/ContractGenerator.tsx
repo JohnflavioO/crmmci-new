@@ -460,7 +460,11 @@ export default function ContractGenerator() {
               <Card>
                 <CardHeader><CardTitle className="text-md">Conclusão</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  <Button className="w-full bg-emerald-600 hover:bg-emerald-700 h-11" onClick={() => handleSave('enviado')} disabled={saving}>{saving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <FileText className="h-4 w-4 mr-2" />}Gerar Contrato</Button>
+                  {editingId ? (
+                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700 h-11" onClick={() => handleSave('enviado')} disabled={saving}>{saving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <FileText className="h-4 w-4 mr-2" />}Atualizar Contrato</Button>
+                  ) : (
+                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700 h-11" onClick={() => handleSave('enviado')} disabled={saving}>{saving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <FileText className="h-4 w-4 mr-2" />}Gerar Contrato</Button>
+                  )}
                   <Button variant="outline" className="w-full" onClick={() => handleSave('rascunho')} disabled={saving}>Salvar Rascunho</Button>
                   <Button variant="secondary" className="w-full" onClick={() => openPreview(formData)}><Eye className="h-4 w-4 mr-2" /> Prévia PDF</Button>
                 </CardContent>
