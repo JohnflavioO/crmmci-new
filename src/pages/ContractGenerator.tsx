@@ -45,7 +45,7 @@ const initialProducts = [
 ];
 
 export default function ContractGenerator() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [view, setView] = useState<'list' | 'create'>('list');
   const [contracts, setContracts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -65,6 +65,7 @@ export default function ContractGenerator() {
     },
     mci_branch: 'matriz'
   });
+
 
   useEffect(() => {
     fetchContracts();
@@ -121,9 +122,15 @@ export default function ContractGenerator() {
   };
 
   const handleSave = async (status: string = 'rascunho') => {
+    if (!user || !profile?.company_id) {
+      toast.error('Sessão inválida ou empresa não vinculada ao perfil.');
+      return;
+    }
+
     setSaving(true);
     try {
       const contractPayload = {
+        company_id: profile.company_id,
         client_name: formData.client.name,
         client_document: formData.client.document,
         responsible_name: formData.client.responsible,
@@ -132,8 +139,9 @@ export default function ContractGenerator() {
         delivery_forecast: formData.commercial.delivery_forecast,
         status: status,
         contract_data_json: formData,
-        created_by: user?.id
+        created_by: user.id
       };
+
 
       const { error } = await supabase
         .from('generated_contracts')
