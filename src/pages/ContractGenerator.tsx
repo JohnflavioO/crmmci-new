@@ -156,6 +156,9 @@ export default function ContractGenerator() {
       
       console.log('Contrato salvo com sucesso:', data);
       toast.success('Contrato gerado com sucesso!');
+      if (status === 'enviado' && data && data[0]) {
+        generatePDF(data[0]);
+      }
       setView('list');
       fetchContracts();
     } catch (error: any) {
