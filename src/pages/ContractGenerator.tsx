@@ -326,9 +326,9 @@ export default function ContractGenerator() {
     return doc;
   };
 
-  const downloadPDF = (contractOrForm: any) => {
+  const downloadPDF = async (contractOrForm: any) => {
     try {
-      const doc = createPDFDocument(contractOrForm);
+      const doc = await createPDFDocument(contractOrForm);
       doc.save(getFileName(contractOrForm));
     } catch (error: any) {
       console.error('Erro ao baixar PDF:', error);
@@ -336,9 +336,9 @@ export default function ContractGenerator() {
     }
   };
 
-  const openPreview = (contractOrForm: any = formData) => {
+  const openPreview = async (contractOrForm: any = formData) => {
     try {
-      const doc = createPDFDocument(contractOrForm);
+      const doc = await createPDFDocument(contractOrForm);
       const blobUrl = doc.output('bloburl').toString();
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(blobUrl);
