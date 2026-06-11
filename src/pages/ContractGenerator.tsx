@@ -325,9 +325,9 @@ export default function ContractGenerator() {
     doc.setFontSize(8.5);
     doc.setTextColor(0);
     doc.text("Representante do Cliente", pageWidth / 2, sigY + 4, { align: 'center' });
-    doc.setFontSize(7);
-    doc.setTextColor(120);
-    doc.text("O cliente poderá assinar a punho ou via GOV/assinatura digital.", pageWidth / 2, sigY + 9, { align: 'center' });
+    doc.setFontSize(8.5);
+    doc.setTextColor(0);
+    doc.text("Assinatura do Cliente", pageWidth / 2, sigY + 9, { align: 'center' });
 
     return doc;
   };
