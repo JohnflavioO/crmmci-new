@@ -13,8 +13,9 @@ import { toast } from 'sonner';
 import { Plus, FileText, Trash2, Copy, Eye, History, FileDown, Printer, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
 import { cn } from '@/lib/utils';
 
 const mciData = {
@@ -191,9 +192,10 @@ export default function ContractGenerator() {
       new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.value)
     ]);
 
-    autoTable(doc, {
+    (doc as any).autoTable({
       startY: 110,
       head: [['Equipamento', 'Descrição', 'Qtd', 'Valor']],
+
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [15, 43, 38] },
