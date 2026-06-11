@@ -260,7 +260,7 @@ export default function ContractGenerator() {
             <p className="text-muted-foreground">Crie e gerencie contratos institucionais da MCI</p>
           </div>
           {view === 'list' ? (
-            <Button onClick={() => setView('create')} className="bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={() => { setEditingId(null); setFormData({ client: { ...initialClient }, products: [...initialProducts], commercial: { total_value: 115551, delivery_forecast: '', payment_terms: 'A combinar', notes: '', additional_clauses: '' }, mci_branch: 'matriz' }); setView('create'); }} className="bg-emerald-600 hover:bg-emerald-700">
               <Plus className="h-4 w-4 mr-2" /> Novo Contrato
             </Button>
           ) : (
