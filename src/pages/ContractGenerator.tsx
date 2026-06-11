@@ -352,6 +352,9 @@ export default function ContractGenerator() {
     }
   };
 
+  const previewData = previewContract ? getContractData(previewContract) : null;
+  const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+
 
 
   return (
@@ -516,12 +519,76 @@ export default function ContractGenerator() {
           <DialogContent className="max-w-5xl h-[90vh] p-0 gap-0 overflow-hidden">
             <DialogHeader className="px-5 py-4 border-b flex-row items-center justify-between space-y-0">
               <DialogTitle>Prévia do contrato</DialogTitle>
-              <Button variant="outline" size="sm" className="mr-8" onClick={() => downloadPDF(formData)}>
+              <Button variant="outline" size="sm" className="mr-8" onClick={() => previewContract && downloadPDF(previewContract)} disabled={!previewContract}>
                 <FileDown className="h-4 w-4 mr-2" /> Baixar PDF
               </Button>
             </DialogHeader>
-            {previewUrl ? (
-              <iframe title="Prévia PDF do contrato" src={previewUrl} className="h-full min-h-0 w-full border-0" />
+            {previewData ? (
+              <div className="h-full overflow-auto bg-muted/40 p-4 md:p-6">
+                <article className="mx-auto min-h-[297mm] w-full max-w-[210mm] space-y-5 bg-background p-8 text-sm shadow-sm">
+                  <header className="space-y-2 border-b pb-4 text-center">
+                    <img src="/mci-logo-contract.jpg" alt="MCI Store" className="mx-auto h-14 w-auto object-contain" />
+                    <div className="text-xs text-muted-foreground">
+                      <p className="font-semibold text-foreground">MCI STORE COMÉRCIO E SERVIÇOS LTDA</p>
+                      <p>Matriz: CNPJ 05.502.390/0001-11 — Rua Senador Pompeu, 1547, Centro, Fortaleza/CE</p>
+                      <p>Filiais: CNPJ 05.502.390/0002-00 (Armazém Itajaí/SC) • CNPJ 05.502.390/0003-83 (São Paulo/SP)</p>
+                    </div>
+                  </header>
+
+                  <h2 className="text-center text-base font-bold text-emerald-900">CONTRATO DE PRÉ-VENDA E ENTREGA FUTURA</h2>
+
+                  <section className="space-y-1">
+                    <h3 className="font-bold">DADOS DO CLIENTE</h3>
+                    <p>Razão Social: {previewData.client?.name || '-'}</p>
+                    <p>CNPJ: {previewData.client?.document || '-'} | Cidade/UF: {previewData.client?.city || '-'}</p>
+                    <p>Responsável: {previewData.client?.responsible || '-'} | Contato: {previewData.client?.phone || '-'} | {previewData.client?.email || '-'}</p>
+                  </section>
+
+                  <section className="space-y-2">
+                    <h3 className="font-bold">EQUIPAMENTOS / PRODUTOS</h3>
+                    <div className="overflow-hidden rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Equipamento</TableHead>
+                            <TableHead>Descrição</TableHead>
+                            <TableHead className="w-16 text-center">Qtd</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(previewData.products || []).map((product: any, index: number) => (
+                            <TableRow key={`${product.name}-${index}`}>
+                              <TableCell className="align-top font-medium">{product.name || '-'}</TableCell>
+                              <TableCell className="align-top">{product.description || '-'}</TableCell>
+                              <TableCell className="text-center align-top">{product.quantity || 0}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </section>
+
+                  <section className="space-y-1">
+                    <h3 className="font-bold">CONDIÇÕES COMERCIAIS</h3>
+                    <p className="text-lg font-bold text-emerald-700">Valor Total: {fmtBRL(previewData.commercial?.total_value || 0)}</p>
+                    <p>Previsão de Entrega: {previewData.commercial?.delivery_forecast || '-'}</p>
+                    <p>Forma de Pagamento: {previewData.commercial?.payment_terms || '-'}</p>
+                  </section>
+
+                  {previewData.commercial?.additional_clauses ? (
+                    <section className="space-y-1">
+                      <h3 className="font-bold">CLÁUSULAS ADICIONAIS</h3>
+                      <p className="whitespace-pre-wrap">{previewData.commercial.additional_clauses}</p>
+                    </section>
+                  ) : null}
+
+                  <footer className="pt-16 text-center text-xs text-muted-foreground">
+                    <div className="mx-auto mb-2 h-px w-72 bg-border" />
+                    <p className="text-foreground">Representante do Cliente</p>
+                    <p>O cliente poderá assinar a punho ou via GOV/assinatura digital.</p>
+                  </footer>
+                </article>
+              </div>
             ) : (
               <div className="flex h-full items-center justify-center text-muted-foreground">Gerando prévia...</div>
             )}
