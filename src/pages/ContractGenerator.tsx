@@ -55,7 +55,7 @@ export default function ContractGenerator() {
   const [templates, setTemplates] = useState<any[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewContract, setPreviewContract] = useState<any | null>(null);
   
   const [formData, setFormData] = useState<any>({
     client: { ...initialClient },
@@ -75,12 +75,6 @@ export default function ContractGenerator() {
     fetchContracts();
     fetchTemplates();
   }, []);
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
 
   const fetchContracts = async () => {
     setLoading(true);
@@ -350,10 +344,7 @@ export default function ContractGenerator() {
 
   const openPreview = async (contractOrForm: any = formData) => {
     try {
-      const doc = await createPDFDocument(contractOrForm);
-      const dataUri = doc.output('datauristring');
-      if (previewUrl && previewUrl.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(dataUri);
+      setPreviewContract(contractOrForm);
       setPreviewOpen(true);
     } catch (error: any) {
       console.error('Erro ao abrir prévia PDF:', error);
