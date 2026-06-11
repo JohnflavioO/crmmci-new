@@ -49,6 +49,8 @@ const SupportReports = lazy(() => import("./pages/support/SupportReports"));
 const SupportMaintenance = lazy(() => import("./pages/support/SupportMaintenance"));
 const PublicTracking = lazy(() => import("./pages/support/PublicTracking"));
 const LogisticsTracking = lazy(() => import("./pages/LogisticsTracking"));
+const ContractGenerator = lazy(() => import("./pages/ContractGenerator"));
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -134,6 +136,8 @@ function AppRoutes() {
             <Route path="/clients" element={<Clients />} />
             <Route path="/quotes" element={<Quotes />} />
             <Route path="/products" element={<Products />} />
+            <Route path="/contracts" element={<ContractGenerator />} />
+
             <Route path="/ecoflow" element={<EcoflowCalculator />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/metrics" element={<Metrics />} />
