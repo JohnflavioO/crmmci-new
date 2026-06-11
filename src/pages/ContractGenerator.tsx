@@ -422,6 +422,9 @@ export default function ContractGenerator() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => openPreview(contract)} title="Visualizar">
+                              <Eye className="h-4 w-4" />
+                            </Button>
                             <Button variant="ghost" size="icon" onClick={() => downloadPDF(contract)} title="Baixar PDF">
                               <FileDown className="h-4 w-4" />
                             </Button>
