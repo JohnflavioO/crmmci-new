@@ -165,10 +165,10 @@ export default function ContractGenerator() {
       }
 
       console.log('Contrato salvo com sucesso:', data);
-      toast.success(editingId ? 'Contrato atualizado!' : 'Contrato gerado com sucesso!');
       if (status === 'enviado' && data && data[0]) {
-        generatePDF(data[0]);
+        downloadPDF(data[0]);
       }
+      toast.success(status === 'enviado' ? 'Contrato gerado e baixado!' : editingId ? 'Contrato atualizado!' : 'Contrato salvo!');
       setEditingId(null);
       setView('list');
       fetchContracts();
@@ -180,10 +180,24 @@ export default function ContractGenerator() {
     }
   };
 
-  const generatePDF = (contract: any) => {
-    const data = contract.contract_data_json || formData;
+  const getContractData = (contractOrForm: any) => contractOrForm?.contract_data_json || contractOrForm || formData;
+
+  const getFileName = (contractOrForm: any) => {
+    const data = getContractData(contractOrForm);
+    const safeClientName = (data?.client?.name || 'Contrato_MCI')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9_-]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    return `Contrato_${safeClientName || 'MCI'}.pdf`;
+  };
+
+  const createPDFDocument = (contractOrForm: any) => {
+    const data = getContractData(contractOrForm);
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
     
     // Header text representation of logo
     doc.setFontSize(22);
@@ -205,45 +219,48 @@ export default function ContractGenerator() {
     doc.text("DADOS DO CLIENTE", 20, 60);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Razão Social: ${data.client.name}`, 20, 68);
-    doc.text(`CNPJ: ${data.client.document}`, 20, 74);
-    doc.text(`Cidade/UF: ${data.client.city}`, 20, 80);
-    doc.text(`Responsável: ${data.client.responsible}`, 20, 86);
-    doc.text(`Contato: ${data.client.phone} | ${data.client.email}`, 20, 92);
+    doc.text(`Razão Social: ${data.client?.name || '-'}`, 20, 68);
+    doc.text(`CNPJ: ${data.client?.document || '-'}`, 20, 74);
+    doc.text(`Cidade/UF: ${data.client?.city || '-'}`, 20, 80);
+    doc.text(`Responsável: ${data.client?.responsible || '-'}`, 20, 86);
+    doc.text(`Contato: ${data.client?.phone || '-'} | ${data.client?.email || '-'}`, 20, 92);
 
     // Products Table
     doc.setFont("helvetica", "bold");
     doc.text("EQUIPAMENTOS / PRODUTOS", 20, 105);
     
-    const tableData = data.products.map((p: any) => [
+    const tableData = (data.products || []).map((p: any) => [
       p.name,
       p.description,
       p.quantity,
       new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.value)
     ]);
 
-    (doc as any).autoTable({
+    autoTable(doc, {
       startY: 110,
       head: [['Equipamento', 'Descrição', 'Qtd', 'Valor']],
-
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [15, 43, 38] },
-      styles: { fontSize: 8 }
+      styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+      columnStyles: { 0: { cellWidth: 72 }, 1: { cellWidth: 58 }, 2: { cellWidth: 14 }, 3: { cellWidth: 26 } },
+      margin: { left: margin, right: margin }
     });
 
     // Commercial Conditions
-    const finalY = (doc as any).lastAutoTable.cursor.y + 15;
+    const finalY = ((doc as any).lastAutoTable?.finalY || 110) + 15;
+    const contentY = finalY > pageHeight - 75 ? 30 : finalY;
+    if (finalY > pageHeight - 75) doc.addPage();
     doc.setFont("helvetica", "bold");
-    doc.text("CONDIÇÕES COMERCIAIS", 20, finalY);
+    doc.text("CONDIÇÕES COMERCIAIS", 20, contentY);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Valor Total: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.commercial.total_value)}`, 20, finalY + 8);
-    doc.text(`Previsão de Entrega: ${data.commercial.delivery_forecast}`, 20, finalY + 14);
-    doc.text(`Forma de Pagamento: ${data.commercial.payment_terms}`, 20, finalY + 20);
+    doc.text(`Valor Total: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.commercial?.total_value || 0)}`, 20, contentY + 8);
+    doc.text(doc.splitTextToSize(`Previsão de Entrega: ${data.commercial?.delivery_forecast || '-'}`, pageWidth - 40), 20, contentY + 14);
+    doc.text(doc.splitTextToSize(`Forma de Pagamento: ${data.commercial?.payment_terms || '-'}`, pageWidth - 40), 20, contentY + 26);
 
     // Signatures
-    const sigY = finalY + 50;
+    const sigY = Math.min(contentY + 58, pageHeight - 35);
     doc.line(20, sigY, 90, sigY);
     doc.text("Representante MCI", 35, sigY + 5);
     
@@ -254,7 +271,30 @@ export default function ContractGenerator() {
     doc.setTextColor(150);
     doc.text("O cliente poderá assinar a punho ou via GOV/assinatura digital.", pageWidth / 2, sigY + 20, { align: 'center' });
 
-    doc.save(`Contrato_${data.client.name.replace(/\s/g, '_')}.pdf`);
+    return doc;
+  };
+
+  const downloadPDF = (contractOrForm: any) => {
+    try {
+      const doc = createPDFDocument(contractOrForm);
+      doc.save(getFileName(contractOrForm));
+    } catch (error: any) {
+      console.error('Erro ao baixar PDF:', error);
+      toast.error('Erro ao baixar PDF: ' + (error.message || 'verifique os dados do contrato'));
+    }
+  };
+
+  const openPreview = (contractOrForm: any = formData) => {
+    try {
+      const doc = createPDFDocument(contractOrForm);
+      const blobUrl = doc.output('bloburl').toString();
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(blobUrl);
+      setPreviewOpen(true);
+    } catch (error: any) {
+      console.error('Erro ao abrir prévia PDF:', error);
+      toast.error('Erro ao abrir prévia PDF: ' + (error.message || 'verifique os dados do contrato'));
+    }
   };
 
   return (
