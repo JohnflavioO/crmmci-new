@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, FileText, Trash2, Copy, Eye, History, FileDown, Printer, Loader2 } from 'lucide-react';
+import { Plus, FileText, Trash2, Copy, Eye, History, FileDown, Printer, Loader2, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -47,6 +47,7 @@ const initialProducts = [
 export default function ContractGenerator() {
   const { user, profile } = useAuth();
   const [view, setView] = useState<'list' | 'create'>('list');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [contracts, setContracts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -144,18 +145,22 @@ export default function ContractGenerator() {
     console.log('Tentando salvar contrato:', contractPayload);
 
     try {
-      const { data, error } = await supabase
-        .from('generated_contracts')
-        .insert(contractPayload)
-        .select();
+      const query = editingId
+        ? supabase.from('generated_contracts').update(contractPayload).eq('id', editingId).select()
+        : supabase.from('generated_contracts').insert(contractPayload).select();
+      const { data, error } = await query;
 
       if (error) {
         console.error('Erro detalhado Supabase:', error);
         throw error;
       }
-      
+
       console.log('Contrato salvo com sucesso:', data);
-      toast.success('Contrato gerado com sucesso!');
+      toast.success(editingId ? 'Contrato atualizado!' : 'Contrato gerado com sucesso!');
+      if (status === 'enviado' && data && data[0]) {
+        generatePDF(data[0]);
+      }
+      setEditingId(null);
       setView('list');
       fetchContracts();
     } catch (error: any) {
@@ -255,7 +260,7 @@ export default function ContractGenerator() {
             <p className="text-muted-foreground">Crie e gerencie contratos institucionais da MCI</p>
           </div>
           {view === 'list' ? (
-            <Button onClick={() => setView('create')} className="bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={() => { setEditingId(null); setFormData({ client: { ...initialClient }, products: [...initialProducts], commercial: { total_value: 115551, delivery_forecast: '', payment_terms: 'A combinar', notes: '', additional_clauses: '' }, mci_branch: 'matriz' }); setView('create'); }} className="bg-emerald-600 hover:bg-emerald-700">
               <Plus className="h-4 w-4 mr-2" /> Novo Contrato
             </Button>
           ) : (
@@ -307,7 +312,18 @@ export default function ContractGenerator() {
                             <Button variant="ghost" size="icon" onClick={() => generatePDF(contract)} title="Baixar PDF">
                               <FileDown className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" title="Duplicar">
+                            <Button variant="ghost" size="icon" title="Editar" onClick={() => {
+                              setEditingId(contract.id);
+                              setFormData(contract.contract_data_json || formData);
+                              setView('create');
+                            }}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" title="Duplicar" onClick={() => {
+                              setEditingId(null);
+                              setFormData(contract.contract_data_json || formData);
+                              setView('create');
+                            }}>
                               <Copy className="h-4 w-4" />
                             </Button>
                           </div>
