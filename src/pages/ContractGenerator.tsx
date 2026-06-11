@@ -241,13 +241,20 @@ export default function ContractGenerator() {
     doc.setDrawColor(200, 200, 200);
     doc.line(margin, headerBottom + 6, pageWidth - margin, headerBottom + 6);
 
+    // Title
+    let yTop = headerBottom + 12;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 43, 38);
+    doc.text("CONTRATO DE PRÉ-VENDA E ENTREGA FUTURA", pageWidth / 2, yTop, { align: 'center' });
+
     // Client
     doc.setTextColor(0);
     doc.setFontSize(9);
-    doc.text("DADOS DO CLIENTE", margin, 35);
+    doc.text("DADOS DO CLIENTE", margin, yTop + 7);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
-    let y = 40;
+    let y = yTop + 12;
     doc.text(`Razão Social: ${data.client?.name || '-'}`, margin, y); y += 4;
     doc.text(`CNPJ: ${data.client?.document || '-'}   |   Cidade/UF: ${data.client?.city || '-'}`, margin, y); y += 4;
     doc.text(`Responsável: ${data.client?.responsible || '-'}   |   Contato: ${data.client?.phone || '-'} | ${data.client?.email || '-'}`, margin, y); y += 5;
