@@ -466,6 +466,10 @@ export type Database = {
           pdf_url: string | null
           responsible_name: string | null
           responsible_phone: string | null
+          signed_file_name: string | null
+          signed_file_url: string | null
+          signed_uploaded_at: string | null
+          signed_uploaded_by: string | null
           status: string | null
           total_value: number | null
           updated_at: string
@@ -482,6 +486,10 @@ export type Database = {
           pdf_url?: string | null
           responsible_name?: string | null
           responsible_phone?: string | null
+          signed_file_name?: string | null
+          signed_file_url?: string | null
+          signed_uploaded_at?: string | null
+          signed_uploaded_by?: string | null
           status?: string | null
           total_value?: number | null
           updated_at?: string
@@ -498,6 +506,10 @@ export type Database = {
           pdf_url?: string | null
           responsible_name?: string | null
           responsible_phone?: string | null
+          signed_file_name?: string | null
+          signed_file_url?: string | null
+          signed_uploaded_at?: string | null
+          signed_uploaded_by?: string | null
           status?: string | null
           total_value?: number | null
           updated_at?: string
