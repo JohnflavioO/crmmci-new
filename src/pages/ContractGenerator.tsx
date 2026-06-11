@@ -192,7 +192,26 @@ export default function ContractGenerator() {
     return `Contrato_${safeClientName || 'MCI'}.pdf`;
   };
 
-  const createPDFDocument = (contractOrForm: any) => {
+  const loadLogoDataUrl = async (): Promise<{ data: string; w: number; h: number } | null> => {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('logo'));
+        img.src = '/mci-logo-contract.png';
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d')!.drawImage(img, 0, 0);
+      return { data: canvas.toDataURL('image/png'), w: img.naturalWidth, h: img.naturalHeight };
+    } catch {
+      return null;
+    }
+  };
+
+  const createPDFDocument = async (contractOrForm: any) => {
     const data = getContractData(contractOrForm);
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -200,30 +219,42 @@ export default function ContractGenerator() {
     const margin = 15;
     const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
-    // Header
-    doc.setFontSize(18);
-    doc.setTextColor(15, 43, 38);
-    doc.setFont("helvetica", "bold");
-    doc.text("MCI STORE", pageWidth / 2, 14, { align: 'center' });
+    // Logo centered at top
+    const logo = await loadLogoDataUrl();
+    let headerBottom = 14;
+    if (logo) {
+      const logoW = 32;
+      const logoH = logoW * (logo.h / logo.w);
+      doc.addImage(logo.data, 'PNG', (pageWidth - logoW) / 2, 8, logoW, logoH);
+      headerBottom = 8 + logoH + 2;
+    } else {
+      doc.setFontSize(18);
+      doc.setTextColor(15, 43, 38);
+      doc.setFont("helvetica", "bold");
+      doc.text("MCI STORE", pageWidth / 2, 14, { align: 'center' });
+      headerBottom = 17;
+    }
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text(mciData.name, pageWidth / 2, 19, { align: 'center' });
+    doc.setTextColor(80);
+    doc.text(mciData.name, pageWidth / 2, headerBottom + 3, { align: 'center' });
     doc.setDrawColor(200, 200, 200);
-    doc.line(margin, 22, pageWidth - margin, 22);
+    doc.line(margin, headerBottom + 6, pageWidth - margin, headerBottom + 6);
 
     // Title
+    let yTop = headerBottom + 12;
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 43, 38);
-    doc.text("CONTRATO DE PRÉ-VENDA E ENTREGA FUTURA", pageWidth / 2, 28, { align: 'center' });
+    doc.text("CONTRATO DE PRÉ-VENDA E ENTREGA FUTURA", pageWidth / 2, yTop, { align: 'center' });
 
     // Client
     doc.setTextColor(0);
     doc.setFontSize(9);
-    doc.text("DADOS DO CLIENTE", margin, 35);
+    doc.text("DADOS DO CLIENTE", margin, yTop + 7);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
-    let y = 40;
+    let y = yTop + 12;
     doc.text(`Razão Social: ${data.client?.name || '-'}`, margin, y); y += 4;
     doc.text(`CNPJ: ${data.client?.document || '-'}   |   Cidade/UF: ${data.client?.city || '-'}`, margin, y); y += 4;
     doc.text(`Responsável: ${data.client?.responsible || '-'}   |   Contato: ${data.client?.phone || '-'} | ${data.client?.email || '-'}`, margin, y); y += 5;
@@ -295,9 +326,9 @@ export default function ContractGenerator() {
     return doc;
   };
 
-  const downloadPDF = (contractOrForm: any) => {
+  const downloadPDF = async (contractOrForm: any) => {
     try {
-      const doc = createPDFDocument(contractOrForm);
+      const doc = await createPDFDocument(contractOrForm);
       doc.save(getFileName(contractOrForm));
     } catch (error: any) {
       console.error('Erro ao baixar PDF:', error);
@@ -305,9 +336,9 @@ export default function ContractGenerator() {
     }
   };
 
-  const openPreview = (contractOrForm: any = formData) => {
+  const openPreview = async (contractOrForm: any = formData) => {
     try {
-      const doc = createPDFDocument(contractOrForm);
+      const doc = await createPDFDocument(contractOrForm);
       const blobUrl = doc.output('bloburl').toString();
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(blobUrl);
