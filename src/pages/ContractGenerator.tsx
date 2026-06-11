@@ -312,7 +312,18 @@ export default function ContractGenerator() {
                             <Button variant="ghost" size="icon" onClick={() => generatePDF(contract)} title="Baixar PDF">
                               <FileDown className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" title="Duplicar">
+                            <Button variant="ghost" size="icon" title="Editar" onClick={() => {
+                              setEditingId(contract.id);
+                              setFormData(contract.contract_data_json || formData);
+                              setView('create');
+                            }}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" title="Duplicar" onClick={() => {
+                              setEditingId(null);
+                              setFormData(contract.contract_data_json || formData);
+                              setView('create');
+                            }}>
                               <Copy className="h-4 w-4" />
                             </Button>
                           </div>
