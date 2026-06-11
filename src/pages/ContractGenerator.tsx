@@ -46,7 +46,7 @@ const initialProducts = [
 ];
 
 export default function ContractGenerator() {
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin, isGestor } = useAuth();
   const [view, setView] = useState<'list' | 'create'>('list');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [contracts, setContracts] = useState<any[]>([]);
@@ -56,6 +56,8 @@ export default function ContractGenerator() {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewContract, setPreviewContract] = useState<any | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const canRemoveSigned = isAdmin || isGestor;
   
   const [formData, setFormData] = useState<any>({
     client: { ...initialClient },
