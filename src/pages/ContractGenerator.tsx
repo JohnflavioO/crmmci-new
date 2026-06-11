@@ -197,79 +197,100 @@ export default function ContractGenerator() {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 20;
-    
-    // Header text representation of logo
-    doc.setFontSize(22);
+    const margin = 15;
+    const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+
+    // Header
+    doc.setFontSize(18);
     doc.setTextColor(15, 43, 38);
-    doc.text("MCI STORE", pageWidth / 2, 20, { align: 'center' });
-    doc.setFontSize(10);
-    doc.text(mciData.name, pageWidth / 2, 28, { align: 'center' });
-    
+    doc.setFont("helvetica", "bold");
+    doc.text("MCI STORE", pageWidth / 2, 14, { align: 'center' });
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(mciData.name, pageWidth / 2, 19, { align: 'center' });
     doc.setDrawColor(200, 200, 200);
-    doc.line(20, 35, pageWidth - 20, 35);
+    doc.line(margin, 22, pageWidth - margin, 22);
 
     // Title
-    doc.setFontSize(14);
+    doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text("CONTRATO DE PRÉ-VENDA E ENTREGA FUTURA", pageWidth / 2, 45, { align: 'center' });
+    doc.setTextColor(15, 43, 38);
+    doc.text("CONTRATO DE PRÉ-VENDA E ENTREGA FUTURA", pageWidth / 2, 28, { align: 'center' });
 
-    // Client Info
-    doc.setFontSize(11);
-    doc.text("DADOS DO CLIENTE", 20, 60);
+    // Client
+    doc.setTextColor(0);
+    doc.setFontSize(9);
+    doc.text("DADOS DO CLIENTE", margin, 35);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Razão Social: ${data.client?.name || '-'}`, 20, 68);
-    doc.text(`CNPJ: ${data.client?.document || '-'}`, 20, 74);
-    doc.text(`Cidade/UF: ${data.client?.city || '-'}`, 20, 80);
-    doc.text(`Responsável: ${data.client?.responsible || '-'}`, 20, 86);
-    doc.text(`Contato: ${data.client?.phone || '-'} | ${data.client?.email || '-'}`, 20, 92);
+    doc.setFontSize(8.5);
+    let y = 40;
+    doc.text(`Razão Social: ${data.client?.name || '-'}`, margin, y); y += 4;
+    doc.text(`CNPJ: ${data.client?.document || '-'}   |   Cidade/UF: ${data.client?.city || '-'}`, margin, y); y += 4;
+    doc.text(`Responsável: ${data.client?.responsible || '-'}   |   Contato: ${data.client?.phone || '-'} | ${data.client?.email || '-'}`, margin, y); y += 5;
 
-    // Products Table
+    // Products (no Valor column)
     doc.setFont("helvetica", "bold");
-    doc.text("EQUIPAMENTOS / PRODUTOS", 20, 105);
-    
-    const tableData = (data.products || []).map((p: any) => [
-      p.name,
-      p.description,
-      p.quantity,
-      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.value)
-    ]);
+    doc.setFontSize(9);
+    doc.text("EQUIPAMENTOS / PRODUTOS", margin, y);
+    y += 2;
 
     autoTable(doc, {
-      startY: 110,
-      head: [['Equipamento', 'Descrição', 'Qtd', 'Valor']],
-      body: tableData,
+      startY: y,
+      head: [['Equipamento', 'Descrição', 'Qtd']],
+      body: (data.products || []).map((p: any) => [p.name, p.description, p.quantity]),
       theme: 'grid',
-      headStyles: { fillColor: [15, 43, 38] },
-      styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
-      columnStyles: { 0: { cellWidth: 72 }, 1: { cellWidth: 58 }, 2: { cellWidth: 14 }, 3: { cellWidth: 26 } },
+      headStyles: { fillColor: [15, 43, 38], fontSize: 8 },
+      styles: { fontSize: 7.5, cellPadding: 1.5, overflow: 'linebreak' },
+      columnStyles: { 0: { cellWidth: 95 }, 1: { cellWidth: 70 }, 2: { cellWidth: 15, halign: 'center' } },
       margin: { left: margin, right: margin }
     });
 
-    // Commercial Conditions
-    const finalY = ((doc as any).lastAutoTable?.finalY || 110) + 15;
-    const contentY = finalY > pageHeight - 75 ? 30 : finalY;
-    if (finalY > pageHeight - 75) doc.addPage();
-    doc.setFont("helvetica", "bold");
-    doc.text("CONDIÇÕES COMERCIAIS", 20, contentY);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Valor Total: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.commercial?.total_value || 0)}`, 20, contentY + 8);
-    doc.text(doc.splitTextToSize(`Previsão de Entrega: ${data.commercial?.delivery_forecast || '-'}`, pageWidth - 40), 20, contentY + 14);
-    doc.text(doc.splitTextToSize(`Forma de Pagamento: ${data.commercial?.payment_terms || '-'}`, pageWidth - 40), 20, contentY + 26);
+    y = ((doc as any).lastAutoTable?.finalY || y) + 6;
 
-    // Signatures
-    const sigY = Math.min(contentY + 58, pageHeight - 35);
-    doc.line(20, sigY, 90, sigY);
-    doc.text("Representante MCI", 35, sigY + 5);
-    
-    doc.line(pageWidth - 90, sigY, pageWidth - 20, sigY);
-    doc.text("Representante do Cliente", pageWidth - 75, sigY + 5);
-    
-    doc.setFontSize(8);
-    doc.setTextColor(150);
-    doc.text("O cliente poderá assinar a punho ou via GOV/assinatura digital.", pageWidth / 2, sigY + 20, { align: 'center' });
+    // Commercial Conditions
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("CONDIÇÕES COMERCIAIS", margin, y);
+    y += 5;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(15, 80, 60);
+    doc.text(`Valor Total: ${fmtBRL(data.commercial?.total_value || 0)}`, margin, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(0);
+    const delivery = doc.splitTextToSize(`Previsão de Entrega: ${data.commercial?.delivery_forecast || '-'}`, pageWidth - margin * 2);
+    doc.text(delivery, margin, y); y += delivery.length * 4;
+    const payment = doc.splitTextToSize(`Forma de Pagamento: ${data.commercial?.payment_terms || '-'}`, pageWidth - margin * 2);
+    doc.text(payment, margin, y); y += payment.length * 4 + 3;
+
+    // Additional Clauses
+    const clauses = (data.commercial?.additional_clauses || '').trim();
+    if (clauses) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text("CLÁUSULAS ADICIONAIS", margin, y);
+      y += 4;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      const clauseLines = doc.splitTextToSize(clauses, pageWidth - margin * 2);
+      doc.text(clauseLines, margin, y);
+      y += clauseLines.length * 3.5 + 4;
+    }
+
+    // Signature (client only)
+    const sigY = Math.min(Math.max(y + 14, pageHeight - 30), pageHeight - 20);
+    const sigW = 90;
+    const sigX = (pageWidth - sigW) / 2;
+    doc.setDrawColor(80);
+    doc.line(sigX, sigY, sigX + sigW, sigY);
+    doc.setFontSize(8.5);
+    doc.setTextColor(0);
+    doc.text("Representante do Cliente", pageWidth / 2, sigY + 4, { align: 'center' });
+    doc.setFontSize(7);
+    doc.setTextColor(120);
+    doc.text("O cliente poderá assinar a punho ou via GOV/assinatura digital.", pageWidth / 2, sigY + 9, { align: 'center' });
 
     return doc;
   };
@@ -439,7 +460,11 @@ export default function ContractGenerator() {
               <Card>
                 <CardHeader><CardTitle className="text-md">Conclusão</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  <Button className="w-full bg-emerald-600 hover:bg-emerald-700 h-11" onClick={() => handleSave('enviado')} disabled={saving}>{saving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <FileText className="h-4 w-4 mr-2" />}Gerar Contrato</Button>
+                  {editingId ? (
+                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700 h-11" onClick={() => handleSave('enviado')} disabled={saving}>{saving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <FileText className="h-4 w-4 mr-2" />}Atualizar Contrato</Button>
+                  ) : (
+                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700 h-11" onClick={() => handleSave('enviado')} disabled={saving}>{saving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <FileText className="h-4 w-4 mr-2" />}Gerar Contrato</Button>
+                  )}
                   <Button variant="outline" className="w-full" onClick={() => handleSave('rascunho')} disabled={saving}>Salvar Rascunho</Button>
                   <Button variant="secondary" className="w-full" onClick={() => openPreview(formData)}><Eye className="h-4 w-4 mr-2" /> Prévia PDF</Button>
                 </CardContent>
