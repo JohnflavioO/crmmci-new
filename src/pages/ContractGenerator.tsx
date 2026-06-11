@@ -242,15 +242,19 @@ export default function ContractGenerator() {
       doc.text("MCI STORE", pageWidth / 2, 14, { align: 'center' });
       headerBottom = 17;
     }
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(60);
+    doc.text("MCI STORE COMÉRCIO E SERVIÇOS LTDA", pageWidth / 2, headerBottom + 3, { align: 'center' });
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(80);
-    doc.text(mciData.name, pageWidth / 2, headerBottom + 3, { align: 'center' });
+    doc.setFontSize(7);
+    doc.text("Matriz: CNPJ 05.502.390/0001-11 — Rua Senador Pompeu, 1547, Centro, Fortaleza/CE", pageWidth / 2, headerBottom + 6.5, { align: 'center' });
+    doc.text("Filiais: CNPJ 05.502.390/0002-00 (Armazém Itajaí/SC)  •  CNPJ 05.502.390/0003-83 (São Paulo/SP)", pageWidth / 2, headerBottom + 9.5, { align: 'center' });
     doc.setDrawColor(200, 200, 200);
-    doc.line(margin, headerBottom + 6, pageWidth - margin, headerBottom + 6);
+    doc.line(margin, headerBottom + 12, pageWidth - margin, headerBottom + 12);
 
     // Title
-    let yTop = headerBottom + 12;
+    let yTop = headerBottom + 18;
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 43, 38);
