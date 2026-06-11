@@ -584,8 +584,8 @@ export default function ContractGenerator() {
 
                   <footer className="pt-16 text-center text-xs text-muted-foreground">
                     <div className="mx-auto mb-2 h-px w-72 bg-border" />
-                    <p className="text-foreground">Representante do Cliente</p>
-                    <p className="text-foreground">Assinatura do Cliente</p>
+                    <p className="text-foreground font-medium">ASSINATURA DO CLIENTE</p>
+                    <p>O cliente poderá assinar a punho ou via GOV/assinatura digital.</p>
                   </footer>
                 </article>
               </div>
