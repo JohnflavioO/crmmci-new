@@ -228,6 +228,36 @@ export type Database = {
         }
         Relationships: []
       }
+      contract_templates: {
+        Row: {
+          active: boolean | null
+          content: string | null
+          created_at: string
+          id: string
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean | null
+          content?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean | null
+          content?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       financial_action_history: {
         Row: {
           action_type: string
@@ -422,6 +452,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      generated_contracts: {
+        Row: {
+          client_document: string
+          client_name: string
+          company_id: string | null
+          contract_data_json: Json
+          created_at: string
+          created_by: string | null
+          delivery_forecast: string | null
+          id: string
+          pdf_url: string | null
+          responsible_name: string | null
+          responsible_phone: string | null
+          status: string | null
+          total_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          client_document: string
+          client_name: string
+          company_id?: string | null
+          contract_data_json?: Json
+          created_at?: string
+          created_by?: string | null
+          delivery_forecast?: string | null
+          id?: string
+          pdf_url?: string | null
+          responsible_name?: string | null
+          responsible_phone?: string | null
+          status?: string | null
+          total_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          client_document?: string
+          client_name?: string
+          company_id?: string | null
+          contract_data_json?: Json
+          created_at?: string
+          created_by?: string | null
+          delivery_forecast?: string | null
+          id?: string
+          pdf_url?: string | null
+          responsible_name?: string | null
+          responsible_phone?: string | null
+          status?: string | null
+          total_value?: number | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       import_logs: {
         Row: {
