@@ -145,21 +145,22 @@ export default function ContractGenerator() {
     console.log('Tentando salvar contrato:', contractPayload);
 
     try {
-      const { data, error } = await supabase
-        .from('generated_contracts')
-        .insert(contractPayload)
-        .select();
+      const query = editingId
+        ? supabase.from('generated_contracts').update(contractPayload).eq('id', editingId).select()
+        : supabase.from('generated_contracts').insert(contractPayload).select();
+      const { data, error } = await query;
 
       if (error) {
         console.error('Erro detalhado Supabase:', error);
         throw error;
       }
-      
+
       console.log('Contrato salvo com sucesso:', data);
-      toast.success('Contrato gerado com sucesso!');
+      toast.success(editingId ? 'Contrato atualizado!' : 'Contrato gerado com sucesso!');
       if (status === 'enviado' && data && data[0]) {
         generatePDF(data[0]);
       }
+      setEditingId(null);
       setView('list');
       fetchContracts();
     } catch (error: any) {
