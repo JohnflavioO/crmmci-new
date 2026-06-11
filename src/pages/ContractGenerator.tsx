@@ -351,15 +351,17 @@ export default function ContractGenerator() {
   const openPreview = async (contractOrForm: any = formData) => {
     try {
       const doc = await createPDFDocument(contractOrForm);
-      const blobUrl = doc.output('bloburl').toString();
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(blobUrl);
+      setPreviewUrl(url);
       setPreviewOpen(true);
     } catch (error: any) {
       console.error('Erro ao abrir prévia PDF:', error);
       toast.error('Erro ao abrir prévia PDF: ' + (error.message || 'verifique os dados do contrato'));
     }
   };
+
 
   return (
     <AppLayout>
