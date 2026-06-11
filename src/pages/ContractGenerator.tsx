@@ -122,15 +122,14 @@ export default function ContractGenerator() {
   };
 
   const handleSave = async (status: string = 'rascunho') => {
-    if (!user || !profile?.company_id) {
-      toast.error('Sessão inválida ou empresa não vinculada ao perfil.');
-      console.error('Missing auth info:', { user: !!user, company_id: profile?.company_id });
+    if (!user) {
+      toast.error('Sessão inválida. Faça login novamente.');
       return;
     }
 
     setSaving(true);
     const contractPayload = {
-      company_id: profile.company_id,
+      company_id: profile?.company_id ?? null,
       client_name: formData.client.name,
       client_document: formData.client.document,
       responsible_name: formData.client.responsible,
