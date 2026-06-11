@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, FileText, Trash2, Copy, Eye, History, FileDown, Printer, Loader2, Pencil } from 'lucide-react';
+import { Plus, FileText, Trash2, Copy, Eye, History, FileDown, Printer, Loader2, Pencil, Upload, FileSignature, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -46,7 +46,7 @@ const initialProducts = [
 ];
 
 export default function ContractGenerator() {
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin, isGestor } = useAuth();
   const [view, setView] = useState<'list' | 'create'>('list');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [contracts, setContracts] = useState<any[]>([]);
@@ -56,6 +56,8 @@ export default function ContractGenerator() {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewContract, setPreviewContract] = useState<any | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const canRemoveSigned = isAdmin || isGestor;
   
   const [formData, setFormData] = useState<any>({
     client: { ...initialClient },
@@ -355,6 +357,94 @@ export default function ContractGenerator() {
   const previewData = previewContract ? getContractData(previewContract) : null;
   const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
+  const handleUploadSigned = async (contract: any, file: File, replacing = false) => {
+    if (!user) { toast.error('Sessão inválida.'); return; }
+    const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowed.includes(file.type)) {
+      toast.error('Formato inválido. Envie PDF, JPG ou PNG.');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error('Arquivo muito grande (máx. 20MB).');
+      return;
+    }
+    setUploadingId(contract.id);
+    try {
+      // Remove existing if replacing
+      if (replacing && contract.signed_file_url) {
+        const oldPath = contract.signed_file_url.split('/contracts/')[1];
+        if (oldPath) await supabase.storage.from('contracts').remove([oldPath]);
+      }
+      const ext = file.name.split('.').pop();
+      const path = `signed/${contract.id}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('contracts').upload(path, file, { upsert: false });
+      if (upErr) throw upErr;
+      const { error: updErr } = await supabase
+        .from('generated_contracts')
+        .update({
+          signed_file_url: path,
+          signed_file_name: file.name,
+          signed_uploaded_at: new Date().toISOString(),
+          signed_uploaded_by: user.id,
+          status: 'assinado',
+        })
+        .eq('id', contract.id);
+      if (updErr) throw updErr;
+      toast.success(replacing ? 'Arquivo substituído!' : 'Contrato assinado anexado!');
+      fetchContracts();
+    } catch (e: any) {
+      toast.error('Erro ao anexar: ' + (e.message || 'desconhecido'));
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
+  const viewSigned = async (contract: any) => {
+    if (!contract.signed_file_url) return;
+    const { data, error } = await supabase.storage.from('contracts').createSignedUrl(contract.signed_file_url, 60 * 10);
+    if (error) { toast.error('Erro ao abrir arquivo: ' + error.message); return; }
+    window.open(data.signedUrl, '_blank');
+  };
+
+  const downloadSigned = async (contract: any) => {
+    if (!contract.signed_file_url) return;
+    const { data, error } = await supabase.storage.from('contracts').download(contract.signed_file_url);
+    if (error) { toast.error('Erro ao baixar: ' + error.message); return; }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = contract.signed_file_name || 'contrato_assinado';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const removeSigned = async (contract: any) => {
+    if (!canRemoveSigned) { toast.error('Sem permissão para remover.'); return; }
+    if (!confirm('Remover anexo assinado deste contrato?')) return;
+    try {
+      if (contract.signed_file_url) {
+        await supabase.storage.from('contracts').remove([contract.signed_file_url]);
+      }
+      const { error } = await supabase
+        .from('generated_contracts')
+        .update({
+          signed_file_url: null,
+          signed_file_name: null,
+          signed_uploaded_at: null,
+          signed_uploaded_by: null,
+          status: 'enviado',
+        })
+        .eq('id', contract.id);
+      if (error) throw error;
+      toast.success('Anexo removido.');
+      fetchContracts();
+    } catch (e: any) {
+      toast.error('Erro ao remover: ' + (e.message || 'desconhecido'));
+    }
+  };
+
+
+
 
 
   return (
@@ -417,7 +507,7 @@ export default function ContractGenerator() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
+                          <div className="flex justify-end gap-1 flex-wrap">
                             <Button variant="ghost" size="icon" onClick={() => openPreview(contract)} title="Visualizar">
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -438,6 +528,56 @@ export default function ContractGenerator() {
                             }}>
                               <Copy className="h-4 w-4" />
                             </Button>
+
+                            {/* Signed contract actions */}
+                            {!contract.signed_file_url ? (
+                              <label title="Anexar Contrato Assinado">
+                                <input
+                                  type="file"
+                                  accept="application/pdf,image/jpeg,image/png,image/jpg"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) handleUploadSigned(contract, f, false);
+                                    e.target.value = '';
+                                  }}
+                                />
+                                <Button variant="ghost" size="icon" asChild disabled={uploadingId === contract.id}>
+                                  <span>
+                                    {uploadingId === contract.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 text-emerald-600" />}
+                                  </span>
+                                </Button>
+                              </label>
+                            ) : (
+                              <>
+                                <Button variant="ghost" size="icon" title={`Visualizar assinado (${contract.signed_file_name || ''})`} onClick={() => viewSigned(contract)}>
+                                  <FileSignature className="h-4 w-4 text-emerald-600" />
+                                </Button>
+                                <Button variant="ghost" size="icon" title="Baixar assinado" onClick={() => downloadSigned(contract)}>
+                                  <FileDown className="h-4 w-4 text-emerald-600" />
+                                </Button>
+                                <label title="Substituir arquivo assinado">
+                                  <input
+                                    type="file"
+                                    accept="application/pdf,image/jpeg,image/png,image/jpg"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0];
+                                      if (f) handleUploadSigned(contract, f, true);
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                  <Button variant="ghost" size="icon" asChild disabled={uploadingId === contract.id}>
+                                    <span>{uploadingId === contract.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}</span>
+                                  </Button>
+                                </label>
+                                {canRemoveSigned && (
+                                  <Button variant="ghost" size="icon" title="Remover anexo" onClick={() => removeSigned(contract)}>
+                                    <X className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                )}
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
