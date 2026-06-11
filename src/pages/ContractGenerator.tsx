@@ -128,8 +128,7 @@ export default function ContractGenerator() {
     }
 
     setSaving(true);
-    const contractPayload = {
-      company_id: profile.company_id,
+      company_id: profile?.company_id ?? null,
       client_name: formData.client.name,
       client_document: formData.client.document,
       responsible_name: formData.client.responsible,
