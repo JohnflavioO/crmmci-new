@@ -325,9 +325,9 @@ export default function ContractGenerator() {
     doc.setFontSize(8.5);
     doc.setTextColor(0);
     doc.text("Representante do Cliente", pageWidth / 2, sigY + 4, { align: 'center' });
-    doc.setFontSize(7);
-    doc.setTextColor(120);
-    doc.text("O cliente poderá assinar a punho ou via GOV/assinatura digital.", pageWidth / 2, sigY + 9, { align: 'center' });
+    doc.setFontSize(8.5);
+    doc.setTextColor(0);
+    doc.text("Assinatura do Cliente", pageWidth / 2, sigY + 9, { align: 'center' });
 
     return doc;
   };
@@ -585,7 +585,7 @@ export default function ContractGenerator() {
                   <footer className="pt-16 text-center text-xs text-muted-foreground">
                     <div className="mx-auto mb-2 h-px w-72 bg-border" />
                     <p className="text-foreground">Representante do Cliente</p>
-                    <p>O cliente poderá assinar a punho ou via GOV/assinatura digital.</p>
+                    <p className="text-foreground">Assinatura do Cliente</p>
                   </footer>
                 </article>
               </div>
