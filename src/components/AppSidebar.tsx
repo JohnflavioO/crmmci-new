@@ -26,6 +26,11 @@ const analyticItems = [
   { to: '/ecoflow', icon: Calculator, label: 'Calculadora Ecoflow' },
 ];
 
+const toolItems = [
+  { to: '/contracts', icon: FileText, label: 'Gerador de Contrato' },
+];
+
+
 const supportMenuItems = [
   { to: '/suporte', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/suporte/os', icon: ClipboardList, label: 'Ordens de Serviço' },
@@ -251,6 +256,14 @@ export default function AppSidebar({ onNavigate }: Props) {
             {analyticItems.map(item => (
               <LinkItem key={item.to} {...item} />
             ))}
+
+            <div className="pt-4 pb-1 px-3">
+              <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Ferramentas</p>
+            </div>
+            {toolItems.map(item => (
+              <LinkItem key={item.to} {...item} />
+            ))}
+
 
             <div className="pt-4 pb-1 px-3">
               <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Operacional e Logística</p>
