@@ -124,35 +124,44 @@ export default function ContractGenerator() {
   const handleSave = async (status: string = 'rascunho') => {
     if (!user || !profile?.company_id) {
       toast.error('Sessão inválida ou empresa não vinculada ao perfil.');
+      console.error('Missing auth info:', { user: !!user, company_id: profile?.company_id });
       return;
     }
 
     setSaving(true);
+    const contractPayload = {
+      company_id: profile.company_id,
+      client_name: formData.client.name,
+      client_document: formData.client.document,
+      responsible_name: formData.client.responsible,
+      responsible_phone: formData.client.phone,
+      total_value: formData.commercial.total_value,
+      delivery_forecast: formData.commercial.delivery_forecast,
+      status: status,
+      contract_data_json: formData,
+      created_by: user.id
+    };
+
+    console.log('Tentando salvar contrato:', contractPayload);
+
     try {
-      const contractPayload = {
-        company_id: profile.company_id,
-        client_name: formData.client.name,
-        client_document: formData.client.document,
-        responsible_name: formData.client.responsible,
-        responsible_phone: formData.client.phone,
-        total_value: formData.commercial.total_value,
-        delivery_forecast: formData.commercial.delivery_forecast,
-        status: status,
-        contract_data_json: formData,
-        created_by: user.id
-      };
-
-
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('generated_contracts')
-        .insert(contractPayload);
+        .insert(contractPayload)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro detalhado Supabase:', error);
+        throw error;
+      }
+      
+      console.log('Contrato salvo com sucesso:', data);
       toast.success('Contrato gerado com sucesso!');
       setView('list');
       fetchContracts();
     } catch (error: any) {
-      toast.error('Erro ao salvar contrato: ' + error.message);
+      console.error('Catch error:', error);
+      toast.error('Erro ao salvar contrato: ' + (error.message || 'Erro desconhecido'));
     } finally {
       setSaving(false);
     }
