@@ -507,7 +507,7 @@ export default function ContractGenerator() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
+                          <div className="flex justify-end gap-1 flex-wrap">
                             <Button variant="ghost" size="icon" onClick={() => openPreview(contract)} title="Visualizar">
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -528,6 +528,56 @@ export default function ContractGenerator() {
                             }}>
                               <Copy className="h-4 w-4" />
                             </Button>
+
+                            {/* Signed contract actions */}
+                            {!contract.signed_file_url ? (
+                              <label title="Anexar Contrato Assinado">
+                                <input
+                                  type="file"
+                                  accept="application/pdf,image/jpeg,image/png,image/jpg"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) handleUploadSigned(contract, f, false);
+                                    e.target.value = '';
+                                  }}
+                                />
+                                <Button variant="ghost" size="icon" asChild disabled={uploadingId === contract.id}>
+                                  <span>
+                                    {uploadingId === contract.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 text-emerald-600" />}
+                                  </span>
+                                </Button>
+                              </label>
+                            ) : (
+                              <>
+                                <Button variant="ghost" size="icon" title={`Visualizar assinado (${contract.signed_file_name || ''})`} onClick={() => viewSigned(contract)}>
+                                  <FileSignature className="h-4 w-4 text-emerald-600" />
+                                </Button>
+                                <Button variant="ghost" size="icon" title="Baixar assinado" onClick={() => downloadSigned(contract)}>
+                                  <FileDown className="h-4 w-4 text-emerald-600" />
+                                </Button>
+                                <label title="Substituir arquivo assinado">
+                                  <input
+                                    type="file"
+                                    accept="application/pdf,image/jpeg,image/png,image/jpg"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0];
+                                      if (f) handleUploadSigned(contract, f, true);
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                  <Button variant="ghost" size="icon" asChild disabled={uploadingId === contract.id}>
+                                    <span>{uploadingId === contract.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}</span>
+                                  </Button>
+                                </label>
+                                {canRemoveSigned && (
+                                  <Button variant="ghost" size="icon" title="Remover anexo" onClick={() => removeSigned(contract)}>
+                                    <X className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                )}
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
