@@ -358,7 +358,7 @@ export default function ContractGenerator() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => generatePDF(contract)} title="Baixar PDF">
+                            <Button variant="ghost" size="icon" onClick={() => downloadPDF(contract)} title="Baixar PDF">
                               <FileDown className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="icon" title="Editar" onClick={() => {
@@ -441,12 +441,28 @@ export default function ContractGenerator() {
                 <CardContent className="space-y-3">
                   <Button className="w-full bg-emerald-600 hover:bg-emerald-700 h-11" onClick={() => handleSave('enviado')} disabled={saving}>{saving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <FileText className="h-4 w-4 mr-2" />}Gerar Contrato</Button>
                   <Button variant="outline" className="w-full" onClick={() => handleSave('rascunho')} disabled={saving}>Salvar Rascunho</Button>
-                  <Button variant="secondary" className="w-full" onClick={() => generatePDF(formData)}><Eye className="h-4 w-4 mr-2" /> Prévia PDF</Button>
+                  <Button variant="secondary" className="w-full" onClick={() => openPreview(formData)}><Eye className="h-4 w-4 mr-2" /> Prévia PDF</Button>
                 </CardContent>
               </Card>
             </div>
           </div>
         )}
+
+        <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+          <DialogContent className="max-w-5xl h-[90vh] p-0 gap-0 overflow-hidden">
+            <DialogHeader className="px-5 py-4 border-b flex-row items-center justify-between space-y-0">
+              <DialogTitle>Prévia do contrato</DialogTitle>
+              <Button variant="outline" size="sm" className="mr-8" onClick={() => downloadPDF(formData)}>
+                <FileDown className="h-4 w-4 mr-2" /> Baixar PDF
+              </Button>
+            </DialogHeader>
+            {previewUrl ? (
+              <iframe title="Prévia PDF do contrato" src={previewUrl} className="h-full min-h-0 w-full border-0" />
+            ) : (
+              <div className="flex h-full items-center justify-center text-muted-foreground">Gerando prévia...</div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
