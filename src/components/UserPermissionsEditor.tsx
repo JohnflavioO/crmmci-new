@@ -248,9 +248,14 @@ export default function UserPermissionsEditor({ userId, userName, userRole }: Us
                     </Label>
                     <Switch 
                       id={perm.key} 
-                      checked={permissions[perm.key] === true}
+                      checked={
+                        permissions[perm.key] !== undefined
+                          ? permissions[perm.key] === true
+                          : getDefaultPermissionForRole(perm.key as PermissionKey, userRole, userRole === 'admin', userRole === 'gestor')
+                      }
                       onCheckedChange={(val) => handleToggle(perm.key, val)}
                     />
+
                   </div>
                 ))}
               </div>
