@@ -20,6 +20,59 @@ function maskKey(key: string): string {
   return key.slice(0, 3) + '***' + key.slice(-3);
 }
 
+function getEncryptionSecret(): string {
+  const secret = Deno.env.get('LOVABLE_API_KEY');
+  if (!secret) throw new Error('Encryption key is not configured');
+  return secret;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  bytes.forEach((byte) => binary += String.fromCharCode(byte));
+  return btoa(binary);
+}
+
+function base64ToBytes(value: string): Uint8Array {
+  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+}
+
+async function getEncryptionKey(): Promise<CryptoKey> {
+  const material = new TextEncoder().encode(getEncryptionSecret());
+  const digest = await crypto.subtle.digest('SHA-256', material);
+  return crypto.subtle.importKey('raw', digest, 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+
+async function encryptText(value: string) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await getEncryptionKey();
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(value));
+  return { iv: bytesToBase64(iv), data: bytesToBase64(new Uint8Array(encrypted)) };
+}
+
+async function decryptText(payload: { iv: string; data: string }) {
+  const key = await getEncryptionKey();
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: base64ToBytes(payload.iv) },
+    key,
+    base64ToBytes(payload.data),
+  );
+  return new TextDecoder().decode(decrypted);
+}
+
+async function encryptCredentials(apiKey: string, applicationKey: string) {
+  return {
+    v: 1,
+    alg: 'AES-GCM',
+    api_key: await encryptText(apiKey),
+    application_key: await encryptText(applicationKey),
+  };
+}
+
+function hasEncryptedCredentials(config: any): boolean {
+  const encrypted = config?.encrypted_credentials;
+  return !!encrypted?.api_key?.iv && !!encrypted?.api_key?.data && !!encrypted?.application_key?.iv && !!encrypted?.application_key?.data;
+}
+
 async function getAuthenticatedAdmin(req: Request) {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
@@ -158,14 +211,20 @@ async function fetchOrderDetails(apiKey: string, applicationKey: string, orderId
 async function fetchStoredCredentials(serviceClient: any) {
   const { data: integration } = await serviceClient
     .from('integrations')
-    .select('api_key, application_key, created_by')
+    .select('config, created_by')
     .eq('integration_name', 'loja_integrada')
     .maybeSingle();
 
-  if (!integration?.api_key || !integration?.application_key) {
+  if (!hasEncryptedCredentials(integration?.config)) {
     return null;
   }
-  return { apiKey: integration.api_key, applicationKey: integration.application_key, createdBy: integration.created_by };
+
+  const encrypted = integration.config.encrypted_credentials;
+  return {
+    apiKey: await decryptText(encrypted.api_key),
+    applicationKey: await decryptText(encrypted.application_key),
+    createdBy: integration.created_by,
+  };
 }
 
 function buildQuoteData(
@@ -749,7 +808,7 @@ Deno.serve(async (req) => {
         status: data?.status || 'disconnected',
         last_sync_at: data?.last_sync_at,
         config: data?.config || {},
-        has_credentials: !!data,
+        has_credentials: hasEncryptedCredentials(data?.config),
       });
     }
 
@@ -773,13 +832,23 @@ Deno.serve(async (req) => {
         return jsonResponse(testResult);
       }
 
+      const existing = await supabase
+        .from('integrations')
+        .select('config')
+        .eq('integration_name', 'loja_integrada')
+        .maybeSingle();
+
+      const nextConfig = {
+        ...(existing.data?.config || {}),
+        encrypted_credentials: await encryptCredentials(api_key, application_key),
+      };
+
       const { error: upsertErr } = await supabase
         .from('integrations')
         .upsert({
           integration_name: 'loja_integrada',
-          api_key,
-          application_key,
           status: 'connected',
+          config: nextConfig,
           created_by: userId,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'integration_name' });
