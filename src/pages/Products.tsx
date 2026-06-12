@@ -375,6 +375,9 @@ export default function Products() {
             {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             Exportar CSV
           </Button>
+          <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={runDiagnostic}>
+            <Activity className="h-4 w-4" /> Verificar Indexação
+          </Button>
           {(isAdmin || isGestor) && (
             <>
             <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleFetchImages} disabled={fetchingImages}>
