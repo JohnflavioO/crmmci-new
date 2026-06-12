@@ -77,7 +77,14 @@ const permissionGroups = [
       { key: 'support.edit_os', label: 'Editar OS' },
       { key: 'support.status_os', label: 'Alterar status de OS' },
     ]
+  },
+  {
+    title: 'Ferramentas',
+    permissions: [
+      { key: 'contracts.use', label: 'Usar Gerador de Contrato' },
+    ]
   }
+
 ];
 
 const presets: Record<string, any> = {
