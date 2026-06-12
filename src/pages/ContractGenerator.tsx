@@ -32,12 +32,21 @@ const mciData = {
 };
 
 const initialClient = {
-  name: 'GH FILMES LTDA',
-  document: '19.272.623/0001-41',
-  city: 'Toledo/PR',
-  responsible: 'Marcus Lima',
-  phone: '45 99133-9206',
-  email: 'marcus@ghfilmes.com.br'
+  name: '',
+  document: '',
+  city: '',
+  responsible: '',
+  phone: '',
+  email: ''
+};
+
+const clientPlaceholders = {
+  name: 'Ex: Produtora Exemplo Ltda',
+  document: 'Ex: 00.000.000/0001-00',
+  city: 'Ex: São Paulo/SP',
+  responsible: 'Ex: João da Silva',
+  phone: 'Ex: (11) 91234-5678',
+  email: 'Ex: contato@empresa.com.br'
 };
 
 const initialProducts = [
@@ -593,12 +602,12 @@ export default function ContractGenerator() {
               <Card>
                 <CardHeader><CardTitle className="text-lg">Dados do Cliente</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1"><Label className="text-xs">Razão Social</Label><Input className="h-9" value={formData.client.name} onChange={e => setFormData({...formData, client: {...formData.client, name: e.target.value}})} /></div>
-                  <div className="space-y-1"><Label className="text-xs">CNPJ</Label><Input className="h-9" value={formData.client.document} onChange={e => setFormData({...formData, client: {...formData.client, document: e.target.value}})} /></div>
-                  <div className="space-y-1"><Label className="text-xs">Cidade/UF</Label><Input className="h-9" value={formData.client.city} onChange={e => setFormData({...formData, client: {...formData.client, city: e.target.value}})} /></div>
-                  <div className="space-y-1"><Label className="text-xs">Responsável</Label><Input className="h-9" value={formData.client.responsible} onChange={e => setFormData({...formData, client: {...formData.client, responsible: e.target.value}})} /></div>
-                  <div className="space-y-1"><Label className="text-xs">Telefone</Label><Input className="h-9" value={formData.client.phone} onChange={e => setFormData({...formData, client: {...formData.client, phone: e.target.value}})} /></div>
-                  <div className="space-y-1"><Label className="text-xs">E-mail</Label><Input className="h-9" value={formData.client.email} onChange={e => setFormData({...formData, client: {...formData.client, email: e.target.value}})} /></div>
+                  <div className="space-y-1"><Label className="text-xs">Razão Social</Label><Input className="h-9" placeholder={clientPlaceholders.name} value={formData.client.name} onChange={e => setFormData({...formData, client: {...formData.client, name: e.target.value}})} /></div>
+                  <div className="space-y-1"><Label className="text-xs">CNPJ</Label><Input className="h-9" placeholder={clientPlaceholders.document} value={formData.client.document} onChange={e => setFormData({...formData, client: {...formData.client, document: e.target.value}})} /></div>
+                  <div className="space-y-1"><Label className="text-xs">Cidade/UF</Label><Input className="h-9" placeholder={clientPlaceholders.city} value={formData.client.city} onChange={e => setFormData({...formData, client: {...formData.client, city: e.target.value}})} /></div>
+                  <div className="space-y-1"><Label className="text-xs">Responsável</Label><Input className="h-9" placeholder={clientPlaceholders.responsible} value={formData.client.responsible} onChange={e => setFormData({...formData, client: {...formData.client, responsible: e.target.value}})} /></div>
+                  <div className="space-y-1"><Label className="text-xs">Telefone</Label><Input className="h-9" placeholder={clientPlaceholders.phone} value={formData.client.phone} onChange={e => setFormData({...formData, client: {...formData.client, phone: e.target.value}})} /></div>
+                  <div className="space-y-1"><Label className="text-xs">E-mail</Label><Input className="h-9" placeholder={clientPlaceholders.email} value={formData.client.email} onChange={e => setFormData({...formData, client: {...formData.client, email: e.target.value}})} /></div>
                 </CardContent>
               </Card>
 
