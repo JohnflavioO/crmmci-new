@@ -1839,6 +1839,49 @@ export default function Quotes() {
               </TableBody>
             </Table>
           )}
+
+          {filtered.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t">
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Exibindo {showingFrom}–{showingTo} de {filtered.length} orçamento{filtered.length === 1 ? '' : 's'}
+              </p>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1 flex-wrap justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={safePage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  {getPageNumbers().map((p, i) =>
+                    p === 'ellipsis' ? (
+                      <span key={`e-${i}`} className="px-2 text-muted-foreground text-sm">…</span>
+                    ) : (
+                      <Button
+                        key={p}
+                        variant={p === safePage ? 'default' : 'outline'}
+                        size="sm"
+                        className="min-w-[36px]"
+                        onClick={() => setCurrentPage(p)}
+                      >
+                        {p}
+                      </Button>
+                    )
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={safePage === totalPages}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
       <QuoteChat
