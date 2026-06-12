@@ -808,7 +808,7 @@ Deno.serve(async (req) => {
         status: data?.status || 'disconnected',
         last_sync_at: data?.last_sync_at,
         config: data?.config || {},
-        has_credentials: !!data,
+        has_credentials: hasEncryptedCredentials(data?.config),
       });
     }
 
@@ -832,13 +832,23 @@ Deno.serve(async (req) => {
         return jsonResponse(testResult);
       }
 
+      const existing = await supabase
+        .from('integrations')
+        .select('config')
+        .eq('integration_name', 'loja_integrada')
+        .maybeSingle();
+
+      const nextConfig = {
+        ...(existing.data?.config || {}),
+        encrypted_credentials: await encryptCredentials(api_key, application_key),
+      };
+
       const { error: upsertErr } = await supabase
         .from('integrations')
         .upsert({
           integration_name: 'loja_integrada',
-          api_key,
-          application_key,
           status: 'connected',
+          config: nextConfig,
           created_by: userId,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'integration_name' });
