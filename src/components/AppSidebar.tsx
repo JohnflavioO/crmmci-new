@@ -261,12 +261,17 @@ export default function AppSidebar({ onNavigate }: Props) {
               <LinkItem key={item.to} {...item} />
             ))}
 
-            <div className="pt-4 pb-1 px-3">
-              <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Ferramentas</p>
-            </div>
-            {toolItems.map(item => (
-              <LinkItem key={item.to} {...item} />
-            ))}
+            {hasPermission('contracts.use') && (
+              <>
+                <div className="pt-4 pb-1 px-3">
+                  <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Ferramentas</p>
+                </div>
+                {toolItems.map(item => (
+                  <LinkItem key={item.to} {...item} />
+                ))}
+              </>
+            )}
+
 
 
             <div className="pt-4 pb-1 px-3">
