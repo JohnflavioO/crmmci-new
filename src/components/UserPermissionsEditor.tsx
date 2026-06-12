@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Shield, Save, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { getDefaultPermissionForRole, PermissionKey } from '@/hooks/usePermissions';
+
 
 interface UserPermissionsEditorProps {
   userId: string;
