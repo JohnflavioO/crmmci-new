@@ -1738,7 +1738,7 @@ export default function Quotes() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((q: any) => {
+                {paged.map((q: any) => {
                   const ps = paymentStatusLabels[q.payment_status] || paymentStatusLabels.pendente;
                   const PsIcon = ps.icon;
                   return (
