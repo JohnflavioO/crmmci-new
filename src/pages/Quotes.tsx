@@ -805,7 +805,7 @@ export default function Quotes() {
     setItems([emptyItem()]);
   };
 
-  const filtered = quotes.filter((q: any) => {
+  const baseFiltered = quotes.filter((q: any) => {
     if (isGestor) {
       if (responsibleFilter === 'me') {
         if (q.created_by !== user?.id) return false;
@@ -816,11 +816,45 @@ export default function Quotes() {
       // Vendedor e agora Admin vêem apenas os seus
       if (q.created_by !== user?.id) return false;
     }
-    return q.quote_number?.toLowerCase().includes(search.toLowerCase()) ||
-      q.client_name?.toLowerCase()?.includes(search.toLowerCase()) ||
-      q.clients?.name?.toLowerCase()?.includes(search.toLowerCase()) ||
-      q.clients?.company_name?.toLowerCase()?.includes(search.toLowerCase());
+    const s = search.toLowerCase();
+    if (!s) return true;
+    return q.quote_number?.toLowerCase().includes(s) ||
+      q.client_name?.toLowerCase()?.includes(s) ||
+      q.clients?.name?.toLowerCase()?.includes(s) ||
+      q.clients?.company_name?.toLowerCase()?.includes(s);
   });
+
+  const matchesStatusChip = (q: any, key: string) => {
+    switch (key) {
+      case 'all': return true;
+      case 'approved': return q.status === 'approved';
+      case 'pre_venda': return q.status === 'pre_venda' || q.status === 'pre_sale';
+      case 'contato_feito': return q.status === 'contato_feito' || q.status === 'contact_made';
+      case 'sent': return q.status === 'sent';
+      case 'negociacao': return q.status === 'negociacao' || q.status === 'negotiation';
+      case 'rejected': return q.status === 'rejected';
+      case 'imported': return q.source && q.source !== 'manual';
+      default: return true;
+    }
+  };
+
+  const statusChips: { key: string; label: string }[] = [
+    { key: 'all', label: 'Todos' },
+    { key: 'approved', label: 'Aprovados' },
+    { key: 'pre_venda', label: 'Pré-venda' },
+    { key: 'contato_feito', label: 'Contato Feito' },
+    { key: 'sent', label: 'Proposta Enviada' },
+    { key: 'negociacao', label: 'Negociação' },
+    { key: 'rejected', label: 'Rejeitados' },
+    { key: 'imported', label: 'Importados' },
+  ];
+
+  const statusCounts = statusChips.reduce((acc, c) => {
+    acc[c.key] = baseFiltered.filter(q => matchesStatusChip(q, c.key)).length;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const filtered = baseFiltered.filter(q => matchesStatusChip(q, statusFilter));
 
   // Helper to render split payment summary for listings
   const renderPaymentInfo = (q: any) => {
