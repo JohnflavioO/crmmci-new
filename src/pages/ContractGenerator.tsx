@@ -658,6 +658,7 @@ export default function ContractGenerator() {
                   )}
                   <Button variant="outline" className="w-full" onClick={() => handleSave('rascunho')} disabled={saving}>Salvar Rascunho</Button>
                   <Button variant="secondary" className="w-full" onClick={() => openPreview(formData)}><Eye className="h-4 w-4 mr-2" /> Prévia PDF</Button>
+                  <Button variant="ghost" className="w-full text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => { setEditingId(null); setView('list'); }} disabled={saving}><X className="h-4 w-4 mr-2" /> Cancelar</Button>
                 </CardContent>
               </Card>
             </div>
