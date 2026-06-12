@@ -20,6 +20,59 @@ function maskKey(key: string): string {
   return key.slice(0, 3) + '***' + key.slice(-3);
 }
 
+function getEncryptionSecret(): string {
+  const secret = Deno.env.get('LOVABLE_API_KEY');
+  if (!secret) throw new Error('Encryption key is not configured');
+  return secret;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  bytes.forEach((byte) => binary += String.fromCharCode(byte));
+  return btoa(binary);
+}
+
+function base64ToBytes(value: string): Uint8Array {
+  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+}
+
+async function getEncryptionKey(): Promise<CryptoKey> {
+  const material = new TextEncoder().encode(getEncryptionSecret());
+  const digest = await crypto.subtle.digest('SHA-256', material);
+  return crypto.subtle.importKey('raw', digest, 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+
+async function encryptText(value: string) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await getEncryptionKey();
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(value));
+  return { iv: bytesToBase64(iv), data: bytesToBase64(new Uint8Array(encrypted)) };
+}
+
+async function decryptText(payload: { iv: string; data: string }) {
+  const key = await getEncryptionKey();
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: base64ToBytes(payload.iv) },
+    key,
+    base64ToBytes(payload.data),
+  );
+  return new TextDecoder().decode(decrypted);
+}
+
+async function encryptCredentials(apiKey: string, applicationKey: string) {
+  return {
+    v: 1,
+    alg: 'AES-GCM',
+    api_key: await encryptText(apiKey),
+    application_key: await encryptText(applicationKey),
+  };
+}
+
+function hasEncryptedCredentials(config: any): boolean {
+  const encrypted = config?.encrypted_credentials;
+  return !!encrypted?.api_key?.iv && !!encrypted?.api_key?.data && !!encrypted?.application_key?.iv && !!encrypted?.application_key?.data;
+}
+
 async function getAuthenticatedAdmin(req: Request) {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
