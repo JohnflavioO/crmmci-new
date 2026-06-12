@@ -10,11 +10,64 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown, Download } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown, Download, Activity, X } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const db = supabase as any;
+
+// ---------- Busca inteligente ----------
+const normalize = (s: any): string =>
+  (s ?? '').toString().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+
+const tokenize = (s: string): string[] => normalize(s).split(' ').filter(t => t.length > 0);
+
+const rankProduct = (p: any, normQuery: string, tokens: string[]): number => {
+  const n = normalize(p.name);
+  const sku = normalize(p.sku);
+  const code = normalize(p.code);
+  const brand = normalize(p.brand);
+  const cat = normalize(p.category_principal);
+  const desc = normalize(p.description);
+  let score = 0;
+  if (normQuery) {
+    if (n === normQuery) score += 1000;
+    else if (n.startsWith(normQuery)) score += 500;
+    else if (n.includes(normQuery)) score += 250;
+    if (sku === normQuery || code === normQuery) score += 400;
+    else if (sku.includes(normQuery) || code.includes(normQuery)) score += 200;
+    if (brand.includes(normQuery)) score += 100;
+    if (cat.includes(normQuery)) score += 80;
+    if (desc.includes(normQuery)) score += 40;
+  }
+  for (const t of tokens) {
+    if (n.includes(t)) score += 30;
+    if (sku.includes(t) || code.includes(t)) score += 20;
+    if (brand.includes(t)) score += 10;
+    if (cat.includes(t)) score += 8;
+    if (desc.includes(t)) score += 4;
+  }
+  return score;
+};
+
+const highlightText = (text: any, tokens: string[]): any => {
+  const str = (text ?? '').toString();
+  if (!str || tokens.length === 0) return str;
+  const escaped = tokens
+    .filter(t => t && t.length > 0)
+    .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  if (!escaped.length) return str;
+  const re = new RegExp(`(${escaped.join('|')})`, 'gi');
+  const parts = str.split(re);
+  return parts.map((part, i) =>
+    re.test(part)
+      ? <mark key={i} className="bg-yellow-200 dark:bg-yellow-700/60 rounded-sm px-0.5">{part}</mark>
+      : <span key={i}>{part}</span>
+  );
+};
 
 export default function Products() {
   const { isAdmin, isGestor } = useAuth();
