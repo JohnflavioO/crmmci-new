@@ -32,12 +32,21 @@ const mciData = {
 };
 
 const initialClient = {
-  name: 'GH FILMES LTDA',
-  document: '19.272.623/0001-41',
-  city: 'Toledo/PR',
-  responsible: 'Marcus Lima',
-  phone: '45 99133-9206',
-  email: 'marcus@ghfilmes.com.br'
+  name: '',
+  document: '',
+  city: '',
+  responsible: '',
+  phone: '',
+  email: ''
+};
+
+const clientPlaceholders = {
+  name: 'Ex: Produtora Exemplo Ltda',
+  document: 'Ex: 00.000.000/0001-00',
+  city: 'Ex: São Paulo/SP',
+  responsible: 'Ex: João da Silva',
+  phone: 'Ex: (11) 91234-5678',
+  email: 'Ex: contato@empresa.com.br'
 };
 
 const initialProducts = [
