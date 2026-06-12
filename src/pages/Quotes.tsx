@@ -1586,6 +1586,31 @@ export default function Quotes() {
               </Select>
             )}
           </div>
+          <div className="mt-3 -mx-1 px-1 flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+            {statusChips.map(chip => {
+              const active = statusFilter === chip.key;
+              const count = statusCounts[chip.key] ?? 0;
+              return (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => setStatusFilter(chip.key)}
+                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    active
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'bg-background hover:bg-muted border-border text-foreground'
+                  }`}
+                >
+                  <span>{chip.label}</span>
+                  <span className={`inline-flex items-center justify-center min-w-[20px] h-5 rounded-full px-1.5 text-[10px] font-semibold ${
+                    active ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </CardHeader>
         <CardContent>
           {filtered.length === 0 ? (
