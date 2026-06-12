@@ -10,11 +10,64 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown, Download } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown, Download, Activity, X } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const db = supabase as any;
+
+// ---------- Busca inteligente ----------
+const normalize = (s: any): string =>
+  (s ?? '').toString().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+
+const tokenize = (s: string): string[] => normalize(s).split(' ').filter(t => t.length > 0);
+
+const rankProduct = (p: any, normQuery: string, tokens: string[]): number => {
+  const n = normalize(p.name);
+  const sku = normalize(p.sku);
+  const code = normalize(p.code);
+  const brand = normalize(p.brand);
+  const cat = normalize(p.category_principal);
+  const desc = normalize(p.description);
+  let score = 0;
+  if (normQuery) {
+    if (n === normQuery) score += 1000;
+    else if (n.startsWith(normQuery)) score += 500;
+    else if (n.includes(normQuery)) score += 250;
+    if (sku === normQuery || code === normQuery) score += 400;
+    else if (sku.includes(normQuery) || code.includes(normQuery)) score += 200;
+    if (brand.includes(normQuery)) score += 100;
+    if (cat.includes(normQuery)) score += 80;
+    if (desc.includes(normQuery)) score += 40;
+  }
+  for (const t of tokens) {
+    if (n.includes(t)) score += 30;
+    if (sku.includes(t) || code.includes(t)) score += 20;
+    if (brand.includes(t)) score += 10;
+    if (cat.includes(t)) score += 8;
+    if (desc.includes(t)) score += 4;
+  }
+  return score;
+};
+
+const highlightText = (text: any, tokens: string[]): any => {
+  const str = (text ?? '').toString();
+  if (!str || tokens.length === 0) return str;
+  const escaped = tokens
+    .filter(t => t && t.length > 0)
+    .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  if (!escaped.length) return str;
+  const re = new RegExp(`(${escaped.join('|')})`, 'gi');
+  const parts = str.split(re);
+  return parts.map((part, i) =>
+    re.test(part)
+      ? <mark key={i} className="bg-yellow-200 dark:bg-yellow-700/60 rounded-sm px-0.5">{part}</mark>
+      : <span key={i}>{part}</span>
+  );
+};
 
 export default function Products() {
   const { isAdmin, isGestor } = useAuth();
@@ -32,24 +85,68 @@ export default function Products() {
   const [exporting, setExporting] = useState(false);
   const [fetchingImages, setFetchingImages] = useState(false);
   const [imageProgress, setImageProgress] = useState({ current: 0, total: 0, found: 0 });
+  const [searching, setSearching] = useState(false);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [diagOpen, setDiagOpen] = useState(false);
+  const [diag, setDiag] = useState<any | null>(null);
+
+  const normQuery = normalize(search);
+  const tokens = tokenize(search);
+  const isSearching = tokens.length > 0;
 
   const loadProducts = async () => {
-    const query = db.from('products')
-      .select('*', { count: 'exact' })
-      .order('name');
+    setSuggestion(null);
 
-    if (search.trim()) {
-      const term = search.trim().replace(/[%,]/g, '');
-      query.or(`name.ilike.%${term}%,brand.ilike.%${term}%,code.ilike.%${term}%,sku.ilike.%${term}%,description.ilike.%${term}%`);
-    }
-
-    const { data, count, error } = await query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-    if (error) {
-      toast.error(error.message);
+    // Sem busca: paginação normal
+    if (!isSearching) {
+      const { data, count, error } = await db.from('products')
+        .select('*', { count: 'exact' })
+        .order('name')
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      if (error) { toast.error(error.message); return; }
+      setProducts(data || []);
+      setTotalProducts(count ?? 0);
       return;
     }
-    setProducts(data || []);
-    setTotalProducts(count ?? 0);
+
+    setSearching(true);
+    try {
+      // Cada token precisa aparecer em algum campo (AND entre tokens, OR entre campos)
+      let q = db.from('products').select('*').limit(500);
+      for (const t of tokens) {
+        const safe = t.replace(/[%,()]/g, '');
+        if (!safe) continue;
+        q = q.or(
+          `name.ilike.%${safe}%,sku.ilike.%${safe}%,code.ilike.%${safe}%,brand.ilike.%${safe}%,category_principal.ilike.%${safe}%,description.ilike.%${safe}%`
+        );
+      }
+      const { data, error } = await q;
+      if (error) { toast.error(error.message); return; }
+
+      const ranked = (data || [])
+        .map((p: any) => ({ p, score: rankProduct(p, normQuery, tokens) }))
+        .filter(x => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(x => x.p);
+
+      setProducts(ranked);
+      setTotalProducts(ranked.length);
+
+      // Sugestão "Você quis dizer..." quando vazio
+      if (ranked.length === 0 && tokens[0]?.length >= 2) {
+        const prefix = tokens[0].slice(0, Math.min(4, tokens[0].length));
+        const { data: sug } = await db.from('products')
+          .select('name, brand')
+          .or(`name.ilike.${prefix}%,brand.ilike.${prefix}%`)
+          .limit(1);
+        if (sug && sug.length > 0) {
+          const guess = (sug[0].name || sug[0].brand || '').split(' ')[0];
+          if (guess) setSuggestion(guess);
+        }
+      }
+    } finally {
+      setSearching(false);
+    }
   };
 
   useEffect(() => {
@@ -61,6 +158,26 @@ export default function Products() {
   }, [search]);
 
   useEffect(() => { loadProducts(); }, [page]);
+
+  const runDiagnostic = async () => {
+    setDiag(null);
+    setDiagOpen(true);
+    const [total, semCat, semSku, semCode, semImg] = await Promise.all([
+      db.from('products').select('id', { count: 'exact', head: true }),
+      db.from('products').select('id', { count: 'exact', head: true }).or('category_principal.is.null,category_principal.eq.'),
+      db.from('products').select('id', { count: 'exact', head: true }).or('sku.is.null,sku.eq.'),
+      db.from('products').select('id', { count: 'exact', head: true }).or('code.is.null,code.eq.'),
+      db.from('products').select('id', { count: 'exact', head: true }).is('image_url', null),
+    ]);
+    setDiag({
+      total: total.count ?? 0,
+      semCategoria: semCat.count ?? 0,
+      semSku: semSku.count ?? 0,
+      semCode: semCode.count ?? 0,
+      semImagem: semImg.count ?? 0,
+    });
+  };
+
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Nome é obrigatório'); return; }
@@ -258,6 +375,9 @@ export default function Products() {
             {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             Exportar CSV
           </Button>
+          <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={runDiagnostic}>
+            <Activity className="h-4 w-4" /> Verificar Indexação
+          </Button>
           {(isAdmin || isGestor) && (
             <>
             <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleFetchImages} disabled={fetchingImages}>
@@ -361,13 +481,34 @@ export default function Products() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar em todos os produtos por nome, código, SKU, marca ou descrição..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+              <Input
+                placeholder="Buscar por nome, SKU, código, marca, categoria ou descrição..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-10 pr-10"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted"
+                  aria-label="Limpar busca"
+                >
+                  <X className="h-4 w-4 text-muted-foreground" />
+                </button>
+              )}
             </div>
             <div className="flex gap-2 text-sm text-muted-foreground items-center flex-wrap">
-              <span className="px-2">{totalProducts} produto(s)</span>
-              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="min-h-[44px] sm:min-h-0">Anterior</Button>
-              <span className="flex items-center px-2">Pág. {page + 1} de {totalPages}</span>
-              <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage(p => p + 1)} className="min-h-[44px] sm:min-h-0">Próxima</Button>
+              <span className="px-2 font-medium">
+                {searching ? 'Buscando...' : `${totalProducts} produto(s) encontrado(s)`}
+              </span>
+              {!isSearching && (
+                <>
+                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="min-h-[44px] sm:min-h-0">Anterior</Button>
+                  <span className="flex items-center px-2">Pág. {page + 1} de {totalPages}</span>
+                  <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage(p => p + 1)} className="min-h-[44px] sm:min-h-0">Próxima</Button>
+                </>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -376,6 +517,15 @@ export default function Products() {
             <div className="text-center py-12">
               <Package className="mx-auto h-12 w-12 text-muted-foreground/30" />
               <p className="text-muted-foreground mt-3">Nenhum produto encontrado</p>
+              {suggestion && (
+                <button
+                  type="button"
+                  onClick={() => setSearch(suggestion)}
+                  className="mt-2 text-sm text-primary hover:underline"
+                >
+                  Você quis dizer <strong>{suggestion}</strong>?
+                </button>
+              )}
             </div>
           ) : isMobile ? (
             <div className="space-y-3">
@@ -389,8 +539,11 @@ export default function Products() {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">{p.brand || '-'} • {p.code || '-'}</p>
+                    <p className="font-medium text-sm truncate">{highlightText(p.name, tokens)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {highlightText(p.brand || '-', tokens)} • {highlightText(p.code || '-', tokens)}
+                      {p.sku ? <> • SKU {highlightText(p.sku, tokens)}</> : null}
+                    </p>
                     <p className="text-sm font-semibold mt-1">{formatCurrency(parseFloat(p.price) || 0)}</p>
                   </div>
                   {(isAdmin || isGestor) && (
@@ -431,10 +584,10 @@ export default function Products() {
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{p.sku || '-'}</TableCell>
-                    <TableCell className="text-xs">{p.code || '-'}</TableCell>
-                    <TableCell className="font-medium max-w-[200px] truncate">{p.name}</TableCell>
-                    <TableCell>{p.brand || '-'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{highlightText(p.sku || '-', tokens)}</TableCell>
+                    <TableCell className="text-xs">{highlightText(p.code || '-', tokens)}</TableCell>
+                    <TableCell className="font-medium max-w-[200px] truncate">{highlightText(p.name, tokens)}</TableCell>
+                    <TableCell>{highlightText(p.brand || '-', tokens)}</TableCell>
                     <TableCell>{formatCurrency(parseFloat(p.price) || 0)}</TableCell>
                     {(isAdmin || isGestor) && (
                       <TableCell>
@@ -455,6 +608,32 @@ export default function Products() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={diagOpen} onOpenChange={setDiagOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2">
+              <Activity className="h-5 w-5" /> Diagnóstico de Indexação
+            </DialogTitle>
+          </DialogHeader>
+          {!diag ? (
+            <div className="py-6 flex items-center justify-center text-muted-foreground gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Analisando catálogo...
+            </div>
+          ) : (
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between p-2 rounded bg-muted/40"><span>Total de produtos ativos</span><strong>{diag.total}</strong></div>
+              <div className="flex justify-between p-2 rounded bg-muted/40"><span>Sem categoria</span><strong>{diag.semCategoria}</strong></div>
+              <div className="flex justify-between p-2 rounded bg-muted/40"><span>Sem SKU</span><strong>{diag.semSku}</strong></div>
+              <div className="flex justify-between p-2 rounded bg-muted/40"><span>Sem código interno</span><strong>{diag.semCode}</strong></div>
+              <div className="flex justify-between p-2 rounded bg-muted/40"><span>Sem imagem</span><strong>{diag.semImagem}</strong></div>
+              <p className="text-xs text-muted-foreground pt-2">
+                Índices de busca (trigramas) ativos em nome, SKU, código, marca, categoria e descrição.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

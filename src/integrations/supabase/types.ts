@@ -2410,6 +2410,8 @@ export type Database = {
         Returns: number
       }
       process_smart_opportunities_diagnostics: { Args: never; Returns: Json }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       [_ in never]: never
