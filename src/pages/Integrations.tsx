@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { Loader2, CheckCircle2, XCircle, AlertCircle, RefreshCw, Eye, EyeOff, ShoppingBag, Plug, Download } from 'lucide-react';
+import AppVersionAdmin from '@/components/AppVersionAdmin';
 
 type IntegrationStatus = 'disconnected' | 'connected' | 'error' | 'syncing';
 
@@ -202,6 +203,10 @@ export default function Integrations() {
             <p className="text-sm text-muted-foreground">Gerencie as integrações externas do CRM</p>
           </div>
         </div>
+
+        <AppVersionAdmin />
+
+
 
         <Card>
           <CardHeader className="flex flex-row items-center gap-4">
