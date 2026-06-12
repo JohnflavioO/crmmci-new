@@ -856,6 +856,33 @@ export default function Quotes() {
 
   const filtered = baseFiltered.filter(q => matchesStatusChip(q, statusFilter));
 
+  // Pagination (20 per page, client-side over already-permission-filtered data)
+  const PAGE_SIZE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, responsibleFilter]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const paged = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+  const showingFrom = filtered.length === 0 ? 0 : pageStart + 1;
+  const showingTo = Math.min(pageStart + PAGE_SIZE, filtered.length);
+
+  const getPageNumbers = (): (number | 'ellipsis')[] => {
+    const pages: (number | 'ellipsis')[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+      return pages;
+    }
+    pages.push(1);
+    if (safePage > 3) pages.push('ellipsis');
+    const start = Math.max(2, safePage - 1);
+    const end = Math.min(totalPages - 1, safePage + 1);
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (safePage < totalPages - 2) pages.push('ellipsis');
+    pages.push(totalPages);
+    return pages;
+  };
+
   // Helper to render split payment summary for listings
   const renderPaymentInfo = (q: any) => {
     if (q.is_split_payment) {
@@ -1624,7 +1651,7 @@ export default function Quotes() {
             </div>
           ) : isMobile ? (
             <div className="space-y-3">
-              {filtered.map((q: any) => {
+              {paged.map((q: any) => {
                 const ps = paymentStatusLabels[q.payment_status] || paymentStatusLabels.pendente;
                 const PsIcon = ps.icon;
                 return (
@@ -1711,7 +1738,7 @@ export default function Quotes() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((q: any) => {
+                {paged.map((q: any) => {
                   const ps = paymentStatusLabels[q.payment_status] || paymentStatusLabels.pendente;
                   const PsIcon = ps.icon;
                   return (
@@ -1811,6 +1838,49 @@ export default function Quotes() {
                 })}
               </TableBody>
             </Table>
+          )}
+
+          {filtered.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t">
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Exibindo {showingFrom}–{showingTo} de {filtered.length} orçamento{filtered.length === 1 ? '' : 's'}
+              </p>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1 flex-wrap justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={safePage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  {getPageNumbers().map((p, i) =>
+                    p === 'ellipsis' ? (
+                      <span key={`e-${i}`} className="px-2 text-muted-foreground text-sm">…</span>
+                    ) : (
+                      <Button
+                        key={p}
+                        variant={p === safePage ? 'default' : 'outline'}
+                        size="sm"
+                        className="min-w-[36px]"
+                        onClick={() => setCurrentPage(p)}
+                      >
+                        {p}
+                      </Button>
+                    )
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={safePage === totalPages}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
