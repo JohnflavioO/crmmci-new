@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Shield, Save, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { getDefaultPermissionForRole, PermissionKey } from '@/hooks/usePermissions';
+
 
 interface UserPermissionsEditorProps {
   userId: string;
@@ -75,7 +77,14 @@ const permissionGroups = [
       { key: 'support.edit_os', label: 'Editar OS' },
       { key: 'support.status_os', label: 'Alterar status de OS' },
     ]
+  },
+  {
+    title: 'Ferramentas',
+    permissions: [
+      { key: 'contracts.use', label: 'Usar Gerador de Contrato' },
+    ]
   }
+
 ];
 
 const presets: Record<string, any> = {
@@ -239,9 +248,14 @@ export default function UserPermissionsEditor({ userId, userName, userRole }: Us
                     </Label>
                     <Switch 
                       id={perm.key} 
-                      checked={permissions[perm.key] === true}
+                      checked={
+                        permissions[perm.key] !== undefined
+                          ? permissions[perm.key] === true
+                          : getDefaultPermissionForRole(perm.key as PermissionKey, userRole, userRole === 'admin', userRole === 'gestor')
+                      }
                       onCheckedChange={(val) => handleToggle(perm.key, val)}
                     />
+
                   </div>
                 ))}
               </div>

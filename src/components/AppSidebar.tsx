@@ -8,6 +8,8 @@ import {
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import UserProfileEditor from './UserProfileEditor';
+import { usePermissions } from '@/hooks/usePermissions';
+
 
 const commercialItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Métricas e Visão' },
@@ -49,6 +51,8 @@ interface Props {
 
 export default function AppSidebar({ onNavigate }: Props) {
   const { isAdmin, isGestor, isFinanceiro, isLogistica, isSupport, isSupportTech, isSupportManager, signOut } = useAuth();
+  const { hasPermission } = usePermissions();
+
   const location = useLocation();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -257,12 +261,17 @@ export default function AppSidebar({ onNavigate }: Props) {
               <LinkItem key={item.to} {...item} />
             ))}
 
-            <div className="pt-4 pb-1 px-3">
-              <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Ferramentas</p>
-            </div>
-            {toolItems.map(item => (
-              <LinkItem key={item.to} {...item} />
-            ))}
+            {hasPermission('contracts.use') && (
+              <>
+                <div className="pt-4 pb-1 px-3">
+                  <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Ferramentas</p>
+                </div>
+                {toolItems.map(item => (
+                  <LinkItem key={item.to} {...item} />
+                ))}
+              </>
+            )}
+
 
 
             <div className="pt-4 pb-1 px-3">
