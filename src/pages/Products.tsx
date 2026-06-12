@@ -481,13 +481,34 @@ export default function Products() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar em todos os produtos por nome, código, SKU, marca ou descrição..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+              <Input
+                placeholder="Buscar por nome, SKU, código, marca, categoria ou descrição..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-10 pr-10"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted"
+                  aria-label="Limpar busca"
+                >
+                  <X className="h-4 w-4 text-muted-foreground" />
+                </button>
+              )}
             </div>
             <div className="flex gap-2 text-sm text-muted-foreground items-center flex-wrap">
-              <span className="px-2">{totalProducts} produto(s)</span>
-              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="min-h-[44px] sm:min-h-0">Anterior</Button>
-              <span className="flex items-center px-2">Pág. {page + 1} de {totalPages}</span>
-              <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage(p => p + 1)} className="min-h-[44px] sm:min-h-0">Próxima</Button>
+              <span className="px-2 font-medium">
+                {searching ? 'Buscando...' : `${totalProducts} produto(s) encontrado(s)`}
+              </span>
+              {!isSearching && (
+                <>
+                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="min-h-[44px] sm:min-h-0">Anterior</Button>
+                  <span className="flex items-center px-2">Pág. {page + 1} de {totalPages}</span>
+                  <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage(p => p + 1)} className="min-h-[44px] sm:min-h-0">Próxima</Button>
+                </>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -496,6 +517,15 @@ export default function Products() {
             <div className="text-center py-12">
               <Package className="mx-auto h-12 w-12 text-muted-foreground/30" />
               <p className="text-muted-foreground mt-3">Nenhum produto encontrado</p>
+              {suggestion && (
+                <button
+                  type="button"
+                  onClick={() => setSearch(suggestion)}
+                  className="mt-2 text-sm text-primary hover:underline"
+                >
+                  Você quis dizer <strong>{suggestion}</strong>?
+                </button>
+              )}
             </div>
           ) : isMobile ? (
             <div className="space-y-3">
@@ -509,8 +539,11 @@ export default function Products() {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">{p.brand || '-'} • {p.code || '-'}</p>
+                    <p className="font-medium text-sm truncate">{highlightText(p.name, tokens)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {highlightText(p.brand || '-', tokens)} • {highlightText(p.code || '-', tokens)}
+                      {p.sku ? <> • SKU {highlightText(p.sku, tokens)}</> : null}
+                    </p>
                     <p className="text-sm font-semibold mt-1">{formatCurrency(parseFloat(p.price) || 0)}</p>
                   </div>
                   {(isAdmin || isGestor) && (
@@ -551,10 +584,10 @@ export default function Products() {
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{p.sku || '-'}</TableCell>
-                    <TableCell className="text-xs">{p.code || '-'}</TableCell>
-                    <TableCell className="font-medium max-w-[200px] truncate">{p.name}</TableCell>
-                    <TableCell>{p.brand || '-'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{highlightText(p.sku || '-', tokens)}</TableCell>
+                    <TableCell className="text-xs">{highlightText(p.code || '-', tokens)}</TableCell>
+                    <TableCell className="font-medium max-w-[200px] truncate">{highlightText(p.name, tokens)}</TableCell>
+                    <TableCell>{highlightText(p.brand || '-', tokens)}</TableCell>
                     <TableCell>{formatCurrency(parseFloat(p.price) || 0)}</TableCell>
                     {(isAdmin || isGestor) && (
                       <TableCell>
@@ -575,6 +608,32 @@ export default function Products() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={diagOpen} onOpenChange={setDiagOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2">
+              <Activity className="h-5 w-5" /> Diagnóstico de Indexação
+            </DialogTitle>
+          </DialogHeader>
+          {!diag ? (
+            <div className="py-6 flex items-center justify-center text-muted-foreground gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Analisando catálogo...
+            </div>
+          ) : (
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between p-2 rounded bg-muted/40"><span>Total de produtos ativos</span><strong>{diag.total}</strong></div>
+              <div className="flex justify-between p-2 rounded bg-muted/40"><span>Sem categoria</span><strong>{diag.semCategoria}</strong></div>
+              <div className="flex justify-between p-2 rounded bg-muted/40"><span>Sem SKU</span><strong>{diag.semSku}</strong></div>
+              <div className="flex justify-between p-2 rounded bg-muted/40"><span>Sem código interno</span><strong>{diag.semCode}</strong></div>
+              <div className="flex justify-between p-2 rounded bg-muted/40"><span>Sem imagem</span><strong>{diag.semImagem}</strong></div>
+              <p className="text-xs text-muted-foreground pt-2">
+                Índices de busca (trigramas) ativos em nome, SKU, código, marca, categoria e descrição.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
