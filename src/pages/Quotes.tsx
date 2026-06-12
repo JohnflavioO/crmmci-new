@@ -1651,7 +1651,7 @@ export default function Quotes() {
             </div>
           ) : isMobile ? (
             <div className="space-y-3">
-              {filtered.map((q: any) => {
+              {paged.map((q: any) => {
                 const ps = paymentStatusLabels[q.payment_status] || paymentStatusLabels.pendente;
                 const PsIcon = ps.icon;
                 return (
