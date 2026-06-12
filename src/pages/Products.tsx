@@ -85,24 +85,68 @@ export default function Products() {
   const [exporting, setExporting] = useState(false);
   const [fetchingImages, setFetchingImages] = useState(false);
   const [imageProgress, setImageProgress] = useState({ current: 0, total: 0, found: 0 });
+  const [searching, setSearching] = useState(false);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [diagOpen, setDiagOpen] = useState(false);
+  const [diag, setDiag] = useState<any | null>(null);
+
+  const normQuery = normalize(search);
+  const tokens = tokenize(search);
+  const isSearching = tokens.length > 0;
 
   const loadProducts = async () => {
-    const query = db.from('products')
-      .select('*', { count: 'exact' })
-      .order('name');
+    setSuggestion(null);
 
-    if (search.trim()) {
-      const term = search.trim().replace(/[%,]/g, '');
-      query.or(`name.ilike.%${term}%,brand.ilike.%${term}%,code.ilike.%${term}%,sku.ilike.%${term}%,description.ilike.%${term}%`);
-    }
-
-    const { data, count, error } = await query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-    if (error) {
-      toast.error(error.message);
+    // Sem busca: paginação normal
+    if (!isSearching) {
+      const { data, count, error } = await db.from('products')
+        .select('*', { count: 'exact' })
+        .order('name')
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      if (error) { toast.error(error.message); return; }
+      setProducts(data || []);
+      setTotalProducts(count ?? 0);
       return;
     }
-    setProducts(data || []);
-    setTotalProducts(count ?? 0);
+
+    setSearching(true);
+    try {
+      // Cada token precisa aparecer em algum campo (AND entre tokens, OR entre campos)
+      let q = db.from('products').select('*').limit(500);
+      for (const t of tokens) {
+        const safe = t.replace(/[%,()]/g, '');
+        if (!safe) continue;
+        q = q.or(
+          `name.ilike.%${safe}%,sku.ilike.%${safe}%,code.ilike.%${safe}%,brand.ilike.%${safe}%,category_principal.ilike.%${safe}%,description.ilike.%${safe}%`
+        );
+      }
+      const { data, error } = await q;
+      if (error) { toast.error(error.message); return; }
+
+      const ranked = (data || [])
+        .map((p: any) => ({ p, score: rankProduct(p, normQuery, tokens) }))
+        .filter(x => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(x => x.p);
+
+      setProducts(ranked);
+      setTotalProducts(ranked.length);
+
+      // Sugestão "Você quis dizer..." quando vazio
+      if (ranked.length === 0 && tokens[0]?.length >= 2) {
+        const prefix = tokens[0].slice(0, Math.min(4, tokens[0].length));
+        const { data: sug } = await db.from('products')
+          .select('name, brand')
+          .or(`name.ilike.${prefix}%,brand.ilike.${prefix}%`)
+          .limit(1);
+        if (sug && sug.length > 0) {
+          const guess = (sug[0].name || sug[0].brand || '').split(' ')[0];
+          if (guess) setSuggestion(guess);
+        }
+      }
+    } finally {
+      setSearching(false);
+    }
   };
 
   useEffect(() => {
@@ -114,6 +158,26 @@ export default function Products() {
   }, [search]);
 
   useEffect(() => { loadProducts(); }, [page]);
+
+  const runDiagnostic = async () => {
+    setDiag(null);
+    setDiagOpen(true);
+    const [total, semCat, semSku, semCode, semImg] = await Promise.all([
+      db.from('products').select('id', { count: 'exact', head: true }),
+      db.from('products').select('id', { count: 'exact', head: true }).or('category_principal.is.null,category_principal.eq.'),
+      db.from('products').select('id', { count: 'exact', head: true }).or('sku.is.null,sku.eq.'),
+      db.from('products').select('id', { count: 'exact', head: true }).or('code.is.null,code.eq.'),
+      db.from('products').select('id', { count: 'exact', head: true }).is('image_url', null),
+    ]);
+    setDiag({
+      total: total.count ?? 0,
+      semCategoria: semCat.count ?? 0,
+      semSku: semSku.count ?? 0,
+      semCode: semCode.count ?? 0,
+      semImagem: semImg.count ?? 0,
+    });
+  };
+
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Nome é obrigatório'); return; }
