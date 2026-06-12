@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { PrivacyProvider } from "@/hooks/usePrivacy";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
+import AppVersionBanner from "./components/AppVersionBanner";
 import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
 
@@ -170,6 +171,7 @@ const App = () => (
           <AuthProvider>
             <PrivacyProvider>
               <AppRoutes />
+              <AppVersionBanner />
               <Toaster />
               <Sonner position="top-right" closeButton theme="light" />
               <PWAUpdatePrompt />
