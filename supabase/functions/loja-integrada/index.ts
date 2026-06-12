@@ -211,14 +211,20 @@ async function fetchOrderDetails(apiKey: string, applicationKey: string, orderId
 async function fetchStoredCredentials(serviceClient: any) {
   const { data: integration } = await serviceClient
     .from('integrations')
-    .select('api_key, application_key, created_by')
+    .select('config, created_by')
     .eq('integration_name', 'loja_integrada')
     .maybeSingle();
 
-  if (!integration?.api_key || !integration?.application_key) {
+  if (!hasEncryptedCredentials(integration?.config)) {
     return null;
   }
-  return { apiKey: integration.api_key, applicationKey: integration.application_key, createdBy: integration.created_by };
+
+  const encrypted = integration.config.encrypted_credentials;
+  return {
+    apiKey: await decryptText(encrypted.api_key),
+    applicationKey: await decryptText(encrypted.application_key),
+    createdBy: integration.created_by,
+  };
 }
 
 function buildQuoteData(
