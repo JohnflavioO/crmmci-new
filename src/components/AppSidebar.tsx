@@ -8,6 +8,8 @@ import {
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import UserProfileEditor from './UserProfileEditor';
+import { usePermissions } from '@/hooks/usePermissions';
+
 
 const commercialItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Métricas e Visão' },
