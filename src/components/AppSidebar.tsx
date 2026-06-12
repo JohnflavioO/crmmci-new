@@ -51,6 +51,8 @@ interface Props {
 
 export default function AppSidebar({ onNavigate }: Props) {
   const { isAdmin, isGestor, isFinanceiro, isLogistica, isSupport, isSupportTech, isSupportManager, signOut } = useAuth();
+  const { hasPermission } = usePermissions();
+
   const location = useLocation();
   const [refreshing, setRefreshing] = useState(false);
 
