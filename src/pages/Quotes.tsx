@@ -201,6 +201,8 @@ export default function Quotes() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [responsibleFilter, setResponsibleFilter] = useState('me');
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [sellerProfiles, setSellerProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSavingFlag] = useState(false);
