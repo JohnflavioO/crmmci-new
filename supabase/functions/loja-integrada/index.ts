@@ -817,9 +817,11 @@ Deno.serve(async (req) => {
     if (action === 'status') {
       const { data } = await supabase
         .from('integrations')
-        .select('status, last_sync_at, config')
+        .select('status, last_sync_at, config, api_key, application_key')
         .eq('integration_name', 'loja_integrada')
         .maybeSingle();
+
+      const hasCreds = hasEncryptedCredentials(data?.config) || !!(data?.api_key && data?.application_key);
 
       return jsonResponse({
         ok: true,
@@ -827,7 +829,7 @@ Deno.serve(async (req) => {
         status: data?.status || 'disconnected',
         last_sync_at: data?.last_sync_at,
         config: data?.config || {},
-        has_credentials: hasEncryptedCredentials(data?.config),
+        has_credentials: hasCreds,
       });
     }
 
