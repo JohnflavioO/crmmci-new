@@ -306,7 +306,7 @@ export default function Integrations() {
             </div>
 
             {/* Sync section */}
-            {hasCredentials && (
+            {(hasCredentials || status === 'connected') && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <h3 className="text-sm font-semibold">Pedidos da Loja Integrada</h3>
