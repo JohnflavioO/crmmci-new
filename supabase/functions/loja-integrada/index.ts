@@ -815,7 +815,8 @@ Deno.serve(async (req) => {
 
     // === STATUS ===
     if (action === 'status') {
-      const { data } = await supabase
+      const serviceClient = getServiceClient();
+      const { data } = await serviceClient
         .from('integrations')
         .select('status, last_sync_at, config, api_key, application_key')
         .eq('integration_name', 'loja_integrada')
