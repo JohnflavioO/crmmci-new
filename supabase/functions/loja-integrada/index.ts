@@ -211,20 +211,39 @@ async function fetchOrderDetails(apiKey: string, applicationKey: string, orderId
 async function fetchStoredCredentials(serviceClient: any) {
   const { data: integration } = await serviceClient
     .from('integrations')
-    .select('config, created_by')
+    .select('config, created_by, api_key, application_key')
     .eq('integration_name', 'loja_integrada')
     .maybeSingle();
 
-  if (!hasEncryptedCredentials(integration?.config)) {
-    return null;
+  if (!integration) return null;
+
+  if (hasEncryptedCredentials(integration.config)) {
+    const encrypted = integration.config.encrypted_credentials;
+    return {
+      apiKey: await decryptText(encrypted.api_key),
+      applicationKey: await decryptText(encrypted.application_key),
+      createdBy: integration.created_by,
+    };
   }
 
-  const encrypted = integration.config.encrypted_credentials;
-  return {
-    apiKey: await decryptText(encrypted.api_key),
-    applicationKey: await decryptText(encrypted.application_key),
-    createdBy: integration.created_by,
-  };
+  // Legacy fallback: migrate plaintext columns into encrypted config
+  if (integration.api_key && integration.application_key) {
+    const nextConfig = {
+      ...(integration.config || {}),
+      encrypted_credentials: await encryptCredentials(integration.api_key, integration.application_key),
+    };
+    await serviceClient
+      .from('integrations')
+      .update({ config: nextConfig })
+      .eq('integration_name', 'loja_integrada');
+    return {
+      apiKey: integration.api_key,
+      applicationKey: integration.application_key,
+      createdBy: integration.created_by,
+    };
+  }
+
+  return null;
 }
 
 function buildQuoteData(
