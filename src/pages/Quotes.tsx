@@ -851,17 +851,42 @@ export default function Quotes() {
     { key: 'imported', label: 'Importados' },
   ];
 
+  const dateFilteredBase = baseFiltered.filter((q: any) => {
+    if (!dateFrom && !dateTo) return true;
+    const raw = q.quote_date || q.created_at;
+    if (!raw) return false;
+    const d = new Date(typeof raw === 'string' && raw.includes('-') && !raw.includes('T') ? `${raw}T12:00:00` : raw);
+    if (isNaN(d.getTime())) return false;
+    if (dateFrom) {
+      const from = new Date(dateFrom); from.setHours(0,0,0,0);
+      if (d < from) return false;
+    }
+    if (dateTo) {
+      const to = new Date(dateTo); to.setHours(23,59,59,999);
+      if (d > to) return false;
+    }
+    return true;
+  });
+
   const statusCounts = statusChips.reduce((acc, c) => {
-    acc[c.key] = baseFiltered.filter(q => matchesStatusChip(q, c.key)).length;
+    acc[c.key] = dateFilteredBase.filter(q => matchesStatusChip(q, c.key)).length;
     return acc;
   }, {} as Record<string, number>);
 
-  const filtered = baseFiltered.filter(q => matchesStatusChip(q, statusFilter));
+  const statusTotals = statusChips.reduce((acc, c) => {
+    acc[c.key] = dateFilteredBase
+      .filter(q => matchesStatusChip(q, c.key))
+      .reduce((s, q: any) => s + (parseFloat(q.total_amount) || 0), 0);
+    return acc;
+  }, {} as Record<string, number>);
+
+  const filtered = dateFilteredBase.filter(q => matchesStatusChip(q, statusFilter));
+  const filteredTotal = statusTotals[statusFilter] ?? 0;
 
   // Pagination (20 per page, client-side over already-permission-filtered data)
   const PAGE_SIZE = 20;
   const [currentPage, setCurrentPage] = useState(1);
-  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, responsibleFilter]);
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, responsibleFilter, dateFrom, dateTo]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const pageStart = (safePage - 1) * PAGE_SIZE;
