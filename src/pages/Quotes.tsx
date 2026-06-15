@@ -1639,6 +1639,33 @@ export default function Quotes() {
                 </SelectContent>
               </Select>
             )}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full sm:w-auto min-h-[44px] justify-start text-left font-normal gap-2", !dateFrom && !dateTo && "text-muted-foreground")}>
+                  <CalendarIcon className="h-4 w-4" />
+                  {dateFrom || dateTo ? (
+                    <span className="text-xs">
+                      {dateFrom ? safeFormatDate(format(dateFrom, 'yyyy-MM-dd')) : '...'} - {dateTo ? safeFormatDate(format(dateTo, 'yyyy-MM-dd')) : '...'}
+                    </span>
+                  ) : (
+                    <span className="text-xs">Faixa de data</span>
+                  )}
+                  {(dateFrom || dateTo) && (
+                    <X className="h-3 w-3 ml-1 opacity-60 hover:opacity-100" onClick={(e) => { e.stopPropagation(); setDateFrom(undefined); setDateTo(undefined); }} />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="range"
+                  selected={{ from: dateFrom, to: dateTo }}
+                  onSelect={(range: any) => { setDateFrom(range?.from); setDateTo(range?.to); }}
+                  locale={ptBR}
+                  numberOfMonths={isMobile ? 1 : 2}
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="mt-3 -mx-1 px-1 flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
             {statusChips.map(chip => {
@@ -1664,6 +1691,15 @@ export default function Quotes() {
                 </button>
               );
             })}
+          </div>
+          <div className="mt-3 flex items-center justify-between flex-wrap gap-2 px-1">
+            <p className="text-xs text-muted-foreground">
+              {filtered.length} {filtered.length === 1 ? 'orçamento' : 'orçamentos'}
+              {(dateFrom || dateTo) && ' no período selecionado'}
+            </p>
+            <p className="text-sm font-semibold text-foreground">
+              Total: <span className="text-primary">{formatCurrency(filteredTotal)}</span>
+            </p>
           </div>
         </CardHeader>
         <CardContent>
