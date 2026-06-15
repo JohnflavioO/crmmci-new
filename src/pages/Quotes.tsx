@@ -201,6 +201,8 @@ export default function Quotes() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [responsibleFilter, setResponsibleFilter] = useState('me');
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [sellerProfiles, setSellerProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSavingFlag] = useState(false);
@@ -849,17 +851,42 @@ export default function Quotes() {
     { key: 'imported', label: 'Importados' },
   ];
 
+  const dateFilteredBase = baseFiltered.filter((q: any) => {
+    if (!dateFrom && !dateTo) return true;
+    const raw = q.quote_date || q.created_at;
+    if (!raw) return false;
+    const d = new Date(typeof raw === 'string' && raw.includes('-') && !raw.includes('T') ? `${raw}T12:00:00` : raw);
+    if (isNaN(d.getTime())) return false;
+    if (dateFrom) {
+      const from = new Date(dateFrom); from.setHours(0,0,0,0);
+      if (d < from) return false;
+    }
+    if (dateTo) {
+      const to = new Date(dateTo); to.setHours(23,59,59,999);
+      if (d > to) return false;
+    }
+    return true;
+  });
+
   const statusCounts = statusChips.reduce((acc, c) => {
-    acc[c.key] = baseFiltered.filter(q => matchesStatusChip(q, c.key)).length;
+    acc[c.key] = dateFilteredBase.filter(q => matchesStatusChip(q, c.key)).length;
     return acc;
   }, {} as Record<string, number>);
 
-  const filtered = baseFiltered.filter(q => matchesStatusChip(q, statusFilter));
+  const statusTotals = statusChips.reduce((acc, c) => {
+    acc[c.key] = dateFilteredBase
+      .filter(q => matchesStatusChip(q, c.key))
+      .reduce((s, q: any) => s + (parseFloat(q.total_amount) || 0), 0);
+    return acc;
+  }, {} as Record<string, number>);
+
+  const filtered = dateFilteredBase.filter(q => matchesStatusChip(q, statusFilter));
+  const filteredTotal = statusTotals[statusFilter] ?? 0;
 
   // Pagination (20 per page, client-side over already-permission-filtered data)
   const PAGE_SIZE = 20;
   const [currentPage, setCurrentPage] = useState(1);
-  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, responsibleFilter]);
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, responsibleFilter, dateFrom, dateTo]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const pageStart = (safePage - 1) * PAGE_SIZE;
@@ -1612,6 +1639,33 @@ export default function Quotes() {
                 </SelectContent>
               </Select>
             )}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full sm:w-auto min-h-[44px] justify-start text-left font-normal gap-2", !dateFrom && !dateTo && "text-muted-foreground")}>
+                  <CalendarIcon className="h-4 w-4" />
+                  {dateFrom || dateTo ? (
+                    <span className="text-xs">
+                      {dateFrom ? safeFormatDate(format(dateFrom, 'yyyy-MM-dd')) : '...'} - {dateTo ? safeFormatDate(format(dateTo, 'yyyy-MM-dd')) : '...'}
+                    </span>
+                  ) : (
+                    <span className="text-xs">Faixa de data</span>
+                  )}
+                  {(dateFrom || dateTo) && (
+                    <X className="h-3 w-3 ml-1 opacity-60 hover:opacity-100" onClick={(e) => { e.stopPropagation(); setDateFrom(undefined); setDateTo(undefined); }} />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="range"
+                  selected={{ from: dateFrom, to: dateTo }}
+                  onSelect={(range: any) => { setDateFrom(range?.from); setDateTo(range?.to); }}
+                  locale={ptBR}
+                  numberOfMonths={isMobile ? 1 : 2}
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="mt-3 -mx-1 px-1 flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
             {statusChips.map(chip => {
@@ -1637,6 +1691,15 @@ export default function Quotes() {
                 </button>
               );
             })}
+          </div>
+          <div className="mt-3 flex items-center justify-between flex-wrap gap-2 px-1">
+            <p className="text-xs text-muted-foreground">
+              {filtered.length} {filtered.length === 1 ? 'orçamento' : 'orçamentos'}
+              {(dateFrom || dateTo) && ' no período selecionado'}
+            </p>
+            <p className="text-sm font-semibold text-foreground">
+              Total: <span className="text-primary">{formatCurrency(filteredTotal)}</span>
+            </p>
           </div>
         </CardHeader>
         <CardContent>
