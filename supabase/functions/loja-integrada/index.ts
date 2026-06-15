@@ -854,7 +854,8 @@ Deno.serve(async (req) => {
         return jsonResponse(testResult);
       }
 
-      const existing = await supabase
+      const serviceClient = getServiceClient();
+      const existing = await serviceClient
         .from('integrations')
         .select('config')
         .eq('integration_name', 'loja_integrada')
@@ -865,7 +866,7 @@ Deno.serve(async (req) => {
         encrypted_credentials: await encryptCredentials(api_key, application_key),
       };
 
-      const { error: upsertErr } = await supabase
+      const { error: upsertErr } = await serviceClient
         .from('integrations')
         .upsert({
           integration_name: 'loja_integrada',
