@@ -1693,14 +1693,27 @@ export default function Quotes() {
             })}
           </div>
           <div className="mt-3 flex items-center justify-between flex-wrap gap-2 px-1">
-            <p className="text-xs text-muted-foreground">
-              {filtered.length} {filtered.length === 1 ? 'orçamento' : 'orçamentos'}
-              {(dateFrom || dateTo) && ' no período selecionado'}
-            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-xs text-muted-foreground">
+                {filtered.length} {filtered.length === 1 ? 'orçamento' : 'orçamentos'}
+                {(dateFrom || dateTo) && ' no período selecionado'}
+              </p>
+              {(dateFrom || dateTo || statusFilter !== 'all' || search) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs gap-1"
+                  onClick={() => { setDateFrom(undefined); setDateTo(undefined); setStatusFilter('all'); setSearch(''); }}
+                >
+                  <X className="h-3 w-3" /> Limpar filtros
+                </Button>
+              )}
+            </div>
             <p className="text-sm font-semibold text-foreground">
               Total: <span className="text-primary">{formatCurrency(filteredTotal)}</span>
             </p>
           </div>
+
         </CardHeader>
         <CardContent>
           {filtered.length === 0 ? (
