@@ -815,7 +815,8 @@ Deno.serve(async (req) => {
 
     // === STATUS ===
     if (action === 'status') {
-      const { data } = await supabase
+      const serviceClient = getServiceClient();
+      const { data } = await serviceClient
         .from('integrations')
         .select('status, last_sync_at, config, api_key, application_key')
         .eq('integration_name', 'loja_integrada')
@@ -853,7 +854,8 @@ Deno.serve(async (req) => {
         return jsonResponse(testResult);
       }
 
-      const existing = await supabase
+      const serviceClient = getServiceClient();
+      const existing = await serviceClient
         .from('integrations')
         .select('config')
         .eq('integration_name', 'loja_integrada')
@@ -864,7 +866,7 @@ Deno.serve(async (req) => {
         encrypted_credentials: await encryptCredentials(api_key, application_key),
       };
 
-      const { error: upsertErr } = await supabase
+      const { error: upsertErr } = await serviceClient
         .from('integrations')
         .upsert({
           integration_name: 'loja_integrada',
