@@ -333,11 +333,13 @@ export default function Logistics() {
     setEditDataEnvio(r.data_envio || '');
   };
 
-  // Open detail with items + item-statuses
+  // Open detail with items + item-statuses + timeline
+  const [detailTimeline, setDetailTimeline] = useState<any[]>([]);
   const openDetail = async (r: LogisticsRecord) => {
     setDetailRecord(r);
     setDetailItems([]);
     setDetailItemStatus({});
+    setDetailTimeline([]);
     try {
       const { data: items } = await db.from('quote_items').select('id, item_number, product_code, description, quantity').eq('quote_id', r.quote_id).order('item_number');
       setDetailItems((items || []) as QuoteItem[]);
@@ -345,6 +347,8 @@ export default function Logistics() {
       const map: Record<string, string> = {};
       (statuses || []).forEach((s: any) => { map[s.quote_item_id] = s.item_status; });
       setDetailItemStatus(map);
+      const { data: tl } = await db.from('logistics_action_history').select('*').eq('logistics_record_id', r.id).order('created_at', { ascending: false });
+      setDetailTimeline(tl || []);
     } catch (e) {
       console.error('openDetail error', e);
     }
