@@ -905,14 +905,18 @@ export default function Logistics() {
             </DialogHeader>
             {detailRecord && (
               <div className="space-y-4 text-sm">
-                {/* Progress */}
-                <div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                    <span>Progresso do Pedido</span>
-                    <span>{STATUS_PROGRESS[detailRecord.logistics_status] ?? 0}%</span>
-                  </div>
-                  <Progress value={STATUS_PROGRESS[detailRecord.logistics_status] ?? 0} />
-                </div>
+                {/* Progress stepper */}
+                <ProgressStepper status={detailRecord.logistics_status} />
+
+                {/* Rastrear Pedido CTA */}
+                {detailRecord.tracking_url && (
+                  <a href={detailRecord.tracking_url} target="_blank" rel="noreferrer" className="block">
+                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
+                      <LinkIcon className="h-4 w-4 mr-2" /> 🔗 Rastrear Pedido
+                      {detailRecord.transportadora && <span className="ml-2 text-xs opacity-90">({detailRecord.transportadora})</span>}
+                    </Button>
+                  </a>
+                )}
 
                 <div className="grid grid-cols-2 gap-2">
                   <div><span className="text-muted-foreground">Orçamento:</span> <strong>{detailRecord.quote_number}</strong></div>
