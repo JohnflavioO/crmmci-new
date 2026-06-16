@@ -1335,7 +1335,7 @@ function RecordsList({
             const next = getNextStatus(r.logistics_status);
             const showNfAction = canOperate && !r.nf_numero && !['nf_emitida', 'pronto_envio', 'enviado', 'em_transporte', 'entregue'].includes(r.logistics_status);
             return (
-              <TableRow key={r.id}>
+              <TableRow key={r.id} className={cn(getPriorityClass(r))}>
                 <TableCell className="font-medium">{r.quote_number}</TableCell>
                 <TableCell>{r.client_name}</TableCell>
                 <TableCell>{r.salesperson}</TableCell>
