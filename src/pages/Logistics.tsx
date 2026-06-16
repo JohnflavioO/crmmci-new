@@ -298,7 +298,10 @@ export default function Logistics() {
   }, [records, statusFilter, sellerFilter, search, tab, dateFilter, dateFrom, dateTo]);
 
   const stats = useMemo(() => {
-    const s = { aguardando: 0, emitindoNf: 0, prontoEnvio: 0, enviados: 0, transporte: 0, entregues: 0, problemas: 0, semRastreio: 0 };
+    const s = { aguardando: 0, emitindoNf: 0, prontoEnvio: 0, enviados: 0, transporte: 0, entregues: 0, problemas: 0, semRastreio: 0, entreguesHoje: 0, entreguesMes: 0, pendencias: 0 };
+    const now = new Date();
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     records.forEach(r => {
       if (r.logistics_status === 'aguardando_entrada') s.aguardando++;
       if (r.logistics_status === 'emitindo_nf') s.emitindoNf++;
@@ -308,6 +311,12 @@ export default function Logistics() {
       if (r.logistics_status === 'entregue') s.entregues++;
       if (r.logistics_status === 'problema_logistico') s.problemas++;
       if (['enviado', 'em_transporte'].includes(r.logistics_status) && !r.codigo_rastreio) s.semRastreio++;
+      if (r.logistics_status === 'entregue' && r.data_entrega) {
+        const d = new Date(r.data_entrega);
+        if (d >= startToday) s.entreguesHoje++;
+        if (d >= startMonth) s.entreguesMes++;
+      }
+      if (!['entregue'].includes(r.logistics_status) && getStaleDays(r.updated_at) >= 3) s.pendencias++;
     });
     return s;
   }, [records]);
