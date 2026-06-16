@@ -709,14 +709,14 @@ export default function Logistics() {
             }} />
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <StatCard title="Aguardando Entrada" value={stats.aguardando} icon={Clock} />
-              <StatCard title="Emitindo NF" value={stats.emitindoNf} icon={FileText} />
-              <StatCard title="Pronto p/ Envio" value={stats.prontoEnvio} icon={PackageCheck} />
-              <StatCard title="Enviados" value={stats.enviados} icon={Truck} />
-              <StatCard title="Em Transporte" value={stats.transporte} icon={MapPin} />
-              <StatCard title="Entregues" value={stats.entregues} icon={CheckCircle2} />
-              <StatCard title="Problemas" value={stats.problemas} icon={TriangleAlert} />
-              <StatCard title="Sem Rastreio" value={stats.semRastreio} icon={AlertTriangle} />
+              <StatCard title="Aguardando Entrada" value={stats.aguardando} icon={Clock} onClick={() => { setStatusFilter('aguardando_entrada'); setTab('pedidos'); }} />
+              <StatCard title="NF Emitida" value={records.filter(r => r.logistics_status === 'nf_emitida').length} icon={FileText} onClick={() => { setStatusFilter('nf_emitida'); setTab('pedidos'); }} />
+              <StatCard title="Em Transporte" value={stats.transporte} icon={MapPin} onClick={() => { setStatusFilter('em_transporte'); setTab('pedidos'); }} />
+              <StatCard title="Entregues Hoje" value={stats.entreguesHoje} icon={CheckCircle2} onClick={() => { setStatusFilter('entregue'); setDateFilter('today'); setTab('pedidos'); }} />
+              <StatCard title="Entregues no Mês" value={stats.entreguesMes} icon={CheckCircle2} onClick={() => { setStatusFilter('entregue'); setDateFilter('month'); setTab('pedidos'); }} />
+              <StatCard title="Pronto p/ Envio" value={stats.prontoEnvio} icon={PackageCheck} onClick={() => { setStatusFilter('pronto_envio'); setTab('pedidos'); }} />
+              <StatCard title="Pendências Logísticas" value={stats.pendencias} icon={AlertTriangle} onClick={() => setTab('pedidos')} />
+              <StatCard title="Problemas" value={stats.problemas} icon={TriangleAlert} onClick={() => setTab('problemas')} />
             </div>
 
             <Card>
