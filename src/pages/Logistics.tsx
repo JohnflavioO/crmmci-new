@@ -1256,7 +1256,7 @@ function RecordsList({
           const next = getNextStatus(r.logistics_status);
           const showNfAction = canOperate && !r.nf_numero && !['nf_emitida', 'pronto_envio', 'enviado', 'em_transporte', 'entregue'].includes(r.logistics_status);
           return (
-            <Card key={r.id} className="p-3">
+            <Card key={r.id} className={cn('p-3', getPriorityClass(r))}>
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="font-medium text-sm">{r.quote_number}</p>
