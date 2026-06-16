@@ -87,17 +87,46 @@ interface QuoteItem {
 }
 
 const STATUS_PROGRESS: Record<string, number> = {
-  aguardando_entrada: 20,
+  aguardando_entrada: 10,
   entrada_realizada: 20,
-  emitindo_nf: 40,
+  emitindo_nf: 30,
   nf_emitida: 40,
   em_separacao: 60,
-  pronto_envio: 60,
+  pronto_envio: 70,
   enviado: 80,
-  em_transporte: 80,
+  em_transporte: 90,
   entregue: 100,
   problema_logistico: 10,
 };
+
+const FLOW_STEPS: { key: string; label: string; matches: string[] }[] = [
+  { key: 'aprovado', label: 'Aprovado', matches: ['aguardando_entrada'] },
+  { key: 'recebido', label: 'Recebido', matches: ['entrada_realizada', 'emitindo_nf'] },
+  { key: 'nf', label: 'NF Emitida', matches: ['nf_emitida'] },
+  { key: 'separacao', label: 'Separação', matches: ['em_separacao', 'pronto_envio'] },
+  { key: 'despachado', label: 'Despachado', matches: ['enviado'] },
+  { key: 'transporte', label: 'Em Transporte', matches: ['em_transporte'] },
+  { key: 'entregue', label: 'Entregue', matches: ['entregue'] },
+];
+
+function getCurrentStepIndex(status: string): number {
+  const i = FLOW_STEPS.findIndex(s => s.matches.includes(status));
+  return i < 0 ? 0 : i;
+}
+
+function getStaleDays(updatedAt: string): number {
+  const ms = Date.now() - new Date(updatedAt).getTime();
+  return Math.floor(ms / (24 * 60 * 60 * 1000));
+}
+
+function getPriorityClass(r: { logistics_status: string; updated_at: string }): string {
+  if (['entregue', 'problema_logistico'].includes(r.logistics_status)) return '';
+  const d = getStaleDays(r.updated_at);
+  if (d >= 14) return 'border-l-4 border-l-red-600 bg-red-50/40';
+  if (d >= 7) return 'border-l-4 border-l-red-400 bg-red-50/20';
+  if (d >= 3) return 'border-l-4 border-l-yellow-400 bg-yellow-50/30';
+  return '';
+}
 
 type DateFilter = 'all' | 'today' | '7d' | 'month' | 'custom';
 
