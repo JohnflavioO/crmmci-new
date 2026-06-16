@@ -87,17 +87,46 @@ interface QuoteItem {
 }
 
 const STATUS_PROGRESS: Record<string, number> = {
-  aguardando_entrada: 20,
+  aguardando_entrada: 10,
   entrada_realizada: 20,
-  emitindo_nf: 40,
+  emitindo_nf: 30,
   nf_emitida: 40,
   em_separacao: 60,
-  pronto_envio: 60,
+  pronto_envio: 70,
   enviado: 80,
-  em_transporte: 80,
+  em_transporte: 90,
   entregue: 100,
   problema_logistico: 10,
 };
+
+const FLOW_STEPS: { key: string; label: string; matches: string[] }[] = [
+  { key: 'aprovado', label: 'Aprovado', matches: ['aguardando_entrada'] },
+  { key: 'recebido', label: 'Recebido', matches: ['entrada_realizada', 'emitindo_nf'] },
+  { key: 'nf', label: 'NF Emitida', matches: ['nf_emitida'] },
+  { key: 'separacao', label: 'Separação', matches: ['em_separacao', 'pronto_envio'] },
+  { key: 'despachado', label: 'Despachado', matches: ['enviado'] },
+  { key: 'transporte', label: 'Em Transporte', matches: ['em_transporte'] },
+  { key: 'entregue', label: 'Entregue', matches: ['entregue'] },
+];
+
+function getCurrentStepIndex(status: string): number {
+  const i = FLOW_STEPS.findIndex(s => s.matches.includes(status));
+  return i < 0 ? 0 : i;
+}
+
+function getStaleDays(updatedAt: string): number {
+  const ms = Date.now() - new Date(updatedAt).getTime();
+  return Math.floor(ms / (24 * 60 * 60 * 1000));
+}
+
+function getPriorityClass(r: { logistics_status: string; updated_at: string }): string {
+  if (['entregue', 'problema_logistico'].includes(r.logistics_status)) return '';
+  const d = getStaleDays(r.updated_at);
+  if (d >= 14) return 'border-l-4 border-l-red-600 bg-red-50/40';
+  if (d >= 7) return 'border-l-4 border-l-red-400 bg-red-50/20';
+  if (d >= 3) return 'border-l-4 border-l-yellow-400 bg-yellow-50/30';
+  return '';
+}
 
 type DateFilter = 'all' | 'today' | '7d' | 'month' | 'custom';
 
@@ -269,7 +298,10 @@ export default function Logistics() {
   }, [records, statusFilter, sellerFilter, search, tab, dateFilter, dateFrom, dateTo]);
 
   const stats = useMemo(() => {
-    const s = { aguardando: 0, emitindoNf: 0, prontoEnvio: 0, enviados: 0, transporte: 0, entregues: 0, problemas: 0, semRastreio: 0 };
+    const s = { aguardando: 0, emitindoNf: 0, prontoEnvio: 0, enviados: 0, transporte: 0, entregues: 0, problemas: 0, semRastreio: 0, entreguesHoje: 0, entreguesMes: 0, pendencias: 0 };
+    const now = new Date();
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     records.forEach(r => {
       if (r.logistics_status === 'aguardando_entrada') s.aguardando++;
       if (r.logistics_status === 'emitindo_nf') s.emitindoNf++;
@@ -279,6 +311,12 @@ export default function Logistics() {
       if (r.logistics_status === 'entregue') s.entregues++;
       if (r.logistics_status === 'problema_logistico') s.problemas++;
       if (['enviado', 'em_transporte'].includes(r.logistics_status) && !r.codigo_rastreio) s.semRastreio++;
+      if (r.logistics_status === 'entregue' && r.data_entrega) {
+        const d = new Date(r.data_entrega);
+        if (d >= startToday) s.entreguesHoje++;
+        if (d >= startMonth) s.entreguesMes++;
+      }
+      if (!['entregue'].includes(r.logistics_status) && getStaleDays(r.updated_at) >= 3) s.pendencias++;
     });
     return s;
   }, [records]);
@@ -295,11 +333,13 @@ export default function Logistics() {
     setEditDataEnvio(r.data_envio || '');
   };
 
-  // Open detail with items + item-statuses
+  // Open detail with items + item-statuses + timeline
+  const [detailTimeline, setDetailTimeline] = useState<any[]>([]);
   const openDetail = async (r: LogisticsRecord) => {
     setDetailRecord(r);
     setDetailItems([]);
     setDetailItemStatus({});
+    setDetailTimeline([]);
     try {
       const { data: items } = await db.from('quote_items').select('id, item_number, product_code, description, quantity').eq('quote_id', r.quote_id).order('item_number');
       setDetailItems((items || []) as QuoteItem[]);
@@ -307,6 +347,8 @@ export default function Logistics() {
       const map: Record<string, string> = {};
       (statuses || []).forEach((s: any) => { map[s.quote_item_id] = s.item_status; });
       setDetailItemStatus(map);
+      const { data: tl } = await db.from('logistics_action_history').select('*').eq('logistics_record_id', r.id).order('created_at', { ascending: false });
+      setDetailTimeline(tl || []);
     } catch (e) {
       console.error('openDetail error', e);
     }
@@ -671,14 +713,14 @@ export default function Logistics() {
             }} />
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <StatCard title="Aguardando Entrada" value={stats.aguardando} icon={Clock} />
-              <StatCard title="Emitindo NF" value={stats.emitindoNf} icon={FileText} />
-              <StatCard title="Pronto p/ Envio" value={stats.prontoEnvio} icon={PackageCheck} />
-              <StatCard title="Enviados" value={stats.enviados} icon={Truck} />
-              <StatCard title="Em Transporte" value={stats.transporte} icon={MapPin} />
-              <StatCard title="Entregues" value={stats.entregues} icon={CheckCircle2} />
-              <StatCard title="Problemas" value={stats.problemas} icon={TriangleAlert} />
-              <StatCard title="Sem Rastreio" value={stats.semRastreio} icon={AlertTriangle} />
+              <StatCard title="Aguardando Entrada" value={stats.aguardando} icon={Clock} onClick={() => { setStatusFilter('aguardando_entrada'); setTab('pedidos'); }} />
+              <StatCard title="NF Emitida" value={records.filter(r => r.logistics_status === 'nf_emitida').length} icon={FileText} onClick={() => { setStatusFilter('nf_emitida'); setTab('pedidos'); }} />
+              <StatCard title="Em Transporte" value={stats.transporte} icon={MapPin} onClick={() => { setStatusFilter('em_transporte'); setTab('pedidos'); }} />
+              <StatCard title="Entregues Hoje" value={stats.entreguesHoje} icon={CheckCircle2} onClick={() => { setStatusFilter('entregue'); setDateFilter('today'); setTab('pedidos'); }} />
+              <StatCard title="Entregues no Mês" value={stats.entreguesMes} icon={CheckCircle2} onClick={() => { setStatusFilter('entregue'); setDateFilter('month'); setTab('pedidos'); }} />
+              <StatCard title="Pronto p/ Envio" value={stats.prontoEnvio} icon={PackageCheck} onClick={() => { setStatusFilter('pronto_envio'); setTab('pedidos'); }} />
+              <StatCard title="Pendências Logísticas" value={stats.pendencias} icon={AlertTriangle} onClick={() => setTab('pedidos')} />
+              <StatCard title="Problemas" value={stats.problemas} icon={TriangleAlert} onClick={() => setTab('problemas')} />
             </div>
 
             <Card>
@@ -863,14 +905,18 @@ export default function Logistics() {
             </DialogHeader>
             {detailRecord && (
               <div className="space-y-4 text-sm">
-                {/* Progress */}
-                <div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                    <span>Progresso do Pedido</span>
-                    <span>{STATUS_PROGRESS[detailRecord.logistics_status] ?? 0}%</span>
-                  </div>
-                  <Progress value={STATUS_PROGRESS[detailRecord.logistics_status] ?? 0} />
-                </div>
+                {/* Progress stepper */}
+                <ProgressStepper status={detailRecord.logistics_status} />
+
+                {/* Rastrear Pedido CTA */}
+                {detailRecord.tracking_url && (
+                  <a href={detailRecord.tracking_url} target="_blank" rel="noreferrer" className="block">
+                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
+                      <LinkIcon className="h-4 w-4 mr-2" /> 🔗 Rastrear Pedido
+                      {detailRecord.transportadora && <span className="ml-2 text-xs opacity-90">({detailRecord.transportadora})</span>}
+                    </Button>
+                  </a>
+                )}
 
                 <div className="grid grid-cols-2 gap-2">
                   <div><span className="text-muted-foreground">Orçamento:</span> <strong>{detailRecord.quote_number}</strong></div>
@@ -920,6 +966,26 @@ export default function Logistics() {
                     </a>
                   )}
                 </div>
+
+                {/* Timeline */}
+                {detailTimeline.length > 0 && (
+                  <div>
+                    <strong className="text-sm flex items-center gap-1.5 mb-2"><History className="h-4 w-4" /> Linha do Tempo</strong>
+                    <div className="relative pl-4 border-l-2 border-muted space-y-3">
+                      {detailTimeline.map((h: any) => (
+                        <div key={h.id} className="relative">
+                          <div className="absolute -left-[1.4rem] top-1 h-3 w-3 rounded-full bg-primary border-2 border-background" />
+                          <div className="text-xs text-muted-foreground">{format(new Date(h.created_at), 'dd/MM/yyyy HH:mm')}</div>
+                          <div className="text-sm flex items-center gap-2 flex-wrap mt-0.5">
+                            {h.new_status && <StatusBadge status={h.new_status} />}
+                            <span className="text-xs text-muted-foreground">por {h.performed_by_name || 'Sistema'}</span>
+                          </div>
+                          {h.notes && <div className="text-xs text-muted-foreground mt-0.5">{h.notes}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Itens do Pedido (faturamento parcial) */}
                 {detailItems.length > 0 && (
@@ -1190,7 +1256,7 @@ function RecordsList({
           const next = getNextStatus(r.logistics_status);
           const showNfAction = canOperate && !r.nf_numero && !['nf_emitida', 'pronto_envio', 'enviado', 'em_transporte', 'entregue'].includes(r.logistics_status);
           return (
-            <Card key={r.id} className="p-3">
+            <Card key={r.id} className={cn('p-3', getPriorityClass(r))}>
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="font-medium text-sm">{r.quote_number}</p>
@@ -1269,7 +1335,7 @@ function RecordsList({
             const next = getNextStatus(r.logistics_status);
             const showNfAction = canOperate && !r.nf_numero && !['nf_emitida', 'pronto_envio', 'enviado', 'em_transporte', 'entregue'].includes(r.logistics_status);
             return (
-              <TableRow key={r.id}>
+              <TableRow key={r.id} className={cn(getPriorityClass(r))}>
                 <TableCell className="font-medium">{r.quote_number}</TableCell>
                 <TableCell>{r.client_name}</TableCell>
                 <TableCell>{r.salesperson}</TableCell>
@@ -1319,6 +1385,47 @@ function RecordsList({
           })}
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+function ProgressStepper({ status }: { status: string }) {
+  const currentIdx = getCurrentStepIndex(status);
+  const pct = STATUS_PROGRESS[status] ?? 0;
+  const isProblem = status === 'problema_logistico';
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">Progresso do Pedido</span>
+        <span className="font-semibold">{pct}% · {FLOW_STEPS[currentIdx]?.label || status}</span>
+      </div>
+      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn('h-full transition-all', isProblem ? 'bg-red-500' : pct === 100 ? 'bg-green-500' : 'bg-primary')}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="flex items-center justify-between gap-1">
+        {FLOW_STEPS.map((step, i) => {
+          const done = i < currentIdx || (i === currentIdx && pct === 100);
+          const active = i === currentIdx;
+          return (
+            <div key={step.key} className="flex-1 flex flex-col items-center gap-1 min-w-0">
+              <div className={cn(
+                'h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold border-2 shrink-0',
+                done && 'bg-green-500 border-green-500 text-white',
+                active && !done && 'bg-primary border-primary text-primary-foreground ring-2 ring-primary/30',
+                !active && !done && 'bg-background border-muted-foreground/30 text-muted-foreground',
+              )}>
+                {done ? '✓' : i + 1}
+              </div>
+              <span className={cn('text-[9px] text-center leading-tight truncate w-full', active ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
