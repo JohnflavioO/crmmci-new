@@ -1388,3 +1388,44 @@ function RecordsList({
     </div>
   );
 }
+
+function ProgressStepper({ status }: { status: string }) {
+  const currentIdx = getCurrentStepIndex(status);
+  const pct = STATUS_PROGRESS[status] ?? 0;
+  const isProblem = status === 'problema_logistico';
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">Progresso do Pedido</span>
+        <span className="font-semibold">{pct}% · {FLOW_STEPS[currentIdx]?.label || status}</span>
+      </div>
+      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn('h-full transition-all', isProblem ? 'bg-red-500' : pct === 100 ? 'bg-green-500' : 'bg-primary')}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="flex items-center justify-between gap-1">
+        {FLOW_STEPS.map((step, i) => {
+          const done = i < currentIdx || (i === currentIdx && pct === 100);
+          const active = i === currentIdx;
+          return (
+            <div key={step.key} className="flex-1 flex flex-col items-center gap-1 min-w-0">
+              <div className={cn(
+                'h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold border-2 shrink-0',
+                done && 'bg-green-500 border-green-500 text-white',
+                active && !done && 'bg-primary border-primary text-primary-foreground ring-2 ring-primary/30',
+                !active && !done && 'bg-background border-muted-foreground/30 text-muted-foreground',
+              )}>
+                {done ? '✓' : i + 1}
+              </div>
+              <span className={cn('text-[9px] text-center leading-tight truncate w-full', active ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
