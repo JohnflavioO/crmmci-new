@@ -967,6 +967,26 @@ export default function Logistics() {
                   )}
                 </div>
 
+                {/* Timeline */}
+                {detailTimeline.length > 0 && (
+                  <div>
+                    <strong className="text-sm flex items-center gap-1.5 mb-2"><History className="h-4 w-4" /> Linha do Tempo</strong>
+                    <div className="relative pl-4 border-l-2 border-muted space-y-3">
+                      {detailTimeline.map((h: any) => (
+                        <div key={h.id} className="relative">
+                          <div className="absolute -left-[1.4rem] top-1 h-3 w-3 rounded-full bg-primary border-2 border-background" />
+                          <div className="text-xs text-muted-foreground">{format(new Date(h.created_at), 'dd/MM/yyyy HH:mm')}</div>
+                          <div className="text-sm flex items-center gap-2 flex-wrap mt-0.5">
+                            {h.new_status && <StatusBadge status={h.new_status} />}
+                            <span className="text-xs text-muted-foreground">por {h.performed_by_name || 'Sistema'}</span>
+                          </div>
+                          {h.notes && <div className="text-xs text-muted-foreground mt-0.5">{h.notes}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Itens do Pedido (faturamento parcial) */}
                 {detailItems.length > 0 && (
                   <div>
