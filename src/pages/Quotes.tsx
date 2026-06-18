@@ -1608,6 +1608,38 @@ export default function Quotes() {
                           </Button>
                         </div>
                       </div>
+                      {/* Transfer Status */}
+                      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-dashed">
+                        <Label className="text-xs font-semibold text-orange-700">Em Transferência:</Label>
+                        <div className="flex gap-2 flex-wrap">
+                          {TRANSFER_OPTIONS.map(opt => (
+                            <Button
+                              key={opt.value}
+                              type="button"
+                              size="sm"
+                              variant={item.transfer_status === opt.value ? 'default' : 'outline'}
+                              className={cn(
+                                "h-7 text-xs gap-1",
+                                item.transfer_status === opt.value && "bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
+                              )}
+                              onClick={() => updateItem(idx, 'transfer_status', item.transfer_status === opt.value ? null : opt.value)}
+                            >
+                              ⇄ {opt.label}
+                            </Button>
+                          ))}
+                          {item.transfer_status && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs text-muted-foreground"
+                              onClick={() => updateItem(idx, 'transfer_status', null)}
+                            >
+                              Limpar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
