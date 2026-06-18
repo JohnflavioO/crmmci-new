@@ -307,7 +307,7 @@ export default function Products() {
           name: d.name || prev.name,
           description: d.description || prev.description,
           image_url: d.image_url || prev.image_url,
-          price: d.price || prev.price,
+          price: d.price ? formatBR(parseMoneyBR(d.price)) : prev.price,
           brand: d.brand || prev.brand,
           sku: d.sku || prev.sku,
         }));
