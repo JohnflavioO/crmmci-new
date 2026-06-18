@@ -79,7 +79,7 @@ export default function Products() {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
-  const [form, setForm] = useState({ name: '', sku: '', code: '', brand: '', description: '', price: 0, image_url: '' });
+  const [form, setForm] = useState({ name: '', sku: '', code: '', brand: '', description: '', price: '' as string, image_url: '' });
   const [scrapeUrl, setScrapeUrl] = useState('');
   const [scraping, setScraping] = useState(false);
   const [page, setPage] = useState(0);
