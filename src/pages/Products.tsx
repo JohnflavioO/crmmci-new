@@ -185,7 +185,7 @@ export default function Products() {
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Nome é obrigatório'); return; }
     try {
-      const payload = { name: form.name, sku: form.sku, code: form.code, brand: form.brand, description: form.description, price: form.price, image_url: form.image_url };
+      const payload = { name: form.name, sku: form.sku, code: form.code, brand: form.brand, description: form.description, price: parseMoneyBR(form.price), image_url: form.image_url };
       if (editing) {
         const { error } = await db.from('products').update(payload).eq('id', editing.id);
         if (error) throw error;
