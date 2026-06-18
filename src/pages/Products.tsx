@@ -13,6 +13,9 @@ import { toast } from 'sonner';
 import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown, Download, Activity, X } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { parseMoneyBR } from '@/utils/currency';
+
+const formatBR = (n: number) => (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const db = supabase as any;
 
