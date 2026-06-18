@@ -208,7 +208,7 @@ export default function Products() {
     setForm({
       name: product.name || '', sku: product.sku || '', code: product.code || '',
       brand: product.brand || '', description: product.description || '',
-      price: parseFloat(product.price) || 0, image_url: product.image_url || '',
+      price: product.price != null && product.price !== '' ? formatBR(parseFloat(product.price) || 0) : '', image_url: product.image_url || '',
     });
     setDialogOpen(true);
   };
