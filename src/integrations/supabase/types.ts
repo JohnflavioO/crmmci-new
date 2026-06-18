@@ -1013,6 +1013,7 @@ export type Database = {
           quote_id: string
           specifications: string | null
           total_price: number | null
+          transfer_status: string | null
           unit_price: number | null
           unit_total: number | null
         }
@@ -1034,6 +1035,7 @@ export type Database = {
           quote_id: string
           specifications?: string | null
           total_price?: number | null
+          transfer_status?: string | null
           unit_price?: number | null
           unit_total?: number | null
         }
@@ -1055,6 +1057,7 @@ export type Database = {
           quote_id?: string
           specifications?: string | null
           total_price?: number | null
+          transfer_status?: string | null
           unit_price?: number | null
           unit_total?: number | null
         }
