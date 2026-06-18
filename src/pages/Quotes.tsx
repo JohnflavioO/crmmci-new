@@ -91,12 +91,19 @@ interface QuoteItem {
   image_url: string;
   is_gift: boolean;
   description_layout?: 'compact' | 'expanded';
+  transfer_status?: string | null;
 }
+
+const TRANSFER_OPTIONS = [
+  { value: 'sc_sp', label: 'SC → SP' },
+  { value: 'sc_ce', label: 'SC → CE' },
+];
 
 const emptyItem = (): QuoteItem => ({
   item_number: 1, product_code: '', quantity: 1, model: '', brand: '',
   specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0, image_url: '', is_gift: false,
   description_layout: 'compact',
+  transfer_status: null,
 });
 
 const shippingMethods = [
