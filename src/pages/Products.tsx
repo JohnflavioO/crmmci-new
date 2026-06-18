@@ -222,7 +222,7 @@ export default function Products() {
 
   const resetForm = () => {
     setEditing(null);
-    setForm({ name: '', sku: '', code: '', brand: '', description: '', price: 0, image_url: '' });
+    setForm({ name: '', sku: '', code: '', brand: '', description: '', price: '', image_url: '' });
     setScrapeUrl('');
   };
 
