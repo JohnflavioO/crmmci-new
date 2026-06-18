@@ -91,12 +91,19 @@ interface QuoteItem {
   image_url: string;
   is_gift: boolean;
   description_layout?: 'compact' | 'expanded';
+  transfer_status?: string | null;
 }
+
+const TRANSFER_OPTIONS = [
+  { value: 'sc_sp', label: 'SC → SP' },
+  { value: 'sc_ce', label: 'SC → CE' },
+];
 
 const emptyItem = (): QuoteItem => ({
   item_number: 1, product_code: '', quantity: 1, model: '', brand: '',
   specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0, image_url: '', is_gift: false,
   description_layout: 'compact',
+  transfer_status: null,
 });
 
 const shippingMethods = [
@@ -556,6 +563,7 @@ export default function Quotes() {
         discount_percent: Number(item.discount_percent) || 0, unit_total: item.unit_total,
         line_total: item.line_total, image_url: item.image_url, is_gift: item.is_gift,
         description_layout: item.description_layout || 'compact',
+        transfer_status: item.transfer_status || null,
       }));
 
       if (validItems.length > 0) {
@@ -720,6 +728,7 @@ export default function Quotes() {
           specifications: item.specifications, unit_price: item.unit_price,
           discount_percent: item.discount_percent, unit_total: item.unit_total,
           line_total: item.line_total, image_url: item.image_url, is_gift: item.is_gift || false,
+          transfer_status: item.transfer_status || null,
         }));
         await db.from('quote_items').insert(dupItems);
       }
@@ -1432,7 +1441,10 @@ export default function Quotes() {
                 </div>
                 <div className="space-y-3">
                   {items.map((item, idx) => (
-                    <div key={idx} className="p-4 rounded-lg border bg-muted/30 space-y-3">
+                    <div key={idx} className={cn(
+                      "p-4 rounded-lg border bg-muted/30 space-y-3 transition-all",
+                      item.transfer_status && "border-2 border-orange-500 bg-orange-50/60 ring-2 ring-orange-200"
+                    )}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           {item.image_url ? (
@@ -1443,6 +1455,11 @@ export default function Quotes() {
                             </div>
                           )}
                           <span className="text-sm font-medium break-words flex-1">Item {idx + 1}{item.model ? ` — ${item.model}` : ''}</span>
+                          {item.transfer_status && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500 text-white text-[10px] font-bold uppercase tracking-wide animate-pulse">
+                              ⇄ Em Transferência {TRANSFER_OPTIONS.find(o => o.value === item.transfer_status)?.label || ''}
+                            </span>
+                          )}
                         </div>
                         {items.length > 1 && (
                           <Button type="button" size="icon" variant="ghost" onClick={() => removeItem(idx)}>
@@ -1589,6 +1606,38 @@ export default function Quotes() {
                             <Gift className="h-3.5 w-3.5" />
                             {item.is_gift ? 'Brinde ✓' : 'Brinde'}
                           </Button>
+                        </div>
+                      </div>
+                      {/* Transfer Status */}
+                      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-dashed">
+                        <Label className="text-xs font-semibold text-orange-700">Em Transferência:</Label>
+                        <div className="flex gap-2 flex-wrap">
+                          {TRANSFER_OPTIONS.map(opt => (
+                            <Button
+                              key={opt.value}
+                              type="button"
+                              size="sm"
+                              variant={item.transfer_status === opt.value ? 'default' : 'outline'}
+                              className={cn(
+                                "h-7 text-xs gap-1",
+                                item.transfer_status === opt.value && "bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
+                              )}
+                              onClick={() => updateItem(idx, 'transfer_status', item.transfer_status === opt.value ? null : opt.value)}
+                            >
+                              ⇄ {opt.label}
+                            </Button>
+                          ))}
+                          {item.transfer_status && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs text-muted-foreground"
+                              onClick={() => updateItem(idx, 'transfer_status', null)}
+                            >
+                              Limpar
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
