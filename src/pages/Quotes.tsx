@@ -1441,7 +1441,10 @@ export default function Quotes() {
                 </div>
                 <div className="space-y-3">
                   {items.map((item, idx) => (
-                    <div key={idx} className="p-4 rounded-lg border bg-muted/30 space-y-3">
+                    <div key={idx} className={cn(
+                      "p-4 rounded-lg border bg-muted/30 space-y-3 transition-all",
+                      item.transfer_status && "border-2 border-orange-500 bg-orange-50/60 ring-2 ring-orange-200"
+                    )}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           {item.image_url ? (
