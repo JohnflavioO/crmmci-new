@@ -443,7 +443,7 @@ export default function Products() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Valor (R$)</Label>
-                    <Input type="number" inputMode="decimal" step="0.01" min={0} value={form.price} onChange={e => setForm(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))} />
+                    <Input type="text" inputMode="decimal" placeholder="0,00" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} onBlur={e => { const v = e.target.value.trim(); if (v) setForm(p => ({ ...p, price: formatBR(parseMoneyBR(v)) })); }} />
                   </div>
                   <div className="space-y-2">
                     <Label>URL da Imagem</Label>
