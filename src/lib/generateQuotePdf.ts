@@ -61,7 +61,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   const locations = [
     { title: 'CEARÁ', lines: ['Rua Senador Pompeu, 1547', 'Centro - CEP: 60.025-001', 'Tel.: +55 (85) 3254-4700', 'CNPJ: 05.502.390/0001-11'] },
     { title: 'SANTA CATARINA', lines: ['Rua Odílio Garcia, 211', 'Sala B, Box 10 - Cordeiro', 'CEP: 88310-180', 'CNPJ: 05.502.390/0002-00'] },
-    { title: 'SÃO PAULO', lines: ['R. Inácio Pereira da Rocha, 142', 'Sala 502, Vila Madalena', 'CEP: 05432-010', 'CNPJ: 05.502.390/0003-83'] },
+    { title: 'SÃO PAULO', lines: ['Av. Imperatriz Leopoldina, 1718', '2º andar - Vila Leopoldina', 'CEP: 05305-003', 'CNPJ: 05.502.390/0003-83'] },
     { title: 'MIAMI', lines: ['8123 NW 29th St Doral, FL', '+1 (786) 925-6661', 'MCI IMP & EXP CORP'] },
   ];
 

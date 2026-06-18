@@ -38,9 +38,9 @@ export default function QuoteHeader() {
             {/* São Paulo */}
             <div>
               <p className="font-bold text-teal-700 mb-1">🇧🇷 SÃO PAULO</p>
-              <p className="text-muted-foreground">R. Inácio Pereira da Rocha, 142</p>
-              <p className="text-muted-foreground">Sala 502, Vila Madalena</p>
-              <p className="text-muted-foreground">CEP: 05432-010</p>
+              <p className="text-muted-foreground">Av. Imperatriz Leopoldina, 1718</p>
+              <p className="text-muted-foreground">2º andar - Vila Leopoldina</p>
+              <p className="text-muted-foreground">CEP: 05305-003</p>
               <p className="text-muted-foreground font-semibold">CNPJ: 05.502.390/0003-83</p>
             </div>
 
