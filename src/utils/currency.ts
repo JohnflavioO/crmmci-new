@@ -1,4 +1,26 @@
 
+export function parseMoneyBR(value: any): number {
+  if (value === null || value === undefined || value === '') return 0;
+  if (typeof value === 'number') return value;
+  let str = String(value)
+    .replace(/R\$/g, '')
+    .replace(/\u00A0/g, '')
+    .replace(/\s/g, '')
+    .trim();
+  str = str.replace(/[^\d.,-]/g, '');
+  if (str.includes('.') && str.includes(',')) {
+    return Number(str.replace(/\./g, '').replace(',', '.')) || 0;
+  }
+  if (str.includes(',') && !str.includes('.')) {
+    return Number(str.replace(',', '.')) || 0;
+  }
+  // Apenas pontos OU apenas dígitos: ponto = milhar no padrão BR exportado
+  if (str.includes('.')) {
+    return Number(str.replace(/\./g, '')) || 0;
+  }
+  return Number(str) || 0;
+}
+
 export const parseCurrencyBR = (value: any): number => {
   if (value === null || value === undefined || value === '') return 0;
 

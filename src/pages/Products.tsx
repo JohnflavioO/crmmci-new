@@ -13,6 +13,9 @@ import { toast } from 'sonner';
 import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown, Download, Activity, X } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { parseMoneyBR } from '@/utils/currency';
+
+const formatBR = (n: number) => (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const db = supabase as any;
 
@@ -76,7 +79,7 @@ export default function Products() {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
-  const [form, setForm] = useState({ name: '', sku: '', code: '', brand: '', description: '', price: 0, image_url: '' });
+  const [form, setForm] = useState({ name: '', sku: '', code: '', brand: '', description: '', price: '' as string, image_url: '' });
   const [scrapeUrl, setScrapeUrl] = useState('');
   const [scraping, setScraping] = useState(false);
   const [page, setPage] = useState(0);
@@ -182,7 +185,7 @@ export default function Products() {
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Nome é obrigatório'); return; }
     try {
-      const payload = { name: form.name, sku: form.sku, code: form.code, brand: form.brand, description: form.description, price: form.price, image_url: form.image_url };
+      const payload = { name: form.name, sku: form.sku, code: form.code, brand: form.brand, description: form.description, price: parseMoneyBR(form.price), image_url: form.image_url };
       if (editing) {
         const { error } = await db.from('products').update(payload).eq('id', editing.id);
         if (error) throw error;
@@ -205,7 +208,7 @@ export default function Products() {
     setForm({
       name: product.name || '', sku: product.sku || '', code: product.code || '',
       brand: product.brand || '', description: product.description || '',
-      price: parseFloat(product.price) || 0, image_url: product.image_url || '',
+      price: product.price != null && product.price !== '' ? formatBR(parseFloat(product.price) || 0) : '', image_url: product.image_url || '',
     });
     setDialogOpen(true);
   };
@@ -219,7 +222,7 @@ export default function Products() {
 
   const resetForm = () => {
     setEditing(null);
-    setForm({ name: '', sku: '', code: '', brand: '', description: '', price: 0, image_url: '' });
+    setForm({ name: '', sku: '', code: '', brand: '', description: '', price: '', image_url: '' });
     setScrapeUrl('');
   };
 
@@ -304,7 +307,7 @@ export default function Products() {
           name: d.name || prev.name,
           description: d.description || prev.description,
           image_url: d.image_url || prev.image_url,
-          price: d.price || prev.price,
+          price: d.price ? formatBR(parseMoneyBR(d.price)) : prev.price,
           brand: d.brand || prev.brand,
           sku: d.sku || prev.sku,
         }));
@@ -440,7 +443,7 @@ export default function Products() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Valor (R$)</Label>
-                    <Input type="number" inputMode="decimal" step="0.01" min={0} value={form.price} onChange={e => setForm(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))} />
+                    <Input type="text" inputMode="decimal" placeholder="0,00" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} onBlur={e => { const v = e.target.value.trim(); if (v) setForm(p => ({ ...p, price: formatBR(parseMoneyBR(v)) })); }} />
                   </div>
                   <div className="space-y-2">
                     <Label>URL da Imagem</Label>
