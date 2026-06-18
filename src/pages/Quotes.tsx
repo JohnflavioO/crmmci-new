@@ -728,7 +728,7 @@ export default function Quotes() {
           specifications: item.specifications, unit_price: item.unit_price,
           discount_percent: item.discount_percent, unit_total: item.unit_total,
           line_total: item.line_total, image_url: item.image_url, is_gift: item.is_gift || false,
-        }));
+          transfer_status: item.transfer_status || null,
         await db.from('quote_items').insert(dupItems);
       }
       toast.success('Orçamento duplicado com sucesso!');
