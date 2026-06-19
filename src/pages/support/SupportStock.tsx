@@ -158,10 +158,20 @@ export default function SupportStock() {
     load();
   };
 
-  const filtered = items.filter(i => 
-    i.name.toLowerCase().includes(search.toLowerCase()) || 
-    i.code?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = items.filter(i => {
+    const q = search.toLowerCase();
+    const matchSearch = !q || i.name?.toLowerCase().includes(q) || i.code?.toLowerCase().includes(q) || i.category?.toLowerCase().includes(q);
+    const matchCat = filters.category === 'all' || i.category === filters.category;
+    const matchBrand = filters.brand === 'all' || i.manufacturer === filters.brand;
+    let matchStatus = true;
+    if (filters.status === 'in') matchStatus = i.quantity > i.min_quantity;
+    else if (filters.status === 'low') matchStatus = i.quantity > 0 && i.quantity <= i.min_quantity;
+    else if (filters.status === 'out') matchStatus = i.quantity <= 0;
+    return matchSearch && matchCat && matchBrand && matchStatus;
+  });
+
+  const activeFilterCount = (filters.category !== 'all' ? 1 : 0) + (filters.brand !== 'all' ? 1 : 0) + (filters.status !== 'all' ? 1 : 0);
+
 
   const getStatus = (item: any) => {
     if (item.quantity <= 0) return { label: 'Sem estoque', color: 'destructive' };
