@@ -44,21 +44,22 @@ export default function SupportOrders() {
   });
 
   const load = async () => {
-    let q = supabase.from('technical_orders' as any).select('*').order('created_at', { ascending: false });
+    let q = supabase.from('technical_orders' as any).select('*, technical_clients(phone, whatsapp)').order('created_at', { ascending: false });
     if (filterStatus) q = q.eq('status', filterStatus);
     const { data } = await q;
     setOrders((data || []) as any[]);
   };
+
   useEffect(() => { load(); }, [filterStatus]);
   useEffect(() => { (async () => {
-    const { data } = await supabase.from('technical_clients' as any).select('id,name,document').order('name');
+    const { data } = await supabase.from('technical_clients' as any).select('id,name,cpf_cnpj').order('name');
     setClients((data || []) as any[]);
   })(); }, []);
 
   const filteredClients = clientSearch.trim()
     ? clients.filter((c: any) =>
         c.name?.toLowerCase().includes(clientSearch.toLowerCase()) ||
-        (c.document || '').toLowerCase().includes(clientSearch.toLowerCase())
+        (c.cpf_cnpj || '').toLowerCase().includes(clientSearch.toLowerCase())
       ).slice(0, 6)
     : [];
 
@@ -127,7 +128,7 @@ export default function SupportOrders() {
                     <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-muted/40">
                       <div>
                         <div className="font-medium text-sm">{selectedClient.name}</div>
-                        {selectedClient.document && <div className="text-xs text-muted-foreground">{selectedClient.document}</div>}
+                        {selectedClient.cpf_cnpj && <div className="text-xs text-muted-foreground">{selectedClient.cpf_cnpj}</div>}
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => setForm({ ...form, client_id: '' })}>Trocar</Button>
                     </div>
@@ -148,7 +149,7 @@ export default function SupportOrders() {
                               onClick={() => { setForm({ ...form, client_id: c.id }); setClientSearch(''); }}
                             >
                               <div className="font-medium">{c.name}</div>
-                              {c.document && <div className="text-xs text-muted-foreground">{c.document}</div>}
+                              {c.cpf_cnpj && <div className="text-xs text-muted-foreground">{c.cpf_cnpj}</div>}
                             </button>
                           ))}
                         </div>
@@ -186,14 +187,23 @@ export default function SupportOrders() {
               <section>
                 <h3 className="text-sm font-semibold mb-2">☐ Equipamento</h3>
                 <div className="border-t pt-3 grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <Label className="text-xs">Equipamento</Label>
+                    <Input placeholder="Ex: Refletor LED, Light Storm..." value={form.equipment} onChange={e => setForm({ ...form, equipment: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Marca</Label>
+                    <Input placeholder="Aputure / Astera..." value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} />
+                  </div>
                   <div>
                     <Label className="text-xs">Modelo</Label>
                     <Input placeholder="Ex: LS 600d Pro" value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} />
                   </div>
-                  <div>
+                  <div className="col-span-2">
                     <Label className="text-xs">Nº Série</Label>
                     <Input value={form.serial} onChange={e => setForm({ ...form, serial: e.target.value })} />
                   </div>
+
                   <div className="col-span-2">
                     <Label className="text-xs">Estado Físico / Condições</Label>
                     <Input
@@ -287,7 +297,7 @@ export default function SupportOrders() {
                           label: "WhatsApp", 
                           icon: MessageCircle, 
                           onClick: () => {
-                            const phone = o.clients?.phone || o.phone || '';
+                            const phone = o.technical_clients?.whatsapp || o.technical_clients?.phone || '';
                             if (phone) window.open(`https://wa.me/${phone.replace(/\D/g, '')}`, '_blank');
                             else toast.error("Telefone não disponível");
                           },

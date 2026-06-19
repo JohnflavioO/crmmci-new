@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ShoppingCart, Search, Plus, Filter, Trash2, Printer } from 'lucide-react';
+import { ShoppingCart, Search, Plus, Trash2, Printer } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +70,8 @@ export default function SupportPurchases() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailItems, setDetailItems] = useState<OrderItem[]>([]);
   const [detailClient, setDetailClient] = useState<any>(null);
@@ -99,6 +103,7 @@ export default function SupportPurchases() {
   }, [orders]);
 
   const filtered = orders.filter(o => {
+    if (statusFilter !== 'all' && o.status !== statusFilter) return false;
     const meta = parseMeta(o.notes);
     const q = searchTerm.toLowerCase();
     if (!q) return true;
@@ -108,6 +113,7 @@ export default function SupportPurchases() {
       (ocMap[o.id] || '').toLowerCase().includes(q)
     );
   });
+
 
   const openDetails = async (id: string) => {
     setDetailId(id);
@@ -125,7 +131,7 @@ export default function SupportPurchases() {
     if (meta.client_id) {
       const { data: client } = await supabase
         .from('technical_clients')
-        .select('name,document,email,phone,address,city,state,zip_code')
+        .select('name,cpf_cnpj,email,phone,address,city,state,zip_code')
         .eq('id', meta.client_id)
         .maybeSingle();
       setDetailClient(client);
@@ -180,9 +186,14 @@ export default function SupportPurchases() {
             onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button variant="outline" size="sm" className="gap-2 h-10">
-          <Filter className="h-4 w-4" /> Filtrar
-        </Button>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-40 h-10"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            {STATUS_OPTIONS.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
       </div>
 
       <div className="bg-card rounded-xl border overflow-hidden">
@@ -295,7 +306,7 @@ export default function SupportPurchases() {
                   </div>
                   <div className="border rounded-lg p-3 text-sm space-y-0.5">
                     <div className="font-semibold">{detailClient?.name || detailMeta.client_name || '—'}</div>
-                    {detailClient?.document && <div className="text-xs">{detailClient.document}</div>}
+                    {detailClient?.cpf_cnpj && <div className="text-xs">{detailClient.cpf_cnpj}</div>}
                     {detailClient?.email && <div className="text-xs">{detailClient.email}</div>}
                     {detailClient?.phone && <div className="text-xs">{detailClient.phone}</div>}
                     {(detailClient?.address || detailClient?.city) && (

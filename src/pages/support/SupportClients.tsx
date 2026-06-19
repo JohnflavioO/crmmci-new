@@ -39,26 +39,35 @@ export default function SupportClients() {
   };
   useEffect(() => { load(); }, []);
 
+  const emptyForm = { name: '', cpf_cnpj: '', phone: '', whatsapp: '', email: '', address: '', city: '', state: '', zip_code: '', notes: '' };
+
   const save = async () => {
     if (!form.name) return toast.error('Nome obrigatório');
-    
+
+    const payload = {
+      name: form.name, cpf_cnpj: form.cpf_cnpj, phone: form.phone, whatsapp: form.whatsapp,
+      email: form.email, address: form.address, city: form.city, state: form.state,
+      zip_code: form.zip_code, notes: form.notes,
+    };
+
     let error;
     if (editingClient) {
-      const { error: err } = await supabase.from('technical_clients' as any).update(form).eq('id', editingClient.id);
+      const { error: err } = await supabase.from('technical_clients' as any).update(payload).eq('id', editingClient.id);
       error = err;
     } else {
-      const { error: err } = await supabase.from('technical_clients' as any).insert({ ...form, created_by: user?.id });
+      const { error: err } = await supabase.from('technical_clients' as any).insert({ ...payload, created_by: user?.id });
       error = err;
     }
-    
+
     if (error) return toast.error(error.message);
     toast.success(editingClient ? 'Cliente atualizado' : 'Cliente cadastrado');
     setOpen(false);
     setStep(1);
     setEditingClient(null);
-    setForm({ name: '', cpf_cnpj: '', phone: '', whatsapp: '', email: '', address: '', notes: '' });
+    setForm(emptyForm);
     load();
   };
+
 
   const filtered = clients.filter(c => 
     c.name?.toLowerCase().includes(search.toLowerCase()) || 
@@ -70,7 +79,7 @@ export default function SupportClients() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold font-display">Clientes</h1>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if(!v) { setStep(1); setEditingClient(null); setForm({ name: '', cpf_cnpj: '', phone: '', whatsapp: '', email: '', address: '', notes: '' }); } }}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if(!v) { setStep(1); setEditingClient(null); setForm(emptyForm); } }}>
           <DialogTrigger asChild>
             <Button className="bg-[#00966d] hover:bg-[#007a58]">
               <Plus className="h-4 w-4 mr-2" /> Novo Cliente
@@ -252,7 +261,7 @@ export default function SupportClients() {
                         icon: Pencil, 
                         onClick: () => {
                           setEditingClient(c);
-                          setForm(c);
+                          setForm({ ...emptyForm, ...Object.fromEntries(Object.entries(c).filter(([k]) => k in emptyForm)) });
                           setOpen(true);
                         },
                         isSecondary: true
