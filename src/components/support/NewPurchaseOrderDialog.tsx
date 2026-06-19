@@ -97,7 +97,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess }: Props)
 
     (async () => {
       const [{ data: cs }, { data: ps }] = await Promise.all([
-        supabase.from('technical_clients').select('id,name,document').order('name'),
+        supabase.from('technical_clients').select("id,name,cpf_cnpj").order('name'),
         supabase.from('technical_products').select('id,name,price').order('name'),
       ]);
       setClients((cs || []) as any);
@@ -109,7 +109,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess }: Props)
     if (!clientSearch.trim() || selectedClient) return [];
     const q = clientSearch.toLowerCase();
     return clients
-      .filter(c => c.name.toLowerCase().includes(q) || (c.document || '').toLowerCase().includes(q))
+      .filter(c => c.name.toLowerCase().includes(q) || (c.cpf_cnpj || '').toLowerCase().includes(q))
       .slice(0, 6);
   }, [clientSearch, clients, selectedClient]);
 
@@ -226,8 +226,8 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess }: Props)
             <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-muted/40">
               <div>
                 <div className="font-medium">{selectedClient.name}</div>
-                {selectedClient.document && (
-                  <div className="text-xs text-muted-foreground">{selectedClient.document}</div>
+                {selectedClient.cpf_cnpj && (
+                  <div className="text-xs text-muted-foreground">{selectedClient.cpf_cnpj}</div>
                 )}
               </div>
               <Button variant="ghost" size="sm" onClick={() => setSelectedClient(null)}>
@@ -256,7 +256,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess }: Props)
                       }}
                     >
                       <div className="font-medium">{c.name}</div>
-                      {c.document && <div className="text-xs text-muted-foreground">{c.document}</div>}
+                      {c.cpf_cnpj && <div className="text-xs text-muted-foreground">{c.cpf_cnpj}</div>}
                     </button>
                   ))}
                 </div>
