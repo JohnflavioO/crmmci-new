@@ -40,6 +40,8 @@ export default function SupportStock() {
   const [mForm, setMForm] = useState<any>({
     brand: '', model: '', description: '', technician: '', status: 'Aguardando', notes: ''
   });
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filters, setFilters] = useState<{ category: string; brand: string; status: string }>({ category: 'all', brand: 'all', status: 'all' });
 
   const load = async () => {
     const { data: products } = await supabase.from('technical_products' as any).select('*').order('name');
