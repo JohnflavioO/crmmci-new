@@ -8,30 +8,78 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Copy, ExternalLink } from 'lucide-react';
+import { Copy, ExternalLink, Trash2, Plus } from 'lucide-react';
 import { STATUS_OPTIONS } from './SupportOrders';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SupportOrderDetail() {
   const { id } = useParams();
+  const { user } = useAuth();
   const [os, setOs] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
+  const [parts, setParts] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [productSearch, setProductSearch] = useState('');
+  const [qty, setQty] = useState(1);
+  const [unitPrice, setUnitPrice] = useState(0);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
 
   const load = async () => {
     const { data } = await supabase.from('technical_orders' as any).select('*').eq('id', id).maybeSingle();
     setOs(data);
     const { data: h } = await supabase.from('technical_status_history' as any).select('*').eq('order_id', id).order('created_at', { ascending: false });
     setHistory((h || []) as any[]);
+    const { data: p } = await supabase.from('technical_order_parts' as any).select('*').eq('order_id', id).order('created_at');
+    setParts((p || []) as any[]);
   };
   useEffect(() => { if (id) load(); }, [id]);
 
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('technical_products' as any).select('id,name,price,quantity').order('name');
+      setProducts((data || []) as any[]);
+    })();
+  }, []);
+
   const update = async (patch: any) => {
-    const total = Number(patch.parts_value ?? os.parts_value) + Number(patch.labor_value ?? os.labor_value) + Number(patch.shipping_value ?? os.shipping_value);
+    const total = Number(patch.parts_value ?? os.parts_value) + Number(patch.labor_value ?? os.labor_value) + Number(patch.shipping_value ?? os.shipping_value) + Number(patch.services_value ?? os.services_value ?? 0);
     const { error } = await supabase.from('technical_orders' as any).update({ ...patch, total_value: total }).eq('id', id);
     if (error) return toast.error(error.message);
     toast.success('Atualizado');
     load();
   };
+
+  const addPart = async () => {
+    if (!selectedProduct) return toast.error('Selecione uma peça');
+    if (qty < 1) return toast.error('Quantidade inválida');
+    const { error } = await supabase.from('technical_order_parts' as any).insert({
+      order_id: id,
+      product_id: selectedProduct.id,
+      product_name: selectedProduct.name,
+      quantity: qty,
+      unit_price: unitPrice,
+      total_price: qty * unitPrice,
+      created_by: user?.id,
+    });
+    if (error) return toast.error(error.message);
+    toast.success('Peça adicionada (estoque baixado)');
+    setSelectedProduct(null); setProductSearch(''); setQty(1); setUnitPrice(0);
+    load();
+  };
+
+  const removePart = async (partId: string) => {
+    if (!confirm('Remover peça? O estoque será estornado.')) return;
+    const { error } = await supabase.from('technical_order_parts' as any).delete().eq('id', partId);
+    if (error) return toast.error(error.message);
+    toast.success('Peça removida');
+    load();
+  };
+
+  const filteredProducts = productSearch.trim()
+    ? products.filter((p: any) => p.name.toLowerCase().includes(productSearch.toLowerCase())).slice(0, 6)
+    : [];
 
   if (!os) return <p>Carregando...</p>;
 
@@ -59,6 +107,7 @@ export default function SupportOrderDetail() {
         <Card>
           <CardHeader><CardTitle className="text-base">Equipamento</CardTitle></CardHeader>
           <CardContent className="space-y-3">
+            <div><Label>Equipamento</Label><Input defaultValue={os.equipment} onBlur={e => update({ equipment: e.target.value })} /></div>
             <div><Label>Marca</Label><Input defaultValue={os.brand} onBlur={e => update({ brand: e.target.value })} /></div>
             <div><Label>Modelo</Label><Input defaultValue={os.model} onBlur={e => update({ model: e.target.value })} /></div>
             <div><Label>Serial</Label><Input defaultValue={os.serial} onBlur={e => update({ serial: e.target.value })} /></div>
@@ -77,16 +126,82 @@ export default function SupportOrderDetail() {
                 <SelectContent>{STATUS_OPTIONS.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div><Label>Peças</Label><Input type="number" step="0.01" defaultValue={os.parts_value} onBlur={e => update({ parts_value: Number(e.target.value) })} /></div>
+            <div className="grid grid-cols-2 gap-2">
               <div><Label>Mão de obra</Label><Input type="number" step="0.01" defaultValue={os.labor_value} onBlur={e => update({ labor_value: Number(e.target.value) })} /></div>
               <div><Label>Frete</Label><Input type="number" step="0.01" defaultValue={os.shipping_value} onBlur={e => update({ shipping_value: Number(e.target.value) })} /></div>
+              <div><Label>Serviços</Label><Input type="number" step="0.01" defaultValue={os.services_value || 0} onBlur={e => update({ services_value: Number(e.target.value) })} /></div>
+              <div><Label>Peças (auto)</Label><Input type="number" value={Number(os.parts_value || 0).toFixed(2)} readOnly /></div>
             </div>
             <div className="text-right text-lg font-bold">Total: R$ {Number(os.total_value || 0).toFixed(2)}</div>
             <div><Label>Garantia</Label><Input defaultValue={os.warranty} onBlur={e => update({ warranty: e.target.value })} /></div>
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Peças Utilizadas (baixa automática no estoque)</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+            <div className="md:col-span-5 relative">
+              <Label className="text-xs">Buscar peça</Label>
+              {selectedProduct ? (
+                <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-muted/40">
+                  <div className="text-sm">
+                    <div className="font-medium">{selectedProduct.name}</div>
+                    <div className="text-xs text-muted-foreground">Estoque: {selectedProduct.quantity}</div>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => { setSelectedProduct(null); setUnitPrice(0); }}>Trocar</Button>
+                </div>
+              ) : (
+                <>
+                  <Input placeholder="Nome da peça..." value={productSearch} onChange={e => setProductSearch(e.target.value)} />
+                  {filteredProducts.length > 0 && (
+                    <div className="absolute z-20 left-0 right-0 mt-1 bg-popover border rounded-md shadow-md max-h-56 overflow-auto">
+                      {filteredProducts.map((p: any) => (
+                        <button key={p.id} type="button"
+                          className="w-full text-left px-3 py-2 hover:bg-muted text-sm flex justify-between"
+                          onClick={() => { setSelectedProduct(p); setProductSearch(''); setUnitPrice(Number(p.price) || 0); }}>
+                          <span>{p.name}</span>
+                          <span className="text-muted-foreground">Estq: {p.quantity}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="md:col-span-2"><Label className="text-xs">Qtd</Label><Input type="number" min={1} value={qty} onChange={e => setQty(Number(e.target.value) || 1)} /></div>
+            <div className="md:col-span-3"><Label className="text-xs">Preço unit. (R$)</Label><Input type="number" step="0.01" value={unitPrice} onChange={e => setUnitPrice(Number(e.target.value) || 0)} /></div>
+            <div className="md:col-span-2"><Button onClick={addPart} className="w-full"><Plus className="h-4 w-4 mr-1" />Adicionar</Button></div>
+          </div>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Peça</TableHead>
+                <TableHead className="w-20 text-center">Qtd</TableHead>
+                <TableHead className="w-32 text-right">Unitário</TableHead>
+                <TableHead className="w-32 text-right">Subtotal</TableHead>
+                <TableHead className="w-12" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {parts.map(p => (
+                <TableRow key={p.id}>
+                  <TableCell>{p.product_name}</TableCell>
+                  <TableCell className="text-center">{p.quantity}</TableCell>
+                  <TableCell className="text-right">R$ {Number(p.unit_price).toFixed(2)}</TableCell>
+                  <TableCell className="text-right font-medium">R$ {Number(p.total_price).toFixed(2)}</TableCell>
+                  <TableCell><Button variant="ghost" size="icon" onClick={() => removePart(p.id)}><Trash2 className="h-4 w-4 text-rose-500" /></Button></TableCell>
+                </TableRow>
+              ))}
+              {parts.length === 0 && (
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-4">Nenhuma peça utilizada</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-base">Histórico</CardTitle></CardHeader>
