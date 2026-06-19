@@ -32,8 +32,9 @@ import { cn } from '@/lib/utils';
 interface Client {
   id: string;
   name: string;
-  document?: string | null;
+  cpf_cnpj?: string | null;
 }
+
 
 interface Product {
   id: string;
