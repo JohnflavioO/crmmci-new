@@ -125,7 +125,7 @@ export default function SupportPurchases() {
     if (meta.client_id) {
       const { data: client } = await supabase
         .from('technical_clients')
-        .select('name,document,email,phone,address,city,state,zip_code')
+        .select('name,cpf_cnpj,email,phone,address,city,state,zip_code')
         .eq('id', meta.client_id)
         .maybeSingle();
       setDetailClient(client);
@@ -295,7 +295,7 @@ export default function SupportPurchases() {
                   </div>
                   <div className="border rounded-lg p-3 text-sm space-y-0.5">
                     <div className="font-semibold">{detailClient?.name || detailMeta.client_name || '—'}</div>
-                    {detailClient?.document && <div className="text-xs">{detailClient.document}</div>}
+                    {detailClient?.cpf_cnpj && <div className="text-xs">{detailClient.cpf_cnpj}</div>}
                     {detailClient?.email && <div className="text-xs">{detailClient.email}</div>}
                     {detailClient?.phone && <div className="text-xs">{detailClient.phone}</div>}
                     {(detailClient?.address || detailClient?.city) && (

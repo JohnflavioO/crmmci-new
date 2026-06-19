@@ -51,14 +51,14 @@ export default function SupportOrders() {
   };
   useEffect(() => { load(); }, [filterStatus]);
   useEffect(() => { (async () => {
-    const { data } = await supabase.from('technical_clients' as any).select('id,name,document').order('name');
+    const { data } = await supabase.from('technical_clients' as any).select('id,name,cpf_cnpj').order('name');
     setClients((data || []) as any[]);
   })(); }, []);
 
   const filteredClients = clientSearch.trim()
     ? clients.filter((c: any) =>
         c.name?.toLowerCase().includes(clientSearch.toLowerCase()) ||
-        (c.document || '').toLowerCase().includes(clientSearch.toLowerCase())
+        (c.cpf_cnpj || '').toLowerCase().includes(clientSearch.toLowerCase())
       ).slice(0, 6)
     : [];
 
@@ -127,7 +127,7 @@ export default function SupportOrders() {
                     <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-muted/40">
                       <div>
                         <div className="font-medium text-sm">{selectedClient.name}</div>
-                        {selectedClient.document && <div className="text-xs text-muted-foreground">{selectedClient.document}</div>}
+                        {selectedClient.cpf_cnpj && <div className="text-xs text-muted-foreground">{selectedClient.cpf_cnpj}</div>}
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => setForm({ ...form, client_id: '' })}>Trocar</Button>
                     </div>
@@ -148,7 +148,7 @@ export default function SupportOrders() {
                               onClick={() => { setForm({ ...form, client_id: c.id }); setClientSearch(''); }}
                             >
                               <div className="font-medium">{c.name}</div>
-                              {c.document && <div className="text-xs text-muted-foreground">{c.document}</div>}
+                              {c.cpf_cnpj && <div className="text-xs text-muted-foreground">{c.cpf_cnpj}</div>}
                             </button>
                           ))}
                         </div>
