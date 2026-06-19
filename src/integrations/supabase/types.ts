@@ -1908,6 +1908,7 @@ export type Database = {
       }
       technical_orders: {
         Row: {
+          accessories: Json
           attachments: Json | null
           brand: string | null
           client_id: string | null
@@ -1926,6 +1927,7 @@ export type Database = {
           os_type: string | null
           parts_value: number
           photos: Json | null
+          physical_condition: string | null
           public_token: string | null
           reported_defect: string | null
           serial: string | null
@@ -1941,6 +1943,7 @@ export type Database = {
           warranty: string | null
         }
         Insert: {
+          accessories?: Json
           attachments?: Json | null
           brand?: string | null
           client_id?: string | null
@@ -1959,6 +1962,7 @@ export type Database = {
           os_type?: string | null
           parts_value?: number
           photos?: Json | null
+          physical_condition?: string | null
           public_token?: string | null
           reported_defect?: string | null
           serial?: string | null
@@ -1974,6 +1978,7 @@ export type Database = {
           warranty?: string | null
         }
         Update: {
+          accessories?: Json
           attachments?: Json | null
           brand?: string | null
           client_id?: string | null
@@ -1992,6 +1997,7 @@ export type Database = {
           os_type?: string | null
           parts_value?: number
           photos?: Json | null
+          physical_condition?: string | null
           public_token?: string | null
           reported_defect?: string | null
           serial?: string | null

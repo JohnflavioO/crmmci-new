@@ -33,9 +33,13 @@ export default function SupportOrders() {
   const [orders, setOrders] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [open, setOpen] = useState(params.get('new') === 'true');
+  const DEFAULT_ACCESSORIES = ['Fonte', 'Cabo AC', 'Refletor', 'Case', 'Control Box', 'Head Cable'];
+  const [clientSearch, setClientSearch] = useState('');
+  const [accessoryInput, setAccessoryInput] = useState('');
   const [form, setForm] = useState<any>({
     client_id: '', client_name: '', equipment: '', brand: '', model: '', serial: '',
-    reported_defect: '', status: 'recebido', os_type: 'Corretiva',
+    reported_defect: '', physical_condition: '', accessories: [] as string[],
+    status: 'recebido', os_type: 'Orçamento',
     entry_date: new Date().toISOString().split('T')[0]
   });
 
@@ -47,9 +51,36 @@ export default function SupportOrders() {
   };
   useEffect(() => { load(); }, [filterStatus]);
   useEffect(() => { (async () => {
-    const { data } = await supabase.from('technical_clients' as any).select('id,name').order('name');
+    const { data } = await supabase.from('technical_clients' as any).select('id,name,document').order('name');
     setClients((data || []) as any[]);
   })(); }, []);
+
+  const filteredClients = clientSearch.trim()
+    ? clients.filter((c: any) =>
+        c.name?.toLowerCase().includes(clientSearch.toLowerCase()) ||
+        (c.document || '').toLowerCase().includes(clientSearch.toLowerCase())
+      ).slice(0, 6)
+    : [];
+
+  const selectedClient = clients.find((c: any) => c.id === form.client_id);
+
+  const toggleAccessory = (a: string) => {
+    setForm((f: any) => ({
+      ...f,
+      accessories: f.accessories.includes(a)
+        ? f.accessories.filter((x: string) => x !== a)
+        : [...f.accessories, a],
+    }));
+  };
+
+  const addCustomAccessory = () => {
+    const v = accessoryInput.trim();
+    if (!v) return;
+    if (!form.accessories.includes(v)) {
+      setForm((f: any) => ({ ...f, accessories: [...f.accessories, v] }));
+    }
+    setAccessoryInput('');
+  };
 
   const save = async () => {
     if (!form.client_id) return toast.error('Selecione o cliente');
@@ -64,7 +95,13 @@ export default function SupportOrders() {
     if (error) return toast.error(error.message);
     toast.success('OS criada');
     setOpen(false);
-    setForm({ client_id: '', client_name: '', equipment: '', brand: '', model: '', serial: '', reported_defect: '', status: 'recebido' });
+    setClientSearch('');
+    setForm({
+      client_id: '', client_name: '', equipment: '', brand: '', model: '', serial: '',
+      reported_defect: '', physical_condition: '', accessories: [],
+      status: 'recebido', os_type: 'Orçamento',
+      entry_date: new Date().toISOString().split('T')[0]
+    });
     load();
   };
 
@@ -76,49 +113,145 @@ export default function SupportOrders() {
           <p className="text-sm text-muted-foreground">{filterStatus ? `Filtro: ${filterStatus}` : 'Todas as OS'}</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova OS</Button></DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>Nova Ordem de Serviço</DialogTitle></DialogHeader>
-            <div className="grid grid-cols-2 gap-3 pt-4">
-              <div className="col-span-2">
-                <Label>Cliente</Label>
-                <Select value={form.client_id} onValueChange={v => setForm({ ...form, client_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o cliente..." /></SelectTrigger>
-                  <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Tipo de OS</Label>
-                <Select value={form.os_type} onValueChange={v => setForm({ ...form, os_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Corretiva">Corretiva</SelectItem>
-                    <SelectItem value="Preventiva">Preventiva</SelectItem>
-                    <SelectItem value="Garantia">Garantia</SelectItem>
-                    <SelectItem value="Orçamento">Orçamento</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Data de Entrada</Label>
-                <Input type="date" value={form.entry_date} onChange={e => setForm({ ...form, entry_date: e.target.value })} />
-              </div>
-              <div className="col-span-2">
-                <Label>Equipamento</Label>
-                <Input value={form.equipment} placeholder="Ex: Câmera Sony A7III" onChange={e => setForm({ ...form, equipment: e.target.value })} />
-              </div>
-              <div><Label>Marca</Label><Input value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} /></div>
-              <div><Label>Modelo</Label><Input value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} /></div>
-              <div className="col-span-2"><Label>Serial / Número de Série</Label><Input value={form.serial} onChange={e => setForm({ ...form, serial: e.target.value })} /></div>
-              <div className="col-span-2"><Label>Defeito Relatado / Observações</Label><Textarea value={form.reported_defect} placeholder="Descreva o problema relatado pelo cliente..." onChange={e => setForm({ ...form, reported_defect: e.target.value })} /></div>
-              <div className="col-span-2 flex justify-end gap-2 mt-4">
+          <DialogTrigger asChild><Button className="bg-[#00966d] hover:bg-[#007a58]"><Plus className="h-4 w-4 mr-2" />Nova OS</Button></DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader><DialogTitle className="text-lg font-bold">Nova Ordem de Serviço</DialogTitle></DialogHeader>
+
+            <div className="space-y-5 pt-2">
+              {/* Cliente */}
+              <section>
+                <h3 className="text-sm font-semibold mb-2">☐ Cliente</h3>
+                <div className="border-t pt-3 space-y-2">
+                  <Label className="text-xs">Selecionar Cliente</Label>
+                  {selectedClient ? (
+                    <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-muted/40">
+                      <div>
+                        <div className="font-medium text-sm">{selectedClient.name}</div>
+                        {selectedClient.document && <div className="text-xs text-muted-foreground">{selectedClient.document}</div>}
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => setForm({ ...form, client_id: '' })}>Trocar</Button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <Input
+                        placeholder="🔍 Buscar por Nome, CPF ou CNPJ..."
+                        value={clientSearch}
+                        onChange={e => setClientSearch(e.target.value)}
+                      />
+                      {filteredClients.length > 0 && (
+                        <div className="absolute z-20 left-0 right-0 mt-1 bg-popover border rounded-md shadow-md max-h-56 overflow-auto">
+                          {filteredClients.map((c: any) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
+                              onClick={() => { setForm({ ...form, client_id: c.id }); setClientSearch(''); }}
+                            >
+                              <div className="font-medium">{c.name}</div>
+                              {c.document && <div className="text-xs text-muted-foreground">{c.document}</div>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Tipo de Serviço */}
+              <section>
+                <h3 className="text-sm font-semibold mb-2">☐ Tipo de Serviço</h3>
+                <div className="border-t pt-3 grid grid-cols-2 gap-3">
+                  {[
+                    { key: 'Orçamento', label: 'Orçamento / Pago', desc: 'Serviço com custo para o cliente' },
+                    { key: 'Garantia', label: 'Garantia', desc: 'Serviço coberto pela garantia' },
+                  ].map(opt => {
+                    const active = form.os_type === opt.key;
+                    return (
+                      <button
+                        type="button"
+                        key={opt.key}
+                        onClick={() => setForm({ ...form, os_type: opt.key })}
+                        className={`text-left border-2 rounded-lg p-3 transition-colors ${active ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/30'}`}
+                      >
+                        <div className="font-semibold text-sm">{opt.label}</div>
+                        <div className="text-xs text-muted-foreground">{opt.desc}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Equipamento */}
+              <section>
+                <h3 className="text-sm font-semibold mb-2">☐ Equipamento</h3>
+                <div className="border-t pt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Modelo</Label>
+                    <Input placeholder="Ex: LS 600d Pro" value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Nº Série</Label>
+                    <Input value={form.serial} onChange={e => setForm({ ...form, serial: e.target.value })} />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Estado Físico / Condições</Label>
+                    <Input
+                      placeholder="Riscos, amassados, sujeira..."
+                      value={form.physical_condition}
+                      onChange={e => setForm({ ...form, physical_condition: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Defeito Reclamado</Label>
+                    <Textarea
+                      value={form.reported_defect}
+                      onChange={e => setForm({ ...form, reported_defect: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              {/* Checklist de Acessórios */}
+              <section>
+                <h3 className="text-sm font-semibold mb-2">Checklist de Acessórios</h3>
+                <div className="border-t pt-3 space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from(new Set([...DEFAULT_ACCESSORIES, ...form.accessories])).map(a => {
+                      const active = form.accessories.includes(a);
+                      return (
+                        <button
+                          type="button"
+                          key={a}
+                          onClick={() => toggleAccessory(a)}
+                          className={`px-3 py-1 text-xs rounded-full border transition-colors ${active ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted'}`}
+                        >
+                          {a}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Outro acessório..."
+                      value={accessoryInput}
+                      onChange={e => setAccessoryInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomAccessory(); } }}
+                    />
+                    <Button type="button" variant="outline" onClick={addCustomAccessory}>Adicionar</Button>
+                  </div>
+                </div>
+              </section>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
                 <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button onClick={save} className="bg-[#00966d] hover:bg-[#007a58]">Criar Ordem de Serviço</Button>
+                <Button onClick={save} className="bg-[#00966d] hover:bg-[#007a58]">Gerar Ordem de Serviço</Button>
               </div>
             </div>
           </DialogContent>
         </Dialog>
       </div>
+
 
       <Card>
         <CardHeader><CardTitle className="text-base">{orders.length} OS</CardTitle></CardHeader>
