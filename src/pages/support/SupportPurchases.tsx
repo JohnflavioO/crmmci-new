@@ -89,7 +89,7 @@ export default function SupportPurchases() {
           onClick={() => setDialogOpen(true)}
         >
           <Plus className="h-4 w-4" />
-          Nova Ordem de Compra
+          Nova Venda
         </Button>
       </div>
 
