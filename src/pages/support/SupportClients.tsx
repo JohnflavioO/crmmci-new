@@ -261,7 +261,7 @@ export default function SupportClients() {
                         icon: Pencil, 
                         onClick: () => {
                           setEditingClient(c);
-                          setForm(c);
+                          setForm({ ...emptyForm, ...Object.fromEntries(Object.entries(c).filter(([k]) => k in emptyForm)) });
                           setOpen(true);
                         },
                         isSecondary: true
