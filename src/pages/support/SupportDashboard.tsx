@@ -1,305 +1,319 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
-import { 
-  Wrench, 
-  FileText, 
-  Package, 
-  Users, 
-  DollarSign, 
-  Search, 
-  Filter, 
-  Plus, 
-  Download,
-  TrendingUp,
-  TrendingDown,
-  Clock,
-  ArrowUpRight
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  Cell,
-  PieChart,
-  Pie
+import { supabase } from '@/integrations/supabase/client';
+import {
+  Wrench, FileText, Package, Users, DollarSign, TrendingUp, CreditCard, Clock, BarChart3, PieChart as PieIcon, Filter,
+} from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  PieChart, Pie, AreaChart, Area,
 } from 'recharts';
 
 const STATUSES = [
-  { key: 'recebido', label: 'Recebidos', color: '#64748b', bg: 'bg-slate-500' },
-  { key: 'diagnostico', label: 'Diagnóstico', color: '#3b82f6', bg: 'bg-blue-500' },
-  { key: 'aguardando_aprovacao', label: 'Aguardando Aprovação', color: '#f59e0b', bg: 'bg-amber-500' },
-  { key: 'aguardando_peca', label: 'Aguardando Peça', color: '#f97316', bg: 'bg-orange-500' },
-  { key: 'em_reparo', label: 'Em Reparo', color: '#a855f7', bg: 'bg-purple-500' },
-  { key: 'pronto', label: 'Pronto', color: '#10b981', bg: 'bg-emerald-500' },
-  { key: 'entregue', label: 'Entregue', color: '#15803d', bg: 'bg-green-700' },
+  { key: 'recebido', label: 'Recebidos', color: '#94a3b8' },
+  { key: 'diagnostico', label: 'Diagnóstico', color: '#3b82f6' },
+  { key: 'aguardando_aprovacao', label: 'Aprovação', color: '#f59e0b' },
+  { key: 'aguardando_peca', label: 'Aguardando Peça', color: '#f97316' },
+  { key: 'em_reparo', label: 'Em Reparo', color: '#ef4444' },
+  { key: 'pronto', label: 'Prontos', color: '#10b981' },
+  { key: 'entregue', label: 'Entregue', color: '#15803d' },
 ];
 
-interface Stats {
-  totalOS: number;
-  faturamento: number;
-  ticketMedio: number;
-  totalPecas: number;
-  byStatus: { name: string, value: number, color: string }[];
-  recentes: any[];
-}
+const STATUS_LABEL: Record<string, string> = Object.fromEntries(STATUSES.map(s => [s.key, s.label]));
+const STATUS_BADGE: Record<string, string> = {
+  recebido: 'bg-slate-100 text-slate-700',
+  diagnostico: 'bg-blue-100 text-blue-700',
+  aguardando_aprovacao: 'bg-amber-100 text-amber-700',
+  aguardando_peca: 'bg-orange-100 text-orange-700',
+  em_reparo: 'bg-red-100 text-red-700',
+  pronto: 'bg-emerald-100 text-emerald-700',
+  entregue: 'bg-green-100 text-green-800',
+};
+
+const fmtBRL = (v: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+
+const fmtDate = (d?: string | null) => {
+  if (!d) return '';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('pt-BR');
+};
 
 export default function SupportDashboard() {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [productsCount, setProductsCount] = useState(0);
+  const [clientsCount, setClientsCount] = useState(0);
+  const [budgetsPending, setBudgetsPending] = useState(0);
+  const [partsSales, setPartsSales] = useState(0);
+  const [chartType, setChartType] = useState<'bar' | 'pie'>('bar');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   useEffect(() => {
     (async () => {
-      try {
-        const [ordersRes, productsRes, recentRes] = await Promise.all([
-          supabase.from('technical_orders' as any).select('id,status,total_value'),
-          supabase.from('technical_products' as any).select('id,quantity'),
-          supabase.from('technical_orders' as any)
-            .select('id,os_number,equipment,status,created_at,client_name,total_value')
-            .order('created_at', { ascending: false })
-            .limit(6),
-        ]);
-
-        const orders = (ordersRes.data || []) as any[];
-        const products = (productsRes.data || []) as any[];
-        
-        const faturamento = orders.reduce((s, o) => s + Number(o.total_value || 0), 0);
-        const ticketMedio = orders.length > 0 ? faturamento / orders.length : 0;
-        
-        const byStatusCount: Record<string, number> = {};
-        orders.forEach(o => { byStatusCount[o.status] = (byStatusCount[o.status] || 0) + 1; });
-
-        const chartData = STATUSES.map(s => ({
-          name: s.label,
-          value: byStatusCount[s.key] || 0,
-          color: s.color
-        })).filter(d => d.value > 0);
-
-        setStats({
-          totalOS: orders.length,
-          faturamento,
-          ticketMedio,
-          totalPecas: products.reduce((s, p) => s + Number(p.quantity || 0), 0),
-          byStatus: chartData,
-          recentes: (recentRes.data || []) as any[],
-        });
-      } catch (error) {
-        console.error('Error fetching dashboard stats:', error);
-      } finally {
-        setLoading(false);
-      }
+      const [ordersRes, productsRes, clientsRes, budgetsRes] = await Promise.all([
+        supabase.from('technical_orders' as any).select('id,os_number,equipment,status,created_at,client_name,total_value,parts_value,labor_value,shipping_value,services_value,os_type,warranty').order('created_at', { ascending: false }),
+        supabase.from('technical_products' as any).select('id,quantity'),
+        supabase.from('technical_clients' as any).select('id', { count: 'exact', head: true }),
+        supabase.from('technical_budgets' as any).select('id', { count: 'exact', head: true }).eq('status', 'pendente' as any),
+      ]);
+      const ords = (ordersRes.data || []) as any[];
+      setOrders(ords);
+      setProductsCount(((productsRes.data || []) as any[]).reduce((s, p) => s + Number(p.quantity || 0), 0));
+      setClientsCount(clientsRes.count || 0);
+      setBudgetsPending(budgetsRes.count || 0);
+      setPartsSales(ords.filter(o => o.status === 'entregue').reduce((s, o) => s + Number(o.parts_value || 0), 0));
     })();
   }, []);
 
-  const kpis = [
-    { 
-      title: 'Total de Ordens de Serviço', 
-      value: stats?.totalOS ?? 0, 
-      icon: FileText, 
-      trend: '+12.5%', 
-      isPositive: true,
-      description: 'vs mês anterior'
-    },
-    { 
-      title: 'Faturamento Técnico', 
-      value: `R$ ${(stats?.faturamento ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, 
-      icon: DollarSign, 
-      trend: '+5.2%', 
-      isPositive: true,
-      description: 'vs mês anterior'
-    },
-    { 
-      title: 'Peças em Estoque', 
-      value: stats?.totalPecas ?? 0, 
-      icon: Package, 
-      trend: '-2.1%', 
-      isPositive: false,
-      description: 'vs mês anterior'
-    },
-    { 
-      title: 'Ticket Médio', 
-      value: `R$ ${(stats?.ticketMedio ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, 
-      icon: TrendingUp, 
-      trend: '+1.8%', 
-      isPositive: true,
-      description: 'vs mês anterior'
-    },
+  const emManutencao = orders.filter(o => !['entregue', 'pronto'].includes(o.status)).length;
+
+  const statusChart = useMemo(() => {
+    const counts: Record<string, number> = {};
+    orders.forEach(o => { counts[o.status] = (counts[o.status] || 0) + 1; });
+    return STATUSES.slice(0, 6).map(s => ({ name: s.label, value: counts[s.key] || 0, color: s.color }));
+  }, [orders]);
+
+  const recentEntries = orders.slice(0, 6);
+
+  // Faturamento
+  const filteredOrders = useMemo(() => {
+    return orders.filter(o => {
+      if (!dateFrom && !dateTo) return true;
+      const d = new Date(o.created_at);
+      if (dateFrom && d < new Date(dateFrom)) return false;
+      if (dateTo && d > new Date(dateTo + 'T23:59:59')) return false;
+      return true;
+    });
+  }, [orders, dateFrom, dateTo]);
+
+  const finished = filteredOrders.filter(o => ['pronto', 'entregue'].includes(o.status));
+  const pending = filteredOrders.filter(o => !['pronto', 'entregue'].includes(o.status));
+  const faturamentoTotal = finished.reduce((s, o) => s + Number(o.total_value || 0), 0);
+  const faturamentoPendente = pending.reduce((s, o) => s + Number(o.total_value || 0), 0);
+  const ticketMedio = finished.length ? faturamentoTotal / finished.length : 0;
+  const emGarantia = filteredOrders.filter(o => o.os_type === 'Garantia' || o.warranty).reduce((s, o) => s + Number(o.total_value || 0), 0);
+  const emPecas = filteredOrders.reduce((s, o) => s + Number(o.parts_value || 0), 0);
+  const emMaoObra = filteredOrders.reduce((s, o) => s + Number(o.labor_value || 0), 0);
+  const emFrete = filteredOrders.reduce((s, o) => s + Number(o.shipping_value || 0), 0);
+
+  const monthlyRevenue = useMemo(() => {
+    const map: Record<string, { finished: number; pending: number }> = {};
+    const now = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      map[key] = { finished: 0, pending: 0 };
+    }
+    filteredOrders.forEach(o => {
+      const d = new Date(o.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!map[key]) return;
+      const v = Number(o.total_value || 0);
+      if (['pronto', 'entregue'].includes(o.status)) map[key].finished += v;
+      else map[key].pending += v;
+    });
+    return Object.entries(map).map(([k, v]) => {
+      const [y, m] = k.split('-');
+      const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+      return { mes: label, Finalizado: v.finished, Pendente: v.pending };
+    });
+  }, [filteredOrders]);
+
+  const kpisGeral = [
+    { title: 'Em Manutenção', value: emManutencao, icon: Wrench, bg: 'bg-blue-100', color: 'text-blue-600' },
+    { title: 'Orçamentos Pendentes', value: budgetsPending, icon: Clock, bg: 'bg-amber-100', color: 'text-amber-600' },
+    { title: 'Vendas de Peças', value: fmtBRL(partsSales), icon: DollarSign, bg: 'bg-purple-100', color: 'text-purple-600' },
+    { title: 'Clientes Ativos', value: clientsCount, icon: Users, bg: 'bg-emerald-100', color: 'text-emerald-600' },
+    { title: 'Peças Totais', value: productsCount, icon: Package, bg: 'bg-slate-200', color: 'text-slate-700' },
   ];
 
   return (
     <div className="space-y-6 pb-10">
-      {/* Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold font-display tracking-tight text-foreground">Dashboard Técnico</h1>
-          <p className="text-sm text-muted-foreground">Bem-vindo ao módulo de suporte MCI Tech</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Download className="h-4 w-4" />
-            Exportar
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Filter className="h-4 w-4" />
-            Filtros
-          </Button>
-          <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90 text-white" asChild>
-            <Link to="/suporte/os?new=true">
-              <Plus className="h-4 w-4" />
-              Nova OS
-            </Link>
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">Visão geral da assistência</p>
       </div>
 
-      {/* KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((kpi, idx) => (
-          <Card key={idx} className="border-border shadow-sm overflow-hidden">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div className="p-2 bg-muted rounded-lg">
-                  <kpi.icon className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className={`flex items-center gap-1 text-xs font-medium ${kpi.isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {kpi.isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                  {kpi.trend}
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{kpi.title}</p>
-                <h3 className="text-2xl font-bold tracking-tight text-foreground mt-1">{kpi.value}</h3>
-                <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{kpi.description}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Tabs defaultValue="geral" className="space-y-6">
+        <TabsList className="bg-white border">
+          <TabsTrigger value="geral" className="gap-2"><BarChart3 className="h-4 w-4" /> Visão Geral</TabsTrigger>
+          <TabsTrigger value="faturamento" className="gap-2"><DollarSign className="h-4 w-4" /> Faturamento</TabsTrigger>
+        </TabsList>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Recent Orders List */}
-        <Card className="lg:col-span-2 border-border shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-bold">Ordens de Serviço Recentes</CardTitle>
-            <Button variant="ghost" size="sm" className="text-primary hover:text-primary/90 hover:bg-primary/10" asChild>
-              <Link to="/suporte/os">Ver todas</Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left border-b border-slate-100 pb-2">
-                    <th className="font-semibold text-slate-500 py-3 px-1">ID</th>
-                    <th className="font-semibold text-slate-500 py-3 px-1">CLIENTE</th>
-                    <th className="font-semibold text-slate-500 py-3 px-1">EQUIPAMENTO</th>
-                    <th className="font-semibold text-slate-500 py-3 px-1">STATUS</th>
-                    <th className="font-semibold text-slate-500 py-3 px-1">VALOR</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {stats?.recentes.map((o) => {
-                    const status = STATUSES.find(s => s.key === o.status);
-                    return (
-                      <tr key={o.id} className="group hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => window.location.href = `/suporte/os/${o.id}`}>
-                        <td className="py-4 px-1 font-medium text-slate-900">{o.os_number}</td>
-                        <td className="py-4 px-1 text-slate-600">{o.client_name}</td>
-                        <td className="py-4 px-1 text-slate-600 truncate max-w-[150px]">{o.equipment}</td>
-                        <td className="py-4 px-1">
-                          <Badge 
-                            variant="secondary" 
-                            className={`font-normal ${status?.bg || 'bg-slate-100'} text-white border-none`}
-                          >
-                            {status?.label || o.status}
-                          </Badge>
-                        </td>
-                        <td className="py-4 px-1 font-semibold text-slate-900">
-                          R$ {Number(o.total_value || 0).toLocaleString('pt-BR')}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {(!stats || stats.recentes.length === 0) && !loading && (
-                    <tr>
-                      <td colSpan={5} className="py-10 text-center text-slate-400 italic">
-                        Nenhuma ordem de serviço encontrada.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+        {/* ============ VISÃO GERAL ============ */}
+        <TabsContent value="geral" className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {kpisGeral.map((k) => (
+              <Card key={k.title} className="shadow-sm">
+                <CardContent className="p-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">{k.title}</p>
+                    <p className="text-2xl font-bold text-foreground">{k.value}</p>
+                  </div>
+                  <div className={`p-2.5 rounded-lg ${k.bg}`}>
+                    <k.icon className={`h-5 w-5 ${k.color}`} />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-        {/* Status Distribution & Shortcuts */}
-        <div className="space-y-6">
-          <Card className="border-slate-100 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold">Status da Operação</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[220px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={stats?.byStatus || []}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {(stats?.byStatus || []).map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="grid grid-cols-2 gap-x-2 gap-y-2 mt-4">
-                {STATUSES.slice(0, 4).map((s) => (
-                  <div key={s.key} className="flex items-center gap-2">
-                    <div className={`h-2 w-2 rounded-full ${s.bg}`} />
-                    <span className="text-[10px] text-slate-500 truncate uppercase font-semibold">{s.label}</span>
+          <div className="grid lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-base font-bold">Status dos Serviços</CardTitle>
+                <div className="flex items-center gap-1 border rounded-md p-0.5">
+                  <button onClick={() => setChartType('bar')} className={`p-1.5 rounded ${chartType === 'bar' ? 'bg-muted' : ''}`}>
+                    <BarChart3 className="h-3.5 w-3.5" />
+                  </button>
+                  <button onClick={() => setChartType('pie')} className={`p-1.5 rounded ${chartType === 'pie' ? 'bg-muted' : ''}`}>
+                    <PieIcon className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    {chartType === 'bar' ? (
+                      <BarChart data={statusChart}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} />
+                        <Tooltip />
+                        <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                          {statusChart.map((e, i) => <Cell key={i} fill={e.color} />)}
+                        </Bar>
+                      </BarChart>
+                    ) : (
+                      <PieChart>
+                        <Pie data={statusChart} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                          {statusChart.map((e, i) => <Cell key={i} fill={e.color} />)}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    )}
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardHeader className="pb-2"><CardTitle className="text-base font-bold">Entradas Recentes</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {recentEntries.map((o) => (
+                  <div key={o.id} className="flex items-start justify-between gap-2 pb-3 border-b last:border-0 last:pb-0">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{o.equipment || o.client_name}</p>
+                      <p className="text-[11px] text-muted-foreground">{o.os_number} • {fmtDate(o.created_at)}</p>
+                    </div>
+                    <Badge variant="secondary" className={`text-[10px] font-medium border-0 ${STATUS_BADGE[o.status] || ''}`}>
+                      {STATUS_LABEL[o.status] || o.status}
+                    </Badge>
                   </div>
                 ))}
+                {recentEntries.length === 0 && <p className="text-xs text-muted-foreground italic">Sem registros</p>}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ============ FATURAMENTO ============ */}
+        <TabsContent value="faturamento" className="space-y-6">
+          <Card className="shadow-sm">
+            <CardContent className="p-4 flex flex-col md:flex-row md:items-center gap-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Filter className="h-4 w-4" /> Filtrar por data:
+              </div>
+              <div className="flex items-center gap-2 ml-auto flex-wrap">
+                <label className="text-xs text-muted-foreground">De:</label>
+                <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 w-auto" />
+                <label className="text-xs text-muted-foreground">Até:</label>
+                <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 w-auto" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-border shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="p-1.5 bg-muted rounded-md">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="shadow-sm">
+              <CardContent className="p-5 flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Faturamento Total</p>
+                  <p className="text-2xl font-bold">{fmtBRL(faturamentoTotal)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Ordens finalizadas ou entregues</p>
                 </div>
-                <h4 className="font-semibold text-sm">Tempo Médio de Reparo</h4>
-              </div>
-              <div className="flex items-end gap-2">
-                <span className="text-3xl font-bold tracking-tight">3.2</span>
-                <span className="text-muted-foreground text-sm mb-1">dias</span>
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-4 uppercase tracking-wider font-bold">Meta da Equipe: 2.5 dias</p>
-              <div className="mt-2 h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-primary w-[70%]" />
+                <div className="p-2.5 rounded-lg bg-emerald-500"><DollarSign className="h-5 w-5 text-white" /></div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardContent className="p-5 flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Faturamento Pendente</p>
+                  <p className="text-2xl font-bold">{fmtBRL(faturamentoPendente)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Ordens em andamento</p>
+                </div>
+                <div className="p-2.5 rounded-lg bg-blue-500"><TrendingUp className="h-5 w-5 text-white" /></div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardContent className="p-5 flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Ticket Médio</p>
+                  <p className="text-2xl font-bold">{fmtBRL(ticketMedio)}</p>
+                </div>
+                <div className="p-2.5 rounded-lg bg-purple-500"><CreditCard className="h-5 w-5 text-white" /></div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Em Garantia', value: emGarantia },
+              { label: 'Em Peças', value: emPecas },
+              { label: 'Em Mão de Obra', value: emMaoObra },
+              { label: 'Em Frete', value: emFrete },
+            ].map((k) => (
+              <Card key={k.label} className="shadow-sm">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground mb-1">{k.label}</p>
+                  <p className="text-lg font-bold">{fmtBRL(k.value)}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="shadow-sm">
+            <CardHeader className="pb-2"><CardTitle className="text-base font-bold">Receita Mensal</CardTitle></CardHeader>
+            <CardContent>
+              <div className="h-[320px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={monthlyRevenue}>
+                    <defs>
+                      <linearGradient id="gFin" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.5} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gPend" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
+                    <Area type="monotone" dataKey="Finalizado" stroke="#3b82f6" fill="url(#gFin)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="Pendente" stroke="#10b981" fill="url(#gPend)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
