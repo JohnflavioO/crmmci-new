@@ -297,7 +297,7 @@ export default function SupportOrders() {
                           label: "WhatsApp", 
                           icon: MessageCircle, 
                           onClick: () => {
-                            const phone = o.clients?.phone || o.phone || '';
+                            const phone = o.technical_clients?.whatsapp || o.technical_clients?.phone || '';
                             if (phone) window.open(`https://wa.me/${phone.replace(/\D/g, '')}`, '_blank');
                             else toast.error("Telefone não disponível");
                           },
