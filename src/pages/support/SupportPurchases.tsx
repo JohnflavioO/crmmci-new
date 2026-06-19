@@ -186,9 +186,14 @@ export default function SupportPurchases() {
             onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button variant="outline" size="sm" className="gap-2 h-10">
-          <Filter className="h-4 w-4" /> Filtrar
-        </Button>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-40 h-10"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            {STATUS_OPTIONS.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
       </div>
 
       <div className="bg-card rounded-xl border overflow-hidden">
