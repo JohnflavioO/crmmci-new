@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ActionMenu } from '@/components/ActionMenu';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const CATEGORIES = ['Aputure', 'Amaran', 'Astera', 'Creamsource', 'Outros'];
 const MAINTENANCE_STATUS = ['Aguardando', 'Em Manutenção', 'Pronto', 'Entregue'];
@@ -39,6 +40,8 @@ export default function SupportStock() {
   const [mForm, setMForm] = useState<any>({
     brand: '', model: '', description: '', technician: '', status: 'Aguardando', notes: ''
   });
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filters, setFilters] = useState<{ category: string; brand: string; status: string }>({ category: 'all', brand: 'all', status: 'all' });
 
   const load = async () => {
     const { data: products } = await supabase.from('technical_products' as any).select('*').order('name');
@@ -155,10 +158,20 @@ export default function SupportStock() {
     load();
   };
 
-  const filtered = items.filter(i => 
-    i.name.toLowerCase().includes(search.toLowerCase()) || 
-    i.code?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = items.filter(i => {
+    const q = search.toLowerCase();
+    const matchSearch = !q || i.name?.toLowerCase().includes(q) || i.code?.toLowerCase().includes(q) || i.category?.toLowerCase().includes(q);
+    const matchCat = filters.category === 'all' || i.category === filters.category;
+    const matchBrand = filters.brand === 'all' || i.manufacturer === filters.brand;
+    let matchStatus = true;
+    if (filters.status === 'in') matchStatus = i.quantity > i.min_quantity;
+    else if (filters.status === 'low') matchStatus = i.quantity > 0 && i.quantity <= i.min_quantity;
+    else if (filters.status === 'out') matchStatus = i.quantity <= 0;
+    return matchSearch && matchCat && matchBrand && matchStatus;
+  });
+
+  const activeFilterCount = (filters.category !== 'all' ? 1 : 0) + (filters.brand !== 'all' ? 1 : 0) + (filters.status !== 'all' ? 1 : 0);
+
 
   const getStatus = (item: any) => {
     if (item.quantity <= 0) return { label: 'Sem estoque', color: 'destructive' };
@@ -333,9 +346,58 @@ export default function SupportStock() {
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
-            <Button variant="outline" className="gap-2">
-              <SlidersHorizontal className="h-4 w-4" /> Filtros
-            </Button>
+            <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <SlidersHorizontal className="h-4 w-4" /> Filtros
+                  {activeFilterCount > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">{activeFilterCount}</Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-4 space-y-3" align="end">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Categoria</Label>
+                  <Select value={filters.category} onValueChange={v => setFilters(f => ({ ...f, category: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      {Array.from(new Set(items.map(i => i.category).filter(Boolean))).map((c: any) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Marca / Fabricante</Label>
+                  <Select value={filters.brand} onValueChange={v => setFilters(f => ({ ...f, brand: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      {Array.from(new Set([...brands.map(b => b.name), ...items.map(i => i.manufacturer)].filter(Boolean))).map((b: any) => (
+                        <SelectItem key={b} value={b}>{b}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Status</Label>
+                  <Select value={filters.status} onValueChange={v => setFilters(f => ({ ...f, status: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="in">Em estoque</SelectItem>
+                      <SelectItem value="low">Baixo estoque</SelectItem>
+                      <SelectItem value="out">Sem estoque</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-between pt-2 border-t">
+                  <Button variant="ghost" size="sm" onClick={() => setFilters({ category: 'all', brand: 'all', status: 'all' })}>Limpar</Button>
+                  <Button size="sm" onClick={() => setFilterOpen(false)}>Aplicar</Button>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="border rounded-md">
