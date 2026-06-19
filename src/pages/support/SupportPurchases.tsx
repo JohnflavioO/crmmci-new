@@ -70,6 +70,8 @@ export default function SupportPurchases() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailItems, setDetailItems] = useState<OrderItem[]>([]);
   const [detailClient, setDetailClient] = useState<any>(null);
