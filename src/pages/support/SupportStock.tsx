@@ -346,9 +346,58 @@ export default function SupportStock() {
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
-            <Button variant="outline" className="gap-2">
-              <SlidersHorizontal className="h-4 w-4" /> Filtros
-            </Button>
+            <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <SlidersHorizontal className="h-4 w-4" /> Filtros
+                  {activeFilterCount > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">{activeFilterCount}</Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-4 space-y-3" align="end">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Categoria</Label>
+                  <Select value={filters.category} onValueChange={v => setFilters(f => ({ ...f, category: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      {Array.from(new Set(items.map(i => i.category).filter(Boolean))).map((c: any) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Marca / Fabricante</Label>
+                  <Select value={filters.brand} onValueChange={v => setFilters(f => ({ ...f, brand: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      {Array.from(new Set([...brands.map(b => b.name), ...items.map(i => i.manufacturer)].filter(Boolean))).map((b: any) => (
+                        <SelectItem key={b} value={b}>{b}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Status</Label>
+                  <Select value={filters.status} onValueChange={v => setFilters(f => ({ ...f, status: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="in">Em estoque</SelectItem>
+                      <SelectItem value="low">Baixo estoque</SelectItem>
+                      <SelectItem value="out">Sem estoque</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-between pt-2 border-t">
+                  <Button variant="ghost" size="sm" onClick={() => setFilters({ category: 'all', brand: 'all', status: 'all' })}>Limpar</Button>
+                  <Button size="sm" onClick={() => setFilterOpen(false)}>Aplicar</Button>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="border rounded-md">
