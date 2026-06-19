@@ -1906,6 +1906,60 @@ export type Database = {
           },
         ]
       }
+      technical_order_parts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          order_id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          total_price: number
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          order_id: string
+          product_id?: string | null
+          product_name: string
+          quantity?: number
+          total_price?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          order_id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          total_price?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technical_order_parts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "technical_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technical_order_parts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "technical_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       technical_orders: {
         Row: {
           accessories: Json
