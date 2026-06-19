@@ -103,6 +103,7 @@ export default function SupportPurchases() {
   }, [orders]);
 
   const filtered = orders.filter(o => {
+    if (statusFilter !== 'all' && o.status !== statusFilter) return false;
     const meta = parseMeta(o.notes);
     const q = searchTerm.toLowerCase();
     if (!q) return true;
@@ -112,6 +113,7 @@ export default function SupportPurchases() {
       (ocMap[o.id] || '').toLowerCase().includes(q)
     );
   });
+
 
   const openDetails = async (id: string) => {
     setDetailId(id);
