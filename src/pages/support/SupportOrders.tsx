@@ -44,11 +44,12 @@ export default function SupportOrders() {
   });
 
   const load = async () => {
-    let q = supabase.from('technical_orders' as any).select('*').order('created_at', { ascending: false });
+    let q = supabase.from('technical_orders' as any).select('*, technical_clients(phone, whatsapp)').order('created_at', { ascending: false });
     if (filterStatus) q = q.eq('status', filterStatus);
     const { data } = await q;
     setOrders((data || []) as any[]);
   };
+
   useEffect(() => { load(); }, [filterStatus]);
   useEffect(() => { (async () => {
     const { data } = await supabase.from('technical_clients' as any).select('id,name,cpf_cnpj').order('name');
