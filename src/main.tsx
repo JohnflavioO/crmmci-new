@@ -25,6 +25,11 @@ const recoverFromChunkError = (error: unknown) => {
   void clearBrowserCachesAndWorkers().finally(() => reloadWithCacheBust());
 };
 
+const escapeHtml = (value: string) => value.replace(/[&<>"]/g, (char) => {
+  const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+  return entities[char] ?? char;
+});
+
 const renderFatalStartupError = (error: unknown) => {
   const rootElement = document.getElementById("root");
   if (!rootElement) return;
@@ -35,7 +40,7 @@ const renderFatalStartupError = (error: unknown) => {
       <section style="max-width:520px;width:100%;text-align:center;display:grid;gap:16px;">
         <h1 style="font-size:22px;font-weight:700;margin:0;">MCI CRM não iniciou corretamente</h1>
         <p style="margin:0;color:rgba(255,255,255,.72);font-size:14px;line-height:1.5;">Recarregue a página. Se persistir, use a limpeza segura abaixo.</p>
-        <pre style="white-space:pre-wrap;word-break:break-word;text-align:left;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:12px;font-size:11px;color:#fecaca;max-height:160px;overflow:auto;">${message.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char] ?? char))}</pre>
+        <pre style="white-space:pre-wrap;word-break:break-word;text-align:left;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:12px;font-size:11px;color:#fecaca;max-height:160px;overflow:auto;">${escapeHtml(message)}</pre>
         <div style="display:grid;gap:10px;">
           <button id="mci-reload" style="border:0;border-radius:10px;padding:12px 14px;background:#059669;color:white;font-weight:700;cursor:pointer;">Recarregar sistema</button>
           <button id="mci-clean" style="border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:12px 14px;background:rgba(255,255,255,.08);color:white;font-weight:700;cursor:pointer;">Limpar cache local</button>
