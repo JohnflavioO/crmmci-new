@@ -115,17 +115,17 @@ function AppRoutes() {
 
         {(isSupport || isAdmin || isGestor) && (
           <Route path="/suporte" element={<SafeRoute><SupportLayout /></SafeRoute>}>
-            <Route index element={<SupportDashboard />} />
-            <Route path="dashboard" element={<SupportDashboard />} />
-            <Route path="estoque" element={<SupportStock />} />
-            <Route path="clientes" element={<SupportClients />} />
-            <Route path="os" element={<SupportOrders />} />
-            <Route path="os/:id" element={<SupportOrderDetail />} />
-            <Route path="compras" element={<SupportPurchases />} />
-            <Route path="orcamentos" element={<SupportBudgets />} />
-            <Route path="nuvem" element={<SupportCloud />} />
-            <Route path="relatorios" element={<SupportReports />} />
-            <Route path="manutencao" element={<SupportMaintenance />} />
+            <Route index element={<SafeRoute><SupportDashboard /></SafeRoute>} />
+            <Route path="dashboard" element={<SafeRoute><SupportDashboard /></SafeRoute>} />
+            <Route path="estoque" element={<SafeRoute><SupportStock /></SafeRoute>} />
+            <Route path="clientes" element={<SafeRoute><SupportClients /></SafeRoute>} />
+            <Route path="os" element={<SafeRoute><SupportOrders /></SafeRoute>} />
+            <Route path="os/:id" element={<SafeRoute><SupportOrderDetail /></SafeRoute>} />
+            <Route path="compras" element={<SafeRoute><SupportPurchases /></SafeRoute>} />
+            <Route path="orcamentos" element={<SafeRoute><SupportBudgets /></SafeRoute>} />
+            <Route path="nuvem" element={<SafeRoute><SupportCloud /></SafeRoute>} />
+            <Route path="relatorios" element={<SafeRoute><SupportReports /></SafeRoute>} />
+            <Route path="manutencao" element={<SafeRoute><SupportMaintenance /></SafeRoute>} />
           </Route>
         )}
 
@@ -147,16 +147,16 @@ function AppRoutes() {
             <Route path="/tasks" element={<SafeRoute><Tasks /></SafeRoute>} />
             <Route path="/metrics" element={<SafeRoute><Metrics /></SafeRoute>} />
             <Route path="/pipeline" element={<SafeRoute><Pipeline /></SafeRoute>} />
-            <Route path="/quote/:token" element={<PublicQuote />} />
-            <Route path="/negociacoes" element={<Negociacoes />} />
-            <Route path="/prospect" element={<ProspectView />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/logistics" element={<Logistics />} />
-            <Route path="/estoque-sc" element={<EstoqueSC />} />
-            {(isGestor || isFinanceiro) && <Route path="/financial" element={<Financial />} />}
-            {(isGestor || isFinanceiro) && <Route path="/bank-slips" element={<BankSlips />} />}
-            {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
-            {isAdmin && <Route path="/integrations" element={<Integrations />} />}
+            <Route path="/quote/:token" element={<SafeRoute><PublicQuote /></SafeRoute>} />
+            <Route path="/negociacoes" element={<SafeRoute><Negociacoes /></SafeRoute>} />
+            <Route path="/prospect" element={<SafeRoute><ProspectView /></SafeRoute>} />
+            <Route path="/reports" element={<SafeRoute><Reports /></SafeRoute>} />
+            <Route path="/logistics" element={<SafeRoute><Logistics /></SafeRoute>} />
+            <Route path="/estoque-sc" element={<SafeRoute><EstoqueSC /></SafeRoute>} />
+            {(isGestor || isFinanceiro) && <Route path="/financial" element={<SafeRoute><Financial /></SafeRoute>} />}
+            {(isGestor || isFinanceiro) && <Route path="/bank-slips" element={<SafeRoute><BankSlips /></SafeRoute>} />}
+            {(isAdmin || isGestor) && <Route path="/approvals" element={<SafeRoute><Approvals /></SafeRoute>} />}
+            {isAdmin && <Route path="/integrations" element={<SafeRoute><Integrations /></SafeRoute>} />}
           </>
         )}
 
