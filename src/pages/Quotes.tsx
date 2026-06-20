@@ -34,6 +34,50 @@ import {
 
 const db = supabase as any;
 
+const normalizeProductText = (value: any): string =>
+  (value ?? '').toString().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const tokenizeProductSearch = (value: string): string[] =>
+  normalizeProductText(value).split(' ').filter(token => token.length > 0);
+
+const rankProductMatch = (product: any, query: string, tokens: string[]): number => {
+  const fields = [
+    product.name,
+    product.brand,
+    product.code,
+    product.sku,
+    product.category_principal,
+    product.description,
+  ].map(normalizeProductText);
+  const [name, brand, code, sku, category, description] = fields;
+  let score = 0;
+
+  if (query) {
+    if (name === query) score += 1000;
+    else if (name.startsWith(query)) score += 600;
+    else if (name.includes(query)) score += 300;
+    if (code === query || sku === query) score += 500;
+    else if (code.includes(query) || sku.includes(query)) score += 250;
+    if (brand.includes(query)) score += 120;
+    if (category.includes(query)) score += 70;
+    if (description.includes(query)) score += 30;
+  }
+
+  for (const token of tokens) {
+    if (name.includes(token)) score += 40;
+    if (code.includes(token) || sku.includes(token)) score += 35;
+    if (brand.includes(token)) score += 25;
+    if (category.includes(token)) score += 10;
+    if (description.includes(token)) score += 5;
+  }
+
+  return score;
+};
+
 // Helper seguro para validar e formatar datas
 const safeFormatDate = (value: any, formatStr: string = 'dd/MM/yyyy') => {
   if (!value) return '';
