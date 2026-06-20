@@ -263,6 +263,7 @@ export default function Quotes() {
   const [salespeople, setSalespeople] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState<Record<number, string>>({});
+  const [productSearchResults, setProductSearchResults] = useState<Record<number, any[]>>({});
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
   const [chatQuote, setChatQuote] = useState<{ id: string; number: string } | null>(null);
   const [cepLoading, setCepLoading] = useState(false);
