@@ -1,8 +1,8 @@
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
 import "./index.css";
 import {
   clearBrowserCachesAndWorkers,
+  installBrowserSafetyGuards,
   isLikelyChunkLoadError,
   reloadWithCacheBust,
   runOneTimeCacheRefresh,
@@ -25,7 +25,35 @@ const recoverFromChunkError = (error: unknown) => {
   void clearBrowserCachesAndWorkers().finally(() => reloadWithCacheBust());
 };
 
+const renderFatalStartupError = (error: unknown) => {
+  const rootElement = document.getElementById("root");
+  if (!rootElement) return;
+
+  const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  rootElement.innerHTML = `
+    <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f2b26;color:white;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px;">
+      <section style="max-width:520px;width:100%;text-align:center;display:grid;gap:16px;">
+        <h1 style="font-size:22px;font-weight:700;margin:0;">MCI CRM não iniciou corretamente</h1>
+        <p style="margin:0;color:rgba(255,255,255,.72);font-size:14px;line-height:1.5;">Recarregue a página. Se persistir, use a limpeza segura abaixo.</p>
+        <pre style="white-space:pre-wrap;word-break:break-word;text-align:left;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:12px;font-size:11px;color:#fecaca;max-height:160px;overflow:auto;">${message.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char] ?? char))}</pre>
+        <div style="display:grid;gap:10px;">
+          <button id="mci-reload" style="border:0;border-radius:10px;padding:12px 14px;background:#059669;color:white;font-weight:700;cursor:pointer;">Recarregar sistema</button>
+          <button id="mci-clean" style="border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:12px 14px;background:rgba(255,255,255,.08);color:white;font-weight:700;cursor:pointer;">Limpar cache local</button>
+        </div>
+      </section>
+    </main>
+  `;
+
+  document.getElementById("mci-reload")?.addEventListener("click", () => window.location.reload());
+  document.getElementById("mci-clean")?.addEventListener("click", () => {
+    try { window.localStorage.clear(); } catch {}
+    try { window.sessionStorage.clear(); } catch {}
+    window.location.reload();
+  });
+};
+
 if (typeof window !== 'undefined') {
+  installBrowserSafetyGuards();
   window.addEventListener('error', (event) => {
     recoverFromChunkError(event.error ?? event.message);
   });
@@ -42,11 +70,20 @@ try {
   if (rootElement) {
     console.log('[Main] Elemento root encontrado');
     const root = createRoot(rootElement);
-    root.render(<App />);
-    console.log('[Main] Renderização solicitada');
+    void import("./App.tsx")
+      .then(({ default: App }) => {
+        root.render(<App />);
+        console.log('[Main] Renderização solicitada');
+      })
+      .catch((error) => {
+        console.error('[Main] Erro ao carregar o app:', error);
+        recoverFromChunkError(error);
+        renderFatalStartupError(error);
+      });
   } else {
     console.error('[Main] Elemento root não encontrado!');
   }
 } catch (error) {
   console.error('[Main] Erro fatal durante a renderização:', error);
+  renderFatalStartupError(error);
 }
