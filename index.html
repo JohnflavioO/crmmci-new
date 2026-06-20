@@ -34,37 +34,7 @@
 </head>
 
   <body>
-    <div id="root" data-watchdog="pending"></div>
-    <script>
-      (function () {
-        var host = window.location.hostname;
-        var isPreview = host.indexOf('id-preview--') === 0 || host.indexOf('-preview--') > -1 || host.indexOf('lovableproject.com') > -1;
-        if (!isPreview) return;
-
-        var version = '2026-06-20-preview-clean-url-v2';
-        var cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
-        var hasRecoveryParams = /[?&]__mci_(cache|reload)=/.test(window.location.search);
-        var hasOpaquePreviewToken = window.location.search.length > 300 && window.location.search.indexOf('=') === -1;
-
-        if (hasRecoveryParams || hasOpaquePreviewToken) {
-          window.history.replaceState(null, document.title, cleanUrl);
-        }
-
-        try {
-          if (window.sessionStorage.getItem('__mci_preview_bootstrap_clean') === version) return;
-          window.sessionStorage.setItem('__mci_preview_bootstrap_clean', version);
-        } catch (error) {
-          return;
-        }
-
-        Promise.all([
-          'caches' in window ? caches.keys().then(function (names) { return Promise.all(names.map(function (name) { return caches.delete(name); })); }) : Promise.resolve(),
-          'serviceWorker' in navigator ? navigator.serviceWorker.getRegistrations().then(function (regs) { return Promise.all(regs.map(function (reg) { return reg.unregister(); })); }) : Promise.resolve()
-        ]).then(function () {
-          if (hasRecoveryParams || hasOpaquePreviewToken) window.location.replace(cleanUrl);
-        }).catch(function () {});
-      })();
-    </script>
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
