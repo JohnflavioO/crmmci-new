@@ -1585,6 +1585,11 @@ export default function Quotes() {
                           onFocus={() => setShowProductDropdown(idx)}
                           onBlur={() => setTimeout(() => setShowProductDropdown(null), 200)}
                         />
+                        {showProductDropdown === idx && (productSearch[idx] || '').trim() && getFilteredProducts(idx).length === 0 && (
+                          <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg p-3 text-sm text-muted-foreground">
+                            Nenhum produto encontrado para “{productSearch[idx]}”.
+                          </div>
+                        )}
                         {showProductDropdown === idx && getFilteredProducts(idx).length > 0 && (
                           <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
                             {getFilteredProducts(idx).map((p: any) => (
@@ -1603,7 +1608,9 @@ export default function Quotes() {
                                 )}
                                 <div className="flex-1 min-w-0">
                                   <span className="font-medium block whitespace-normal">{p.name}</span>
-                                  <span className="text-muted-foreground text-xs">{p.brand} • {formatCurrency(parseFloat(p.price) || 0)}</span>
+                                  <span className="text-muted-foreground text-xs">
+                                    {[p.brand, p.code || p.sku].filter(Boolean).join(' • ')}{(p.brand || p.code || p.sku) ? ' • ' : ''}{formatCurrency(parseFloat(p.price) || 0)}
+                                  </span>
                                 </div>
                               </button>
                             ))}
