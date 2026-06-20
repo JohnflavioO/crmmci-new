@@ -425,15 +425,23 @@ export default function Quotes() {
     }
 
     try {
+      const orFilters = tokens.slice(0, 6)
+        .map(token => token.replace(/[%,()]/g, ''))
+        .filter(Boolean)
+        .flatMap(token => [
+          `name.ilike.%${token}%`,
+          `brand.ilike.%${token}%`,
+          `code.ilike.%${token}%`,
+          `sku.ilike.%${token}%`,
+          `category_principal.ilike.%${token}%`,
+          `description.ilike.%${token}%`,
+        ]);
+
       let query = db.from('products')
         .select('id, name, brand, code, sku, category_principal, price, description, image_url')
         .limit(80);
 
-      tokens.slice(0, 5).forEach(token => {
-        const safe = token.replace(/[%,()]/g, '');
-        if (!safe) return;
-        query = query.or(`name.ilike.%${safe}%,brand.ilike.%${safe}%,code.ilike.%${safe}%,sku.ilike.%${safe}%,category_principal.ilike.%${safe}%,description.ilike.%${safe}%`);
-      });
+      if (orFilters.length > 0) query = query.or(orFilters.join(','));
 
       const { data, error } = await query;
       if (error) throw error;
