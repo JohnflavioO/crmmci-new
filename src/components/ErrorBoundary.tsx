@@ -46,7 +46,6 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   handleClearAndReload = () => {
     if (isPreviewRuntime()) {
-      window.location.reload();
       return;
     }
     void clearLocalAppStateAndReload();

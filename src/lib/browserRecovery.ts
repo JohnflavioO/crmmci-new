@@ -102,7 +102,6 @@ export const reloadWithCacheBust = () => {
   const url = new URL(window.location.href);
 
   if (isLovablePreviewRuntime()) {
-    window.location.reload();
     return;
   }
 
@@ -130,6 +129,8 @@ export const runOneTimeCacheRefresh = () => {
 };
 
 export const clearLocalAppStateAndReload = async () => {
+  if (isLovablePreviewRuntime()) return;
+
   safeStorage("localStorage", (storage) => storage.clear());
   safeStorage("sessionStorage", (storage) => storage.clear());
   await clearBrowserCachesAndWorkers();
