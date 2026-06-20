@@ -7,6 +7,14 @@ export default function PWAUpdatePrompt() {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
 
   useEffect(() => {
+    const host = window.location.hostname;
+    const isPreview = window.self !== window.top
+      || host.startsWith('id-preview--')
+      || host.includes('-preview--')
+      || host.includes('lovable.app')
+      || host.endsWith('.lovableproject.com');
+    if (isPreview) return;
+
     // Only run in standalone PWA mode (not in browser/iframe)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
       || (navigator as any).standalone === true;

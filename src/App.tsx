@@ -8,7 +8,7 @@ import { PrivacyProvider } from "@/hooks/usePrivacy";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import AppVersionBanner from "./components/AppVersionBanner";
-import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
 
 // Eager imports for stability
@@ -71,6 +71,10 @@ function LoadingScreen() {
   );
 }
 
+function SafeRoute({ children }: { children: ReactNode }) {
+  return <ErrorBoundary title="Erro ao carregar esta área">{children}</ErrorBoundary>;
+}
+
 function AppRoutes() {
   const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, isSupport, forcePasswordChange, profile } = useAuth();
   
@@ -82,9 +86,9 @@ function AppRoutes() {
     return (
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
-          <Route path="/quote/:token" element={<PublicQuote />} />
-          <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
-          <Route path="/rastreio/pedido/:token" element={<LogisticsTracking />} />
+          <Route path="/quote/:token" element={<SafeRoute><PublicQuote /></SafeRoute>} />
+          <Route path="/rastreamento/os/:token" element={<SafeRoute><PublicTracking /></SafeRoute>} />
+          <Route path="/rastreio/pedido/:token" element={<SafeRoute><LogisticsTracking /></SafeRoute>} />
           <Route path="*" element={<Auth />} />
         </Routes>
       </Suspense>
@@ -106,22 +110,22 @@ function AppRoutes() {
   return (
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
-        <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
-        <Route path="/rastreio/pedido/:token" element={<LogisticsTracking />} />
+        <Route path="/rastreamento/os/:token" element={<SafeRoute><PublicTracking /></SafeRoute>} />
+        <Route path="/rastreio/pedido/:token" element={<SafeRoute><LogisticsTracking /></SafeRoute>} />
 
         {(isSupport || isAdmin || isGestor) && (
-          <Route path="/suporte" element={<SupportLayout />}>
-            <Route index element={<SupportDashboard />} />
-            <Route path="dashboard" element={<SupportDashboard />} />
-            <Route path="estoque" element={<SupportStock />} />
-            <Route path="clientes" element={<SupportClients />} />
-            <Route path="os" element={<SupportOrders />} />
-            <Route path="os/:id" element={<SupportOrderDetail />} />
-            <Route path="compras" element={<SupportPurchases />} />
-            <Route path="orcamentos" element={<SupportBudgets />} />
-            <Route path="nuvem" element={<SupportCloud />} />
-            <Route path="relatorios" element={<SupportReports />} />
-            <Route path="manutencao" element={<SupportMaintenance />} />
+          <Route path="/suporte" element={<SafeRoute><SupportLayout /></SafeRoute>}>
+            <Route index element={<SafeRoute><SupportDashboard /></SafeRoute>} />
+            <Route path="dashboard" element={<SafeRoute><SupportDashboard /></SafeRoute>} />
+            <Route path="estoque" element={<SafeRoute><SupportStock /></SafeRoute>} />
+            <Route path="clientes" element={<SafeRoute><SupportClients /></SafeRoute>} />
+            <Route path="os" element={<SafeRoute><SupportOrders /></SafeRoute>} />
+            <Route path="os/:id" element={<SafeRoute><SupportOrderDetail /></SafeRoute>} />
+            <Route path="compras" element={<SafeRoute><SupportPurchases /></SafeRoute>} />
+            <Route path="orcamentos" element={<SafeRoute><SupportBudgets /></SafeRoute>} />
+            <Route path="nuvem" element={<SafeRoute><SupportCloud /></SafeRoute>} />
+            <Route path="relatorios" element={<SafeRoute><SupportReports /></SafeRoute>} />
+            <Route path="manutencao" element={<SafeRoute><SupportMaintenance /></SafeRoute>} />
           </Route>
         )}
 
@@ -132,27 +136,27 @@ function AppRoutes() {
               isFinanceiroOnly ? <Navigate to="/financial" replace /> :
               <Navigate to="/dashboard" replace />
             } />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/operational" element={<OperationalCenter />} />
-            <Route path="/clients" element={<Clients />} />
-            <Route path="/quotes" element={<Quotes />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="/contracts" element={<ContractGenerator />} />
+            <Route path="/dashboard" element={<SafeRoute><Dashboard /></SafeRoute>} />
+            <Route path="/operational" element={<SafeRoute><OperationalCenter /></SafeRoute>} />
+            <Route path="/clients" element={<SafeRoute><Clients /></SafeRoute>} />
+            <Route path="/quotes" element={<SafeRoute><Quotes /></SafeRoute>} />
+            <Route path="/products" element={<SafeRoute><Products /></SafeRoute>} />
+            <Route path="/contracts" element={<SafeRoute><ContractGenerator /></SafeRoute>} />
 
-            <Route path="/ecoflow" element={<EcoflowCalculator />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route path="/metrics" element={<Metrics />} />
-            <Route path="/pipeline" element={<Pipeline />} />
-            <Route path="/quote/:token" element={<PublicQuote />} />
-            <Route path="/negociacoes" element={<Negociacoes />} />
-            <Route path="/prospect" element={<ProspectView />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/logistics" element={<Logistics />} />
-            <Route path="/estoque-sc" element={<EstoqueSC />} />
-            {(isGestor || isFinanceiro) && <Route path="/financial" element={<Financial />} />}
-            {(isGestor || isFinanceiro) && <Route path="/bank-slips" element={<BankSlips />} />}
-            {(isAdmin || isGestor) && <Route path="/approvals" element={<Approvals />} />}
-            {isAdmin && <Route path="/integrations" element={<Integrations />} />}
+            <Route path="/ecoflow" element={<SafeRoute><EcoflowCalculator /></SafeRoute>} />
+            <Route path="/tasks" element={<SafeRoute><Tasks /></SafeRoute>} />
+            <Route path="/metrics" element={<SafeRoute><Metrics /></SafeRoute>} />
+            <Route path="/pipeline" element={<SafeRoute><Pipeline /></SafeRoute>} />
+            <Route path="/quote/:token" element={<SafeRoute><PublicQuote /></SafeRoute>} />
+            <Route path="/negociacoes" element={<SafeRoute><Negociacoes /></SafeRoute>} />
+            <Route path="/prospect" element={<SafeRoute><ProspectView /></SafeRoute>} />
+            <Route path="/reports" element={<SafeRoute><Reports /></SafeRoute>} />
+            <Route path="/logistics" element={<SafeRoute><Logistics /></SafeRoute>} />
+            <Route path="/estoque-sc" element={<SafeRoute><EstoqueSC /></SafeRoute>} />
+            {(isGestor || isFinanceiro) && <Route path="/financial" element={<SafeRoute><Financial /></SafeRoute>} />}
+            {(isGestor || isFinanceiro) && <Route path="/bank-slips" element={<SafeRoute><BankSlips /></SafeRoute>} />}
+            {(isAdmin || isGestor) && <Route path="/approvals" element={<SafeRoute><Approvals /></SafeRoute>} />}
+            {isAdmin && <Route path="/integrations" element={<SafeRoute><Integrations /></SafeRoute>} />}
           </>
         )}
 

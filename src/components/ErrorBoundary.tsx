@@ -16,6 +16,7 @@ const isPreviewRuntime = () => {
 
 interface Props {
   children: ReactNode;
+  title?: string;
 }
 
 interface State {
@@ -53,6 +54,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      const title = this.props.title ?? 'Erro ao carregar esta área';
       return (
         <div className="min-h-screen flex items-center justify-center bg-[#0f2b26] p-6 font-sans">
           <div className="max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in duration-300">
@@ -60,9 +62,9 @@ export default class ErrorBoundary extends Component<Props, State> {
               <AlertTriangle className="h-8 w-8 text-red-400" />
             </div>
             <div className="space-y-2">
-              <h1 className="text-xl font-bold text-white">Ops! Ocorreu um erro inesperado</h1>
+              <h1 className="text-xl font-bold text-white">{title}</h1>
               <p className="text-sm text-white/60">
-                O sistema encontrou um problema técnico. Tente recarregar ou limpar os dados locais.
+                O sistema encontrou um problema técnico nesta seção. Os detalhes foram enviados ao console.
               </p>
             </div>
             
@@ -81,12 +83,14 @@ export default class ErrorBoundary extends Component<Props, State> {
               >
                 <RefreshCw className="h-4 w-4" /> Recarregar sistema
               </button>
-              <button
-                onClick={this.handleClearAndReload}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 font-medium transition-all border border-white/10"
-              >
-                <Trash2 className="h-4 w-4" /> Limpar cache e tentar novamente
-              </button>
+              {!isPreviewRuntime() && (
+                <button
+                  onClick={this.handleClearAndReload}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 font-medium transition-all border border-white/10"
+                >
+                  <Trash2 className="h-4 w-4" /> Limpar cache e tentar novamente
+                </button>
+              )}
             </div>
             
             <p className="text-[10px] text-white/30 pt-4">
