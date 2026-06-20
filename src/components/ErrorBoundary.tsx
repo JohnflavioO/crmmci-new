@@ -1,6 +1,12 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
-import { clearLocalAppStateAndReload } from '@/lib/browserRecovery';
+import {
+  clearBrowserCachesAndWorkers,
+  clearLocalAppStateAndReload,
+  isLikelyChunkLoadError,
+  reloadWithCacheBust,
+  shouldRetryChunkLoad,
+} from '@/lib/browserRecovery';
 
 interface Props {
   children: ReactNode;
@@ -23,6 +29,9 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[ErrorBoundary] Uncaught error:', error.message, errorInfo.componentStack);
+    if (isLikelyChunkLoadError(error) && shouldRetryChunkLoad()) {
+      void clearBrowserCachesAndWorkers().finally(() => reloadWithCacheBust());
+    }
   }
 
   handleReload = () => {
