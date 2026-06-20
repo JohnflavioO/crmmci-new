@@ -71,6 +71,10 @@ export const clearBrowserCachesAndWorkers = async () => {
   let clearedCaches = 0;
   let unregisteredWorkers = 0;
 
+  if (isLovablePreviewRuntime()) {
+    return { clearedCaches, unregisteredWorkers };
+  }
+
   try {
     if ("caches" in window) {
       const names = await caches.keys();
@@ -98,8 +102,7 @@ export const reloadWithCacheBust = () => {
   const url = new URL(window.location.href);
 
   if (isLovablePreviewRuntime()) {
-    url.search = "";
-    window.location.replace(url.toString());
+    window.location.reload();
     return;
   }
 
