@@ -71,6 +71,10 @@ function LoadingScreen() {
   );
 }
 
+function SafeRoute({ children }: { children: React.ReactNode }) {
+  return <ErrorBoundary title="Erro ao carregar esta área">{children}</ErrorBoundary>;
+}
+
 function AppRoutes() {
   const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, isSupport, forcePasswordChange, profile } = useAuth();
   
@@ -132,17 +136,17 @@ function AppRoutes() {
               isFinanceiroOnly ? <Navigate to="/financial" replace /> :
               <Navigate to="/dashboard" replace />
             } />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/operational" element={<OperationalCenter />} />
-            <Route path="/clients" element={<Clients />} />
-            <Route path="/quotes" element={<Quotes />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="/contracts" element={<ContractGenerator />} />
+            <Route path="/dashboard" element={<SafeRoute><Dashboard /></SafeRoute>} />
+            <Route path="/operational" element={<SafeRoute><OperationalCenter /></SafeRoute>} />
+            <Route path="/clients" element={<SafeRoute><Clients /></SafeRoute>} />
+            <Route path="/quotes" element={<SafeRoute><Quotes /></SafeRoute>} />
+            <Route path="/products" element={<SafeRoute><Products /></SafeRoute>} />
+            <Route path="/contracts" element={<SafeRoute><ContractGenerator /></SafeRoute>} />
 
-            <Route path="/ecoflow" element={<EcoflowCalculator />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route path="/metrics" element={<Metrics />} />
-            <Route path="/pipeline" element={<Pipeline />} />
+            <Route path="/ecoflow" element={<SafeRoute><EcoflowCalculator /></SafeRoute>} />
+            <Route path="/tasks" element={<SafeRoute><Tasks /></SafeRoute>} />
+            <Route path="/metrics" element={<SafeRoute><Metrics /></SafeRoute>} />
+            <Route path="/pipeline" element={<SafeRoute><Pipeline /></SafeRoute>} />
             <Route path="/quote/:token" element={<PublicQuote />} />
             <Route path="/negociacoes" element={<Negociacoes />} />
             <Route path="/prospect" element={<ProspectView />} />
