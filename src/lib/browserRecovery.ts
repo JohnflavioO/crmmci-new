@@ -1,4 +1,10 @@
-const CACHE_VERSION = "v2026-06-20-white-screen-recovery";
+const CACHE_VERSION = "v2026-06-20-preview-safe-recovery";
+
+const isLovablePreviewRuntime = () => {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host.startsWith("id-preview--") || host.includes("-preview--") || host.endsWith(".lovableproject.com");
+};
 
 const createMemoryStorage = (): Storage => {
   const store = new Map<string, string>();
@@ -90,12 +96,21 @@ export const clearBrowserCachesAndWorkers = async () => {
 
 export const reloadWithCacheBust = () => {
   const url = new URL(window.location.href);
+
+  if (isLovablePreviewRuntime()) {
+    url.search = "";
+    window.location.replace(url.toString());
+    return;
+  }
+
   url.searchParams.set("__mci_cache", CACHE_VERSION);
   url.searchParams.set("__mci_reload", String(Date.now()));
   window.location.replace(url.toString());
 };
 
 export const runOneTimeCacheRefresh = () => {
+  if (isLovablePreviewRuntime()) return;
+
   const key = "__mci_cache_version";
   const currentVersion = safeStorage("localStorage", (storage) => storage.getItem(key));
 
