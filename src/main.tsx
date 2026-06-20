@@ -11,7 +11,14 @@ import {
 
 console.log('[Main] Inciando renderização...');
 
+const isPreviewRuntime = () => {
+  if (typeof window === 'undefined') return false;
+  const h = window.location.hostname;
+  return h.startsWith('id-preview--') || h.includes('-preview--') || h.endsWith('.lovableproject.com');
+};
+
 const recoverFromChunkError = (error: unknown) => {
+  if (isPreviewRuntime()) return;
   if (!isLikelyChunkLoadError(error) || !shouldRetryChunkLoad()) return;
 
   console.warn('[Main] Falha ao carregar módulo detectada. Limpando cache e recarregando...', error);
@@ -25,7 +32,9 @@ if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (event) => {
     recoverFromChunkError(event.reason);
   });
-  runOneTimeCacheRefresh();
+  if (!isPreviewRuntime()) {
+    runOneTimeCacheRefresh();
+  }
 }
 
 try {
