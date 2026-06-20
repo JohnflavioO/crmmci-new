@@ -8,7 +8,7 @@ import { PrivacyProvider } from "@/hooks/usePrivacy";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import AppVersionBanner from "./components/AppVersionBanner";
-import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
 
 // Eager imports for stability
@@ -71,7 +71,7 @@ function LoadingScreen() {
   );
 }
 
-function SafeRoute({ children }: { children: React.ReactNode }) {
+function SafeRoute({ children }: { children: ReactNode }) {
   return <ErrorBoundary title="Erro ao carregar esta área">{children}</ErrorBoundary>;
 }
 
@@ -86,9 +86,9 @@ function AppRoutes() {
     return (
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
-          <Route path="/quote/:token" element={<PublicQuote />} />
-          <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
-          <Route path="/rastreio/pedido/:token" element={<LogisticsTracking />} />
+          <Route path="/quote/:token" element={<SafeRoute><PublicQuote /></SafeRoute>} />
+          <Route path="/rastreamento/os/:token" element={<SafeRoute><PublicTracking /></SafeRoute>} />
+          <Route path="/rastreio/pedido/:token" element={<SafeRoute><LogisticsTracking /></SafeRoute>} />
           <Route path="*" element={<Auth />} />
         </Routes>
       </Suspense>
@@ -110,11 +110,11 @@ function AppRoutes() {
   return (
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
-        <Route path="/rastreamento/os/:token" element={<PublicTracking />} />
-        <Route path="/rastreio/pedido/:token" element={<LogisticsTracking />} />
+        <Route path="/rastreamento/os/:token" element={<SafeRoute><PublicTracking /></SafeRoute>} />
+        <Route path="/rastreio/pedido/:token" element={<SafeRoute><LogisticsTracking /></SafeRoute>} />
 
         {(isSupport || isAdmin || isGestor) && (
-          <Route path="/suporte" element={<SupportLayout />}>
+          <Route path="/suporte" element={<SafeRoute><SupportLayout /></SafeRoute>}>
             <Route index element={<SupportDashboard />} />
             <Route path="dashboard" element={<SupportDashboard />} />
             <Route path="estoque" element={<SupportStock />} />
