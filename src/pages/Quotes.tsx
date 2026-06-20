@@ -413,8 +413,62 @@ export default function Quotes() {
       return updated;
     });
     setProductSearch(prev => ({ ...prev, [idx]: '' }));
+    setProductSearchResults(prev => ({ ...prev, [idx]: [] }));
     setShowProductDropdown(null);
   };
+
+  const searchProductsInDatabase = useCallback(async (idx: number, rawSearch: string) => {
+    const tokens = tokenizeProductSearch(rawSearch);
+    if (tokens.length === 0) {
+      setProductSearchResults(prev => ({ ...prev, [idx]: [] }));
+      return;
+    }
+
+    try {
+      let query = db.from('products')
+        .select('id, name, brand, code, sku, category_principal, price, description, image_url')
+        .limit(80);
+
+      tokens.slice(0, 5).forEach(token => {
+        const safe = token.replace(/[%,()]/g, '');
+        if (!safe) return;
+        query = query.or(`name.ilike.%${safe}%,brand.ilike.%${safe}%,code.ilike.%${safe}%,sku.ilike.%${safe}%,category_principal.ilike.%${safe}%,description.ilike.%${safe}%`);
+      });
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const normalizedQuery = normalizeProductText(rawSearch);
+      const ranked = (data || [])
+        .map((product: any) => ({ product, score: rankProductMatch(product, normalizedQuery, tokens) }))
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(({ product }) => product)
+        .slice(0, 20);
+
+      setProductSearchResults(prev => ({ ...prev, [idx]: ranked }));
+    } catch (error: any) {
+      console.error('product search error:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timers = Object.entries(productSearch).map(([idxStr, value]) => {
+      const idx = Number(idxStr);
+      const raw = value || '';
+      if (tokenizeProductSearch(raw).length === 0) {
+        setProductSearchResults(prev => ({ ...prev, [idx]: [] }));
+        return null;
+      }
+      return window.setTimeout(() => {
+        void searchProductsInDatabase(idx, raw);
+      }, 250);
+    });
+
+    return () => timers.forEach(timer => {
+      if (timer) window.clearTimeout(timer);
+    });
+  }, [productSearch, searchProductsInDatabase]);
 
   const filteredProductsBySearch = useMemo(() => {
     const searchMap: Record<number, any[]> = {};
