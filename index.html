@@ -38,7 +38,12 @@
     <script>
       (function () {
         var host = window.location.hostname;
-        var isPreview = window.self !== window.top || host.indexOf('id-preview--') === 0 || host.indexOf('-preview--') > -1 || host.indexOf('lovableproject.com') > -1;
+        var isPreview = window.self !== window.top || host.indexOf('id-preview--') === 0 || host.indexOf('-preview--') > -1 || host === 'lovable.app' || host.indexOf('.lovable.app') > -1 || host.indexOf('lovableproject.com') > -1 || host.indexOf('lovableproject-dev.com') > -1;
+
+        if (isPreview && window.location.search.length > 120) {
+          window.history.replaceState(null, document.title, window.location.pathname + window.location.hash);
+        }
+
         if (!isPreview || !('serviceWorker' in navigator)) return;
         navigator.serviceWorker.getRegistrations().then(function (registrations) {
           registrations.forEach(function (registration) {
