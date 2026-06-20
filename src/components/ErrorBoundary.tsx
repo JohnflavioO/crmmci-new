@@ -8,6 +8,12 @@ import {
   shouldRetryChunkLoad,
 } from '@/lib/browserRecovery';
 
+const isPreviewRuntime = () => {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  return host.startsWith('id-preview--') || host.includes('-preview--') || host.includes('lovable.app') || host.endsWith('.lovableproject.com');
+};
+
 interface Props {
   children: ReactNode;
 }
@@ -29,7 +35,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[ErrorBoundary] Uncaught error:', error.message, errorInfo.componentStack);
-    if (isLikelyChunkLoadError(error) && shouldRetryChunkLoad()) {
+    if (!isPreviewRuntime() && isLikelyChunkLoadError(error) && shouldRetryChunkLoad()) {
       void clearBrowserCachesAndWorkers().finally(() => reloadWithCacheBust());
     }
   }
@@ -39,6 +45,10 @@ export default class ErrorBoundary extends Component<Props, State> {
   };
 
   handleClearAndReload = () => {
+    if (isPreviewRuntime()) {
+      window.location.reload();
+      return;
+    }
     void clearLocalAppStateAndReload();
   };
 
