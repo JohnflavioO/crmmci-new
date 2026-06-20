@@ -491,7 +491,12 @@ export default function Quotes() {
   }, [products, productSearch]);
 
   const getFilteredProducts = (idx: number) => {
-    return filteredProductsBySearch[idx] || [];
+    const dbResults = productSearchResults[idx] || [];
+    const localResults = filteredProductsBySearch[idx] || [];
+    const merged = [...dbResults, ...localResults];
+    return merged.filter((product, index, list) =>
+      list.findIndex(item => item.id === product.id) === index
+    ).slice(0, 20);
   };
 
   const hasItems = items.some(i => !!i.model);
