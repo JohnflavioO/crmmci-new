@@ -343,7 +343,7 @@ export default function Quotes() {
         quotesQuery,
         db.from('clients').select('id, company_name, name, is_revenda, contrib_icms').eq('created_by', user.id).order('company_name'),
         db.from('salespeople').select('*').eq('active', true).order('name'),
-        db.from('products').select('id, name, brand, code, price, description, image_url').order('name'),
+        db.from('products').select('id, name, brand, code, sku, category_principal, price, description, image_url').order('name').limit(1000),
       ]);
       setQuotes(q.data || []);
       setClients(c.data || []);
@@ -419,17 +419,18 @@ export default function Quotes() {
     const searchMap: Record<number, any[]> = {};
     Object.keys(productSearch).forEach(idxStr => {
       const idx = parseInt(idxStr);
-      const q = (productSearch[idx] || '').toLowerCase().trim();
-      if (!q) {
+      const q = normalizeProductText(productSearch[idx] || '');
+      const tokens = tokenizeProductSearch(productSearch[idx] || '');
+      if (!q || tokens.length === 0) {
         searchMap[idx] = [];
         return;
       }
-      searchMap[idx] = products.filter((p: any) =>
-        (p.name?.toLowerCase().includes(q) || 
-         p.brand?.toLowerCase().includes(q) || 
-         p.code?.toLowerCase().includes(q) ||
-         p.description?.toLowerCase().includes(q))
-      ).slice(0, 8);
+      searchMap[idx] = products
+        .map((product: any) => ({ product, score: rankProductMatch(product, q, tokens) }))
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(({ product }) => product)
+        .slice(0, 20);
     });
     return searchMap;
   }, [products, productSearch]);
