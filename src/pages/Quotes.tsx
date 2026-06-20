@@ -34,6 +34,50 @@ import {
 
 const db = supabase as any;
 
+const normalizeProductText = (value: any): string =>
+  (value ?? '').toString().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const tokenizeProductSearch = (value: string): string[] =>
+  normalizeProductText(value).split(' ').filter(token => token.length > 0);
+
+const rankProductMatch = (product: any, query: string, tokens: string[]): number => {
+  const fields = [
+    product.name,
+    product.brand,
+    product.code,
+    product.sku,
+    product.category_principal,
+    product.description,
+  ].map(normalizeProductText);
+  const [name, brand, code, sku, category, description] = fields;
+  let score = 0;
+
+  if (query) {
+    if (name === query) score += 1000;
+    else if (name.startsWith(query)) score += 600;
+    else if (name.includes(query)) score += 300;
+    if (code === query || sku === query) score += 500;
+    else if (code.includes(query) || sku.includes(query)) score += 250;
+    if (brand.includes(query)) score += 120;
+    if (category.includes(query)) score += 70;
+    if (description.includes(query)) score += 30;
+  }
+
+  for (const token of tokens) {
+    if (name.includes(token)) score += 40;
+    if (code.includes(token) || sku.includes(token)) score += 35;
+    if (brand.includes(token)) score += 25;
+    if (category.includes(token)) score += 10;
+    if (description.includes(token)) score += 5;
+  }
+
+  return score;
+};
+
 // Helper seguro para validar e formatar datas
 const safeFormatDate = (value: any, formatStr: string = 'dd/MM/yyyy') => {
   if (!value) return '';
@@ -219,6 +263,7 @@ export default function Quotes() {
   const [salespeople, setSalespeople] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState<Record<number, string>>({});
+  const [productSearchResults, setProductSearchResults] = useState<Record<number, any[]>>({});
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
   const [chatQuote, setChatQuote] = useState<{ id: string; number: string } | null>(null);
   const [cepLoading, setCepLoading] = useState(false);
@@ -299,7 +344,7 @@ export default function Quotes() {
         quotesQuery,
         db.from('clients').select('id, company_name, name, is_revenda, contrib_icms').eq('created_by', user.id).order('company_name'),
         db.from('salespeople').select('*').eq('active', true).order('name'),
-        db.from('products').select('id, name, brand, code, price, description, image_url').order('name'),
+        db.from('products').select('id, name, brand, code, sku, category_principal, price, description, image_url').order('name').limit(1000),
       ]);
       setQuotes(q.data || []);
       setClients(c.data || []);
@@ -368,30 +413,98 @@ export default function Quotes() {
       return updated;
     });
     setProductSearch(prev => ({ ...prev, [idx]: '' }));
+    setProductSearchResults(prev => ({ ...prev, [idx]: [] }));
     setShowProductDropdown(null);
   };
+
+  const searchProductsInDatabase = useCallback(async (idx: number, rawSearch: string) => {
+    const tokens = tokenizeProductSearch(rawSearch);
+    if (tokens.length === 0) {
+      setProductSearchResults(prev => ({ ...prev, [idx]: [] }));
+      return;
+    }
+
+    try {
+      const orFilters = tokens.slice(0, 6)
+        .map(token => token.replace(/[%,()]/g, ''))
+        .filter(Boolean)
+        .flatMap(token => [
+          `name.ilike.%${token}%`,
+          `brand.ilike.%${token}%`,
+          `code.ilike.%${token}%`,
+          `sku.ilike.%${token}%`,
+          `category_principal.ilike.%${token}%`,
+          `description.ilike.%${token}%`,
+        ]);
+
+      let query = db.from('products')
+        .select('id, name, brand, code, sku, category_principal, price, description, image_url')
+        .limit(80);
+
+      if (orFilters.length > 0) query = query.or(orFilters.join(','));
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const normalizedQuery = normalizeProductText(rawSearch);
+      const ranked = (data || [])
+        .map((product: any) => ({ product, score: rankProductMatch(product, normalizedQuery, tokens) }))
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(({ product }) => product)
+        .slice(0, 20);
+
+      setProductSearchResults(prev => ({ ...prev, [idx]: ranked }));
+    } catch (error: any) {
+      console.error('product search error:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timers = Object.entries(productSearch).map(([idxStr, value]) => {
+      const idx = Number(idxStr);
+      const raw = value || '';
+      if (tokenizeProductSearch(raw).length === 0) {
+        setProductSearchResults(prev => ({ ...prev, [idx]: [] }));
+        return null;
+      }
+      return window.setTimeout(() => {
+        void searchProductsInDatabase(idx, raw);
+      }, 250);
+    });
+
+    return () => timers.forEach(timer => {
+      if (timer) window.clearTimeout(timer);
+    });
+  }, [productSearch, searchProductsInDatabase]);
 
   const filteredProductsBySearch = useMemo(() => {
     const searchMap: Record<number, any[]> = {};
     Object.keys(productSearch).forEach(idxStr => {
       const idx = parseInt(idxStr);
-      const q = (productSearch[idx] || '').toLowerCase().trim();
-      if (!q) {
+      const q = normalizeProductText(productSearch[idx] || '');
+      const tokens = tokenizeProductSearch(productSearch[idx] || '');
+      if (!q || tokens.length === 0) {
         searchMap[idx] = [];
         return;
       }
-      searchMap[idx] = products.filter((p: any) =>
-        (p.name?.toLowerCase().includes(q) || 
-         p.brand?.toLowerCase().includes(q) || 
-         p.code?.toLowerCase().includes(q) ||
-         p.description?.toLowerCase().includes(q))
-      ).slice(0, 8);
+      searchMap[idx] = products
+        .map((product: any) => ({ product, score: rankProductMatch(product, q, tokens) }))
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(({ product }) => product)
+        .slice(0, 20);
     });
     return searchMap;
   }, [products, productSearch]);
 
   const getFilteredProducts = (idx: number) => {
-    return filteredProductsBySearch[idx] || [];
+    const dbResults = productSearchResults[idx] || [];
+    const localResults = filteredProductsBySearch[idx] || [];
+    const merged = [...dbResults, ...localResults];
+    return merged.filter((product, index, list) =>
+      list.findIndex(item => item.id === product.id) === index
+    ).slice(0, 20);
   };
 
   const hasItems = items.some(i => !!i.model);
@@ -1480,6 +1593,11 @@ export default function Quotes() {
                           onFocus={() => setShowProductDropdown(idx)}
                           onBlur={() => setTimeout(() => setShowProductDropdown(null), 200)}
                         />
+                        {showProductDropdown === idx && (productSearch[idx] || '').trim() && getFilteredProducts(idx).length === 0 && (
+                          <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg p-3 text-sm text-muted-foreground">
+                            Nenhum produto encontrado para “{productSearch[idx]}”.
+                          </div>
+                        )}
                         {showProductDropdown === idx && getFilteredProducts(idx).length > 0 && (
                           <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
                             {getFilteredProducts(idx).map((p: any) => (
@@ -1498,7 +1616,9 @@ export default function Quotes() {
                                 )}
                                 <div className="flex-1 min-w-0">
                                   <span className="font-medium block whitespace-normal">{p.name}</span>
-                                  <span className="text-muted-foreground text-xs">{p.brand} • {formatCurrency(parseFloat(p.price) || 0)}</span>
+                                  <span className="text-muted-foreground text-xs">
+                                    {[p.brand, p.code || p.sku].filter(Boolean).join(' • ')}{(p.brand || p.code || p.sku) ? ' • ' : ''}{formatCurrency(parseFloat(p.price) || 0)}
+                                  </span>
                                 </div>
                               </button>
                             ))}
