@@ -1865,27 +1865,17 @@ export default function Quotes() {
             </Popover>
           </div>
           <div className="mt-3 -mx-1 px-1 flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-            {([
-              { key: 'all', label: 'Todos os tipos' },
-              { key: 'commercial', label: 'Comerciais' },
-              { key: 'demonstration', label: 'Demonstração' },
-            ] as const).map(chip => {
-              const active = typeFilter === chip.key;
-              return (
-                <button
-                  key={chip.key}
-                  type="button"
-                  onClick={() => setTypeFilter(chip.key)}
-                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                    active
-                      ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-                      : 'bg-background hover:bg-muted border-border text-foreground'
-                  }`}
-                >
-                  {chip.label}
-                </button>
-              );
-            })}
+            <button
+              type="button"
+              onClick={() => setTypeFilter(typeFilter === 'demonstration' ? 'all' : 'demonstration')}
+              className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                typeFilter === 'demonstration'
+                  ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                  : 'bg-background hover:bg-muted border-border text-foreground'
+              }`}
+            >
+              Demonstração
+            </button>
           </div>
           <div className="mt-3 -mx-1 px-1 flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
             {statusChips.map(chip => {
