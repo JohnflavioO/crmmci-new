@@ -87,10 +87,22 @@ export default function PublicQuote() {
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="text-center mb-8">
           <img src="/mci-logo.png" alt="MCI Store" className="h-12 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold font-display">Orçamento {quote.quote_number}</h1>
+          <h1 className="text-2xl font-bold font-display flex items-center justify-center gap-2 flex-wrap">
+            <span>Orçamento {quote.quote_number}</span>
+            {quote.is_demonstration && (
+              <Badge className="bg-amber-500 hover:bg-amber-500 text-white text-xs font-bold tracking-wider px-2.5 py-1">
+                DEMONSTRAÇÃO
+              </Badge>
+            )}
+          </h1>
           <p className="text-muted-foreground">
             Data: {quote.quote_date ? format(new Date(quote.quote_date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}
           </p>
+          {quote.is_demonstration && (
+            <p className="mt-2 text-sm text-amber-700 font-medium">
+              Esta proposta é uma <strong>demonstração</strong> e não representa uma oferta comercial vinculante.
+            </p>
+          )}
           {alreadyActed && (
             <Badge className={`mt-3 text-sm ${quote.status === 'approved' ? 'bg-emerald-500 text-white' : 'bg-destructive text-white'}`}>
               {quote.status === 'approved' ? '✅ Aprovado' : '❌ Rejeitado'}

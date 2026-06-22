@@ -187,6 +187,7 @@ const defaultForm = {
   shipping_phone: '',
   shipping_notes: '',
   followup_date: '' as string,
+  is_demonstration: false,
 };
 
 const QUICK_ENTRY_STATUSES = ['contato_feito', 'sent', 'negociacao'];
@@ -251,6 +252,7 @@ export default function Quotes() {
   const [clients, setClients] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'commercial' | 'demonstration'>('all');
   const [responsibleFilter, setResponsibleFilter] = useState('me');
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
@@ -633,6 +635,7 @@ export default function Quotes() {
         shipping_state: form.use_alt_shipping_address ? (form.shipping_state || null) : null,
         shipping_phone: form.use_alt_shipping_address ? (form.shipping_phone || null) : null,
         shipping_notes: form.use_alt_shipping_address ? (form.shipping_notes || null) : null,
+        is_demonstration: !!form.is_demonstration,
       };
 
       // Garantir que campos de data nulos ou vazios sejam salvos como null e não strings inválidas
@@ -779,6 +782,7 @@ export default function Quotes() {
         shipping_phone: quote.shipping_phone || '',
         shipping_notes: quote.shipping_notes || '',
         followup_date: safeDateValue(quote.followup_date),
+        is_demonstration: quote.is_demonstration || false,
       };
 
       console.log('[Quotes.handleEdit] Sucesso no processamento dos dados:', {
@@ -832,6 +836,7 @@ export default function Quotes() {
         split_value_2: quote.split_value_2 || 0,
         split_date_2: quote.split_date_2 || null,
         split_installments_2: quote.split_installments_2 || 1,
+        is_demonstration: quote.is_demonstration || false,
       }).select('id').single();
       if (error) throw error;
       if (qItems?.length > 0) {
@@ -1002,7 +1007,12 @@ export default function Quotes() {
     return acc;
   }, {} as Record<string, number>);
 
-  const filtered = dateFilteredBase.filter(q => matchesStatusChip(q, statusFilter));
+  const typeFiltered = dateFilteredBase.filter((q: any) => {
+    if (typeFilter === 'all') return true;
+    if (typeFilter === 'demonstration') return !!q.is_demonstration;
+    return !q.is_demonstration;
+  });
+  const filtered = typeFiltered.filter(q => matchesStatusChip(q, statusFilter));
   const filteredTotal = statusTotals[statusFilter] ?? 0;
 
   // Pagination (20 per page, client-side over already-permission-filtered data)
@@ -1171,6 +1181,24 @@ export default function Quotes() {
                   </div>
                 </div>
               </div>
+
+              {/* Tipo da Proposta */}
+              <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50/50">
+                <div>
+                  <Label htmlFor="is-demonstration" className="text-sm font-semibold cursor-pointer">
+                    Marcar como Demonstração
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Quando ativado, a proposta exibirá o selo <strong>DEMONSTRAÇÃO</strong> em destaque (listagem, PDF e link público).
+                  </p>
+                </div>
+                <Switch
+                  id="is-demonstration"
+                  checked={!!form.is_demonstration}
+                  onCheckedChange={(checked) => setForm(p => ({ ...p, is_demonstration: checked }))}
+                />
+              </div>
+
 
               {/* Quick entry - manual total */}
               {QUICK_ENTRY_STATUSES.includes(form.status) && (
@@ -1837,6 +1865,29 @@ export default function Quotes() {
             </Popover>
           </div>
           <div className="mt-3 -mx-1 px-1 flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+            {([
+              { key: 'all', label: 'Todos os tipos' },
+              { key: 'commercial', label: 'Comerciais' },
+              { key: 'demonstration', label: 'Demonstração' },
+            ] as const).map(chip => {
+              const active = typeFilter === chip.key;
+              return (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => setTypeFilter(chip.key)}
+                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    active
+                      ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                      : 'bg-background hover:bg-muted border-border text-foreground'
+                  }`}
+                >
+                  {chip.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-3 -mx-1 px-1 flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
             {statusChips.map(chip => {
               const active = statusFilter === chip.key;
               const count = statusCounts[chip.key] ?? 0;
@@ -1903,7 +1954,14 @@ export default function Quotes() {
                   <div key={q.id} className="p-3 rounded-lg border bg-muted/30 space-y-2">
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="font-medium text-sm">{q.quote_number}</p>
+                        <p className="font-medium text-sm flex items-center gap-1.5 flex-wrap">
+                          <span>{q.quote_number}</span>
+                          {q.is_demonstration && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white border border-amber-600 tracking-wide">
+                              DEMONSTRAÇÃO
+                            </span>
+                          )}
+                        </p>
                         <p className="text-xs text-muted-foreground">{q.clients?.company_name || q.clients?.name || q.client_name || '-'}</p>
                         <p className="text-xs text-muted-foreground">{safeFormatDate(q.quote_date)}</p>
                       </div>
@@ -1999,6 +2057,11 @@ export default function Quotes() {
                         {q.is_reseller && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-orange-100 text-orange-800 border border-orange-200">
                             <Store className="h-2.5 w-2.5" /> Revenda
+                          </span>
+                        )}
+                        {q.is_demonstration && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white border border-amber-600 tracking-wide">
+                            DEMONSTRAÇÃO
                           </span>
                         )}
                       </div>
