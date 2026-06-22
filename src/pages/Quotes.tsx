@@ -252,6 +252,7 @@ export default function Quotes() {
   const [clients, setClients] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'commercial' | 'demonstration'>('all');
   const [responsibleFilter, setResponsibleFilter] = useState('me');
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
