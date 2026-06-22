@@ -496,11 +496,19 @@ export default function Dashboard() {
     <AppLayout>
 
       <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold font-display">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">Visão geral dos seus resultados e do time</p>
+        <div className="flex items-center justify-between w-full sm:w-auto">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold font-display">Dashboard</h1>
+            <p className="text-muted-foreground text-sm">Visão geral dos seus resultados e do time</p>
+          </div>
+          <div className="sm:hidden">
+            <PrivacyToggle />
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="hidden sm:block">
+            <PrivacyToggle />
+          </div>
           <Button variant="outline" onClick={() => navigate('/reports')} className="gap-2 min-h-[44px] border-primary text-primary hover:bg-primary/5">
             <ClipboardList className="h-4 w-4" /> Relatórios
           </Button>
@@ -509,6 +517,7 @@ export default function Dashboard() {
           </Button>
         </div>
       </div>
+
 
       {/* Meus Resultados - agora no topo */}
       <div className="mb-8">
