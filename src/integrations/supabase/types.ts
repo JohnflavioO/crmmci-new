@@ -1120,6 +1120,7 @@ export type Database = {
           followup_date: string | null
           id: string
           installments: number | null
+          is_demonstration: boolean
           is_reseller: boolean
           is_split_payment: boolean
           notes: string | null
@@ -1175,6 +1176,7 @@ export type Database = {
           followup_date?: string | null
           id?: string
           installments?: number | null
+          is_demonstration?: boolean
           is_reseller?: boolean
           is_split_payment?: boolean
           notes?: string | null
@@ -1230,6 +1232,7 @@ export type Database = {
           followup_date?: string | null
           id?: string
           installments?: number | null
+          is_demonstration?: boolean
           is_reseller?: boolean
           is_split_payment?: boolean
           notes?: string | null
