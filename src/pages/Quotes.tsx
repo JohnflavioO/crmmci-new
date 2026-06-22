@@ -1007,7 +1007,12 @@ export default function Quotes() {
     return acc;
   }, {} as Record<string, number>);
 
-  const filtered = dateFilteredBase.filter(q => matchesStatusChip(q, statusFilter));
+  const typeFiltered = dateFilteredBase.filter((q: any) => {
+    if (typeFilter === 'all') return true;
+    if (typeFilter === 'demonstration') return !!q.is_demonstration;
+    return !q.is_demonstration;
+  });
+  const filtered = typeFiltered.filter(q => matchesStatusChip(q, statusFilter));
   const filteredTotal = statusTotals[statusFilter] ?? 0;
 
   // Pagination (20 per page, client-side over already-permission-filtered data)
