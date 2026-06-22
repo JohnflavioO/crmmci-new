@@ -835,6 +835,7 @@ export default function Quotes() {
         split_value_2: quote.split_value_2 || 0,
         split_date_2: quote.split_date_2 || null,
         split_installments_2: quote.split_installments_2 || 1,
+        is_demonstration: quote.is_demonstration || false,
       }).select('id').single();
       if (error) throw error;
       if (qItems?.length > 0) {
