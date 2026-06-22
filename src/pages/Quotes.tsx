@@ -634,6 +634,7 @@ export default function Quotes() {
         shipping_state: form.use_alt_shipping_address ? (form.shipping_state || null) : null,
         shipping_phone: form.use_alt_shipping_address ? (form.shipping_phone || null) : null,
         shipping_notes: form.use_alt_shipping_address ? (form.shipping_notes || null) : null,
+        is_demonstration: !!form.is_demonstration,
       };
 
       // Garantir que campos de data nulos ou vazios sejam salvos como null e não strings inválidas
