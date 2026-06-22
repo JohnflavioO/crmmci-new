@@ -114,6 +114,28 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     doc.setTextColor(0);
   }
 
+  // Demonstração badge next to quote number
+  if (quote.is_demonstration) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    const qnFullWidth = doc.getTextWidth(`Orçamento: ${quote.quote_number}  `);
+    let demoX = margin + qnFullWidth;
+    if (quote.is_reseller) {
+      doc.setFontSize(7);
+      demoX += doc.getTextWidth('REVENDA') + 10;
+    }
+    const demoText = 'DEMONSTRAÇÃO';
+    doc.setFontSize(7);
+    const demoW = doc.getTextWidth(demoText) + 6;
+    doc.setFillColor(245, 158, 11); // amber-500
+    doc.roundedRect(demoX, infoY - 3.5, demoW, 5, 1.5, 1.5, 'F');
+    doc.setTextColor(255);
+    doc.setFont('helvetica', 'bold');
+    doc.text(demoText, demoX + 3, infoY);
+    doc.setFontSize(9);
+    doc.setTextColor(0);
+  }
+
   doc.text(`Data: ${quote.quote_date ? quote.quote_date.split('-').reverse().join('/') : '-'}`, W - margin, infoY, { align: 'right' });
   
   if (quote.proposal_validity) {
