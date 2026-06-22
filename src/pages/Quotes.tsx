@@ -1182,6 +1182,24 @@ export default function Quotes() {
                 </div>
               </div>
 
+              {/* Tipo da Proposta */}
+              <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50/50">
+                <div>
+                  <Label htmlFor="is-demonstration" className="text-sm font-semibold cursor-pointer">
+                    Marcar como Demonstração
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Quando ativado, a proposta exibirá o selo <strong>DEMONSTRAÇÃO</strong> em destaque (listagem, PDF e link público).
+                  </p>
+                </div>
+                <Switch
+                  id="is-demonstration"
+                  checked={!!form.is_demonstration}
+                  onCheckedChange={(checked) => setForm(p => ({ ...p, is_demonstration: checked }))}
+                />
+              </div>
+
+
               {/* Quick entry - manual total */}
               {QUICK_ENTRY_STATUSES.includes(form.status) && (
                 <div className="p-4 rounded-lg border border-dashed border-primary/30 bg-primary/5 space-y-2">
