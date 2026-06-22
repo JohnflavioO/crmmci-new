@@ -187,6 +187,7 @@ const defaultForm = {
   shipping_phone: '',
   shipping_notes: '',
   followup_date: '' as string,
+  is_demonstration: false,
 };
 
 const QUICK_ENTRY_STATUSES = ['contato_feito', 'sent', 'negociacao'];
