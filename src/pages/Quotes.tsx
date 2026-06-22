@@ -1195,7 +1195,7 @@ export default function Quotes() {
                 <Switch
                   id="is-demonstration"
                   checked={!!form.is_demonstration}
-                  onCheckedChange={(checked) => setForm(p => ({ ...p, is_demonstration: checked }))}
+                  onCheckedChange={(checked) => setForm(p => ({ ...p, is_demonstration: checked, is_reseller: checked ? false : p.is_reseller }))}
                 />
               </div>
 
