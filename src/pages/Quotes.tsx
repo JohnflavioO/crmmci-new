@@ -780,6 +780,7 @@ export default function Quotes() {
         shipping_phone: quote.shipping_phone || '',
         shipping_notes: quote.shipping_notes || '',
         followup_date: safeDateValue(quote.followup_date),
+        is_demonstration: quote.is_demonstration || false,
       };
 
       console.log('[Quotes.handleEdit] Sucesso no processamento dos dados:', {
