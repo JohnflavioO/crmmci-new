@@ -673,7 +673,6 @@ export default function Metrics() {
           </CardContent>
         </Card>
       </div>
-
-    </AppLayout>
-  );
+    </>); }
 }
+
