@@ -1653,18 +1653,19 @@ export default function Quotes() {
                           </div>
                         )}
                       </div>
+                      {(() => { const lockFields = !isAdmin && !isGestor; return (
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs">Modelo *</Label>
-                          <Input value={item.model} onChange={e => updateItem(idx, 'model', e.target.value)} />
+                          <Input value={item.model} onChange={e => updateItem(idx, 'model', e.target.value)} readOnly={lockFields} disabled={lockFields} title={lockFields ? 'Selecione um produto da busca acima' : undefined} />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Marca</Label>
-                          <Input value={item.brand} onChange={e => updateItem(idx, 'brand', e.target.value)} />
+                          <Input value={item.brand} onChange={e => updateItem(idx, 'brand', e.target.value)} readOnly={lockFields} disabled={lockFields} title={lockFields ? 'Selecione um produto da busca acima' : undefined} />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Código</Label>
-                          <Input value={item.product_code} onChange={e => updateItem(idx, 'product_code', e.target.value)} />
+                          <Input value={item.product_code} onChange={e => updateItem(idx, 'product_code', e.target.value)} readOnly={lockFields} disabled={lockFields} title={lockFields ? 'Selecione um produto da busca acima' : undefined} />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Qtd</Label>
@@ -1673,6 +1674,7 @@ export default function Quotes() {
                             onFocus={e => e.target.select()} />
                         </div>
                       </div>
+                      ); })()}
                       <div className="space-y-1">
                         <div className="flex items-center justify-between gap-2">
                           <Label className="text-xs">Especificações</Label>
