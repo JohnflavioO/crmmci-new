@@ -22,6 +22,8 @@ import {
   BarChart3, TrendingUp, DollarSign,
   CalendarDays, Target, Grid3X3, BarChart2, Users, Check, ChevronDown
 } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import SellerComparison from '@/components/SellerComparison';
 
 const db = supabase as any;
 
