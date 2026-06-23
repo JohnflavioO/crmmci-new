@@ -22,6 +22,8 @@ import {
   BarChart3, TrendingUp, DollarSign,
   CalendarDays, Target, Grid3X3, BarChart2, Users, Check, ChevronDown
 } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import SellerComparison from '@/components/SellerComparison';
 
 const db = supabase as any;
 
@@ -246,6 +248,26 @@ export default function Metrics() {
 
   return (
     <AppLayout>
+      {isGestor ? (
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="sellers">Comparativo de Vendedores</TabsTrigger>
+          </TabsList>
+          <TabsContent value="sellers" className="mt-0">
+            <SellerComparison />
+          </TabsContent>
+          <TabsContent value="overview" className="mt-0">
+            <MetricsOverview />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <MetricsOverview />
+      )}
+    </AppLayout>
+  );
+
+  function MetricsOverview() { return (<>
       <div className="mb-4 md:mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="flex items-center justify-between w-full sm:w-auto">
@@ -651,7 +673,6 @@ export default function Metrics() {
           </CardContent>
         </Card>
       </div>
-
-    </AppLayout>
-  );
+    </>); }
 }
+
