@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { clearBrowserCachesAndWorkers, reloadWithCacheBust } from '@/lib/browserRecovery';
+import { useAuth } from '@/hooks/useAuth';
 
 const LS_KEY = 'app_version';
 
@@ -11,12 +12,15 @@ export interface AppVersionInfo {
 }
 
 export function useAppVersion() {
+  const { session } = useAuth();
   const [remote, setRemote] = useState<AppVersionInfo | null>(null);
   const [local, setLocal] = useState<string | null>(() => {
     try { return localStorage.getItem(LS_KEY); } catch { return null; }
   });
 
   const fetchVersion = useCallback(async () => {
+    if (!session) return;
+
     const { data } = await supabase
       .from('system_settings')
       .select('value')
@@ -31,13 +35,15 @@ export function useAppVersion() {
         setLocal(v.version);
       }
     }
-  }, [local]);
+  }, [local, session]);
 
   useEffect(() => {
+    if (!session) return;
+
     fetchVersion();
     const i = setInterval(fetchVersion, 60_000);
     return () => clearInterval(i);
-  }, [fetchVersion]);
+  }, [fetchVersion, session]);
 
   const updateNow = useCallback(async () => {
     if (remote?.version) {

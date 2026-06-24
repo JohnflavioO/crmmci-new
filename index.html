@@ -37,6 +37,29 @@
     <div id="root"></div>
     <script>
       (function () {
+        var CACHE_VERSION = 'v2026-06-24-preview-recovery-3';
+        var host = window.location.hostname;
+        var isPreview = host.indexOf('lovable.app') !== -1 || host.indexOf('lovableproject.com') !== -1 || host.indexOf('-preview--') !== -1;
+
+        if (isPreview && !window.location.search.includes('__mci_preview_recovered=' + CACHE_VERSION)) {
+          try {
+            var recoveredKey = '__mci_preview_recovered_' + CACHE_VERSION;
+            if (window.sessionStorage.getItem(recoveredKey) !== '1') {
+              window.sessionStorage.setItem(recoveredKey, '1');
+              Promise.all([
+                'caches' in window ? caches.keys().then(function (names) { return Promise.all(names.map(function (name) { return caches.delete(name); })); }) : Promise.resolve(),
+                'serviceWorker' in navigator ? navigator.serviceWorker.getRegistrations().then(function (regs) { return Promise.all(regs.map(function (reg) { return reg.unregister(); })); }) : Promise.resolve()
+              ]).finally(function () {
+                var url = new URL(window.location.href);
+                url.searchParams.set('__mci_preview_recovered', CACHE_VERSION);
+                window.location.replace(url.toString());
+              });
+            }
+          } catch (error) {
+            console.warn('[PreviewRecovery] recovery skipped', error);
+          }
+        }
+
         var root = document.getElementById('root');
         if (!root) return;
 
