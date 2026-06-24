@@ -34,43 +34,11 @@
 </head>
 
   <body>
-    <div id="root"></div>
-    <script>
-      (function () {
-        var CACHE_VERSION = 'v2026-06-24-preview-recovery-3';
-        var host = window.location.hostname;
-        var isPreview = host.indexOf('lovable.app') !== -1 || host.indexOf('lovableproject.com') !== -1 || host.indexOf('-preview--') !== -1;
-
-        if (isPreview && !window.location.search.includes('__mci_preview_recovered=' + CACHE_VERSION)) {
-          try {
-            var recoveredKey = '__mci_preview_recovered_' + CACHE_VERSION;
-            if (window.sessionStorage.getItem(recoveredKey) !== '1') {
-              window.sessionStorage.setItem(recoveredKey, '1');
-              Promise.all([
-                'caches' in window ? caches.keys().then(function (names) { return Promise.all(names.map(function (name) { return caches.delete(name); })); }) : Promise.resolve(),
-                'serviceWorker' in navigator ? navigator.serviceWorker.getRegistrations().then(function (regs) { return Promise.all(regs.map(function (reg) { return reg.unregister(); })); }) : Promise.resolve()
-              ]).finally(function () {
-                var url = new URL(window.location.href);
-                url.searchParams.set('__mci_preview_recovered', CACHE_VERSION);
-                window.location.replace(url.toString());
-              });
-            }
-          } catch (error) {
-            console.warn('[PreviewRecovery] recovery skipped', error);
-          }
-        }
-
-        var root = document.getElementById('root');
-        if (!root) return;
-
-        root.innerHTML = '<main style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f2b26;color:white;font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;padding:24px"><section style="text-align:center;display:grid;gap:14px"><div style="width:46px;height:46px;border:4px solid #10b981;border-top-color:transparent;border-radius:50%;margin:0 auto;animation:mciSpin .8s linear infinite"></div><p style="margin:0;font-weight:700">Carregando MCI CRM...</p></section></main><style>@keyframes mciSpin{to{transform:rotate(360deg)}}</style>';
-
-        window.__mciPreviewFallbackTimer = window.setTimeout(function () {
-          if (!root || root.dataset.mciReactMounted === 'true') return;
-          root.innerHTML = '<main style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f2b26;color:white;font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;padding:24px"><section style="max-width:520px;text-align:center;display:grid;gap:16px"><h1 style="margin:0;font-size:22px">MCI CRM</h1><p style="margin:0;color:rgba(255,255,255,.76);line-height:1.45">O preview não conseguiu carregar todos os arquivos. Recarregue para buscar a versão mais recente.</p><button onclick="window.location.reload()" style="border:0;border-radius:10px;padding:12px 16px;background:#059669;color:white;font-weight:700;cursor:pointer">Recarregar preview</button></section></main>';
-        }, 12000);
-      })();
-    </script>
+    <div id="root">
+      <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f2b26;color:white;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px">
+        <p style="margin:0;font-weight:700">Carregando MCI CRM...</p>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

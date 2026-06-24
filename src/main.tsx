@@ -1,12 +1,7 @@
 import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
 import "./index.css";
 import { installBrowserSafetyGuards } from "@/lib/browserRecovery";
-
-declare global {
-  interface Window {
-    __mciPreviewFallbackTimer?: number;
-  }
-}
 
 console.log('[Main] Inciando renderização...');
 
@@ -63,19 +58,8 @@ try {
   if (rootElement) {
     console.log('[Main] Elemento root encontrado');
     const root = createRoot(rootElement);
-    void import("./App.tsx")
-      .then(({ default: App }) => {
-        root.render(<App />);
-        rootElement.dataset.mciReactMounted = 'true';
-        if (window.__mciPreviewFallbackTimer) {
-          window.clearTimeout(window.__mciPreviewFallbackTimer);
-        }
-        console.log('[Main] Renderização solicitada');
-      })
-      .catch((error) => {
-        console.error('[Main] Erro ao carregar o app:', error);
-        renderFatalStartupError(error);
-      });
+    root.render(<App />);
+    console.log('[Main] Renderização solicitada');
   } else {
     console.error('[Main] Elemento root não encontrado!');
   }
