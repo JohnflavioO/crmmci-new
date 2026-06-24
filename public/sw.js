@@ -1,5 +1,5 @@
 // Kill-switch for stale app-shell service workers. It removes only this app's
-// Workbox caches, reloads controlled clients on the same URL, then unregisters.
+// Workbox caches, reloads controlled clients on the exact same URL, then unregisters.
 function isWorkboxCacheForThisRegistration(name) {
   const hasWorkboxBucket = /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name);
   return hasWorkboxBucket && name.endsWith(self.registration.scope);
