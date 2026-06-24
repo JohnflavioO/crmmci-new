@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -76,6 +76,11 @@ function SafeRoute({ children }: { children: ReactNode }) {
   return <ErrorBoundary title="Erro ao carregar esta área">{children}</ErrorBoundary>;
 }
 
+function RedirectPreservingSearch({ to }: { to: string }) {
+  const location = useLocation();
+  return <Navigate to={`${to}${location.search}`} replace />;
+}
+
 function AppRoutes() {
   const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, isSupport, forcePasswordChange, profile } = useAuth();
   
@@ -135,9 +140,9 @@ function AppRoutes() {
         {!isSupportOnly && (
           <>
             <Route path="/" element={
-              isLogisticaOnly ? <Navigate to="/logistics" replace /> :
-              isFinanceiroOnly ? <Navigate to="/financial" replace /> :
-              <Navigate to="/dashboard" replace />
+              isLogisticaOnly ? <RedirectPreservingSearch to="/logistics" /> :
+              isFinanceiroOnly ? <RedirectPreservingSearch to="/financial" /> :
+              <RedirectPreservingSearch to="/dashboard" />
             } />
             <Route path="/dashboard" element={<SafeRoute><Dashboard /></SafeRoute>} />
             <Route path="/operational" element={<SafeRoute><OperationalCenter /></SafeRoute>} />
@@ -163,7 +168,7 @@ function AppRoutes() {
           </>
         )}
 
-        {isSupportOnly && <Route path="/" element={<Navigate to="/suporte" replace />} />}
+        {isSupportOnly && <Route path="/" element={<RedirectPreservingSearch to="/suporte" />} />}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
