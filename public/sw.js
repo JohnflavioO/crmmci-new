@@ -1,8 +1,4 @@
-function isAppShellCacheForThisRegistration(name) {
-  const hasAppShellBucket = /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-|^workbox-|^vite-pwa-/.test(name);
-  return hasAppShellBucket && (name.endsWith(self.registration.scope) || name.includes(self.location.origin));
-}
-
+// Kill-switch service worker: unregister self and clear all caches.
 self.addEventListener("install", () => self.skipWaiting());
 
 self.addEventListener("activate", (event) =>
@@ -10,8 +6,7 @@ self.addEventListener("activate", (event) =>
     (async () => {
       try {
         const cacheNames = await caches.keys();
-        const appShellCacheNames = cacheNames.filter(isAppShellCacheForThisRegistration);
-        await Promise.allSettled(appShellCacheNames.map((name) => caches.delete(name)));
+        await Promise.allSettled(cacheNames.map((name) => caches.delete(name)));
         await self.clients.claim();
       } finally {
         await self.registration.unregister();
@@ -19,3 +14,6 @@ self.addEventListener("activate", (event) =>
     })(),
   ),
 );
+
+// Passthrough fetch — never intercept responses.
+self.addEventListener("fetch", () => {});
