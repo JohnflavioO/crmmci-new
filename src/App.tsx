@@ -113,6 +113,8 @@ function AppRoutes() {
       <Routes>
         <Route path="/rastreamento/os/:token" element={<SafeRoute><PublicTracking /></SafeRoute>} />
         <Route path="/rastreio/pedido/:token" element={<SafeRoute><LogisticsTracking /></SafeRoute>} />
+        <Route path="/ajuda" element={<SafeRoute><Help /></SafeRoute>} />
+
 
         {(isSupport || isAdmin || isGestor) && (
           <Route path="/suporte" element={<SafeRoute><SupportLayout /></SafeRoute>}>
