@@ -8,20 +8,21 @@ import { Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const { isSupportOnly, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (!loading && isSupportOnly) {
       console.log('[AppLayout] Restricted access: support_tech redirected to support dashboard');
-      navigate('/suporte');
+      navigate(`/suporte${location.search}`);
     }
-  }, [isSupportOnly, loading, navigate]);
+  }, [isSupportOnly, loading, location.search, navigate]);
 
   if (loading || isSupportOnly) {
     return (
