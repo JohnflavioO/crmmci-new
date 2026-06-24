@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake, Plug,
   Clock, ArrowDownCircle, AlertTriangle, FileBarChart, Truck, ClipboardList, TriangleAlert, MapPin, RefreshCw, Warehouse, Target, Sparkles,
-  Wrench, Zap
+  Wrench, Zap, HelpCircle
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -172,6 +172,7 @@ export default function AppSidebar({ onNavigate }: Props) {
           {logisticsMenuItems.map(item => (
             <LogisticsLinkItem key={item.to} {...item} />
           ))}
+          <LinkItem to="/ajuda" icon={HelpCircle} label="Ajuda" />
         </nav>
         <div className="p-4 border-t border-sidebar-border">
           <div className="mb-3"><UserProfileEditor /></div>
@@ -207,6 +208,7 @@ export default function AppSidebar({ onNavigate }: Props) {
           {supportMenuItems.map(item => (
             <LinkItem key={item.to} {...item} />
           ))}
+          <LinkItem to="/ajuda" icon={HelpCircle} label="Ajuda" />
         </nav>
         <div className="p-4 border-t border-sidebar-border">
           <div className="mb-3"><UserProfileEditor /></div>
@@ -244,6 +246,10 @@ export default function AppSidebar({ onNavigate }: Props) {
             {financialMenuItems.map(item => (
               <FinancialLinkItem key={item.to} {...item} />
             ))}
+            <div className="pt-4 pb-1 px-3">
+              <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Ajuda</p>
+            </div>
+            <LinkItem to="/ajuda" icon={HelpCircle} label="Tutoriais" />
           </>
         ) : (
           <>
@@ -309,6 +315,11 @@ export default function AppSidebar({ onNavigate }: Props) {
                 <LinkItem to="/suporte" icon={Wrench} label="Portal de Suporte" />
               </>
             )}
+
+            <div className="pt-4 pb-1 px-3">
+              <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Ajuda</p>
+            </div>
+            <LinkItem to="/ajuda" icon={HelpCircle} label="Tutoriais" />
           </>
         )}
       </nav>
