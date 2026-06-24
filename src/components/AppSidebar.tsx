@@ -311,6 +311,11 @@ export default function AppSidebar({ onNavigate }: Props) {
                 <LinkItem to="/suporte" icon={Wrench} label="Portal de Suporte" />
               </>
             )}
+
+            <div className="pt-4 pb-1 px-3">
+              <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Ajuda</p>
+            </div>
+            <LinkItem to="/ajuda" icon={HelpCircle} label="Tutoriais" />
           </>
         )}
       </nav>
