@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
 import "./index.css";
 import { installBrowserSafetyGuards } from "@/lib/browserRecovery";
 
@@ -57,15 +58,8 @@ try {
   if (rootElement) {
     console.log('[Main] Elemento root encontrado');
     const root = createRoot(rootElement);
-    void import("./App.tsx")
-      .then(({ default: App }) => {
-        root.render(<App />);
-        console.log('[Main] Renderização solicitada');
-      })
-      .catch((error) => {
-        console.error('[Main] Erro ao carregar o app:', error);
-        renderFatalStartupError(error);
-      });
+    root.render(<App />);
+    console.log('[Main] Renderização solicitada');
   } else {
     console.error('[Main] Elemento root não encontrado!');
   }
