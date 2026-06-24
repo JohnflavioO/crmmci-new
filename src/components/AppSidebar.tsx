@@ -208,6 +208,7 @@ export default function AppSidebar({ onNavigate }: Props) {
           {supportMenuItems.map(item => (
             <LinkItem key={item.to} {...item} />
           ))}
+          <LinkItem to="/ajuda" icon={HelpCircle} label="Ajuda" />
         </nav>
         <div className="p-4 border-t border-sidebar-border">
           <div className="mb-3"><UserProfileEditor /></div>
