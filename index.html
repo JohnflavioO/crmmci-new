@@ -35,45 +35,6 @@
 
   <body>
     <div id="root"></div>
-    <script>
-      (function () {
-        if (!('serviceWorker' in navigator)) return;
-
-        var cleanupKey = '__mci_app_sw_cleanup_v3';
-        var isAppWorker = function (registration) {
-          var url = registration.active && registration.active.scriptURL || registration.installing && registration.installing.scriptURL || registration.waiting && registration.waiting.scriptURL || '';
-          return /\/sw\.js$|\/service-worker\.js$/.test(url);
-        };
-        var isAppCache = function (name) {
-          return /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-|workbox|mci/i.test(name);
-        };
-
-        navigator.serviceWorker.getRegistrations().then(function (registrations) {
-          var appRegistrations = registrations.filter(isAppWorker);
-          if (!appRegistrations.length) {
-            try { sessionStorage.removeItem(cleanupKey); } catch (e) {}
-            return;
-          }
-
-          Promise.allSettled(appRegistrations.map(function (registration) {
-            return Promise.resolve().then(function () { return registration.update(); }).catch(function () {}).then(function () { return registration.unregister(); });
-          })).then(function () {
-            if (!window.caches || !caches.keys) return;
-            return caches.keys().then(function (keys) {
-              return Promise.allSettled(keys.filter(isAppCache).map(function (key) { return caches.delete(key); }));
-            }).catch(function () {});
-          }).finally(function () {
-            try {
-              if (!sessionStorage.getItem(cleanupKey)) {
-                sessionStorage.setItem(cleanupKey, '1');
-                window.location.replace(window.location.href);
-              }
-            } catch (e) {}
-          });
-        }).catch(function () {});
-      })();
-    </script>
-
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
