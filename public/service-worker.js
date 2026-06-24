@@ -1,22 +1,22 @@
-// Kill-switch for old app-shell PWAs: stop controlling pages and refresh them once.
+// Service-worker kill switch: never cache, never redirect/reload preview URLs.
 function isAppShellCache(name) {
   return /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-|workbox|mci/i.test(name);
 }
 
-self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("install", (event) => {
+  event.waitUntil(self.skipWaiting());
+});
 
-self.addEventListener("activate", (event) =>
+self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
-      try {
-        const cacheNames = await caches.keys();
-        await Promise.allSettled(cacheNames.filter(isAppShellCache).map((name) => caches.delete(name)));
-        await self.clients.claim();
-        const windowClients = await self.clients.matchAll({ type: "window" });
-        await Promise.allSettled(windowClients.map((client) => client.navigate(client.url)));
-      } finally {
-        await self.registration.unregister();
-      }
+      const cacheNames = await caches.keys();
+      await Promise.allSettled(cacheNames.filter(isAppShellCache).map((name) => caches.delete(name)));
+      await self.registration.unregister();
     })(),
-  ),
-);
+  );
+});
+
+self.addEventListener("fetch", () => {
+  // Intentionally empty: let the browser perform the normal network request.
+});
