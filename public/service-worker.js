@@ -1,23 +1,28 @@
-// Service-worker kill switch: never cache, never redirect/reload preview URLs.
-function isAppShellCache(name) {
-  return /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-|workbox|mci/i.test(name);
+// Kill-switch for stale app-shell service workers. It removes only this app's
+// Workbox caches, takes control once, then unregisters itself without forcing
+// navigation inside Lovable's tokenized preview iframe.
+function isWorkboxCacheForThisRegistration(name) {
+  const hasWorkboxBucket = /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name);
+  return hasWorkboxBucket && name.endsWith(self.registration.scope);
 }
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(self.skipWaiting());
-});
+self.addEventListener("install", () => self.skipWaiting());
 
-self.addEventListener("activate", (event) => {
+self.addEventListener("activate", (event) =>
   event.waitUntil(
     (async () => {
-      const cacheNames = await caches.keys();
-      await Promise.allSettled(cacheNames.filter(isAppShellCache).map((name) => caches.delete(name)));
-      await self.clients.claim();
-      await self.registration.unregister();
+      try {
+        const cacheNames = await caches.keys();
+        const workboxCacheNames = cacheNames.filter(isWorkboxCacheForThisRegistration);
+        await Promise.allSettled(workboxCacheNames.map((name) => caches.delete(name)));
+        await self.clients.claim();
+      } finally {
+        await self.registration.unregister();
+      }
     })(),
-  );
-});
+  ),
+);
 
 self.addEventListener("fetch", () => {
-  // Intentionally empty: let the browser perform the normal network request.
+  // No responseWith: browser performs the normal network request.
 });
