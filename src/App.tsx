@@ -51,6 +51,7 @@ const SupportMaintenance = lazy(() => import("./pages/support/SupportMaintenance
 const PublicTracking = lazy(() => import("./pages/support/PublicTracking"));
 const LogisticsTracking = lazy(() => import("./pages/LogisticsTracking"));
 const ContractGenerator = lazy(() => import("./pages/ContractGenerator"));
+const Help = lazy(() => import("./pages/Help"));
 
 
 const queryClient = new QueryClient({
