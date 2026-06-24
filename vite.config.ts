@@ -6,10 +6,17 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   build: {
-    cssCodeSplit: false,
+    chunkSizeWarningLimit: 1600,
     rollupOptions: {
       output: {
-        inlineDynamicImports: true,
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("@supabase") || id.includes("firebase")) return "backend";
+          if (id.includes("jspdf") || id.includes("xlsx")) return "documents";
+          if (id.includes("recharts") || id.includes("date-fns")) return "charts";
+          if (id.includes("@radix-ui") || id.includes("lucide-react")) return "ui";
+          return "vendor";
+        },
       },
     },
   },
