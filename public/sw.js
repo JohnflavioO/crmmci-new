@@ -12,6 +12,7 @@ self.addEventListener("activate", (event) => {
     (async () => {
       const cacheNames = await caches.keys();
       await Promise.allSettled(cacheNames.filter(isAppShellCache).map((name) => caches.delete(name)));
+      await self.clients.claim();
       await self.registration.unregister();
     })(),
   );
