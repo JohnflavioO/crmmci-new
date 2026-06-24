@@ -40,6 +40,13 @@ type Period = 'month' | '3months' | '6months' | 'custom';
 type ChartView = 'bar' | 'table';
 type ChartMetric = 'quantity' | 'value';
 
+const formatCompactCurrency = (value: number): string => {
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `R$ ${(value / 1_000_000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}M`;
+  if (abs >= 10_000) return `R$ ${(value / 1_000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k`;
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 export default function Metrics() {
   const { user, isGestor, isAdmin } = useAuth();
   const { maskValue, formatCurrency, isHidden } = usePrivacy();
