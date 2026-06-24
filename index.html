@@ -40,14 +40,10 @@
         if (!('serviceWorker' in navigator)) return;
         navigator.serviceWorker.getRegistrations().then(function (registrations) {
           registrations.forEach(function (registration) {
-            registration.unregister();
+            var url = registration.active && registration.active.scriptURL || registration.installing && registration.installing.scriptURL || registration.waiting && registration.waiting.scriptURL || '';
+            if (/\/sw\.js$|\/service-worker\.js$/.test(url)) registration.unregister();
           });
         }).catch(function () {});
-        if (window.caches && caches.keys) {
-          caches.keys().then(function (keys) {
-            keys.forEach(function (k) { caches.delete(k); });
-          }).catch(function () {});
-        }
       })();
     </script>
 
