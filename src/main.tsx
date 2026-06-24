@@ -2,12 +2,6 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import { installBrowserSafetyGuards } from "@/lib/browserRecovery";
 
-declare global {
-  interface Window {
-    __mciPreviewFallbackTimer?: number;
-  }
-}
-
 console.log('[Main] Inciando renderização...');
 
 const isPreviewRuntime = () => {
@@ -66,10 +60,6 @@ try {
     void import("./App.tsx")
       .then(({ default: App }) => {
         root.render(<App />);
-        rootElement.dataset.mciReactMounted = 'true';
-        if (window.__mciPreviewFallbackTimer) {
-          window.clearTimeout(window.__mciPreviewFallbackTimer);
-        }
         console.log('[Main] Renderização solicitada');
       })
       .catch((error) => {
