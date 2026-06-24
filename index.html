@@ -37,18 +37,20 @@
     <div id="root"></div>
     <script>
       (function () {
-        var host = window.location.hostname;
-        var isPreview = window.self !== window.top || host.indexOf('id-preview--') === 0 || host.indexOf('-preview--') > -1 || host === 'lovable.app' || host.indexOf('.lovable.app') > -1 || host.indexOf('lovableproject.com') > -1 || host.indexOf('lovableproject-dev.com') > -1;
-
-        if (!isPreview || !('serviceWorker' in navigator)) return;
+        if (!('serviceWorker' in navigator)) return;
         navigator.serviceWorker.getRegistrations().then(function (registrations) {
           registrations.forEach(function (registration) {
-            var url = registration.active && registration.active.scriptURL || registration.installing && registration.installing.scriptURL || registration.waiting && registration.waiting.scriptURL || '';
-            if (/\/(sw|service-worker)\.js(\?|$)/.test(url)) registration.unregister();
+            registration.unregister();
           });
         }).catch(function () {});
+        if (window.caches && caches.keys) {
+          caches.keys().then(function (keys) {
+            keys.forEach(function (k) { caches.delete(k); });
+          }).catch(function () {});
+        }
       })();
     </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
