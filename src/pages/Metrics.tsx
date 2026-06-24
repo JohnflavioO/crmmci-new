@@ -384,39 +384,39 @@ export default function Metrics() {
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4 mb-3 md:mb-4">
         <Card className="bg-emerald-50 border-emerald-100 overflow-hidden">
           <CardContent className="p-3 md:p-4 min-w-0">
-            <p className="text-xs md:text-sm text-emerald-700 mb-1 truncate">Negociações criadas</p>
-            <p className="text-xl md:text-3xl font-bold text-emerald-900 break-words leading-tight">{totalQuotes}</p>
+            <p className="text-[11px] md:text-xs text-emerald-700 mb-1 leading-tight line-clamp-2 min-h-[2.2em]">Negociações criadas</p>
+            <p className="text-2xl md:text-3xl font-bold text-emerald-900 leading-none tabular-nums">{totalQuotes}</p>
           </CardContent>
         </Card>
         <Card className="bg-amber-50 border-amber-100 overflow-hidden">
           <CardContent className="p-3 md:p-4 min-w-0">
-            <p className="text-xs md:text-sm text-amber-700 mb-1 truncate">Em Negociação</p>
-            <p className="text-base md:text-2xl font-bold text-amber-900 break-words leading-tight">{maskValue(totalInNegotiation)}</p>
-            <p className="text-[10px] md:text-xs text-amber-600 mt-0.5 truncate">{inNegotiation.length} negociação(ões)</p>
+            <p className="text-[11px] md:text-xs text-amber-700 mb-1 leading-tight line-clamp-2 min-h-[2.2em]">Em Negociação</p>
+            <p className="text-lg md:text-2xl font-bold text-amber-900 leading-none tabular-nums truncate" title={formatCurrency(totalInNegotiation)}>{maskValue(formatCompactCurrency(totalInNegotiation))}</p>
+            <p className="text-[10px] md:text-xs text-amber-600 mt-1 truncate">{inNegotiation.length} negociação(ões)</p>
           </CardContent>
         </Card>
         <Card className="bg-emerald-50 border-emerald-100 overflow-hidden">
           <CardContent className="p-3 md:p-4 min-w-0">
-            <p className="text-xs md:text-sm text-emerald-700 mb-1 truncate">Negociações vendidas</p>
-            <p className="text-xl md:text-3xl font-bold text-emerald-900 break-words leading-tight">{approved.length}</p>
+            <p className="text-[11px] md:text-xs text-emerald-700 mb-1 leading-tight line-clamp-2 min-h-[2.2em]">Negociações vendidas</p>
+            <p className="text-2xl md:text-3xl font-bold text-emerald-900 leading-none tabular-nums">{approved.length}</p>
           </CardContent>
         </Card>
         <Card className="bg-red-50 border-red-100 overflow-hidden">
           <CardContent className="p-3 md:p-4 min-w-0">
-            <p className="text-xs md:text-sm text-red-700 mb-1 truncate">Negociações perdidas</p>
-            <p className="text-xl md:text-3xl font-bold text-red-900 break-words leading-tight">{rejected.length}</p>
+            <p className="text-[11px] md:text-xs text-red-700 mb-1 leading-tight line-clamp-2 min-h-[2.2em]">Negociações perdidas</p>
+            <p className="text-2xl md:text-3xl font-bold text-red-900 leading-none tabular-nums">{rejected.length}</p>
           </CardContent>
         </Card>
         <Card className="bg-background border overflow-hidden">
           <CardContent className="p-3 md:p-4 min-w-0">
-            <p className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Tempo médio venda</p>
-            <p className="text-xl md:text-3xl font-bold break-words leading-tight">{avgDaysToSale} <span className="text-sm font-normal text-muted-foreground">dias</span></p>
+            <p className="text-[11px] md:text-xs text-muted-foreground mb-1 leading-tight line-clamp-2 min-h-[2.2em]">Tempo médio venda</p>
+            <p className="text-2xl md:text-3xl font-bold leading-none tabular-nums">{avgDaysToSale}<span className="text-xs font-normal text-muted-foreground ml-1">dias</span></p>
           </CardContent>
         </Card>
         <Card className="bg-background border col-span-2 lg:col-span-1 overflow-hidden">
           <CardContent className="p-3 md:p-4 min-w-0">
-            <p className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Tempo médio perda</p>
-            <p className="text-xl md:text-3xl font-bold break-words leading-tight">{avgDaysToLoss} <span className="text-sm font-normal text-muted-foreground">dias</span></p>
+            <p className="text-[11px] md:text-xs text-muted-foreground mb-1 leading-tight line-clamp-2 min-h-[2.2em]">Tempo médio perda</p>
+            <p className="text-2xl md:text-3xl font-bold leading-none tabular-nums">{avgDaysToLoss}<span className="text-xs font-normal text-muted-foreground ml-1">dias</span></p>
           </CardContent>
         </Card>
       </div>
@@ -425,27 +425,26 @@ export default function Metrics() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
         <Card className="bg-background border overflow-hidden">
           <CardContent className="p-3 md:p-4 min-w-0">
-            <p className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Valor vendido</p>
-            <p className="text-base md:text-2xl font-bold break-words leading-tight">{formatCurrency(totalRevenue)}</p>
+            <p className="text-[11px] md:text-xs text-muted-foreground mb-1 leading-tight line-clamp-2 min-h-[2.2em]">Valor vendido</p>
+            <p className="text-lg md:text-2xl font-bold leading-none tabular-nums truncate" title={formatCurrency(totalRevenue)}>{formatCompactCurrency(totalRevenue)}</p>
           </CardContent>
         </Card>
         <Card className="bg-background border overflow-hidden">
           <CardContent className="p-3 md:p-4 min-w-0">
-            <p className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Ticket médio</p>
-            <p className="text-base md:text-2xl font-bold break-words leading-tight">{formatCurrency(avgTicket)}</p>
+            <p className="text-[11px] md:text-xs text-muted-foreground mb-1 leading-tight line-clamp-2 min-h-[2.2em]">Ticket médio</p>
+            <p className="text-lg md:text-2xl font-bold leading-none tabular-nums truncate" title={formatCurrency(avgTicket)}>{formatCompactCurrency(avgTicket)}</p>
           </CardContent>
         </Card>
         <Card className="bg-background border overflow-hidden">
           <CardContent className="p-3 md:p-4 min-w-0">
-            <p className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Unidades vendidas</p>
-            <p className="text-base md:text-2xl font-bold break-words leading-tight">{totalUnits}</p>
+            <p className="text-[11px] md:text-xs text-muted-foreground mb-1 leading-tight line-clamp-2 min-h-[2.2em]">Unidades vendidas</p>
+            <p className="text-lg md:text-2xl font-bold leading-none tabular-nums">{totalUnits}</p>
           </CardContent>
         </Card>
         <Card className="bg-background border overflow-hidden">
           <CardContent className="p-3 md:p-4 min-w-0">
-
-            <p className="text-xs md:text-sm text-muted-foreground mb-1">Valor perdido</p>
-            <p className="text-lg md:text-2xl font-bold">{formatCurrency(totalLost)}</p>
+            <p className="text-[11px] md:text-xs text-muted-foreground mb-1 leading-tight line-clamp-2 min-h-[2.2em]">Valor perdido</p>
+            <p className="text-lg md:text-2xl font-bold leading-none tabular-nums truncate" title={formatCurrency(totalLost)}>{formatCompactCurrency(totalLost)}</p>
           </CardContent>
         </Card>
       </div>
