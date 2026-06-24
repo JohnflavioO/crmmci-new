@@ -426,35 +426,62 @@ export default function Quotes() {
       return;
     }
 
+    const sanitize = (s: string) => s.replace(/[%,()]/g, '');
+    const selectCols = 'id, name, brand, code, sku, category_principal, price, description, image_url';
+    const normalizedQuery = normalizeProductText(rawSearch);
+    const phrase = sanitize(normalizedQuery);
+
     try {
-      const orFilters = tokens.slice(0, 6)
-        .map(token => token.replace(/[%,()]/g, ''))
-        .filter(Boolean)
-        .flatMap(token => [
-          `name.ilike.%${token}%`,
-          `brand.ilike.%${token}%`,
-          `code.ilike.%${token}%`,
-          `sku.ilike.%${token}%`,
-          `category_principal.ilike.%${token}%`,
-          `description.ilike.%${token}%`,
-        ]);
+      const merged = new Map<string, any>();
 
-      let query = db.from('products')
-        .select('id, name, brand, code, sku, category_principal, price, description, image_url')
-        .limit(80);
+      // 1) Busca pela frase completa (prioritária)
+      if (phrase) {
+        const phraseFilters = [
+          `name.ilike.%${phrase}%`,
+          `brand.ilike.%${phrase}%`,
+          `code.ilike.%${phrase}%`,
+          `sku.ilike.%${phrase}%`,
+          `category_principal.ilike.%${phrase}%`,
+          `description.ilike.%${phrase}%`,
+        ].join(',');
+        const { data: phraseData } = await db.from('products')
+          .select(selectCols).or(phraseFilters).limit(100);
+        (phraseData || []).forEach((p: any) => merged.set(p.id, p));
+      }
 
-      if (orFilters.length > 0) query = query.or(orFilters.join(','));
+      // 2) Para cada token, busca AND-intersected nos resultados (garante todos os termos)
+      if (tokens.length > 0) {
+        const perTokenResults: any[][] = [];
+        for (const t of tokens.slice(0, 5)) {
+          const token = sanitize(t);
+          if (!token) continue;
+          const orF = [
+            `name.ilike.%${token}%`,
+            `brand.ilike.%${token}%`,
+            `code.ilike.%${token}%`,
+            `sku.ilike.%${token}%`,
+            `category_principal.ilike.%${token}%`,
+          ].join(',');
+          const { data } = await db.from('products')
+            .select(selectCols).or(orF).limit(300);
+          perTokenResults.push(data || []);
+        }
+        if (perTokenResults.length > 0) {
+          // intersecção: produtos presentes em TODOS os tokens
+          const idSets = perTokenResults.map(arr => new Set(arr.map((p: any) => p.id)));
+          const base = perTokenResults[0];
+          base.forEach((p: any) => {
+            if (idSets.every(s => s.has(p.id))) merged.set(p.id, p);
+          });
+        }
+      }
 
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const normalizedQuery = normalizeProductText(rawSearch);
-      const ranked = (data || [])
+      const ranked = Array.from(merged.values())
         .map((product: any) => ({ product, score: rankProductMatch(product, normalizedQuery, tokens) }))
         .filter(({ score }) => score > 0)
         .sort((a, b) => b.score - a.score)
         .map(({ product }) => product)
-        .slice(0, 20);
+        .slice(0, 25);
 
       setProductSearchResults(prev => ({ ...prev, [idx]: ranked }));
     } catch (error: any) {
