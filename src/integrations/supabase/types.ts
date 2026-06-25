@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_changelog: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string
+          environment: string
+          id: string
+          release_date: string
+          title: string
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description: string
+          environment?: string
+          id?: string
+          release_date?: string
+          title: string
+          updated_at?: string
+          version: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          environment?: string
+          id?: string
+          release_date?: string
+          title?: string
+          updated_at?: string
+          version?: string
+        }
+        Relationships: []
+      }
       bank_slip_history: {
         Row: {
           action: string
