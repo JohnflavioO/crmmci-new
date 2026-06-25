@@ -212,23 +212,27 @@ export default function Help() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(v => {
-            const embed = loomEmbedUrl(v.loom_url);
+            const thumb = loomThumbUrl(v.loom_url);
             return (
               <Card key={v.id} className="overflow-hidden flex flex-col hover:shadow-lg transition-shadow">
                 <button
                   onClick={() => setPlaying(v)}
-                  className="relative aspect-video bg-muted flex items-center justify-center group"
+                  className="relative aspect-video bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center group overflow-hidden"
                 >
-                  {embed ? (
+                  {thumb && (
                     <img
-                      src={`https://cdn.loom.com/sessions/thumbnails/${embed.split('/').pop()}-with-play.gif`}
+                      src={thumb}
                       alt={v.title}
-                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      className="absolute inset-0 w-full h-full object-cover"
                       onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                     />
-                  ) : null}
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <PlayCircle className="h-14 w-14 text-white" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                  <div className="absolute inset-0 flex items-center justify-center transition-transform group-hover:scale-110">
+                    <div className="h-14 w-14 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-lg">
+                      <PlayCircle className="h-10 w-10 text-primary" />
+                    </div>
                   </div>
                 </button>
                 <CardHeader className="pb-2">
