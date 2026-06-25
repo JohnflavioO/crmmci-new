@@ -8,6 +8,7 @@ import {
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import UserProfileEditor from './UserProfileEditor';
+import SidebarVersion from './SidebarVersion';
 import { usePermissions } from '@/hooks/usePermissions';
 
 
