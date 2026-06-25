@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Gift, Megaphone } from 'lucide-react';
+import { Megaphone } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +26,7 @@ export default function WhatsNewBell() {
         aria-label="Novidades"
         title="Novidades"
       >
-        <Gift className="h-5 w-5 text-foreground" />
+        <Megaphone className="h-5 w-5 text-foreground" />
         {hasUnseen && (
           <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-emerald-500 rounded-full">
             !
