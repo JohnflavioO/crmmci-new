@@ -26,7 +26,7 @@ export default function WhatsNewBell() {
         aria-label="Novidades"
         title="Novidades"
       >
-        <Sparkles className="h-5 w-5 text-foreground" />
+        <Gift className="h-5 w-5 text-foreground" />
         {hasUnseen && (
           <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-emerald-500 rounded-full">
             !
@@ -38,7 +38,7 @@ export default function WhatsNewBell() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-emerald-500" />
+              <Megaphone className="h-5 w-5 text-emerald-500" />
               Novidades do MCI CRM
             </DialogTitle>
             <DialogDescription>
