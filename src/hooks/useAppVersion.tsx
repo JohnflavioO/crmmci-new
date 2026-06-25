@@ -48,9 +48,16 @@ export function useAppVersion() {
   const updateNow = useCallback(async () => {
     if (remote?.version) {
       try { localStorage.setItem(LS_KEY, remote.version); } catch {}
+      setLocal(remote.version);
     }
-    await clearBrowserCachesAndWorkers();
-    reloadWithCacheBust();
+    try { await clearBrowserCachesAndWorkers(); } catch {}
+    try {
+      reloadWithCacheBust();
+    } catch {}
+    // Fallback garantido (preview e produção): força recarregamento
+    setTimeout(() => {
+      try { window.location.reload(); } catch {}
+    }, 150);
   }, [remote]);
 
   const hasUpdate = !!(remote && local && remote.version !== local);
