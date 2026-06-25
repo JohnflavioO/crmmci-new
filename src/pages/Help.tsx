@@ -46,9 +46,14 @@ function loomEmbedUrl(url: string): string | null {
   const id = loomId(url);
   return id ? `https://www.loom.com/embed/${id}` : null;
 }
-function loomThumbUrl(url: string): string | null {
+function loomThumbCandidates(url: string): string[] {
   const id = loomId(url);
-  return id ? `https://cdn.loom.com/sessions/thumbnails/${id}-with-play.jpg` : null;
+  if (!id) return [];
+  return [
+    `https://cdn.loom.com/sessions/thumbnails/${id}-with-play.gif`,
+    `https://cdn.loom.com/sessions/thumbnails/${id}-with-play.jpg`,
+    `https://cdn.loom.com/sessions/thumbnails/${id}-00001.jpg`,
+  ];
 }
 
 export default function Help() {
