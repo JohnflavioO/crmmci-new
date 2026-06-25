@@ -8,6 +8,7 @@ import {
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import UserProfileEditor from './UserProfileEditor';
+import SidebarVersion from './SidebarVersion';
 import { usePermissions } from '@/hooks/usePermissions';
 
 
@@ -186,6 +187,7 @@ export default function AppSidebar({ onNavigate }: Props) {
               <LogOut className="h-4 w-4" /> Sair
             </button>
           </div>
+          <SidebarVersion />
         </div>
       </aside>
     );
@@ -222,6 +224,7 @@ export default function AppSidebar({ onNavigate }: Props) {
               <LogOut className="h-4 w-4" /> Sair
             </button>
           </div>
+          <SidebarVersion />
         </div>
       </aside>
     );
@@ -340,6 +343,7 @@ export default function AppSidebar({ onNavigate }: Props) {
             <LogOut className="h-4 w-4" /> Sair
           </button>
         </div>
+        <SidebarVersion />
       </div>
     </aside>
   );
