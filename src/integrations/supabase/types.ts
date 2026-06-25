@@ -521,34 +521,46 @@ export type Database = {
           category: string
           created_at: string
           created_by: string | null
+          custom_thumbnail_url: string | null
           description: string | null
           id: string
           loom_url: string
           sort_order: number
+          thumbnail_url: string | null
           title: string
           updated_at: string
+          video_id: string | null
+          video_type: string | null
         }
         Insert: {
           category?: string
           created_at?: string
           created_by?: string | null
+          custom_thumbnail_url?: string | null
           description?: string | null
           id?: string
           loom_url: string
           sort_order?: number
+          thumbnail_url?: string | null
           title: string
           updated_at?: string
+          video_id?: string | null
+          video_type?: string | null
         }
         Update: {
           category?: string
           created_at?: string
           created_by?: string | null
+          custom_thumbnail_url?: string | null
           description?: string | null
           id?: string
           loom_url?: string
           sort_order?: number
+          thumbnail_url?: string | null
           title?: string
           updated_at?: string
+          video_id?: string | null
+          video_type?: string | null
         }
         Relationships: []
       }
