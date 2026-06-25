@@ -15,6 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, PlayCircle, Search, HelpCircle } from 'lucide-react';
+import AppLayout from '@/components/AppLayout';
 
 interface HelpVideo {
   id: string;
