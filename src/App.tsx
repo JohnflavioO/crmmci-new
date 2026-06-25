@@ -50,6 +50,7 @@ const PublicTracking = lazy(() => import("./pages/support/PublicTracking"));
 const LogisticsTracking = lazy(() => import("./pages/LogisticsTracking"));
 const ContractGenerator = lazy(() => import("./pages/ContractGenerator"));
 const Help = lazy(() => import("./pages/Help"));
+const About = lazy(() => import("./pages/About"));
 
 
 const queryClient = new QueryClient({
@@ -117,6 +118,7 @@ function AppRoutes() {
         <Route path="/rastreamento/os/:token" element={<SafeRoute><PublicTracking /></SafeRoute>} />
         <Route path="/rastreio/pedido/:token" element={<SafeRoute><LogisticsTracking /></SafeRoute>} />
         <Route path="/ajuda" element={<SafeRoute><Help /></SafeRoute>} />
+        <Route path="/sobre" element={<SafeRoute><About /></SafeRoute>} />
 
 
         {(isSupport || isAdmin || isGestor) && (

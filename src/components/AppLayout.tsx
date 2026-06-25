@@ -2,6 +2,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import AppSidebar from './AppSidebar';
 import mciLogoMobile from '@/assets/mci-logo-mobile.png';
 import NotificationBell from './NotificationBell';
+import WhatsNewBell from './WhatsNewBell';
 import MobileBottomNav from './MobileBottomNav';
 import PWAInstallPrompt from './PWAInstallPrompt';
 import { Menu } from 'lucide-react';
@@ -48,6 +49,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </Sheet>
           <img src={mciLogoMobile} alt="MCI Store" className="h-8 w-auto" />
           <span className="text-sm font-bold font-display flex-1">MCI Store</span>
+          <WhatsNewBell />
           <NotificationBell />
         </header>
         <main className="p-4 pb-24 animate-fade-in">
@@ -63,7 +65,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background">
       <AppSidebar />
       <div className="ml-64">
-        <header className="sticky top-0 z-40 flex items-center justify-end px-6 py-2 bg-background/80 backdrop-blur border-b border-border">
+        <header className="sticky top-0 z-40 flex items-center justify-end gap-1 px-6 py-2 bg-background/80 backdrop-blur border-b border-border">
+          <WhatsNewBell />
           <NotificationBell />
         </header>
         <main className="p-6 animate-fade-in">
