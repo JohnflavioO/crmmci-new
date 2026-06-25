@@ -38,11 +38,17 @@ const CATEGORIES = [
   'Configurações',
 ];
 
-function loomEmbedUrl(url: string): string | null {
-  // Accepts https://www.loom.com/share/<id> or /embed/<id>
+function loomId(url: string): string | null {
   const m = url.match(/loom\.com\/(?:share|embed)\/([a-zA-Z0-9]+)/);
-  if (!m) return null;
-  return `https://www.loom.com/embed/${m[1]}`;
+  return m ? m[1] : null;
+}
+function loomEmbedUrl(url: string): string | null {
+  const id = loomId(url);
+  return id ? `https://www.loom.com/embed/${id}` : null;
+}
+function loomThumbUrl(url: string): string | null {
+  const id = loomId(url);
+  return id ? `https://cdn.loom.com/sessions/thumbnails/${id}-with-play.jpg` : null;
 }
 
 export default function Help() {
