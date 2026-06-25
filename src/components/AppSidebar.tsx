@@ -224,6 +224,7 @@ export default function AppSidebar({ onNavigate }: Props) {
               <LogOut className="h-4 w-4" /> Sair
             </button>
           </div>
+          <SidebarVersion />
         </div>
       </aside>
     );
