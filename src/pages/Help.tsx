@@ -325,5 +325,6 @@ export default function Help() {
         </DialogContent>
       </Dialog>
     </div>
+    </AppLayout>
   );
 }
