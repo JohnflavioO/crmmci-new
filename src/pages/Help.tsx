@@ -217,20 +217,32 @@ export default function Help() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(v => {
-            const thumb = loomThumbUrl(v.loom_url);
+            const thumbs = loomThumbCandidates(v.loom_url);
+            const id = loomId(v.loom_url);
             return (
               <Card key={v.id} className="overflow-hidden flex flex-col hover:shadow-lg transition-shadow">
                 <button
                   onClick={() => setPlaying(v)}
                   className="relative aspect-video bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center group overflow-hidden"
                 >
-                  {thumb && (
+                  {id && (
                     <img
-                      src={thumb}
+                      src={thumbs[0]}
+                      data-fallback-index="0"
                       alt={v.title}
                       loading="lazy"
+                      referrerPolicy="no-referrer"
                       className="absolute inset-0 w-full h-full object-cover"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      onError={(e) => {
+                        const img = e.currentTarget as HTMLImageElement;
+                        const idx = Number(img.dataset.fallbackIndex || '0') + 1;
+                        if (idx < thumbs.length) {
+                          img.dataset.fallbackIndex = String(idx);
+                          img.src = thumbs[idx];
+                        } else {
+                          img.style.display = 'none';
+                        }
+                      }}
                     />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
