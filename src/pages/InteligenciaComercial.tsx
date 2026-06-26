@@ -588,6 +588,41 @@ export default function InteligenciaComercial() {
 
   // ---------- Selected client detail ----------
   const detail = useMemo(() => aggregated.find(a => a.clientId === selectedClient) || null, [aggregated, selectedClient]);
+  const detailQuotes = useMemo(() => detail ? quotes.filter(q => detail.quoteIds.includes(q.id)).sort((a, b) => new Date(b.approved_at || b.created_at).getTime() - new Date(a.approved_at || a.created_at).getTime()) : [], [detail, quotes]);
+
+  // ---------- Drill-down helpers ----------
+  const openDrill = (title: string, subtitle: string, qs: QuoteRow[]) => {
+    setDrill({ title, subtitle, quotes: qs.sort((a, b) => new Date(b.approved_at || b.created_at).getTime() - new Date(a.approved_at || a.created_at).getTime()) });
+  };
+  const drillRevenue = () => openDrill('Receita Comercial', 'Orçamentos aprovados e liquidados no período', filteredQuotes);
+  const drillReceived = () => openDrill('Receita Recebida', 'Orçamentos liquidados no período', filteredQuotes.filter(isReceived));
+  const drillActive = () => {
+    const ids = new Set(aggregated.filter(a => a.isActive).flatMap(a => a.quoteIds));
+    openDrill('Clientes Ativos', 'Clientes com compras nos últimos 90 dias', filteredQuotes.filter(q => ids.has(q.id)));
+  };
+  const drillInactive = () => {
+    const ids = new Set(aggregated.filter(a => !a.isActive).flatMap(a => a.quoteIds));
+    openDrill('Clientes Inativos', 'Clientes sem comprar há mais de 90 dias', filteredQuotes.filter(q => ids.has(q.id)));
+  };
+  const drillRecurrent = () => {
+    const ids = new Set(aggregated.filter(a => a.isRecurrent).flatMap(a => a.quoteIds));
+    openDrill('Clientes Recorrentes', 'Clientes com 2 ou mais compras', filteredQuotes.filter(q => ids.has(q.id)));
+  };
+  const drillChampion = () => {
+    if (!productChampion) return;
+    const code = productChampion.byValue.code;
+    const ids = new Set<string>();
+    filteredQuotes.forEach(q => {
+      (itemsByQuote.get(q.id) || []).forEach(it => {
+        if ((it.product_code || it.description || 'item') === code) ids.add(q.id);
+      });
+    });
+    openDrill(`Produto Campeão: ${productChampion.byValue.desc}`, `${productChampion.byValue.brand} • ${productChampion.byValue.qty} un. • ${fmtBRL(productChampion.byValue.value)}`, filteredQuotes.filter(q => ids.has(q.id)));
+  };
+  const drillTopClient = () => {
+    if (!top5[0]) return;
+    openDrill(`Top Cliente: ${top5[0].clientName}`, `${clientLocation(top5[0].client)} • ${clientCnpjLabel(top5[0].client)}`, filteredQuotes.filter(q => top5[0].quoteIds.includes(q.id)));
+  };
 
   if (loading) {
     return (
@@ -598,6 +633,7 @@ export default function InteligenciaComercial() {
       </AppLayout>
     );
   }
+
 
   const statusBadge = (s: 'verde' | 'amarelo' | 'vermelho') => {
     const map = {
