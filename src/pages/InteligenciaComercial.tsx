@@ -264,6 +264,7 @@ export default function InteligenciaComercial() {
           clientName: c?.company_name || c?.name || q.client_name || 'Sem cliente',
           city: c?.city || '',
           state: c?.state || '',
+          cnpj: c?.cpf_cnpj || '',
           salesperson: q.salesperson || '',
           quotesCount: 0,
           totalValue: 0,
@@ -276,6 +277,7 @@ export default function InteligenciaComercial() {
           monthly: {},
           brands: {},
           products: {},
+          quoteIds: [],
           isActive: false,
           isRecurrent: false,
           status: 'vermelho',
@@ -286,6 +288,7 @@ export default function InteligenciaComercial() {
       const d = new Date(q.approved_at || q.created_at);
       a.quotesCount += 1;
       a.totalValue += val;
+      a.quoteIds.push(q.id);
       if (isReceived(q)) a.receivedValue += val;
       if (!a.firstPurchase || d < a.firstPurchase) a.firstPurchase = d;
       if (!a.lastPurchase || d > a.lastPurchase) a.lastPurchase = d;
@@ -295,7 +298,7 @@ export default function InteligenciaComercial() {
         const brand = it.brand || 'Sem marca';
         a.brands[brand] = (a.brands[brand] || 0) + Number(it.total_price ?? it.line_total ?? 0);
         const pk = it.product_code || it.description || 'item';
-        if (!a.products[pk]) a.products[pk] = { qty: 0, value: 0, desc: it.description || pk };
+        if (!a.products[pk]) a.products[pk] = { qty: 0, value: 0, desc: it.description || pk, brand };
         a.products[pk].qty += Number(it.quantity || 0);
         a.products[pk].value += Number(it.total_price ?? it.line_total ?? 0);
       });
