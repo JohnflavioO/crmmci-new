@@ -691,14 +691,14 @@ export default function InteligenciaComercial() {
   };
   const drillChampion = () => {
     if (!productChampion) return;
-    const code = productChampion.byValue.code;
+    const key = productChampion.byValue.key;
     const ids = new Set<string>();
     filteredQuotes.forEach(q => {
       (itemsByQuote.get(q.id) || []).forEach(it => {
-        if ((it.product_code || it.description || 'item') === code) ids.add(q.id);
+        if (resolveItem(it).key === key) ids.add(q.id);
       });
     });
-    openDrill(`Produto Campeão: ${productChampion.byValue.desc}`, `${productChampion.byValue.brand} • ${productChampion.byValue.qty} un. • ${fmtBRL(productChampion.byValue.value)}`, filteredQuotes.filter(q => ids.has(q.id)));
+    openDrill(`Produto Campeão: ${productChampion.byValue.desc}`, `${productChampion.byValue.brand}${productChampion.byValue.code ? ` • Código ${productChampion.byValue.code}` : ''} • ${productChampion.byValue.qty} un. • ${fmtBRL(productChampion.byValue.value)}`, filteredQuotes.filter(q => ids.has(q.id)));
   };
   const drillTopClient = () => {
     if (!top5[0]) return;
