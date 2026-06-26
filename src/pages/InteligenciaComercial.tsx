@@ -108,6 +108,7 @@ interface Aggregated {
   clientName: string;
   city: string;
   state: string;
+  cnpj: string;
   salesperson: string;
   quotesCount: number;
   totalValue: number;
@@ -119,7 +120,8 @@ interface Aggregated {
   intervalAvgDays: number | null;
   monthly: Record<string, number>;
   brands: Record<string, number>;
-  products: Record<string, { qty: number; value: number; desc: string }>;
+  products: Record<string, { qty: number; value: number; desc: string; brand: string }>;
+  quoteIds: string[];
   isActive: boolean;
   isRecurrent: boolean;
   status: 'verde' | 'amarelo' | 'vermelho';
