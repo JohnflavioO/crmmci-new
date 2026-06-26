@@ -15,7 +15,6 @@ import { usePermissions } from '@/hooks/usePermissions';
 const commercialItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Métricas e Visão' },
   { to: '/quotes', icon: FileText, label: 'Orçamentos', color: '#15AFA1' },
-  { to: '/inteligencia', icon: Sparkles, label: 'Inteligência Comercial' },
   { to: '/operational', icon: Zap, label: 'Central Operacional' },
   { to: '/clients', icon: Users, label: 'Clientes' },
   { to: '/prospect', icon: Target, label: 'Visão Prospect' },
@@ -26,6 +25,7 @@ const commercialItems = [
 
 const analyticItems = [
   { to: '/metrics', icon: BarChart3, label: 'Métricas' },
+  { to: '/inteligencia', icon: Brain, label: 'Inteligência Comercial' },
   { to: '/products', icon: Package, label: 'Produtos' },
   { to: '/ecoflow', icon: Calculator, label: 'Calculadora Ecoflow' },
 ];
