@@ -66,7 +66,8 @@ interface Props {
 export default function TaskHubReportModal({ open, onOpenChange }: Props) {
   const location = useLocation();
   const { user, profile } = useAuth();
-  const { version } = useAppVersion();
+  const { remote, local } = useAppVersion();
+  const version = remote?.version || local || null;
 
   const [type, setType] = useState<ReportType>("bug");
   const [priority, setPriority] = useState<ReportPriority>("medium");
