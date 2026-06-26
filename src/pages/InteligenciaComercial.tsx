@@ -1043,21 +1043,35 @@ export default function InteligenciaComercial() {
             <>
               <SheetHeader>
                 <SheetTitle>{detail.clientName}</SheetTitle>
+                <p className="text-xs text-muted-foreground">{clientLocation(detail.client)} • {detail.cnpj ? formatCnpj(detail.cnpj) : 'CNPJ não informado'}</p>
               </SheetHeader>
               <div className="mt-4 space-y-4 text-sm">
                 <div className="grid grid-cols-2 gap-3">
                   <Info label="Responsável" value={detail.client?.contact_name || '-'} />
                   <Info label="Telefone" value={detail.client?.contact_phone || detail.client?.phone || '-'} />
                   <Info label="Email" value={detail.client?.email || '-'} />
-                  <Info label="Cidade" value={`${detail.city || '-'}${detail.state ? '/' + detail.state : ''}`} />
+                  <Info label="Cidade/UF" value={clientLocation(detail.client)} />
+                  <Info label="CNPJ" value={detail.cnpj ? formatCnpj(detail.cnpj) : '—'} />
+                  <Info label="Vendedor" value={detail.salesperson || '-'} />
                   <Info label="Primeira Compra" value={detail.firstPurchase?.toLocaleDateString('pt-BR') || '-'} />
                   <Info label="Última Compra" value={detail.lastPurchase?.toLocaleDateString('pt-BR') || '-'} />
                   <Info label="Total de Compras" value={String(detail.quotesCount)} />
                   <Info label="Valor Total" value={fmtBRLfull(detail.totalValue)} />
                   <Info label="Recebido" value={fmtBRLfull(detail.receivedValue)} />
                   <Info label="Ticket Médio" value={fmtBRLfull(detail.ticketMedio)} />
-                  <Info label="Vendedor" value={detail.salesperson || '-'} />
-                  <Info label="Status" value={detail.status} />
+                </div>
+
+                <div>
+                  <p className="font-semibold mb-2 flex items-center gap-1"><FileText className="h-4 w-4" />Orçamentos ({detailQuotes.length})</p>
+                  <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
+                    {detailQuotes.map(q => (
+                      <a key={q.id} href={`/quotes?open=${q.id}`} className="flex justify-between gap-2 text-xs border rounded px-2 py-1.5 hover:bg-muted">
+                        <span className="font-mono">{q.quote_number}</span>
+                        <span className="text-muted-foreground">{new Date(q.approved_at || q.created_at).toLocaleDateString('pt-BR')}</span>
+                        <span className="font-semibold">{fmtBRL(getValue(q))}</span>
+                      </a>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
@@ -1065,7 +1079,7 @@ export default function InteligenciaComercial() {
                   <div className="space-y-1">
                     {Object.entries(detail.products).sort((a, b) => b[1].value - a[1].value).slice(0, 8).map(([k, v]) => (
                       <div key={k} className="flex justify-between text-xs border-b py-1">
-                        <span className="truncate flex-1 pr-2">{v.desc}</span>
+                        <span className="truncate flex-1 pr-2">{v.desc} {v.brand && v.brand !== 'Sem marca' ? `• ${v.brand}` : ''}</span>
                         <span className="font-medium">{v.qty}x — {fmtBRL(v.value)}</span>
                       </div>
                     ))}
@@ -1092,6 +1106,73 @@ export default function InteligenciaComercial() {
                     )}
                   </div>
                 )}
+
+                <div className="flex gap-2 pt-2">
+                  {detail.client?.id && (
+                    <Button asChild variant="outline" size="sm" className="flex-1">
+                      <a href={`/clients?open=${detail.client.id}`}><UsersIcon className="h-4 w-4 mr-1" /> Abrir cliente</a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Drill-down drawer (KPI cards) */}
+      <Sheet open={!!drill} onOpenChange={o => !o && setDrill(null)}>
+        <SheetContent className="overflow-y-auto sm:max-w-2xl">
+          {drill && (
+            <>
+              <SheetHeader>
+                <SheetTitle>{drill.title}</SheetTitle>
+                {drill.subtitle && <p className="text-xs text-muted-foreground">{drill.subtitle}</p>}
+              </SheetHeader>
+              <div className="mt-4 space-y-2 text-sm">
+                <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                  <span>{drill.quotes.length} orçamento(s)</span>
+                  <span>Total: {fmtBRLfull(drill.quotes.reduce((s, q) => s + getValue(q), 0))}</span>
+                </div>
+                {drill.quotes.length === 0 && <p className="text-muted-foreground py-6 text-center">Sem dados.</p>}
+                <div className="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">
+                  {drill.quotes.slice(0, 300).map(q => {
+                    const c = q.client_id ? clients[q.client_id] : null;
+                    return (
+                      <div key={q.id} className="border rounded-lg p-3 hover:bg-muted/40 transition-colors">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono text-xs font-semibold">{q.quote_number}</span>
+                              <Badge variant="outline" className="text-[10px]">{q.status}</Badge>
+                              {q.payment_status && <Badge variant="secondary" className="text-[10px]">{q.payment_status}</Badge>}
+                            </div>
+                            <p className="text-sm font-medium truncate mt-1">{c?.company_name || c?.name || q.client_name || 'Sem cliente'}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {clientLocation(c)} • {c?.cpf_cnpj ? formatCnpj(c.cpf_cnpj) : 'CNPJ —'} • {q.salesperson || 'Vendedor —'}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {new Date(q.approved_at || q.created_at).toLocaleDateString('pt-BR')}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="font-bold tabular-nums">{fmtBRL(getValue(q))}</p>
+                            <div className="flex gap-1 mt-1">
+                              <Button asChild size="sm" variant="outline" className="h-7 text-[10px] px-2">
+                                <a href={`/quotes?open=${q.id}`}>Orçamento</a>
+                              </Button>
+                              {c?.id && (
+                                <Button asChild size="sm" variant="outline" className="h-7 text-[10px] px-2">
+                                  <a href={`/clients?open=${c.id}`}>Cliente</a>
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </>
           )}
