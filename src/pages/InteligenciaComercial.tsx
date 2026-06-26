@@ -290,6 +290,28 @@ export default function InteligenciaComercial() {
     return m;
   }, [items]);
 
+  // Product lookup by code or sku (normalized)
+  const productByCode = useMemo(() => {
+    const m = new Map<string, ProductRow>();
+    products.forEach(p => {
+      if (p.code) m.set(String(p.code).trim().toLowerCase(), p);
+      if (p.sku) m.set(String(p.sku).trim().toLowerCase(), p);
+    });
+    return m;
+  }, [products]);
+
+  const resolveItem = (it: ItemRow): { key: string; name: string; brand: string; code: string } => {
+    const rawCode = (it.product_code || it.code || '').trim();
+    const k = rawCode.toLowerCase();
+    const prod = k ? productByCode.get(k) : undefined;
+    const desc = (it.description || '').trim();
+    const name = prod?.name?.trim() || desc || rawCode || 'Item sem nome';
+    const brand = (prod?.brand?.trim() || it.brand || 'Sem marca');
+    const code = rawCode || prod?.code || prod?.sku || '';
+    const key = (rawCode || desc || name).toLowerCase();
+    return { key, name, brand, code };
+  };
+
   const aggregated: Aggregated[] = useMemo(() => {
     const map = new Map<string, Aggregated>();
     filteredQuotes.forEach(q => {
