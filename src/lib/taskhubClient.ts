@@ -98,8 +98,24 @@ export async function sendReportToTaskHub(payload: ReportPayload): Promise<Repor
     });
 
     if (error) {
-      appendAudit({ status: "error", type: payload.type, title: payload.title, error: error.message });
-      return { ok: false, status: 0, data: null, error: error.message };
+      // Try to read the JSON body returned by the function on non-2xx.
+      let upstream: any = null;
+      try {
+        const ctx: any = (error as any).context;
+        if (ctx && typeof ctx.json === "function") upstream = await ctx.json();
+        else if (ctx && typeof ctx.text === "function") {
+          const t = await ctx.text();
+          try { upstream = JSON.parse(t); } catch { upstream = { message: t }; }
+        }
+      } catch { /* ignore */ }
+      appendAudit({
+        status: "error",
+        type: payload.type,
+        title: payload.title,
+        error: error.message,
+        upstream,
+      });
+      return { ok: false, status: 0, data: upstream, error: upstream?.message || error.message };
     }
 
     const ok = (data as any)?.ok === true;
