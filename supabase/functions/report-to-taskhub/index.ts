@@ -1,28 +1,13 @@
 // Edge Function: report-to-taskhub
-// Reusable integration endpoint to forward reports (bug / improvement / idea / request)
-// from ANY Lovable product (MCI CRM, FlowChat, ProCRM, Kontas, MCI Radar...) to TaskHub.
+// Generic bridge to forward reports from any Lovable product to TaskHub.
 //
-// Contract is intentionally generic:
-//   POST { type, title, description, priority, module, source_app, context, attachments? }
-// Configuration is taken EXCLUSIVELY from environment secrets:
-//   - TASKHUB_API_URL   (e.g. https://taskhub.example.com/api/v1/tickets)
-//   - TASKHUB_API_KEY   (Bearer token issued by TaskHub)
-//
-// No product-specific logic lives here. To onboard a new product, just deploy this
-// function with those two secrets configured.
+// Endpoint pattern:
+//   POST ${TASKHUB_API_URL}/api/public/integrations/<source_app>/issues
+// Headers:
+//   Content-Type: application/json
+//   X-Api-Key: ${TASKHUB_API_KEY}
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-
-interface ReportPayload {
-  type: "bug" | "improvement" | "idea" | "request";
-  title: string;
-  description: string;
-  priority?: "low" | "medium" | "high" | "critical";
-  module?: string;
-  source_app: string;
-  context?: Record<string, unknown>;
-  attachments?: Array<{ name: string; mime: string; data_base64: string }>;
-}
 
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 400;
@@ -33,7 +18,7 @@ const json = (status: number, body: unknown) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-function isValid(p: any): p is ReportPayload {
+function isValid(p: any) {
   return (
     p &&
     typeof p === "object" &&
@@ -49,10 +34,26 @@ function isValid(p: any): p is ReportPayload {
   );
 }
 
+const isPlaceholderUrl = (u?: string | null) => {
+  if (!u) return true;
+  try {
+    const { hostname, protocol } = new URL(u);
+    if (!/^https?:$/.test(protocol)) return true;
+    if (hostname === "localhost" || hostname === "127.0.0.1") return true;
+    if (/\.local$/i.test(hostname)) return true;
+    if (/example\.(com|org|net)$/i.test(hostname)) return true;
+    if (/taskhub\.local$/i.test(hostname)) return true;
+    return false;
+  } catch {
+    return true;
+  }
+};
+
 async function forwardWithRetry(url: string, key: string, body: unknown) {
-  let lastErr: { status?: number; message: string } | null = null;
+  let lastErr: { status?: number; message: string; body?: string } | null = null;
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
+      console.log(`[taskhub] attempt ${attempt}/${MAX_RETRIES} POST ${url}`);
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -64,25 +65,34 @@ async function forwardWithRetry(url: string, key: string, body: unknown) {
       });
       const text = await res.text();
       let parsed: unknown = text;
-      try { parsed = JSON.parse(text); } catch { /* keep as text */ }
+      try { parsed = JSON.parse(text); } catch { /* keep text */ }
+
+      console.log(`[taskhub] response status=${res.status} body=${text.slice(0, 2000)}`);
 
       if (res.ok) {
         return { ok: true as const, status: res.status, data: parsed, attempts: attempt };
       }
-      // Retry only on 5xx / 429
       if (res.status >= 500 || res.status === 429) {
-        lastErr = { status: res.status, message: typeof parsed === "string" ? parsed : JSON.stringify(parsed) };
+        lastErr = { status: res.status, message: typeof parsed === "string" ? parsed : JSON.stringify(parsed), body: text };
       } else {
         return { ok: false as const, status: res.status, data: parsed, attempts: attempt, retryable: false };
       }
     } catch (e) {
-      lastErr = { message: (e as Error).message };
+      const message = (e as Error).message;
+      console.error(`[taskhub] fetch error: ${message}`);
+      lastErr = { message };
     }
     if (attempt < MAX_RETRIES) {
       await new Promise((r) => setTimeout(r, RETRY_BASE_MS * Math.pow(2, attempt - 1)));
     }
   }
-  return { ok: false as const, status: lastErr?.status ?? 0, data: lastErr?.message ?? "unknown_error", attempts: MAX_RETRIES, retryable: true };
+  return {
+    ok: false as const,
+    status: lastErr?.status ?? 0,
+    data: lastErr?.body ?? lastErr?.message ?? "unknown_error",
+    attempts: MAX_RETRIES,
+    retryable: true,
+  };
 }
 
 Deno.serve(async (req) => {
@@ -92,29 +102,15 @@ Deno.serve(async (req) => {
   const apiUrl = Deno.env.get("TASKHUB_API_URL");
   const apiKey = Deno.env.get("TASKHUB_API_KEY");
 
-  // Detect placeholder / non-routable URLs and treat as mock mode.
-  const isPlaceholderUrl = (u?: string | null) => {
-    if (!u) return true;
-    try {
-      const { hostname, protocol } = new URL(u);
-      if (!/^https?:$/.test(protocol)) return true;
-      if (hostname === "localhost" || hostname === "127.0.0.1") return true;
-      if (/\.local$/i.test(hostname)) return true;
-      if (/example\.(com|org|net)$/i.test(hostname)) return true;
-      if (/taskhub\.local$/i.test(hostname)) return true;
-      return false;
-    } catch {
-      return true;
-    }
-  };
+  console.log(`[taskhub] TASKHUB_API_URL=${apiUrl ?? "(unset)"} key_present=${apiKey ? "yes" : "no"}`);
 
   if (!apiUrl || !apiKey || isPlaceholderUrl(apiUrl)) {
-    // Dev/mock mode — integration is wired but secrets aren't set (or point to a placeholder).
+    console.warn("[taskhub] mock mode — secrets missing or placeholder URL");
     return json(200, {
       ok: true,
       mock: true,
       message:
-        "Integração com TaskHub ainda não ativa (TASKHUB_API_URL / TASKHUB_API_KEY não configurados ou apontando para URL de exemplo). Solicitação registrada apenas localmente.",
+        "Integração com TaskHub ainda não ativa (TASKHUB_API_URL / TASKHUB_API_KEY não configurados ou URL placeholder). Solicitação registrada apenas localmente.",
     });
   }
 
@@ -126,44 +122,86 @@ Deno.serve(async (req) => {
   }
 
   if (!isValid(body)) {
-    return json(400, { error: "invalid_payload", message: "Campos obrigatórios: type, title, description, source_app." });
+    return json(400, {
+      ok: false,
+      error: "invalid_payload",
+      message: "Campos obrigatórios: type, title, description, source_app.",
+    });
   }
 
-  // Cap attachments size (~5MB total base64 ≈ ~3.75MB binary)
   if (Array.isArray(body.attachments)) {
     const totalBytes = body.attachments.reduce(
       (s: number, a: any) => s + (typeof a?.data_base64 === "string" ? a.data_base64.length : 0),
       0,
     );
     if (totalBytes > 7_000_000) {
-      return json(413, { error: "attachments_too_large" });
+      return json(413, { ok: false, error: "attachments_too_large" });
     }
   }
 
+  const ctx = (body.context ?? {}) as Record<string, any>;
+
+  // Payload no formato esperado pelo TaskHub.
   const forwarded = {
+    source: body.source_app,
+    project: body.source_app,
     type: body.type,
-    title: body.title.trim(),
-    description: body.description.trim(),
+    module: body.module ?? ctx.module ?? null,
+    title: String(body.title).trim(),
+    description: String(body.description).trim(),
     priority: body.priority ?? "medium",
-    module: body.module ?? null,
-    source_app: body.source_app,
-    context: body.context ?? {},
+    current_url: ctx.page_url ?? null,
+    reported_by_name: ctx.user_name ?? null,
+    reported_by_email: ctx.user_email ?? null,
+    screenshot_url: ctx.screenshot_url ?? null,
+    metadata: {
+      ...ctx,
+      app_version: ctx.app_version ?? null,
+      user_role: ctx.user_role ?? null,
+      company_id: ctx.company_id ?? null,
+      user_id: ctx.user_id ?? null,
+      submitted_at: ctx.submitted_at ?? new Date().toISOString(),
+    },
     attachments: body.attachments ?? [],
-    received_at: new Date().toISOString(),
   };
 
   const base = apiUrl.replace(/\/+$/, "");
   const slug = String(body.source_app).trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
   const endpoint = `${base}/api/public/integrations/${slug}/issues`;
+
+  console.log(`[taskhub] endpoint=${endpoint}`);
+  console.log(`[taskhub] payload=${JSON.stringify({ ...forwarded, attachments: `[${forwarded.attachments.length} files]` })}`);
+
   const result = await forwardWithRetry(endpoint, apiKey, forwarded);
 
   if (result.ok) {
-    return json(200, { ok: true, taskhub: result.data, attempts: result.attempts });
+    // TaskHub respondeu 2xx — confirmar criação.
+    const data: any = result.data;
+    const created =
+      data && typeof data === "object"
+        ? data.ok !== false && (data.id || data.issue_id || data.card_id || data.created === true || data.success !== false)
+        : true;
+
+    if (!created) {
+      const msg =
+        (data && (data.message || data.error)) ||
+        "TaskHub não confirmou a criação do card.";
+      console.error(`[taskhub] upstream 2xx mas sem confirmação: ${JSON.stringify(data)}`);
+      return json(502, {
+        ok: false,
+        error: "taskhub_not_created",
+        message: `Falha ao criar card no TaskHub: ${msg}`,
+        upstream_response: data,
+      });
+    }
+
+    return json(200, { ok: true, taskhub: data, attempts: result.attempts });
   }
 
-  // If upstream is unreachable (DNS / connect error), degrade to mock instead of 502.
+  // Upstream inacessível (DNS/connect) -> degrada para mock.
   const msg = typeof result.data === "string" ? result.data : JSON.stringify(result.data);
   if (result.status === 0 && /dns error|failed to lookup|ENOTFOUND|ECONNREFUSED|Connect/i.test(msg)) {
+    console.warn("[taskhub] upstream unreachable, degrading to mock");
     return json(200, {
       ok: true,
       mock: true,
@@ -173,9 +211,17 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Extrai mensagem amigável do upstream.
+  let upstreamMessage = msg;
+  if (result.data && typeof result.data === "object") {
+    const d: any = result.data;
+    upstreamMessage = d.message || d.error || JSON.stringify(d);
+  }
+
   return json(502, {
     ok: false,
     error: "taskhub_forward_failed",
+    message: `Falha ao criar card no TaskHub: ${upstreamMessage}`,
     upstream_status: result.status,
     upstream_response: result.data,
     attempts: result.attempts,
