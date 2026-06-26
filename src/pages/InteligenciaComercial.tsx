@@ -523,30 +523,35 @@ export default function InteligenciaComercial() {
   }, [aggregated]);
 
   // ---------- Insights Inteligentes ----------
-  const insights = useMemo(() => {
-    const items: { icon: any; tone: string; title: string; desc: string }[] = [];
+  type Insight = { icon: any; tone: string; title: string; desc: string; onClick?: () => void };
+  const insights = useMemo<Insight[]>(() => {
+    const items: Insight[] = [];
 
-    // Recompra: clientes recorrentes prestes a recomprar
+    // Recompra
     const recompra = aggregated.filter(a =>
       a.intervalAvgDays != null && a.daysSinceLast != null &&
       a.daysSinceLast >= (a.intervalAvgDays * 0.85) && a.daysSinceLast <= (a.intervalAvgDays * 1.3)
-    ).sort((a, b) => b.totalValue - a.totalValue).slice(0, 3);
+    ).sort((a, b) => b.totalValue - a.totalValue).slice(0, 10);
     if (recompra.length) {
+      const ids = new Set(recompra.flatMap(r => r.quoteIds));
       items.push({
         icon: Repeat, tone: 'emerald',
         title: `${recompra.length} cliente(s) em janela de recompra`,
-        desc: recompra.map(r => r.clientName).join(', ') + ' — abordagem comercial recomendada.',
+        desc: recompra.slice(0, 3).map(r => r.clientName).join(', ') + ' — abordagem comercial recomendada.',
+        onClick: () => openDrill('Janela de recompra', 'Clientes recorrentes prestes a recomprar', filteredQuotes.filter(q => ids.has(q.id))),
       });
     }
 
     // Inativos de alto valor
     const inativosTop = aggregated.filter(a => !a.isActive && a.totalValue > 0)
-      .sort((a, b) => b.totalValue - a.totalValue).slice(0, 3);
+      .sort((a, b) => b.totalValue - a.totalValue).slice(0, 10);
     if (inativosTop.length) {
+      const ids = new Set(inativosTop.flatMap(a => a.quoteIds));
       items.push({
         icon: AlertTriangle, tone: 'red',
         title: `${inativosTop.length} cliente(s) de alto valor inativo(s)`,
-        desc: inativosTop.map(r => `${r.clientName} (${fmtBRL(r.totalValue)})`).join(' • '),
+        desc: inativosTop.slice(0, 3).map(r => `${r.clientName} (${fmtBRL(r.totalValue)})`).join(' • '),
+        onClick: () => openDrill('Inativos de alto valor', 'Clientes com histórico relevante e sem compras recentes', filteredQuotes.filter(q => ids.has(q.id))),
       });
     }
 
@@ -557,40 +562,62 @@ export default function InteligenciaComercial() {
         icon: TrendingUp, tone: 'emerald',
         title: `Receita cresceu ${g.toFixed(1)}% vs período anterior`,
         desc: `De ${fmtCompact(prevKpis.totalRevenue)} para ${fmtCompact(kpis.totalRevenue)}.`,
+        onClick: drillRevenue,
       });
     } else if (g != null && g <= -10) {
       items.push({
         icon: TrendingDown, tone: 'red',
         title: `Receita caiu ${Math.abs(g).toFixed(1)}% vs período anterior`,
         desc: `Atenção: queda de ${fmtCompact(prevKpis.totalRevenue - kpis.totalRevenue)} no período.`,
+        onClick: drillRevenue,
       });
     }
 
-    // Marca destaque
-    const brandTotals: Record<string, number> = {};
-    aggregated.forEach(a => Object.entries(a.brands).forEach(([b, v]) => {
-      brandTotals[b] = (brandTotals[b] || 0) + v;
-    }));
-    const topBrand = Object.entries(brandTotals).sort((a, b) => b[1] - a[1])[0];
-    if (topBrand) {
+    // Marca destaque — recalculo direto a partir dos itens válidos (fonte da verdade)
+    const brandTotals: Record<string, { value: number; qty: number; quotes: Set<string>; clients: Set<string> }> = {};
+    filteredQuotes.forEach(q => {
+      (itemsByQuote.get(q.id) || []).forEach(it => {
+        const r = resolveItem(it);
+        if (!brandTotals[r.brand]) brandTotals[r.brand] = { value: 0, qty: 0, quotes: new Set(), clients: new Set() };
+        brandTotals[r.brand].value += itemValue(it);
+        brandTotals[r.brand].qty += Number(it.quantity || 0);
+        brandTotals[r.brand].quotes.add(q.id);
+        if (q.client_id) brandTotals[r.brand].clients.add(q.client_id);
+      });
+    });
+    const topBrandEntry = Object.entries(brandTotals)
+      .filter(([b]) => b !== 'Sem marca')
+      .sort((a, b) => b[1].value - a[1].value)[0]
+      || Object.entries(brandTotals).sort((a, b) => b[1].value - a[1].value)[0];
+    if (topBrandEntry && topBrandEntry[1].value > 0) {
+      const [bName, bData] = topBrandEntry;
       items.push({
         icon: Crown, tone: 'amber',
-        title: `Marca em destaque: ${topBrand[0]}`,
-        desc: `Responsável por ${fmtBRL(topBrand[1])} em vendas no período.`,
+        title: `Marca em destaque: ${bName}`,
+        desc: `Responsável por ${fmtBRL(bData.value)} em vendas • ${bData.qty} unidades • ${bData.clients.size} cliente(s).`,
+        onClick: () => openDrill(`Marca em destaque: ${bName}`, `${fmtBRLfull(bData.value)} • ${bData.qty} un. • ${bData.clients.size} cliente(s)`, filteredQuotes.filter(q => bData.quotes.has(q.id))),
       });
     }
 
-    // Produto destaque
+    // Produto líder
     if (topProducts[0]) {
+      const top = topProducts[0];
+      const ids = new Set<string>();
+      filteredQuotes.forEach(q => {
+        (itemsByQuote.get(q.id) || []).forEach(it => {
+          if (resolveItem(it).key === top.key) ids.add(q.id);
+        });
+      });
       items.push({
         icon: Package, tone: 'indigo',
-        title: `Produto líder: ${topProducts[0].desc}`,
-        desc: `${topProducts[0].qty} unidades vendidas para ${topProducts[0].clientsCount} cliente(s).`,
+        title: `Produto líder: ${top.desc}`,
+        desc: `${top.brand}${top.code ? ` • Código ${top.code}` : ''} • ${top.qty} un. vendidas para ${top.clientsCount} cliente(s) • ${fmtBRL(top.value)}.`,
+        onClick: () => openDrill(`Produto líder: ${top.desc}`, `${top.brand}${top.code ? ` • Código ${top.code}` : ''} • ${top.qty} un. • ${fmtBRLfull(top.value)}`, filteredQuotes.filter(q => ids.has(q.id))),
       });
     }
 
     return items;
-  }, [aggregated, kpis, prevKpis, topProducts]);
+  }, [aggregated, kpis, prevKpis, topProducts, filteredQuotes, itemsByQuote, productByCode]);
 
   // ---------- Export ----------
   const exportRows = () => filteredAggregated.map((a, i) => ({
