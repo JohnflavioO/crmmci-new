@@ -148,6 +148,8 @@ export default function InteligenciaComercial() {
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [clients, setClients] = useState<Record<string, ClientRow>>({});
   const [items, setItems] = useState<ItemRow[]>([]);
+  const [sellerProfiles, setSellerProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [drill, setDrill] = useState<{ title: string; subtitle?: string; quotes: QuoteRow[] } | null>(null);
 
   // Filters
   const [period, setPeriod] = useState<'30' | '90' | '180' | '365' | 'all'>('all');
