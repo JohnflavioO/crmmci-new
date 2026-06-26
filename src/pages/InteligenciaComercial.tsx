@@ -11,16 +11,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
+import {
   BarChart3, Trophy, Users as UsersIcon, TrendingUp, TrendingDown, AlertTriangle,
-  DollarSign, ShoppingCart, Calendar, Download, FileSpreadsheet, FileText, Sparkles, Activity
+  DollarSign, ShoppingCart, Calendar, Download, FileSpreadsheet, FileText, Sparkles, Activity,
+  Brain, SlidersHorizontal, ChevronDown, Lightbulb, Target, Wallet, Package, Crown, Repeat
 } from 'lucide-react';
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Legend
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Legend, Area, AreaChart
 } from 'recharts';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { cn } from '@/lib/utils';
 
 // ---------- Helpers ----------
 const VALID_STATUSES = new Set(
@@ -167,7 +172,6 @@ export default function InteligenciaComercial() {
 
         const quoteIds = valid.map((q: any) => q.id);
         if (quoteIds.length) {
-          // Chunk to avoid URL length limits
           const chunkSize = 200;
           const allItems: ItemRow[] = [];
           for (let i = 0; i < quoteIds.length; i += chunkSize) {
@@ -189,20 +193,38 @@ export default function InteligenciaComercial() {
     })();
   }, [user, canSeeAll]);
 
-  // ---------- Aggregations ----------
+  // ---------- Period windows ----------
+  const periodDays = period === 'all' ? Infinity : parseInt(period, 10);
+
   const filteredQuotes = useMemo(() => {
     const now = Date.now();
-    const days = period === 'all' ? Infinity : parseInt(period, 10);
     return quotes.filter(q => {
       const d = new Date(q.approved_at || q.created_at).getTime();
-      if (days !== Infinity && now - d > days * 86400000) return false;
+      if (periodDays !== Infinity && now - d > periodDays * 86400000) return false;
       if (sellerFilter !== 'all' && q.created_by !== sellerFilter) return false;
       const c = q.client_id ? clients[q.client_id] : null;
       if (cityFilter !== 'all' && (c?.city || '') !== cityFilter) return false;
       if (stateFilter !== 'all' && (c?.state || '') !== stateFilter) return false;
       return true;
     });
-  }, [quotes, clients, period, sellerFilter, cityFilter, stateFilter]);
+  }, [quotes, clients, periodDays, sellerFilter, cityFilter, stateFilter]);
+
+  // Previous period for growth comparison
+  const previousQuotes = useMemo(() => {
+    if (periodDays === Infinity) return [] as QuoteRow[];
+    const now = Date.now();
+    const startCurr = now - periodDays * 86400000;
+    const startPrev = startCurr - periodDays * 86400000;
+    return quotes.filter(q => {
+      const d = new Date(q.approved_at || q.created_at).getTime();
+      if (d < startPrev || d >= startCurr) return false;
+      if (sellerFilter !== 'all' && q.created_by !== sellerFilter) return false;
+      const c = q.client_id ? clients[q.client_id] : null;
+      if (cityFilter !== 'all' && (c?.city || '') !== cityFilter) return false;
+      if (stateFilter !== 'all' && (c?.state || '') !== stateFilter) return false;
+      return true;
+    });
+  }, [quotes, clients, periodDays, sellerFilter, cityFilter, stateFilter]);
 
   const itemsByQuote = useMemo(() => {
     const m = new Map<string, ItemRow[]>();
@@ -303,6 +325,22 @@ export default function InteligenciaComercial() {
     };
   }, [filteredQuotes, aggregated]);
 
+  const prevKpis = useMemo(() => {
+    const totalRevenue = previousQuotes.reduce((s, q) => s + getValue(q), 0);
+    const totalReceived = previousQuotes.filter(isReceived).reduce((s, q) => s + getValue(q), 0);
+    const cids = new Set(previousQuotes.map(q => q.client_id || `__${q.client_name}`));
+    const totalClients = cids.size;
+    const avgQuote = previousQuotes.length ? totalRevenue / previousQuotes.length : 0;
+    const ticketMedio = totalClients ? totalRevenue / totalClients : 0;
+    return { totalRevenue, totalReceived, totalClients, avgQuote, ticketMedio };
+  }, [previousQuotes]);
+
+  const growth = (curr: number, prev: number): number | null => {
+    if (periodDays === Infinity) return null;
+    if (!prev) return curr > 0 ? 100 : null;
+    return ((curr - prev) / prev) * 100;
+  };
+
   // ---------- Top products ----------
   const topProducts = useMemo(() => {
     const map = new Map<string, { desc: string; qty: number; value: number; clients: Set<string> }>();
@@ -377,6 +415,76 @@ export default function InteligenciaComercial() {
     return out.slice(0, 50);
   }, [aggregated]);
 
+  // ---------- Insights Inteligentes ----------
+  const insights = useMemo(() => {
+    const items: { icon: any; tone: string; title: string; desc: string }[] = [];
+
+    // Recompra: clientes recorrentes prestes a recomprar
+    const recompra = aggregated.filter(a =>
+      a.intervalAvgDays != null && a.daysSinceLast != null &&
+      a.daysSinceLast >= (a.intervalAvgDays * 0.85) && a.daysSinceLast <= (a.intervalAvgDays * 1.3)
+    ).sort((a, b) => b.totalValue - a.totalValue).slice(0, 3);
+    if (recompra.length) {
+      items.push({
+        icon: Repeat, tone: 'emerald',
+        title: `${recompra.length} cliente(s) em janela de recompra`,
+        desc: recompra.map(r => r.clientName).join(', ') + ' — abordagem comercial recomendada.',
+      });
+    }
+
+    // Inativos de alto valor
+    const inativosTop = aggregated.filter(a => !a.isActive && a.totalValue > 0)
+      .sort((a, b) => b.totalValue - a.totalValue).slice(0, 3);
+    if (inativosTop.length) {
+      items.push({
+        icon: AlertTriangle, tone: 'red',
+        title: `${inativosTop.length} cliente(s) de alto valor inativo(s)`,
+        desc: inativosTop.map(r => `${r.clientName} (${fmtBRL(r.totalValue)})`).join(' • '),
+      });
+    }
+
+    // Crescimento de receita
+    const g = growth(kpis.totalRevenue, prevKpis.totalRevenue);
+    if (g != null && g >= 10) {
+      items.push({
+        icon: TrendingUp, tone: 'emerald',
+        title: `Receita cresceu ${g.toFixed(1)}% vs período anterior`,
+        desc: `De ${fmtCompact(prevKpis.totalRevenue)} para ${fmtCompact(kpis.totalRevenue)}.`,
+      });
+    } else if (g != null && g <= -10) {
+      items.push({
+        icon: TrendingDown, tone: 'red',
+        title: `Receita caiu ${Math.abs(g).toFixed(1)}% vs período anterior`,
+        desc: `Atenção: queda de ${fmtCompact(prevKpis.totalRevenue - kpis.totalRevenue)} no período.`,
+      });
+    }
+
+    // Marca destaque
+    const brandTotals: Record<string, number> = {};
+    aggregated.forEach(a => Object.entries(a.brands).forEach(([b, v]) => {
+      brandTotals[b] = (brandTotals[b] || 0) + v;
+    }));
+    const topBrand = Object.entries(brandTotals).sort((a, b) => b[1] - a[1])[0];
+    if (topBrand) {
+      items.push({
+        icon: Crown, tone: 'amber',
+        title: `Marca em destaque: ${topBrand[0]}`,
+        desc: `Responsável por ${fmtBRL(topBrand[1])} em vendas no período.`,
+      });
+    }
+
+    // Produto destaque
+    if (topProducts[0]) {
+      items.push({
+        icon: Package, tone: 'indigo',
+        title: `Produto líder: ${topProducts[0].desc}`,
+        desc: `${topProducts[0].qty} unidades vendidas para ${topProducts[0].clientsCount} cliente(s).`,
+      });
+    }
+
+    return items;
+  }, [aggregated, kpis, prevKpis, topProducts]);
+
   // ---------- Export ----------
   const exportRows = () => filteredAggregated.map((a, i) => ({
     'Posição': i + 1,
@@ -445,28 +553,56 @@ export default function InteligenciaComercial() {
     return <Badge variant="outline" className={map.c}>{map.l}</Badge>;
   };
 
+  const top5 = filteredAggregated.slice(0, 5);
+  const top5Max = top5[0]?.totalValue || 1;
+
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold font-display flex items-center gap-2">
-              <Sparkles className="h-7 w-7 text-primary" /> Inteligência Comercial
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Rankings, recompra e oportunidades baseadas no histórico real de vendas.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={exportExcel}><FileSpreadsheet className="h-4 w-4 mr-1" />Excel</Button>
-            <Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-4 w-4 mr-1" />CSV</Button>
-            <Button variant="outline" size="sm" onClick={exportPDF}><FileText className="h-4 w-4 mr-1" />PDF</Button>
+        {/* HERO */}
+        <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-indigo-600 via-blue-600 to-cyan-500 text-white shadow-lg">
+          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_20%,white,transparent_40%),radial-gradient(circle_at_80%_60%,white,transparent_45%)]" />
+          <div className="relative p-6 md:p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center shrink-0 ring-1 ring-white/20">
+                <Brain className="h-7 w-7" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="bg-white/15 text-white border-white/20 hover:bg-white/20">BI Executivo</Badge>
+                  <Badge variant="secondary" className="bg-white/15 text-white border-white/20 hover:bg-white/20">Tempo real</Badge>
+                </div>
+                <h1 className="text-2xl md:text-3xl font-bold font-display mt-2 tracking-tight">
+                  Inteligência Comercial
+                </h1>
+                <p className="text-sm md:text-base text-white/85 mt-1 max-w-2xl">
+                  Plataforma analítica de decisão — rankings, recompra, oportunidades e indicadores estratégicos do MCI CRM, baseados no histórico real de vendas.
+                </p>
+              </div>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="lg" className="bg-white text-indigo-700 hover:bg-white/90 shadow-md">
+                  <Download className="h-4 w-4 mr-2" /> Exportar <ChevronDown className="h-4 w-4 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={exportExcel}><FileSpreadsheet className="h-4 w-4 mr-2 text-emerald-600" />Excel (.xlsx)</DropdownMenuItem>
+                <DropdownMenuItem onClick={exportCSV}><Download className="h-4 w-4 mr-2 text-sky-600" />CSV</DropdownMenuItem>
+                <DropdownMenuItem onClick={exportPDF}><FileText className="h-4 w-4 mr-2 text-red-600" />PDF</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
-        {/* Filters */}
-        <Card>
-          <CardContent className="p-4 grid grid-cols-2 md:grid-cols-7 gap-3">
+        {/* FILTROS INTELIGENTES */}
+        <Card className="shadow-sm border-border/60">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground uppercase tracking-wider">
+              <SlidersHorizontal className="h-4 w-4 text-primary" /> Filtros Inteligentes
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
             <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
               <SelectTrigger><SelectValue placeholder="Período" /></SelectTrigger>
               <SelectContent>
@@ -520,40 +656,135 @@ export default function InteligenciaComercial() {
         </Card>
 
         <Tabs defaultValue="dashboard" className="space-y-4">
-          <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full">
-            <TabsTrigger value="dashboard"><BarChart3 className="h-4 w-4 mr-1" />Dashboard</TabsTrigger>
-            <TabsTrigger value="ranking"><Trophy className="h-4 w-4 mr-1" />Ranking</TabsTrigger>
-            <TabsTrigger value="top"><Sparkles className="h-4 w-4 mr-1" />Top Clientes</TabsTrigger>
-            <TabsTrigger value="products"><ShoppingCart className="h-4 w-4 mr-1" />Produtos</TabsTrigger>
-            <TabsTrigger value="evolution"><Activity className="h-4 w-4 mr-1" />Evolução</TabsTrigger>
-            <TabsTrigger value="alerts"><AlertTriangle className="h-4 w-4 mr-1" />Alertas</TabsTrigger>
+          <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full h-auto">
+            <TabsTrigger value="dashboard" className="gap-1.5"><BarChart3 className="h-4 w-4" /><span className="hidden sm:inline">Dashboard</span></TabsTrigger>
+            <TabsTrigger value="ranking" className="gap-1.5"><Trophy className="h-4 w-4" /><span className="hidden sm:inline">Rankings</span></TabsTrigger>
+            <TabsTrigger value="top" className="gap-1.5"><UsersIcon className="h-4 w-4" /><span className="hidden sm:inline">Clientes</span></TabsTrigger>
+            <TabsTrigger value="products" className="gap-1.5"><ShoppingCart className="h-4 w-4" /><span className="hidden sm:inline">Produtos</span></TabsTrigger>
+            <TabsTrigger value="evolution" className="gap-1.5"><Activity className="h-4 w-4" /><span className="hidden sm:inline">Evolução</span></TabsTrigger>
+            <TabsTrigger value="alerts" className="gap-1.5"><Sparkles className="h-4 w-4" /><span className="hidden sm:inline">Alertas IA</span></TabsTrigger>
           </TabsList>
 
-          {/* Dashboard */}
-          <TabsContent value="dashboard" className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <KpiCard icon={DollarSign} label="Receita Comercial" value={fmtCompact(kpis.totalRevenue)} hint="Aprovados + Liquidados" />
-              <KpiCard icon={DollarSign} label="Receita Recebida" value={fmtCompact(kpis.totalReceived)} hint="Apenas liquidados" />
-              <KpiCard icon={UsersIcon} label="Clientes Ativos" value={String(kpis.activeClients)} hint="Compraram ≤90 dias" />
-              <KpiCard icon={UsersIcon} label="Clientes Inativos" value={String(kpis.inactiveClients)} hint=">90 dias sem comprar" />
-              <KpiCard icon={ShoppingCart} label="Ticket Médio Cliente" value={fmtCompact(kpis.ticketMedio)} />
-              <KpiCard icon={ShoppingCart} label="Valor Médio / Orçamento" value={fmtCompact(kpis.avgQuote)} />
-              <KpiCard icon={TrendingUp} label="Compras / Cliente" value={kpis.avgPerClient.toFixed(1)} />
-              <KpiCard icon={Trophy} label="Clientes Recorrentes" value={String(kpis.recurrent)} hint="2+ compras" />
+          {/* DASHBOARD */}
+          <TabsContent value="dashboard" className="space-y-6">
+            {/* GRUPO FINANCEIRO */}
+            <KpiGroup title="Financeiro" icon={Wallet} accent="emerald">
+              <KpiCard icon={DollarSign} label="Receita Comercial" value={fmtCompact(kpis.totalRevenue)} hint="Aprovados + Liquidados" growth={growth(kpis.totalRevenue, prevKpis.totalRevenue)} accent="emerald" />
+              <KpiCard icon={Wallet} label="Receita Recebida" value={fmtCompact(kpis.totalReceived)} hint="Apenas liquidados" growth={growth(kpis.totalReceived, prevKpis.totalReceived)} accent="emerald" />
+              <KpiCard icon={ShoppingCart} label="Ticket Médio Cliente" value={fmtCompact(kpis.ticketMedio)} growth={growth(kpis.ticketMedio, prevKpis.ticketMedio)} accent="emerald" />
+              <KpiCard icon={ShoppingCart} label="Valor Médio / Orçamento" value={fmtCompact(kpis.avgQuote)} growth={growth(kpis.avgQuote, prevKpis.avgQuote)} accent="emerald" />
+            </KpiGroup>
+
+            {/* GRUPO CLIENTES */}
+            <KpiGroup title="Clientes" icon={UsersIcon} accent="sky">
+              <KpiCard icon={UsersIcon} label="Total de Clientes" value={String(kpis.totalClients)} growth={growth(kpis.totalClients, prevKpis.totalClients)} accent="sky" />
+              <KpiCard icon={UsersIcon} label="Clientes Ativos" value={String(kpis.activeClients)} hint="Compraram ≤90 dias" accent="sky" />
+              <KpiCard icon={AlertTriangle} label="Clientes Inativos" value={String(kpis.inactiveClients)} hint=">90 dias sem comprar" accent="amber" />
+              <KpiCard icon={Repeat} label="Clientes Recorrentes" value={String(kpis.recurrent)} hint="2+ compras" accent="sky" />
+            </KpiGroup>
+
+            {/* GRUPO PERFORMANCE */}
+            <KpiGroup title="Performance" icon={Target} accent="violet">
+              <KpiCard icon={TrendingUp} label="Compras / Cliente" value={kpis.avgPerClient.toFixed(1)} accent="violet" />
+              <KpiCard icon={Activity} label="Orçamentos no Período" value={String(filteredQuotes.length)} accent="violet" />
+              <KpiCard icon={Trophy} label="Top Cliente" value={top5[0] ? fmtCompact(top5[0].totalValue) : '—'} hint={top5[0]?.clientName} accent="violet" />
+              <KpiCard icon={Package} label="Marcas Distintas" value={String(brands.length)} accent="violet" />
+            </KpiGroup>
+
+            {/* CHART + TOP 5 */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <Card className="lg:col-span-2">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4 text-primary" /> Evolução de Receita</CardTitle>
+                  <Badge variant="outline" className="text-xs">{monthlySeries.length} meses</Badge>
+                </CardHeader>
+                <CardContent className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={monthlySeries}>
+                      <defs>
+                        <linearGradient id="gradReceita" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                      <YAxis tickFormatter={fmtCompact} width={80} stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                      <Tooltip formatter={(v: any) => fmtBRLfull(v)} contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))' }} />
+                      <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#gradReceita)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2"><Crown className="h-4 w-4 text-amber-500" /> Top 5 Clientes</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {top5.length === 0 && <p className="text-xs text-muted-foreground">Sem dados.</p>}
+                  {top5.map((a, i) => {
+                    const pct = (a.totalValue / top5Max) * 100;
+                    const colors = ['bg-amber-500', 'bg-slate-400', 'bg-orange-400', 'bg-indigo-400', 'bg-emerald-400'];
+                    return (
+                      <button
+                        key={a.clientId}
+                        onClick={() => setSelectedClient(a.clientId)}
+                        className="w-full text-left group"
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={cn('w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0', colors[i])}>{i + 1}</span>
+                            <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">{a.clientName}</span>
+                          </div>
+                          <span className="text-xs font-bold tabular-nums shrink-0">{fmtCompact(a.totalValue)}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div className={cn('h-full rounded-full transition-all', colors[i])} style={{ width: `${pct}%` }} />
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-1">{a.quotesCount} compras • Ticket {fmtCompact(a.ticketMedio)}</div>
+                      </button>
+                    );
+                  })}
+                </CardContent>
+              </Card>
             </div>
 
-            <Card>
-              <CardHeader><CardTitle className="text-base">Evolução de Receita</CardTitle></CardHeader>
-              <CardContent className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={monthlySeries}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis tickFormatter={fmtCompact} width={80} />
-                    <Tooltip formatter={(v: any) => fmtBRLfull(v)} />
-                    <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
+            {/* INSIGHTS INTELIGENTES */}
+            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-amber-500" /> Insights Inteligentes
+                  <Badge variant="outline" className="ml-2 text-[10px]">IA</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {insights.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Sem recomendações automáticas no momento.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {insights.map((it, i) => {
+                      const Icon = it.icon;
+                      const tone: Record<string, string> = {
+                        emerald: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20',
+                        red: 'bg-red-500/10 text-red-700 border-red-500/20',
+                        amber: 'bg-amber-500/10 text-amber-700 border-amber-500/20',
+                        indigo: 'bg-indigo-500/10 text-indigo-700 border-indigo-500/20',
+                      };
+                      return (
+                        <div key={i} className={cn('flex items-start gap-3 p-3 rounded-lg border', tone[it.tone])}>
+                          <div className="w-8 h-8 rounded-lg bg-background/60 flex items-center justify-center shrink-0">
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold">{it.title}</p>
+                            <p className="text-xs opacity-80 mt-0.5">{it.desc}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -599,7 +830,7 @@ export default function InteligenciaComercial() {
             </Card>
           </TabsContent>
 
-          {/* Top */}
+          {/* Clientes (top) */}
           <TabsContent value="top" className="grid md:grid-cols-2 gap-4">
             <TopList title="Top 10 — Faturamento" items={[...filteredAggregated].slice(0, 10).map(a => ({ name: a.clientName, value: fmtBRL(a.totalValue) }))} onClick={n => setSelectedClient(aggregated.find(a => a.clientName === n)?.clientId || null)} />
             <TopList title="Top 10 — Quantidade de Compras" items={[...filteredAggregated].sort((a, b) => b.quotesCount - a.quotesCount).slice(0, 10).map(a => ({ name: a.clientName, value: `${a.quotesCount} compras` }))} onClick={n => setSelectedClient(aggregated.find(a => a.clientName === n)?.clientId || null)} />
@@ -652,21 +883,21 @@ export default function InteligenciaComercial() {
                     <YAxis tickFormatter={fmtCompact} width={80} />
                     <Tooltip formatter={(v: any) => fmtBRLfull(v)} />
                     <Legend />
-                    <Bar dataKey="value" name="Receita" fill="hsl(var(--primary))" />
+                    <Bar dataKey="value" name="Receita" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Alerts */}
+          {/* Alerts IA */}
           <TabsContent value="alerts">
             <Card>
-              <CardHeader><CardTitle className="text-base">Alertas Inteligentes</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Alertas IA</CardTitle></CardHeader>
               <CardContent className="space-y-2">
                 {alerts.length === 0 && <p className="text-sm text-muted-foreground">Nenhum alerta no momento.</p>}
                 {alerts.map((a, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/40 transition-colors">
                     {a.type === 'parado' && <TrendingDown className="h-5 w-5 text-red-500 mt-0.5" />}
                     {a.type === 'reducao' && <TrendingDown className="h-5 w-5 text-amber-500 mt-0.5" />}
                     {a.type === 'crescimento' && <TrendingUp className="h-5 w-5 text-emerald-500 mt-0.5" />}
@@ -748,18 +979,57 @@ export default function InteligenciaComercial() {
   );
 }
 
-function KpiCard({ icon: Icon, label, value, hint }: any) {
+const ACCENT_MAP: Record<string, { bar: string; icon: string; chip: string; ring: string }> = {
+  emerald: { bar: 'bg-emerald-500', icon: 'text-emerald-600 bg-emerald-500/10', chip: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20', ring: 'ring-emerald-500/20' },
+  sky:     { bar: 'bg-sky-500',     icon: 'text-sky-600 bg-sky-500/10',         chip: 'bg-sky-500/10 text-sky-700 border-sky-500/20',         ring: 'ring-sky-500/20' },
+  violet:  { bar: 'bg-violet-500',  icon: 'text-violet-600 bg-violet-500/10',   chip: 'bg-violet-500/10 text-violet-700 border-violet-500/20', ring: 'ring-violet-500/20' },
+  amber:   { bar: 'bg-amber-500',   icon: 'text-amber-600 bg-amber-500/10',     chip: 'bg-amber-500/10 text-amber-700 border-amber-500/20',   ring: 'ring-amber-500/20' },
+};
+
+function KpiGroup({ title, icon: Icon, accent, children }: { title: string; icon: any; accent: string; children: React.ReactNode }) {
+  const a = ACCENT_MAP[accent] || ACCENT_MAP.emerald;
   return (
-    <Card>
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center', a.icon)}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{title}</h2>
+        <div className={cn('flex-1 h-px', a.bar, 'opacity-20')} />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({ icon: Icon, label, value, hint, growth, accent = 'emerald' }: { icon: any; label: string; value: string; hint?: string; growth?: number | null; accent?: string }) {
+  const a = ACCENT_MAP[accent] || ACCENT_MAP.emerald;
+  const showGrowth = growth != null && isFinite(growth);
+  const up = (growth ?? 0) >= 0;
+  return (
+    <Card className={cn('relative overflow-hidden shadow-sm hover:shadow-md transition-all ring-1', a.ring)}>
+      <div className={cn('absolute left-0 top-0 bottom-0 w-1', a.bar)} />
       <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</p>
-            <p className="text-lg md:text-xl font-bold font-display truncate">{value}</p>
-            {hint && <p className="text-[10px] text-muted-foreground mt-0.5">{hint}</p>}
+            <p className="text-lg md:text-xl font-bold font-display truncate mt-1">{value}</p>
+            {hint && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{hint}</p>}
+            {showGrowth && (
+              <div className={cn(
+                'inline-flex items-center gap-0.5 mt-2 px-1.5 py-0.5 rounded text-[10px] font-semibold border',
+                up ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
+                   : 'bg-red-500/10 text-red-700 border-red-500/20'
+              )}>
+                {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                {up ? '+' : ''}{growth!.toFixed(1)}%
+              </div>
+            )}
           </div>
-          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <Icon className="h-4 w-4 text-primary" />
+          <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0', a.icon)}>
+            <Icon className="h-4 w-4" />
           </div>
         </div>
       </CardContent>
