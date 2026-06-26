@@ -312,7 +312,7 @@ function isCountable(q: QuoteRow): boolean {
   if (q.is_demonstration) return false;
   const s = (q.status || '').toLowerCase().trim();
   if (EXCLUDED_STATUSES.has(s)) return false;
-  return VALID_STATUSES.has(s) || s === '';
+  return VALID_STATUSES.has(s);
 }
 function isReceived(q: QuoteRow): boolean {
   return (q.payment_status || '').toLowerCase() === 'liquidado';
