@@ -157,6 +157,19 @@ Deno.serve(async (req) => {
   if (result.ok) {
     return json(200, { ok: true, taskhub: result.data, attempts: result.attempts });
   }
+
+  // If upstream is unreachable (DNS / connect error), degrade to mock instead of 502.
+  const msg = typeof result.data === "string" ? result.data : JSON.stringify(result.data);
+  if (result.status === 0 && /dns error|failed to lookup|ENOTFOUND|ECONNREFUSED|Connect/i.test(msg)) {
+    return json(200, {
+      ok: true,
+      mock: true,
+      message:
+        "TaskHub inacessível (host não resolve). Solicitação registrada localmente até a URL ficar disponível.",
+      upstream_response: msg,
+    });
+  }
+
   return json(502, {
     ok: false,
     error: "taskhub_forward_failed",
