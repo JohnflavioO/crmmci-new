@@ -30,10 +30,10 @@ import { cn } from '@/lib/utils';
 
 // ---------- Helpers ----------
 const VALID_STATUSES = new Set(
-  ['approved', 'aprovado', 'entregue', 'faturado', 'liquidado'].map(s => s.toLowerCase())
+  ['approved', 'aprovado'].map(s => s.toLowerCase())
 );
 const EXCLUDED_STATUSES = new Set(
-  ['rejected', 'rejeitado', 'cancelled', 'cancelado', 'teste', 'arquivado', 'archived', 'draft'].map(s => s.toLowerCase())
+  ['rejected', 'rejeitado', 'cancelled', 'cancelado', 'teste', 'arquivado', 'archived', 'draft', 'pending', 'pendente'].map(s => s.toLowerCase())
 );
 
 const fmtBRL = (v: number) =>
