@@ -18,7 +18,7 @@ import {
   type ReportAttachment,
 } from "@/lib/taskhubClient";
 
-const SOURCE_APP = "mci-crm";
+const SOURCE_APP = "crm-mci";
 
 const TYPE_META: Record<ReportType, { label: string; icon: typeof Bug; color: string }> = {
   bug: { label: "Bug", icon: Bug, color: "text-red-500" },
@@ -122,11 +122,12 @@ export default function TaskHubReportModal({ open, onOpenChange }: Props) {
       if (result.ok) {
         if (data?.mock) {
           toast.success("Registrado localmente — integração TaskHub ainda não está ativa.");
+          onOpenChange(false);
         } else {
-          const id = data?.taskhub?.id || data?.taskhub?.issue_id || data?.taskhub?.card_id;
-          toast.success(id ? `Card criado no TaskHub (#${id})` : "Enviado para o TaskHub!");
+          const id = data?.card_id || data?.taskhub?.card_id || data?.taskhub?.id || data?.taskhub?.issue_id;
+          toast.success(`Card criado no TaskHub com sucesso (#${id})`);
+          onOpenChange(false);
         }
-        onOpenChange(false);
       } else {
         const msg =
           data?.message ||

@@ -1,11 +1,5 @@
 // Edge Function: report-to-taskhub
-// Generic bridge to forward reports from any Lovable product to TaskHub.
-//
-// Endpoint pattern:
-//   POST ${TASKHUB_API_URL}/api/public/integrations/<source_app>/issues
-// Headers:
-//   Content-Type: application/json
-//   X-Api-Key: ${TASKHUB_API_KEY}
+// Bridge to forward reports from any Lovable product to TaskHub.
 
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
@@ -42,12 +36,28 @@ const isPlaceholderUrl = (u?: string | null) => {
     if (hostname === "localhost" || hostname === "127.0.0.1") return true;
     if (/\.local$/i.test(hostname)) return true;
     if (/example\.(com|org|net)$/i.test(hostname)) return true;
-    if (/taskhub\.local$/i.test(hostname)) return true;
     return false;
   } catch {
     return true;
   }
 };
+
+/**
+ * Builds the final endpoint URL.
+ * Accepts either a base URL (https://taskhub.app) OR a full endpoint
+ * (https://taskhub.app/api/public/integrations/<slug>/issues) for TASKHUB_API_URL.
+ */
+function buildEndpoint(apiUrl: string, sourceApp: string): string {
+  const trimmed = apiUrl.replace(/\/+$/, "");
+  const slug = sourceApp.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
+  if (/\/api\/public\/integrations\/[^/]+\/issues$/i.test(trimmed)) {
+    return trimmed; // user already configured the full endpoint
+  }
+  if (/\/api\/public\/integrations\/?$/i.test(trimmed)) {
+    return `${trimmed.replace(/\/$/, "")}/${slug}/issues`;
+  }
+  return `${trimmed}/api/public/integrations/${slug}/issues`;
+}
 
 async function forwardWithRetry(url: string, key: string, body: unknown) {
   let lastErr: { status?: number; message: string; body?: string } | null = null;
@@ -58,19 +68,34 @@ async function forwardWithRetry(url: string, key: string, body: unknown) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Accept": "application/json",
           "X-Api-Key": key,
           "X-Integration-Source": "lovable-taskhub-bridge",
         },
         body: JSON.stringify(body),
       });
       const text = await res.text();
+      const contentType = res.headers.get("content-type") || "";
       let parsed: unknown = text;
-      try { parsed = JSON.parse(text); } catch { /* keep text */ }
+      let isJson = false;
+      if (contentType.includes("application/json") || text.trim().startsWith("{") || text.trim().startsWith("[")) {
+        try { parsed = JSON.parse(text); isJson = true; } catch { /* keep text */ }
+      }
 
-      console.log(`[taskhub] response status=${res.status} body=${text.slice(0, 2000)}`);
+      console.log(`[taskhub] response status=${res.status} content-type=${contentType} body=${text.slice(0, 1000)}`);
 
-      if (res.ok) {
+      if (res.ok && isJson) {
         return { ok: true as const, status: res.status, data: parsed, attempts: attempt };
+      }
+      // 200 but HTML/non-JSON => endpoint wrong (hit a SPA, not the API)
+      if (res.ok && !isJson) {
+        return {
+          ok: false as const,
+          status: res.status,
+          data: { error: "endpoint_returned_non_json", message: "TaskHub endpoint retornou HTML/texto em vez de JSON. Verifique se TASKHUB_API_URL aponta para a API real do TaskHub.", preview: text.slice(0, 300) },
+          attempts: attempt,
+          retryable: false,
+        };
       }
       if (res.status >= 500 || res.status === 429) {
         lastErr = { status: res.status, message: typeof parsed === "string" ? parsed : JSON.stringify(parsed), body: text };
@@ -110,7 +135,7 @@ Deno.serve(async (req) => {
       ok: true,
       mock: true,
       message:
-        "Integração com TaskHub ainda não ativa (TASKHUB_API_URL / TASKHUB_API_KEY não configurados ou URL placeholder). Solicitação registrada apenas localmente.",
+        "Integração TaskHub ainda não ativa (URL/Key não configurados). Solicitação registrada apenas localmente.",
     });
   }
 
@@ -141,7 +166,6 @@ Deno.serve(async (req) => {
 
   const ctx = (body.context ?? {}) as Record<string, any>;
 
-  // Payload no formato esperado pelo TaskHub.
   const forwarded = {
     source: body.source_app,
     project: body.source_app,
@@ -165,54 +189,62 @@ Deno.serve(async (req) => {
     attachments: body.attachments ?? [],
   };
 
-  const base = apiUrl.replace(/\/+$/, "");
-  const slug = String(body.source_app).trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
-  const endpoint = `${base}/api/public/integrations/${slug}/issues`;
+  const endpoint = buildEndpoint(apiUrl, body.source_app);
 
   console.log(`[taskhub] endpoint=${endpoint}`);
   console.log(`[taskhub] payload=${JSON.stringify({ ...forwarded, attachments: `[${forwarded.attachments.length} files]` })}`);
 
   const result = await forwardWithRetry(endpoint, apiKey, forwarded);
 
-  if (result.ok) {
-    // TaskHub respondeu 2xx — confirmar criação.
-    const data: any = result.data;
-    const created =
-      data && typeof data === "object"
-        ? data.ok !== false && (data.id || data.issue_id || data.card_id || data.created === true || data.success !== false)
-        : true;
+  // Upstream unreachable -> degrade to mock
+  if (!result.ok && result.status === 0) {
+    const msg = typeof result.data === "string" ? result.data : JSON.stringify(result.data);
+    if (/dns error|failed to lookup|ENOTFOUND|ECONNREFUSED|Connect/i.test(msg)) {
+      console.warn("[taskhub] upstream unreachable, degrading to mock");
+      return json(200, {
+        ok: true,
+        mock: true,
+        message: "TaskHub inacessível. Solicitação registrada localmente.",
+        upstream_response: msg,
+      });
+    }
+  }
 
-    if (!created) {
-      const msg =
-        (data && (data.message || data.error)) ||
-        "TaskHub não confirmou a criação do card.";
-      console.error(`[taskhub] upstream 2xx mas sem confirmação: ${JSON.stringify(data)}`);
+  if (result.ok) {
+    const data: any = result.data;
+    const cardId =
+      data?.card_id ||
+      data?.id ||
+      data?.issue_id ||
+      data?.data?.card_id ||
+      data?.data?.id ||
+      null;
+
+    const explicitSuccess = data?.success === true || data?.ok === true;
+
+    if (!cardId && !explicitSuccess) {
+      console.error(`[taskhub] 2xx sem card_id: ${JSON.stringify(data).slice(0, 500)}`);
       return json(502, {
         ok: false,
         error: "taskhub_not_created",
-        message: `Falha ao criar card no TaskHub: ${msg}`,
+        message:
+          (data && (data.message || data.error)) ||
+          "TaskHub respondeu 2xx mas não retornou card_id. Card não foi criado.",
+        endpoint,
         upstream_response: data,
       });
     }
 
-    return json(200, { ok: true, taskhub: data, attempts: result.attempts });
-  }
-
-  // Upstream inacessível (DNS/connect) -> degrada para mock.
-  const msg = typeof result.data === "string" ? result.data : JSON.stringify(result.data);
-  if (result.status === 0 && /dns error|failed to lookup|ENOTFOUND|ECONNREFUSED|Connect/i.test(msg)) {
-    console.warn("[taskhub] upstream unreachable, degrading to mock");
     return json(200, {
       ok: true,
-      mock: true,
-      message:
-        "TaskHub inacessível (host não resolve). Solicitação registrada localmente até a URL ficar disponível.",
-      upstream_response: msg,
+      card_id: cardId,
+      taskhub: data,
+      endpoint,
+      attempts: result.attempts,
     });
   }
 
-  // Extrai mensagem amigável do upstream.
-  let upstreamMessage = msg;
+  let upstreamMessage = typeof result.data === "string" ? result.data : "";
   if (result.data && typeof result.data === "object") {
     const d: any = result.data;
     upstreamMessage = d.message || d.error || JSON.stringify(d);
@@ -222,6 +254,7 @@ Deno.serve(async (req) => {
     ok: false,
     error: "taskhub_forward_failed",
     message: `Falha ao criar card no TaskHub: ${upstreamMessage}`,
+    endpoint,
     upstream_status: result.status,
     upstream_response: result.data,
     attempts: result.attempts,
