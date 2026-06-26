@@ -92,14 +92,29 @@ Deno.serve(async (req) => {
   const apiUrl = Deno.env.get("TASKHUB_API_URL");
   const apiKey = Deno.env.get("TASKHUB_API_KEY");
 
-  if (!apiUrl || !apiKey) {
-    // Dev/mock mode — integration is wired but secrets aren't set yet.
-    // We return 200 with mock=true so clients log it locally and inform the user.
+  // Detect placeholder / non-routable URLs and treat as mock mode.
+  const isPlaceholderUrl = (u?: string | null) => {
+    if (!u) return true;
+    try {
+      const { hostname, protocol } = new URL(u);
+      if (!/^https?:$/.test(protocol)) return true;
+      if (hostname === "localhost" || hostname === "127.0.0.1") return true;
+      if (/\.local$/i.test(hostname)) return true;
+      if (/example\.(com|org|net)$/i.test(hostname)) return true;
+      if (/taskhub\.local$/i.test(hostname)) return true;
+      return false;
+    } catch {
+      return true;
+    }
+  };
+
+  if (!apiUrl || !apiKey || isPlaceholderUrl(apiUrl)) {
+    // Dev/mock mode — integration is wired but secrets aren't set (or point to a placeholder).
     return json(200, {
       ok: true,
       mock: true,
       message:
-        "Integração com TaskHub ainda não ativa (TASKHUB_API_URL / TASKHUB_API_KEY não configurados). Solicitação registrada apenas localmente.",
+        "Integração com TaskHub ainda não ativa (TASKHUB_API_URL / TASKHUB_API_KEY não configurados ou apontando para URL de exemplo). Solicitação registrada apenas localmente.",
     });
   }
 
