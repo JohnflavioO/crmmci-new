@@ -51,6 +51,7 @@ const LogisticsTracking = lazy(() => import("./pages/LogisticsTracking"));
 const ContractGenerator = lazy(() => import("./pages/ContractGenerator"));
 const Help = lazy(() => import("./pages/Help"));
 const About = lazy(() => import("./pages/About"));
+const InteligenciaComercial = lazy(() => import("./pages/InteligenciaComercial"));
 
 
 const queryClient = new QueryClient({
