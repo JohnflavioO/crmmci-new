@@ -1103,12 +1103,18 @@ function KpiGroup({ title, icon: Icon, accent, children }: { title: string; icon
   );
 }
 
-function KpiCard({ icon: Icon, label, value, hint, growth, accent = 'emerald' }: { icon: any; label: string; value: string; hint?: string; growth?: number | null; accent?: string }) {
+function KpiCard({ icon: Icon, label, value, hint, growth, accent = 'emerald', onClick }: { icon: any; label: string; value: string; hint?: string; growth?: number | null; accent?: string; onClick?: () => void }) {
   const a = ACCENT_MAP[accent] || ACCENT_MAP.emerald;
   const showGrowth = growth != null && isFinite(growth);
   const up = (growth ?? 0) >= 0;
+  const clickable = !!onClick;
   return (
-    <Card className={cn('relative overflow-hidden shadow-sm hover:shadow-md transition-all ring-1', a.ring)}>
+    <Card
+      onClick={onClick}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      className={cn('relative overflow-hidden shadow-sm transition-all ring-1', a.ring, clickable && 'cursor-pointer hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-primary/40')}
+    >
       <div className={cn('absolute left-0 top-0 bottom-0 w-1', a.bar)} />
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
