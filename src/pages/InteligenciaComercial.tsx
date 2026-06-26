@@ -79,14 +79,36 @@ interface ClientRow {
 }
 interface ItemRow {
   quote_id: string;
+  code: string | null;
   product_code: string | null;
   description: string | null;
   brand: string | null;
   model: string | null;
   quantity: number | null;
+  unit_price: number | null;
   total_price: number | null;
   line_total: number | null;
+  unit_total: number | null;
 }
+interface ProductRow {
+  id: string;
+  name: string | null;
+  brand: string | null;
+  code: string | null;
+  sku: string | null;
+}
+
+const itemValue = (it: ItemRow): number => {
+  const tp = Number(it.total_price || 0);
+  if (tp > 0) return tp;
+  const lt = Number(it.line_total || 0);
+  if (lt > 0) return lt;
+  const ut = Number(it.unit_total || 0);
+  if (ut > 0) return ut;
+  const up = Number(it.unit_price || 0);
+  const qty = Number(it.quantity || 0) || 1;
+  return up * qty;
+};
 
 const formatCnpj = (v?: string | null) => {
   if (!v) return '';
