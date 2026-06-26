@@ -1424,6 +1424,7 @@ export default function Quotes() {
                         <SelectItem value="pendente">Pendente</SelectItem>
                         <SelectItem value="em_andamento">Em andamento</SelectItem>
                         <SelectItem value="liquidado">Liquidado</SelectItem>
+                        <SelectItem value="faturado">Faturado</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
