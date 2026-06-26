@@ -760,27 +760,35 @@ export default function InteligenciaComercial() {
           <TabsContent value="dashboard" className="space-y-6">
             {/* GRUPO FINANCEIRO */}
             <KpiGroup title="Financeiro" icon={Wallet} accent="emerald">
-              <KpiCard icon={DollarSign} label="Receita Comercial" value={fmtCompact(kpis.totalRevenue)} hint="Aprovados + Liquidados" growth={growth(kpis.totalRevenue, prevKpis.totalRevenue)} accent="emerald" />
-              <KpiCard icon={Wallet} label="Receita Recebida" value={fmtCompact(kpis.totalReceived)} hint="Apenas liquidados" growth={growth(kpis.totalReceived, prevKpis.totalReceived)} accent="emerald" />
-              <KpiCard icon={ShoppingCart} label="Ticket Médio Cliente" value={fmtCompact(kpis.ticketMedio)} growth={growth(kpis.ticketMedio, prevKpis.ticketMedio)} accent="emerald" />
-              <KpiCard icon={ShoppingCart} label="Valor Médio / Orçamento" value={fmtCompact(kpis.avgQuote)} growth={growth(kpis.avgQuote, prevKpis.avgQuote)} accent="emerald" />
+              <KpiCard icon={DollarSign} label="Receita Comercial" value={fmtCompact(kpis.totalRevenue)} hint="Aprovados + Liquidados" growth={growth(kpis.totalRevenue, prevKpis.totalRevenue)} accent="emerald" onClick={drillRevenue} />
+              <KpiCard icon={Wallet} label="Receita Recebida" value={fmtCompact(kpis.totalReceived)} hint="Apenas liquidados" growth={growth(kpis.totalReceived, prevKpis.totalReceived)} accent="emerald" onClick={drillReceived} />
+              <KpiCard icon={ShoppingCart} label="Ticket Médio Cliente" value={fmtCompact(kpis.ticketMedio)} growth={growth(kpis.ticketMedio, prevKpis.ticketMedio)} accent="emerald" onClick={drillRevenue} />
+              <KpiCard icon={ShoppingCart} label="Valor Médio / Orçamento" value={fmtCompact(kpis.avgQuote)} growth={growth(kpis.avgQuote, prevKpis.avgQuote)} accent="emerald" onClick={drillRevenue} />
             </KpiGroup>
 
             {/* GRUPO CLIENTES */}
             <KpiGroup title="Clientes" icon={UsersIcon} accent="sky">
-              <KpiCard icon={UsersIcon} label="Total de Clientes" value={String(kpis.totalClients)} growth={growth(kpis.totalClients, prevKpis.totalClients)} accent="sky" />
-              <KpiCard icon={UsersIcon} label="Clientes Ativos" value={String(kpis.activeClients)} hint="Compraram ≤90 dias" accent="sky" />
-              <KpiCard icon={AlertTriangle} label="Clientes Inativos" value={String(kpis.inactiveClients)} hint=">90 dias sem comprar" accent="amber" />
-              <KpiCard icon={Repeat} label="Clientes Recorrentes" value={String(kpis.recurrent)} hint="2+ compras" accent="sky" />
+              <KpiCard icon={UsersIcon} label="Total de Clientes" value={String(kpis.totalClients)} growth={growth(kpis.totalClients, prevKpis.totalClients)} accent="sky" onClick={drillRevenue} />
+              <KpiCard icon={UsersIcon} label="Clientes Ativos" value={String(kpis.activeClients)} hint="Compraram ≤90 dias" accent="sky" onClick={drillActive} />
+              <KpiCard icon={AlertTriangle} label="Clientes Inativos" value={String(kpis.inactiveClients)} hint=">90 dias sem comprar" accent="amber" onClick={drillInactive} />
+              <KpiCard icon={Repeat} label="Clientes Recorrentes" value={String(kpis.recurrent)} hint="2+ compras" accent="sky" onClick={drillRecurrent} />
             </KpiGroup>
 
             {/* GRUPO PERFORMANCE */}
             <KpiGroup title="Performance" icon={Target} accent="violet">
               <KpiCard icon={TrendingUp} label="Compras / Cliente" value={kpis.avgPerClient.toFixed(1)} accent="violet" />
-              <KpiCard icon={Activity} label="Orçamentos no Período" value={String(filteredQuotes.length)} accent="violet" />
-              <KpiCard icon={Trophy} label="Top Cliente" value={top5[0] ? fmtCompact(top5[0].totalValue) : '—'} hint={top5[0]?.clientName} accent="violet" />
-              <KpiCard icon={Package} label="Marcas Distintas" value={String(brands.length)} accent="violet" />
+              <KpiCard icon={Activity} label="Orçamentos no Período" value={String(filteredQuotes.length)} accent="violet" onClick={drillRevenue} />
+              <KpiCard icon={Trophy} label="Top Cliente" value={top5[0] ? fmtCompact(top5[0].totalValue) : '—'} hint={top5[0]?.clientName} accent="violet" onClick={drillTopClient} />
+              <KpiCard
+                icon={Crown}
+                label="Produto Campeão"
+                value={productChampion ? productChampion.byValue.desc.slice(0, 22) + (productChampion.byValue.desc.length > 22 ? '…' : '') : 'Sem dados suficientes'}
+                hint={productChampion ? `${productChampion.byValue.brand} • ${productChampion.byValue.qty} un. • ${fmtCompact(productChampion.byValue.value)}` : undefined}
+                accent="amber"
+                onClick={productChampion ? drillChampion : undefined}
+              />
             </KpiGroup>
+
 
             {/* CHART + TOP 5 */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
