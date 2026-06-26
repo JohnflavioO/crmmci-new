@@ -79,14 +79,36 @@ interface ClientRow {
 }
 interface ItemRow {
   quote_id: string;
+  code: string | null;
   product_code: string | null;
   description: string | null;
   brand: string | null;
   model: string | null;
   quantity: number | null;
+  unit_price: number | null;
   total_price: number | null;
   line_total: number | null;
+  unit_total: number | null;
 }
+interface ProductRow {
+  id: string;
+  name: string | null;
+  brand: string | null;
+  code: string | null;
+  sku: string | null;
+}
+
+const itemValue = (it: ItemRow): number => {
+  const tp = Number(it.total_price || 0);
+  if (tp > 0) return tp;
+  const lt = Number(it.line_total || 0);
+  if (lt > 0) return lt;
+  const ut = Number(it.unit_total || 0);
+  if (ut > 0) return ut;
+  const up = Number(it.unit_price || 0);
+  const qty = Number(it.quantity || 0) || 1;
+  return up * qty;
+};
 
 const formatCnpj = (v?: string | null) => {
   if (!v) return '';
@@ -148,6 +170,7 @@ export default function InteligenciaComercial() {
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [clients, setClients] = useState<Record<string, ClientRow>>({});
   const [items, setItems] = useState<ItemRow[]>([]);
+  const [products, setProducts] = useState<ProductRow[]>([]);
   const [sellerProfiles, setSellerProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
   const [drill, setDrill] = useState<{ title: string; subtitle?: string; quotes: QuoteRow[] } | null>(null);
 
@@ -196,6 +219,12 @@ export default function InteligenciaComercial() {
         }
 
 
+        // Load products for name/brand resolution
+        const { data: pData } = await supabase
+          .from('products')
+          .select('id, name, brand, code, sku');
+        setProducts((pData || []) as ProductRow[]);
+
         const quoteIds = valid.map((q: any) => q.id);
         if (quoteIds.length) {
           const chunkSize = 200;
@@ -204,7 +233,7 @@ export default function InteligenciaComercial() {
             const chunk = quoteIds.slice(i, i + chunkSize);
             const { data: iData } = await supabase
               .from('quote_items')
-              .select('quote_id, product_code, description, brand, model, quantity, total_price, line_total')
+              .select('quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total')
               .in('quote_id', chunk);
             if (iData) allItems.push(...(iData as any));
           }
@@ -261,6 +290,28 @@ export default function InteligenciaComercial() {
     return m;
   }, [items]);
 
+  // Product lookup by code or sku (normalized)
+  const productByCode = useMemo(() => {
+    const m = new Map<string, ProductRow>();
+    products.forEach(p => {
+      if (p.code) m.set(String(p.code).trim().toLowerCase(), p);
+      if (p.sku) m.set(String(p.sku).trim().toLowerCase(), p);
+    });
+    return m;
+  }, [products]);
+
+  const resolveItem = (it: ItemRow): { key: string; name: string; brand: string; code: string } => {
+    const rawCode = (it.product_code || it.code || '').trim();
+    const k = rawCode.toLowerCase();
+    const prod = k ? productByCode.get(k) : undefined;
+    const desc = (it.description || '').trim();
+    const name = prod?.name?.trim() || desc || rawCode || 'Item sem nome';
+    const brand = (prod?.brand?.trim() || it.brand || 'Sem marca');
+    const code = rawCode || prod?.code || prod?.sku || '';
+    const key = (rawCode || desc || name).toLowerCase();
+    return { key, name, brand, code };
+  };
+
   const aggregated: Aggregated[] = useMemo(() => {
     const map = new Map<string, Aggregated>();
     filteredQuotes.forEach(q => {
@@ -304,12 +355,12 @@ export default function InteligenciaComercial() {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       a.monthly[key] = (a.monthly[key] || 0) + val;
       (itemsByQuote.get(q.id) || []).forEach(it => {
-        const brand = it.brand || 'Sem marca';
-        a.brands[brand] = (a.brands[brand] || 0) + Number(it.total_price ?? it.line_total ?? 0);
-        const pk = it.product_code || it.description || 'item';
-        if (!a.products[pk]) a.products[pk] = { qty: 0, value: 0, desc: it.description || pk, brand };
-        a.products[pk].qty += Number(it.quantity || 0);
-        a.products[pk].value += Number(it.total_price ?? it.line_total ?? 0);
+        const r = resolveItem(it);
+        const v = itemValue(it);
+        a.brands[r.brand] = (a.brands[r.brand] || 0) + v;
+        if (!a.products[r.key]) a.products[r.key] = { qty: 0, value: 0, desc: r.name, brand: r.brand };
+        a.products[r.key].qty += Number(it.quantity || 0);
+        a.products[r.key].value += v;
       });
     });
     const arr = Array.from(map.values()).map(a => {
@@ -325,7 +376,7 @@ export default function InteligenciaComercial() {
       return a;
     });
     return arr.sort((a, b) => b.totalValue - a.totalValue);
-  }, [filteredQuotes, clients, itemsByQuote]);
+  }, [filteredQuotes, clients, itemsByQuote, productByCode]);
 
   const filteredAggregated = useMemo(() => {
     return aggregated.filter(a => {
@@ -376,20 +427,21 @@ export default function InteligenciaComercial() {
     filteredQuotes.forEach(q => {
       const qd = new Date(q.approved_at || q.created_at);
       (itemsByQuote.get(q.id) || []).forEach(it => {
-        const k = it.product_code || it.description || 'item';
+        const r = resolveItem(it);
+        const k = r.key || 'item';
         if (!map.has(k)) map.set(k, {
-          desc: it.description || k,
-          brand: it.brand || 'Sem marca',
-          code: it.product_code || '',
+          desc: r.name,
+          brand: r.brand,
+          code: r.code,
           qty: 0, value: 0,
           clients: new Set(),
           lastDate: null, lastQuoteId: null, lastQuoteNumber: null,
         });
         const e = map.get(k)!;
-        if (it.brand && (!e.brand || e.brand === 'Sem marca')) e.brand = it.brand;
-        if (it.description && (!e.desc || e.desc === k)) e.desc = it.description;
+        if (r.brand && r.brand !== 'Sem marca' && (!e.brand || e.brand === 'Sem marca')) e.brand = r.brand;
+        if (r.name && (!e.desc || e.desc === r.code)) e.desc = r.name;
         e.qty += Number(it.quantity || 0);
-        e.value += Number(it.total_price ?? it.line_total ?? 0);
+        e.value += itemValue(it);
         if (q.client_id) e.clients.add(q.client_id);
         if (!e.lastDate || qd > e.lastDate) {
           e.lastDate = qd;
@@ -399,10 +451,10 @@ export default function InteligenciaComercial() {
       });
     });
     return Array.from(map.entries())
-      .map(([code, v]) => ({ code, ...v, clientsCount: v.clients.size }))
+      .map(([key, v]) => ({ key, ...v, clientsCount: v.clients.size }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 50);
-  }, [filteredQuotes, itemsByQuote]);
+  }, [filteredQuotes, itemsByQuote, productByCode]);
 
   // Produto Campeão (líder em faturamento)
   const productChampion = useMemo(() => {
@@ -471,30 +523,35 @@ export default function InteligenciaComercial() {
   }, [aggregated]);
 
   // ---------- Insights Inteligentes ----------
-  const insights = useMemo(() => {
-    const items: { icon: any; tone: string; title: string; desc: string }[] = [];
+  type Insight = { icon: any; tone: string; title: string; desc: string; onClick?: () => void };
+  const insights = useMemo<Insight[]>(() => {
+    const items: Insight[] = [];
 
-    // Recompra: clientes recorrentes prestes a recomprar
+    // Recompra
     const recompra = aggregated.filter(a =>
       a.intervalAvgDays != null && a.daysSinceLast != null &&
       a.daysSinceLast >= (a.intervalAvgDays * 0.85) && a.daysSinceLast <= (a.intervalAvgDays * 1.3)
-    ).sort((a, b) => b.totalValue - a.totalValue).slice(0, 3);
+    ).sort((a, b) => b.totalValue - a.totalValue).slice(0, 10);
     if (recompra.length) {
+      const ids = new Set(recompra.flatMap(r => r.quoteIds));
       items.push({
         icon: Repeat, tone: 'emerald',
         title: `${recompra.length} cliente(s) em janela de recompra`,
-        desc: recompra.map(r => r.clientName).join(', ') + ' — abordagem comercial recomendada.',
+        desc: recompra.slice(0, 3).map(r => r.clientName).join(', ') + ' — abordagem comercial recomendada.',
+        onClick: () => openDrill('Janela de recompra', 'Clientes recorrentes prestes a recomprar', filteredQuotes.filter(q => ids.has(q.id))),
       });
     }
 
     // Inativos de alto valor
     const inativosTop = aggregated.filter(a => !a.isActive && a.totalValue > 0)
-      .sort((a, b) => b.totalValue - a.totalValue).slice(0, 3);
+      .sort((a, b) => b.totalValue - a.totalValue).slice(0, 10);
     if (inativosTop.length) {
+      const ids = new Set(inativosTop.flatMap(a => a.quoteIds));
       items.push({
         icon: AlertTriangle, tone: 'red',
         title: `${inativosTop.length} cliente(s) de alto valor inativo(s)`,
-        desc: inativosTop.map(r => `${r.clientName} (${fmtBRL(r.totalValue)})`).join(' • '),
+        desc: inativosTop.slice(0, 3).map(r => `${r.clientName} (${fmtBRL(r.totalValue)})`).join(' • '),
+        onClick: () => openDrill('Inativos de alto valor', 'Clientes com histórico relevante e sem compras recentes', filteredQuotes.filter(q => ids.has(q.id))),
       });
     }
 
@@ -505,40 +562,62 @@ export default function InteligenciaComercial() {
         icon: TrendingUp, tone: 'emerald',
         title: `Receita cresceu ${g.toFixed(1)}% vs período anterior`,
         desc: `De ${fmtCompact(prevKpis.totalRevenue)} para ${fmtCompact(kpis.totalRevenue)}.`,
+        onClick: drillRevenue,
       });
     } else if (g != null && g <= -10) {
       items.push({
         icon: TrendingDown, tone: 'red',
         title: `Receita caiu ${Math.abs(g).toFixed(1)}% vs período anterior`,
         desc: `Atenção: queda de ${fmtCompact(prevKpis.totalRevenue - kpis.totalRevenue)} no período.`,
+        onClick: drillRevenue,
       });
     }
 
-    // Marca destaque
-    const brandTotals: Record<string, number> = {};
-    aggregated.forEach(a => Object.entries(a.brands).forEach(([b, v]) => {
-      brandTotals[b] = (brandTotals[b] || 0) + v;
-    }));
-    const topBrand = Object.entries(brandTotals).sort((a, b) => b[1] - a[1])[0];
-    if (topBrand) {
+    // Marca destaque — recalculo direto a partir dos itens válidos (fonte da verdade)
+    const brandTotals: Record<string, { value: number; qty: number; quotes: Set<string>; clients: Set<string> }> = {};
+    filteredQuotes.forEach(q => {
+      (itemsByQuote.get(q.id) || []).forEach(it => {
+        const r = resolveItem(it);
+        if (!brandTotals[r.brand]) brandTotals[r.brand] = { value: 0, qty: 0, quotes: new Set(), clients: new Set() };
+        brandTotals[r.brand].value += itemValue(it);
+        brandTotals[r.brand].qty += Number(it.quantity || 0);
+        brandTotals[r.brand].quotes.add(q.id);
+        if (q.client_id) brandTotals[r.brand].clients.add(q.client_id);
+      });
+    });
+    const topBrandEntry = Object.entries(brandTotals)
+      .filter(([b]) => b !== 'Sem marca')
+      .sort((a, b) => b[1].value - a[1].value)[0]
+      || Object.entries(brandTotals).sort((a, b) => b[1].value - a[1].value)[0];
+    if (topBrandEntry && topBrandEntry[1].value > 0) {
+      const [bName, bData] = topBrandEntry;
       items.push({
         icon: Crown, tone: 'amber',
-        title: `Marca em destaque: ${topBrand[0]}`,
-        desc: `Responsável por ${fmtBRL(topBrand[1])} em vendas no período.`,
+        title: `Marca em destaque: ${bName}`,
+        desc: `Responsável por ${fmtBRL(bData.value)} em vendas • ${bData.qty} unidades • ${bData.clients.size} cliente(s).`,
+        onClick: () => openDrill(`Marca em destaque: ${bName}`, `${fmtBRLfull(bData.value)} • ${bData.qty} un. • ${bData.clients.size} cliente(s)`, filteredQuotes.filter(q => bData.quotes.has(q.id))),
       });
     }
 
-    // Produto destaque
+    // Produto líder
     if (topProducts[0]) {
+      const top = topProducts[0];
+      const ids = new Set<string>();
+      filteredQuotes.forEach(q => {
+        (itemsByQuote.get(q.id) || []).forEach(it => {
+          if (resolveItem(it).key === top.key) ids.add(q.id);
+        });
+      });
       items.push({
         icon: Package, tone: 'indigo',
-        title: `Produto líder: ${topProducts[0].desc}`,
-        desc: `${topProducts[0].qty} unidades vendidas para ${topProducts[0].clientsCount} cliente(s).`,
+        title: `Produto líder: ${top.desc}`,
+        desc: `${top.brand}${top.code ? ` • Código ${top.code}` : ''} • ${top.qty} un. vendidas para ${top.clientsCount} cliente(s) • ${fmtBRL(top.value)}.`,
+        onClick: () => openDrill(`Produto líder: ${top.desc}`, `${top.brand}${top.code ? ` • Código ${top.code}` : ''} • ${top.qty} un. • ${fmtBRLfull(top.value)}`, filteredQuotes.filter(q => ids.has(q.id))),
       });
     }
 
     return items;
-  }, [aggregated, kpis, prevKpis, topProducts]);
+  }, [aggregated, kpis, prevKpis, topProducts, filteredQuotes, itemsByQuote, productByCode]);
 
   // ---------- Export ----------
   const exportRows = () => filteredAggregated.map((a, i) => ({
@@ -612,14 +691,14 @@ export default function InteligenciaComercial() {
   };
   const drillChampion = () => {
     if (!productChampion) return;
-    const code = productChampion.byValue.code;
+    const key = productChampion.byValue.key;
     const ids = new Set<string>();
     filteredQuotes.forEach(q => {
       (itemsByQuote.get(q.id) || []).forEach(it => {
-        if ((it.product_code || it.description || 'item') === code) ids.add(q.id);
+        if (resolveItem(it).key === key) ids.add(q.id);
       });
     });
-    openDrill(`Produto Campeão: ${productChampion.byValue.desc}`, `${productChampion.byValue.brand} • ${productChampion.byValue.qty} un. • ${fmtBRL(productChampion.byValue.value)}`, filteredQuotes.filter(q => ids.has(q.id)));
+    openDrill(`Produto Campeão: ${productChampion.byValue.desc}`, `${productChampion.byValue.brand}${productChampion.byValue.code ? ` • Código ${productChampion.byValue.code}` : ''} • ${productChampion.byValue.qty} un. • ${fmtBRL(productChampion.byValue.value)}`, filteredQuotes.filter(q => ids.has(q.id)));
   };
   const drillTopClient = () => {
     if (!top5[0]) return;
@@ -870,16 +949,28 @@ export default function InteligenciaComercial() {
                         amber: 'bg-amber-500/10 text-amber-700 border-amber-500/20',
                         indigo: 'bg-indigo-500/10 text-indigo-700 border-indigo-500/20',
                       };
+                      const clickable = !!it.onClick;
                       return (
-                        <div key={i} className={cn('flex items-start gap-3 p-3 rounded-lg border', tone[it.tone])}>
+                        <button
+                          type="button"
+                          key={i}
+                          onClick={it.onClick}
+                          disabled={!clickable}
+                          className={cn(
+                            'flex items-start gap-3 p-3 rounded-lg border text-left w-full transition-all',
+                            tone[it.tone],
+                            clickable && 'hover:shadow-md hover:-translate-y-0.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40'
+                          )}
+                        >
                           <div className="w-8 h-8 rounded-lg bg-background/60 flex items-center justify-center shrink-0">
                             <Icon className="h-4 w-4" />
                           </div>
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold">{it.title}</p>
                             <p className="text-xs opacity-80 mt-0.5">{it.desc}</p>
+                            {clickable && <p className="text-[10px] opacity-70 mt-1 font-medium">Ver detalhes →</p>}
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
