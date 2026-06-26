@@ -1,8 +1,38 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR" translate="no">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="google" content="notranslate" />
+    <script>
+      /* Defensive DOM patch: swallow the React/Google-Translate "removeChild on Node" race.
+         See facebook/react#11538. We ONLY intercept the exact NotFoundError where the parent
+         no longer contains the child; every other call falls through unchanged. */
+      (function () {
+        if (typeof Node === 'undefined' || Node.prototype.__mciDomPatched) return;
+        Node.prototype.__mciDomPatched = true;
+        var _removeChild = Node.prototype.removeChild;
+        Node.prototype.removeChild = function (child) {
+          if (child && child.parentNode !== this) {
+            if (typeof console !== 'undefined' && console.warn) {
+              console.warn('[DOM] removeChild ignorado: nó não é filho deste pai (provável extensão/tradutor).');
+            }
+            return child;
+          }
+          return _removeChild.apply(this, arguments);
+        };
+        var _insertBefore = Node.prototype.insertBefore;
+        Node.prototype.insertBefore = function (newNode, referenceNode) {
+          if (referenceNode && referenceNode.parentNode !== this) {
+            if (typeof console !== 'undefined' && console.warn) {
+              console.warn('[DOM] insertBefore: referenceNode não é filho deste pai, usando appendChild.');
+            }
+            return this.appendChild(newNode);
+          }
+          return _insertBefore.apply(this, arguments);
+        };
+      })();
+    </script>
     <link rel="icon" type="image/png" href="/favicon.png">
     <!-- TODO: Set the document title to the name of your application -->
     <title>MCI Proposta CRM</title>
