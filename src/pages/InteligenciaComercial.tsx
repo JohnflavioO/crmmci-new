@@ -74,6 +74,7 @@ interface ClientRow {
   contact_phone: string | null;
   city: string | null;
   state: string | null;
+  cpf_cnpj: string | null;
   created_by: string | null;
 }
 interface ItemRow {
@@ -87,12 +88,27 @@ interface ItemRow {
   line_total: number | null;
 }
 
+const formatCnpj = (v?: string | null) => {
+  if (!v) return '';
+  const d = v.replace(/\D/g, '');
+  if (d.length === 14) return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+  if (d.length === 11) return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+  return v;
+};
+const clientLocation = (c?: ClientRow | null) => {
+  if (!c) return 'Cidade/UF não informado';
+  const cu = [c.city, c.state].filter(Boolean).join('/');
+  return cu || 'Cidade/UF não informado';
+};
+const clientCnpjLabel = (c?: ClientRow | null) => c?.cpf_cnpj ? `CNPJ ${formatCnpj(c.cpf_cnpj)}` : 'CNPJ não informado';
+
 interface Aggregated {
   clientId: string;
   client: ClientRow | null;
   clientName: string;
   city: string;
   state: string;
+  cnpj: string;
   salesperson: string;
   quotesCount: number;
   totalValue: number;
@@ -104,7 +120,8 @@ interface Aggregated {
   intervalAvgDays: number | null;
   monthly: Record<string, number>;
   brands: Record<string, number>;
-  products: Record<string, { qty: number; value: number; desc: string }>;
+  products: Record<string, { qty: number; value: number; desc: string; brand: string }>;
+  quoteIds: string[];
   isActive: boolean;
   isRecurrent: boolean;
   status: 'verde' | 'amarelo' | 'vermelho';
@@ -131,6 +148,8 @@ export default function InteligenciaComercial() {
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [clients, setClients] = useState<Record<string, ClientRow>>({});
   const [items, setItems] = useState<ItemRow[]>([]);
+  const [sellerProfiles, setSellerProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [drill, setDrill] = useState<{ title: string; subtitle?: string; quotes: QuoteRow[] } | null>(null);
 
   // Filters
   const [period, setPeriod] = useState<'30' | '90' | '180' | '365' | 'all'>('all');
@@ -159,16 +178,23 @@ export default function InteligenciaComercial() {
         const valid = (qData || []).filter(isCountable);
         setQuotes(valid as QuoteRow[]);
 
-        const clientIds = Array.from(new Set(valid.map((q: any) => q.client_id).filter(Boolean)));
-        if (clientIds.length) {
-          const { data: cData } = await supabase
-            .from('clients')
-            .select('id, name, company_name, contact_name, email, phone, contact_phone, city, state, created_by')
-            .in('id', clientIds);
-          const map: Record<string, ClientRow> = {};
-          (cData || []).forEach((c: any) => { map[c.id] = c; });
-          setClients(map);
+        // Load ALL clients visible to the current role so filters (state/city) work for every seller
+        const { data: cData } = await supabase
+          .from('clients')
+          .select('id, name, company_name, contact_name, email, phone, contact_phone, city, state, cpf_cnpj, created_by');
+        const map: Record<string, ClientRow> = {};
+        (cData || []).forEach((c: any) => { map[c.id] = c; });
+        setClients(map);
+
+        // Load seller profiles list (managers/admin can choose any seller)
+        if (canSeeAll) {
+          const { data: profs } = await supabase
+            .from('profiles')
+            .select('user_id, full_name, active')
+            .eq('active', true);
+          setSellerProfiles((profs || []).map((p: any) => ({ user_id: p.user_id, full_name: p.full_name || 'Vendedor' })));
         }
+
 
         const quoteIds = valid.map((q: any) => q.id);
         if (quoteIds.length) {
@@ -247,6 +273,7 @@ export default function InteligenciaComercial() {
           clientName: c?.company_name || c?.name || q.client_name || 'Sem cliente',
           city: c?.city || '',
           state: c?.state || '',
+          cnpj: c?.cpf_cnpj || '',
           salesperson: q.salesperson || '',
           quotesCount: 0,
           totalValue: 0,
@@ -259,6 +286,7 @@ export default function InteligenciaComercial() {
           monthly: {},
           brands: {},
           products: {},
+          quoteIds: [],
           isActive: false,
           isRecurrent: false,
           status: 'vermelho',
@@ -269,6 +297,7 @@ export default function InteligenciaComercial() {
       const d = new Date(q.approved_at || q.created_at);
       a.quotesCount += 1;
       a.totalValue += val;
+      a.quoteIds.push(q.id);
       if (isReceived(q)) a.receivedValue += val;
       if (!a.firstPurchase || d < a.firstPurchase) a.firstPurchase = d;
       if (!a.lastPurchase || d > a.lastPurchase) a.lastPurchase = d;
@@ -278,7 +307,7 @@ export default function InteligenciaComercial() {
         const brand = it.brand || 'Sem marca';
         a.brands[brand] = (a.brands[brand] || 0) + Number(it.total_price ?? it.line_total ?? 0);
         const pk = it.product_code || it.description || 'item';
-        if (!a.products[pk]) a.products[pk] = { qty: 0, value: 0, desc: it.description || pk };
+        if (!a.products[pk]) a.products[pk] = { qty: 0, value: 0, desc: it.description || pk, brand };
         a.products[pk].qty += Number(it.quantity || 0);
         a.products[pk].value += Number(it.total_price ?? it.line_total ?? 0);
       });
@@ -343,22 +372,45 @@ export default function InteligenciaComercial() {
 
   // ---------- Top products ----------
   const topProducts = useMemo(() => {
-    const map = new Map<string, { desc: string; qty: number; value: number; clients: Set<string> }>();
+    const map = new Map<string, { desc: string; brand: string; code: string; qty: number; value: number; clients: Set<string>; lastDate: Date | null; lastQuoteId: string | null; lastQuoteNumber: string | null }>();
     filteredQuotes.forEach(q => {
+      const qd = new Date(q.approved_at || q.created_at);
       (itemsByQuote.get(q.id) || []).forEach(it => {
         const k = it.product_code || it.description || 'item';
-        if (!map.has(k)) map.set(k, { desc: it.description || k, qty: 0, value: 0, clients: new Set() });
+        if (!map.has(k)) map.set(k, {
+          desc: it.description || k,
+          brand: it.brand || 'Sem marca',
+          code: it.product_code || '',
+          qty: 0, value: 0,
+          clients: new Set(),
+          lastDate: null, lastQuoteId: null, lastQuoteNumber: null,
+        });
         const e = map.get(k)!;
+        if (it.brand && (!e.brand || e.brand === 'Sem marca')) e.brand = it.brand;
+        if (it.description && (!e.desc || e.desc === k)) e.desc = it.description;
         e.qty += Number(it.quantity || 0);
         e.value += Number(it.total_price ?? it.line_total ?? 0);
         if (q.client_id) e.clients.add(q.client_id);
+        if (!e.lastDate || qd > e.lastDate) {
+          e.lastDate = qd;
+          e.lastQuoteId = q.id;
+          e.lastQuoteNumber = q.quote_number;
+        }
       });
     });
     return Array.from(map.entries())
       .map(([code, v]) => ({ code, ...v, clientsCount: v.clients.size }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 20);
+      .slice(0, 50);
   }, [filteredQuotes, itemsByQuote]);
+
+  // Produto Campeão (líder em faturamento)
+  const productChampion = useMemo(() => {
+    if (!topProducts.length) return null;
+    const byValue = topProducts[0];
+    const byQty = [...topProducts].sort((a, b) => b.qty - a.qty)[0];
+    return { byValue, byQty };
+  }, [topProducts]);
 
   // ---------- Evolution chart ----------
   const monthlySeries = useMemo(() => {
@@ -374,11 +426,14 @@ export default function InteligenciaComercial() {
   // ---------- Filter options ----------
   const sellers = useMemo(() => {
     const m = new Map<string, string>();
+    // Profiles take precedence when available (managers/admins)
+    sellerProfiles.forEach(p => m.set(p.user_id, p.full_name));
+    // Fallback to whatever appears on quotes
     quotes.forEach(q => {
-      if (q.created_by) m.set(q.created_by, q.salesperson || 'Vendedor');
+      if (q.created_by && !m.has(q.created_by)) m.set(q.created_by, q.salesperson || 'Vendedor');
     });
-    return Array.from(m.entries());
-  }, [quotes]);
+    return Array.from(m.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [quotes, sellerProfiles]);
   const cities = useMemo(() => Array.from(new Set(Object.values(clients).map(c => c.city).filter(Boolean) as string[])).sort(), [clients]);
   const states = useMemo(() => Array.from(new Set(Object.values(clients).map(c => c.state).filter(Boolean) as string[])).sort(), [clients]);
   const brands = useMemo(() => {
@@ -533,6 +588,43 @@ export default function InteligenciaComercial() {
 
   // ---------- Selected client detail ----------
   const detail = useMemo(() => aggregated.find(a => a.clientId === selectedClient) || null, [aggregated, selectedClient]);
+  const detailQuotes = useMemo(() => detail ? quotes.filter(q => detail.quoteIds.includes(q.id)).sort((a, b) => new Date(b.approved_at || b.created_at).getTime() - new Date(a.approved_at || a.created_at).getTime()) : [], [detail, quotes]);
+  const top5 = filteredAggregated.slice(0, 5);
+  const top5Max = top5[0]?.totalValue || 1;
+
+  // ---------- Drill-down helpers ----------
+  const openDrill = (title: string, subtitle: string, qs: QuoteRow[]) => {
+    setDrill({ title, subtitle, quotes: qs.sort((a, b) => new Date(b.approved_at || b.created_at).getTime() - new Date(a.approved_at || a.created_at).getTime()) });
+  };
+  const drillRevenue = () => openDrill('Receita Comercial', 'Orçamentos aprovados e liquidados no período', filteredQuotes);
+  const drillReceived = () => openDrill('Receita Recebida', 'Orçamentos liquidados no período', filteredQuotes.filter(isReceived));
+  const drillActive = () => {
+    const ids = new Set(aggregated.filter(a => a.isActive).flatMap(a => a.quoteIds));
+    openDrill('Clientes Ativos', 'Clientes com compras nos últimos 90 dias', filteredQuotes.filter(q => ids.has(q.id)));
+  };
+  const drillInactive = () => {
+    const ids = new Set(aggregated.filter(a => !a.isActive).flatMap(a => a.quoteIds));
+    openDrill('Clientes Inativos', 'Clientes sem comprar há mais de 90 dias', filteredQuotes.filter(q => ids.has(q.id)));
+  };
+  const drillRecurrent = () => {
+    const ids = new Set(aggregated.filter(a => a.isRecurrent).flatMap(a => a.quoteIds));
+    openDrill('Clientes Recorrentes', 'Clientes com 2 ou mais compras', filteredQuotes.filter(q => ids.has(q.id)));
+  };
+  const drillChampion = () => {
+    if (!productChampion) return;
+    const code = productChampion.byValue.code;
+    const ids = new Set<string>();
+    filteredQuotes.forEach(q => {
+      (itemsByQuote.get(q.id) || []).forEach(it => {
+        if ((it.product_code || it.description || 'item') === code) ids.add(q.id);
+      });
+    });
+    openDrill(`Produto Campeão: ${productChampion.byValue.desc}`, `${productChampion.byValue.brand} • ${productChampion.byValue.qty} un. • ${fmtBRL(productChampion.byValue.value)}`, filteredQuotes.filter(q => ids.has(q.id)));
+  };
+  const drillTopClient = () => {
+    if (!top5[0]) return;
+    openDrill(`Top Cliente: ${top5[0].clientName}`, `${clientLocation(top5[0].client)} • ${clientCnpjLabel(top5[0].client)}`, filteredQuotes.filter(q => top5[0].quoteIds.includes(q.id)));
+  };
 
   if (loading) {
     return (
@@ -544,6 +636,7 @@ export default function InteligenciaComercial() {
     );
   }
 
+
   const statusBadge = (s: 'verde' | 'amarelo' | 'vermelho') => {
     const map = {
       verde: { c: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30', l: '🟢 Frequente' },
@@ -553,8 +646,6 @@ export default function InteligenciaComercial() {
     return <Badge variant="outline" className={map.c}>{map.l}</Badge>;
   };
 
-  const top5 = filteredAggregated.slice(0, 5);
-  const top5Max = top5[0]?.totalValue || 1;
 
   return (
     <AppLayout>
@@ -669,27 +760,35 @@ export default function InteligenciaComercial() {
           <TabsContent value="dashboard" className="space-y-6">
             {/* GRUPO FINANCEIRO */}
             <KpiGroup title="Financeiro" icon={Wallet} accent="emerald">
-              <KpiCard icon={DollarSign} label="Receita Comercial" value={fmtCompact(kpis.totalRevenue)} hint="Aprovados + Liquidados" growth={growth(kpis.totalRevenue, prevKpis.totalRevenue)} accent="emerald" />
-              <KpiCard icon={Wallet} label="Receita Recebida" value={fmtCompact(kpis.totalReceived)} hint="Apenas liquidados" growth={growth(kpis.totalReceived, prevKpis.totalReceived)} accent="emerald" />
-              <KpiCard icon={ShoppingCart} label="Ticket Médio Cliente" value={fmtCompact(kpis.ticketMedio)} growth={growth(kpis.ticketMedio, prevKpis.ticketMedio)} accent="emerald" />
-              <KpiCard icon={ShoppingCart} label="Valor Médio / Orçamento" value={fmtCompact(kpis.avgQuote)} growth={growth(kpis.avgQuote, prevKpis.avgQuote)} accent="emerald" />
+              <KpiCard icon={DollarSign} label="Receita Comercial" value={fmtCompact(kpis.totalRevenue)} hint="Aprovados + Liquidados" growth={growth(kpis.totalRevenue, prevKpis.totalRevenue)} accent="emerald" onClick={drillRevenue} />
+              <KpiCard icon={Wallet} label="Receita Recebida" value={fmtCompact(kpis.totalReceived)} hint="Apenas liquidados" growth={growth(kpis.totalReceived, prevKpis.totalReceived)} accent="emerald" onClick={drillReceived} />
+              <KpiCard icon={ShoppingCart} label="Ticket Médio Cliente" value={fmtCompact(kpis.ticketMedio)} growth={growth(kpis.ticketMedio, prevKpis.ticketMedio)} accent="emerald" onClick={drillRevenue} />
+              <KpiCard icon={ShoppingCart} label="Valor Médio / Orçamento" value={fmtCompact(kpis.avgQuote)} growth={growth(kpis.avgQuote, prevKpis.avgQuote)} accent="emerald" onClick={drillRevenue} />
             </KpiGroup>
 
             {/* GRUPO CLIENTES */}
             <KpiGroup title="Clientes" icon={UsersIcon} accent="sky">
-              <KpiCard icon={UsersIcon} label="Total de Clientes" value={String(kpis.totalClients)} growth={growth(kpis.totalClients, prevKpis.totalClients)} accent="sky" />
-              <KpiCard icon={UsersIcon} label="Clientes Ativos" value={String(kpis.activeClients)} hint="Compraram ≤90 dias" accent="sky" />
-              <KpiCard icon={AlertTriangle} label="Clientes Inativos" value={String(kpis.inactiveClients)} hint=">90 dias sem comprar" accent="amber" />
-              <KpiCard icon={Repeat} label="Clientes Recorrentes" value={String(kpis.recurrent)} hint="2+ compras" accent="sky" />
+              <KpiCard icon={UsersIcon} label="Total de Clientes" value={String(kpis.totalClients)} growth={growth(kpis.totalClients, prevKpis.totalClients)} accent="sky" onClick={drillRevenue} />
+              <KpiCard icon={UsersIcon} label="Clientes Ativos" value={String(kpis.activeClients)} hint="Compraram ≤90 dias" accent="sky" onClick={drillActive} />
+              <KpiCard icon={AlertTriangle} label="Clientes Inativos" value={String(kpis.inactiveClients)} hint=">90 dias sem comprar" accent="amber" onClick={drillInactive} />
+              <KpiCard icon={Repeat} label="Clientes Recorrentes" value={String(kpis.recurrent)} hint="2+ compras" accent="sky" onClick={drillRecurrent} />
             </KpiGroup>
 
             {/* GRUPO PERFORMANCE */}
             <KpiGroup title="Performance" icon={Target} accent="violet">
               <KpiCard icon={TrendingUp} label="Compras / Cliente" value={kpis.avgPerClient.toFixed(1)} accent="violet" />
-              <KpiCard icon={Activity} label="Orçamentos no Período" value={String(filteredQuotes.length)} accent="violet" />
-              <KpiCard icon={Trophy} label="Top Cliente" value={top5[0] ? fmtCompact(top5[0].totalValue) : '—'} hint={top5[0]?.clientName} accent="violet" />
-              <KpiCard icon={Package} label="Marcas Distintas" value={String(brands.length)} accent="violet" />
+              <KpiCard icon={Activity} label="Orçamentos no Período" value={String(filteredQuotes.length)} accent="violet" onClick={drillRevenue} />
+              <KpiCard icon={Trophy} label="Top Cliente" value={top5[0] ? fmtCompact(top5[0].totalValue) : '—'} hint={top5[0]?.clientName} accent="violet" onClick={drillTopClient} />
+              <KpiCard
+                icon={Crown}
+                label="Produto Campeão"
+                value={productChampion ? productChampion.byValue.desc.slice(0, 22) + (productChampion.byValue.desc.length > 22 ? '…' : '') : 'Sem dados suficientes'}
+                hint={productChampion ? `${productChampion.byValue.brand} • ${productChampion.byValue.qty} un. • ${fmtCompact(productChampion.byValue.value)}` : undefined}
+                accent="amber"
+                onClick={productChampion ? drillChampion : undefined}
+              />
             </KpiGroup>
+
 
             {/* CHART + TOP 5 */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -742,7 +841,7 @@ export default function InteligenciaComercial() {
                         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                           <div className={cn('h-full rounded-full transition-all', colors[i])} style={{ width: `${pct}%` }} />
                         </div>
-                        <div className="text-[10px] text-muted-foreground mt-1">{a.quotesCount} compras • Ticket {fmtCompact(a.ticketMedio)}</div>
+                        <div className="text-[10px] text-muted-foreground mt-1 truncate">{clientLocation(a.client)} • {a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'} • {a.quotesCount} compras</div>
                       </button>
                     );
                   })}
@@ -799,13 +898,13 @@ export default function InteligenciaComercial() {
                     <TableRow>
                       <TableHead className="w-12">#</TableHead>
                       <TableHead>Empresa</TableHead>
-                      <TableHead>Responsável</TableHead>
-                      <TableHead>Cidade</TableHead>
+                      <TableHead>Cidade/UF</TableHead>
+                      <TableHead>CNPJ</TableHead>
+                      <TableHead>Vendedor</TableHead>
                       <TableHead className="text-right">Compras</TableHead>
                       <TableHead className="text-right">Valor Total</TableHead>
                       <TableHead className="text-right">Ticket Médio</TableHead>
-                      <TableHead>Última</TableHead>
-                      <TableHead className="text-right">Dias</TableHead>
+                      <TableHead>Última compra</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -813,14 +912,26 @@ export default function InteligenciaComercial() {
                     {filteredAggregated.slice(0, 300).map((a, i) => (
                       <TableRow key={a.clientId} className="cursor-pointer" onClick={() => setSelectedClient(a.clientId)}>
                         <TableCell className="font-bold">{i + 1}</TableCell>
-                        <TableCell className="font-medium">{a.clientName}</TableCell>
-                        <TableCell>{a.client?.contact_name || '-'}</TableCell>
-                        <TableCell>{a.city || '-'}{a.state ? ` / ${a.state}` : ''}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="leading-tight">
+                            <div>{a.clientName}</div>
+                            <div className="text-[10px] text-muted-foreground">{a.client?.contact_name || ''}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs">{clientLocation(a.client)}</TableCell>
+                        <TableCell className="text-xs font-mono">{a.cnpj ? formatCnpj(a.cnpj) : '—'}</TableCell>
+                        <TableCell className="text-xs">{a.salesperson || '—'}</TableCell>
                         <TableCell className="text-right">{a.quotesCount}</TableCell>
                         <TableCell className="text-right font-semibold">{fmtBRL(a.totalValue)}</TableCell>
                         <TableCell className="text-right">{fmtBRL(a.ticketMedio)}</TableCell>
-                        <TableCell>{a.lastPurchase?.toLocaleDateString('pt-BR') || '-'}</TableCell>
-                        <TableCell className="text-right">{a.daysSinceLast ?? '-'}</TableCell>
+                        <TableCell>
+                          {a.lastPurchase ? (
+                            <div className="leading-tight">
+                              <div className="text-sm">{a.lastPurchase.toLocaleDateString('pt-BR')}</div>
+                              <div className="text-[10px] text-muted-foreground">Há {a.daysSinceLast} dias</div>
+                            </div>
+                          ) : '—'}
+                        </TableCell>
                         <TableCell>{statusBadge(a.status)}</TableCell>
                       </TableRow>
                     ))}
@@ -832,44 +943,55 @@ export default function InteligenciaComercial() {
 
           {/* Clientes (top) */}
           <TabsContent value="top" className="grid md:grid-cols-2 gap-4">
-            <TopList title="Top 10 — Faturamento" items={[...filteredAggregated].slice(0, 10).map(a => ({ name: a.clientName, value: fmtBRL(a.totalValue) }))} onClick={n => setSelectedClient(aggregated.find(a => a.clientName === n)?.clientId || null)} />
-            <TopList title="Top 10 — Quantidade de Compras" items={[...filteredAggregated].sort((a, b) => b.quotesCount - a.quotesCount).slice(0, 10).map(a => ({ name: a.clientName, value: `${a.quotesCount} compras` }))} onClick={n => setSelectedClient(aggregated.find(a => a.clientName === n)?.clientId || null)} />
-            <TopList title="Top 10 — Maior Ticket Médio" items={[...filteredAggregated].sort((a, b) => b.ticketMedio - a.ticketMedio).slice(0, 10).map(a => ({ name: a.clientName, value: fmtBRL(a.ticketMedio) }))} onClick={n => setSelectedClient(aggregated.find(a => a.clientName === n)?.clientId || null)} />
-            <TopList title="Top 10 — Recorrentes" items={[...filteredAggregated].filter(a => a.isRecurrent).sort((a, b) => b.quotesCount - a.quotesCount).slice(0, 10).map(a => ({ name: a.clientName, value: `${a.quotesCount}x — ${fmtBRL(a.totalValue)}` }))} onClick={n => setSelectedClient(aggregated.find(a => a.clientName === n)?.clientId || null)} />
+            <TopList title="Top 10 — Faturamento" items={[...filteredAggregated].slice(0, 10).map(a => ({ name: a.clientName, sub: `${clientLocation(a.client)} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: fmtBRL(a.totalValue), id: a.clientId }))} onClick={id => setSelectedClient(id)} />
+            <TopList title="Top 10 — Quantidade de Compras" items={[...filteredAggregated].sort((a, b) => b.quotesCount - a.quotesCount).slice(0, 10).map(a => ({ name: a.clientName, sub: `${clientLocation(a.client)} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: `${a.quotesCount} compras`, id: a.clientId }))} onClick={id => setSelectedClient(id)} />
+            <TopList title="Top 10 — Maior Ticket Médio" items={[...filteredAggregated].sort((a, b) => b.ticketMedio - a.ticketMedio).slice(0, 10).map(a => ({ name: a.clientName, sub: `${clientLocation(a.client)} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: fmtBRL(a.ticketMedio), id: a.clientId }))} onClick={id => setSelectedClient(id)} />
+            <TopList title="Top 10 — Recorrentes" items={[...filteredAggregated].filter(a => a.isRecurrent).sort((a, b) => b.quotesCount - a.quotesCount).slice(0, 10).map(a => ({ name: a.clientName, sub: `${clientLocation(a.client)} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: `${a.quotesCount}x — ${fmtBRL(a.totalValue)}`, id: a.clientId }))} onClick={id => setSelectedClient(id)} />
           </TabsContent>
 
           {/* Products */}
           <TabsContent value="products">
             <Card>
-              <CardHeader><CardTitle className="text-base">Produtos Mais Vendidos</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><Crown className="h-4 w-4 text-amber-500" /> Produtos Mais Vendidos</CardTitle></CardHeader>
               <CardContent className="overflow-x-auto">
+                {topProducts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6">Sem dados suficientes.</p>
+                ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-12">#</TableHead>
                       <TableHead>Produto</TableHead>
+                      <TableHead>Marca</TableHead>
                       <TableHead>Código</TableHead>
                       <TableHead className="text-right">Qtd Vendida</TableHead>
                       <TableHead className="text-right">Valor Vendido</TableHead>
                       <TableHead className="text-right">Clientes</TableHead>
+                      <TableHead>Último orçamento</TableHead>
+                      <TableHead>Última venda</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {topProducts.map((p, i) => (
-                      <TableRow key={p.code}>
+                      <TableRow key={p.code + i}>
                         <TableCell className="font-bold">{i + 1}</TableCell>
                         <TableCell className="font-medium max-w-md truncate">{p.desc}</TableCell>
-                        <TableCell className="font-mono text-xs">{p.code}</TableCell>
+                        <TableCell className="text-xs"><Badge variant="secondary">{p.brand}</Badge></TableCell>
+                        <TableCell className="font-mono text-xs">{p.code || '—'}</TableCell>
                         <TableCell className="text-right">{p.qty}</TableCell>
                         <TableCell className="text-right font-semibold">{fmtBRL(p.value)}</TableCell>
                         <TableCell className="text-right">{p.clientsCount}</TableCell>
+                        <TableCell className="font-mono text-xs">{p.lastQuoteNumber || '—'}</TableCell>
+                        <TableCell className="text-xs">{p.lastDate?.toLocaleDateString('pt-BR') || '—'}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
+
 
           {/* Evolution */}
           <TabsContent value="evolution">
@@ -921,21 +1043,35 @@ export default function InteligenciaComercial() {
             <>
               <SheetHeader>
                 <SheetTitle>{detail.clientName}</SheetTitle>
+                <p className="text-xs text-muted-foreground">{clientLocation(detail.client)} • {detail.cnpj ? formatCnpj(detail.cnpj) : 'CNPJ não informado'}</p>
               </SheetHeader>
               <div className="mt-4 space-y-4 text-sm">
                 <div className="grid grid-cols-2 gap-3">
                   <Info label="Responsável" value={detail.client?.contact_name || '-'} />
                   <Info label="Telefone" value={detail.client?.contact_phone || detail.client?.phone || '-'} />
                   <Info label="Email" value={detail.client?.email || '-'} />
-                  <Info label="Cidade" value={`${detail.city || '-'}${detail.state ? '/' + detail.state : ''}`} />
+                  <Info label="Cidade/UF" value={clientLocation(detail.client)} />
+                  <Info label="CNPJ" value={detail.cnpj ? formatCnpj(detail.cnpj) : '—'} />
+                  <Info label="Vendedor" value={detail.salesperson || '-'} />
                   <Info label="Primeira Compra" value={detail.firstPurchase?.toLocaleDateString('pt-BR') || '-'} />
                   <Info label="Última Compra" value={detail.lastPurchase?.toLocaleDateString('pt-BR') || '-'} />
                   <Info label="Total de Compras" value={String(detail.quotesCount)} />
                   <Info label="Valor Total" value={fmtBRLfull(detail.totalValue)} />
                   <Info label="Recebido" value={fmtBRLfull(detail.receivedValue)} />
                   <Info label="Ticket Médio" value={fmtBRLfull(detail.ticketMedio)} />
-                  <Info label="Vendedor" value={detail.salesperson || '-'} />
-                  <Info label="Status" value={detail.status} />
+                </div>
+
+                <div>
+                  <p className="font-semibold mb-2 flex items-center gap-1"><FileText className="h-4 w-4" />Orçamentos ({detailQuotes.length})</p>
+                  <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
+                    {detailQuotes.map(q => (
+                      <a key={q.id} href={`/quotes?open=${q.id}`} className="flex justify-between gap-2 text-xs border rounded px-2 py-1.5 hover:bg-muted">
+                        <span className="font-mono">{q.quote_number}</span>
+                        <span className="text-muted-foreground">{new Date(q.approved_at || q.created_at).toLocaleDateString('pt-BR')}</span>
+                        <span className="font-semibold">{fmtBRL(getValue(q))}</span>
+                      </a>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
@@ -943,7 +1079,7 @@ export default function InteligenciaComercial() {
                   <div className="space-y-1">
                     {Object.entries(detail.products).sort((a, b) => b[1].value - a[1].value).slice(0, 8).map(([k, v]) => (
                       <div key={k} className="flex justify-between text-xs border-b py-1">
-                        <span className="truncate flex-1 pr-2">{v.desc}</span>
+                        <span className="truncate flex-1 pr-2">{v.desc} {v.brand && v.brand !== 'Sem marca' ? `• ${v.brand}` : ''}</span>
                         <span className="font-medium">{v.qty}x — {fmtBRL(v.value)}</span>
                       </div>
                     ))}
@@ -970,6 +1106,73 @@ export default function InteligenciaComercial() {
                     )}
                   </div>
                 )}
+
+                <div className="flex gap-2 pt-2">
+                  {detail.client?.id && (
+                    <Button asChild variant="outline" size="sm" className="flex-1">
+                      <a href={`/clients?open=${detail.client.id}`}><UsersIcon className="h-4 w-4 mr-1" /> Abrir cliente</a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Drill-down drawer (KPI cards) */}
+      <Sheet open={!!drill} onOpenChange={o => !o && setDrill(null)}>
+        <SheetContent className="overflow-y-auto sm:max-w-2xl">
+          {drill && (
+            <>
+              <SheetHeader>
+                <SheetTitle>{drill.title}</SheetTitle>
+                {drill.subtitle && <p className="text-xs text-muted-foreground">{drill.subtitle}</p>}
+              </SheetHeader>
+              <div className="mt-4 space-y-2 text-sm">
+                <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                  <span>{drill.quotes.length} orçamento(s)</span>
+                  <span>Total: {fmtBRLfull(drill.quotes.reduce((s, q) => s + getValue(q), 0))}</span>
+                </div>
+                {drill.quotes.length === 0 && <p className="text-muted-foreground py-6 text-center">Sem dados.</p>}
+                <div className="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">
+                  {drill.quotes.slice(0, 300).map(q => {
+                    const c = q.client_id ? clients[q.client_id] : null;
+                    return (
+                      <div key={q.id} className="border rounded-lg p-3 hover:bg-muted/40 transition-colors">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono text-xs font-semibold">{q.quote_number}</span>
+                              <Badge variant="outline" className="text-[10px]">{q.status}</Badge>
+                              {q.payment_status && <Badge variant="secondary" className="text-[10px]">{q.payment_status}</Badge>}
+                            </div>
+                            <p className="text-sm font-medium truncate mt-1">{c?.company_name || c?.name || q.client_name || 'Sem cliente'}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {clientLocation(c)} • {c?.cpf_cnpj ? formatCnpj(c.cpf_cnpj) : 'CNPJ —'} • {q.salesperson || 'Vendedor —'}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {new Date(q.approved_at || q.created_at).toLocaleDateString('pt-BR')}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="font-bold tabular-nums">{fmtBRL(getValue(q))}</p>
+                            <div className="flex gap-1 mt-1">
+                              <Button asChild size="sm" variant="outline" className="h-7 text-[10px] px-2">
+                                <a href={`/quotes?open=${q.id}`}>Orçamento</a>
+                              </Button>
+                              {c?.id && (
+                                <Button asChild size="sm" variant="outline" className="h-7 text-[10px] px-2">
+                                  <a href={`/clients?open=${c.id}`}>Cliente</a>
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </>
           )}
@@ -1004,12 +1207,18 @@ function KpiGroup({ title, icon: Icon, accent, children }: { title: string; icon
   );
 }
 
-function KpiCard({ icon: Icon, label, value, hint, growth, accent = 'emerald' }: { icon: any; label: string; value: string; hint?: string; growth?: number | null; accent?: string }) {
+function KpiCard({ icon: Icon, label, value, hint, growth, accent = 'emerald', onClick }: { icon: any; label: string; value: string; hint?: string; growth?: number | null; accent?: string; onClick?: () => void }) {
   const a = ACCENT_MAP[accent] || ACCENT_MAP.emerald;
   const showGrowth = growth != null && isFinite(growth);
   const up = (growth ?? 0) >= 0;
+  const clickable = !!onClick;
   return (
-    <Card className={cn('relative overflow-hidden shadow-sm hover:shadow-md transition-all ring-1', a.ring)}>
+    <Card
+      onClick={onClick}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      className={cn('relative overflow-hidden shadow-sm transition-all ring-1', a.ring, clickable && 'cursor-pointer hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-primary/40')}
+    >
       <div className={cn('absolute left-0 top-0 bottom-0 w-1', a.bar)} />
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
@@ -1037,18 +1246,21 @@ function KpiCard({ icon: Icon, label, value, hint, growth, accent = 'emerald' }:
   );
 }
 
-function TopList({ title, items, onClick }: { title: string; items: { name: string; value: string }[]; onClick?: (n: string) => void }) {
+function TopList({ title, items, onClick }: { title: string; items: { name: string; sub?: string; value: string; id?: string }[]; onClick?: (idOrName: string) => void }) {
   return (
     <Card>
       <CardHeader><CardTitle className="text-base">{title}</CardTitle></CardHeader>
       <CardContent className="space-y-1">
         {items.length === 0 && <p className="text-xs text-muted-foreground">Sem dados.</p>}
         {items.map((it, i) => (
-          <button key={i} onClick={() => onClick?.(it.name)}
+          <button key={i} onClick={() => onClick?.(it.id ?? it.name)}
             className="w-full flex items-center justify-between gap-2 p-2 rounded hover:bg-muted text-left">
-            <span className="flex items-center gap-2 min-w-0">
+            <span className="flex items-center gap-2 min-w-0 flex-1">
               <Badge variant={i < 3 ? 'default' : 'secondary'} className="shrink-0">{i + 1}</Badge>
-              <span className="truncate text-sm">{it.name}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{it.name}</span>
+                {it.sub && <span className="block truncate text-[10px] text-muted-foreground">{it.sub}</span>}
+              </span>
             </span>
             <span className="text-sm font-semibold shrink-0">{it.value}</span>
           </button>
