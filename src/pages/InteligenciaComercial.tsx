@@ -589,6 +589,8 @@ export default function InteligenciaComercial() {
   // ---------- Selected client detail ----------
   const detail = useMemo(() => aggregated.find(a => a.clientId === selectedClient) || null, [aggregated, selectedClient]);
   const detailQuotes = useMemo(() => detail ? quotes.filter(q => detail.quoteIds.includes(q.id)).sort((a, b) => new Date(b.approved_at || b.created_at).getTime() - new Date(a.approved_at || a.created_at).getTime()) : [], [detail, quotes]);
+  const top5 = filteredAggregated.slice(0, 5);
+  const top5Max = top5[0]?.totalValue || 1;
 
   // ---------- Drill-down helpers ----------
   const openDrill = (title: string, subtitle: string, qs: QuoteRow[]) => {
