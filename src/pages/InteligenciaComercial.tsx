@@ -372,22 +372,45 @@ export default function InteligenciaComercial() {
 
   // ---------- Top products ----------
   const topProducts = useMemo(() => {
-    const map = new Map<string, { desc: string; qty: number; value: number; clients: Set<string> }>();
+    const map = new Map<string, { desc: string; brand: string; code: string; qty: number; value: number; clients: Set<string>; lastDate: Date | null; lastQuoteId: string | null; lastQuoteNumber: string | null }>();
     filteredQuotes.forEach(q => {
+      const qd = new Date(q.approved_at || q.created_at);
       (itemsByQuote.get(q.id) || []).forEach(it => {
         const k = it.product_code || it.description || 'item';
-        if (!map.has(k)) map.set(k, { desc: it.description || k, qty: 0, value: 0, clients: new Set() });
+        if (!map.has(k)) map.set(k, {
+          desc: it.description || k,
+          brand: it.brand || 'Sem marca',
+          code: it.product_code || '',
+          qty: 0, value: 0,
+          clients: new Set(),
+          lastDate: null, lastQuoteId: null, lastQuoteNumber: null,
+        });
         const e = map.get(k)!;
+        if (it.brand && (!e.brand || e.brand === 'Sem marca')) e.brand = it.brand;
+        if (it.description && (!e.desc || e.desc === k)) e.desc = it.description;
         e.qty += Number(it.quantity || 0);
         e.value += Number(it.total_price ?? it.line_total ?? 0);
         if (q.client_id) e.clients.add(q.client_id);
+        if (!e.lastDate || qd > e.lastDate) {
+          e.lastDate = qd;
+          e.lastQuoteId = q.id;
+          e.lastQuoteNumber = q.quote_number;
+        }
       });
     });
     return Array.from(map.entries())
       .map(([code, v]) => ({ code, ...v, clientsCount: v.clients.size }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 20);
+      .slice(0, 50);
   }, [filteredQuotes, itemsByQuote]);
+
+  // Produto Campeão (líder em faturamento)
+  const productChampion = useMemo(() => {
+    if (!topProducts.length) return null;
+    const byValue = topProducts[0];
+    const byQty = [...topProducts].sort((a, b) => b.qty - a.qty)[0];
+    return { byValue, byQty };
+  }, [topProducts]);
 
   // ---------- Evolution chart ----------
   const monthlySeries = useMemo(() => {
@@ -403,11 +426,14 @@ export default function InteligenciaComercial() {
   // ---------- Filter options ----------
   const sellers = useMemo(() => {
     const m = new Map<string, string>();
+    // Profiles take precedence when available (managers/admins)
+    sellerProfiles.forEach(p => m.set(p.user_id, p.full_name));
+    // Fallback to whatever appears on quotes
     quotes.forEach(q => {
-      if (q.created_by) m.set(q.created_by, q.salesperson || 'Vendedor');
+      if (q.created_by && !m.has(q.created_by)) m.set(q.created_by, q.salesperson || 'Vendedor');
     });
-    return Array.from(m.entries());
-  }, [quotes]);
+    return Array.from(m.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [quotes, sellerProfiles]);
   const cities = useMemo(() => Array.from(new Set(Object.values(clients).map(c => c.city).filter(Boolean) as string[])).sort(), [clients]);
   const states = useMemo(() => Array.from(new Set(Object.values(clients).map(c => c.state).filter(Boolean) as string[])).sort(), [clients]);
   const brands = useMemo(() => {
