@@ -427,20 +427,21 @@ export default function InteligenciaComercial() {
     filteredQuotes.forEach(q => {
       const qd = new Date(q.approved_at || q.created_at);
       (itemsByQuote.get(q.id) || []).forEach(it => {
-        const k = it.product_code || it.description || 'item';
+        const r = resolveItem(it);
+        const k = r.key || 'item';
         if (!map.has(k)) map.set(k, {
-          desc: it.description || k,
-          brand: it.brand || 'Sem marca',
-          code: it.product_code || '',
+          desc: r.name,
+          brand: r.brand,
+          code: r.code,
           qty: 0, value: 0,
           clients: new Set(),
           lastDate: null, lastQuoteId: null, lastQuoteNumber: null,
         });
         const e = map.get(k)!;
-        if (it.brand && (!e.brand || e.brand === 'Sem marca')) e.brand = it.brand;
-        if (it.description && (!e.desc || e.desc === k)) e.desc = it.description;
+        if (r.brand && r.brand !== 'Sem marca' && (!e.brand || e.brand === 'Sem marca')) e.brand = r.brand;
+        if (r.name && (!e.desc || e.desc === r.code)) e.desc = r.name;
         e.qty += Number(it.quantity || 0);
-        e.value += Number(it.total_price ?? it.line_total ?? 0);
+        e.value += itemValue(it);
         if (q.client_id) e.clients.add(q.client_id);
         if (!e.lastDate || qd > e.lastDate) {
           e.lastDate = qd;
@@ -450,10 +451,10 @@ export default function InteligenciaComercial() {
       });
     });
     return Array.from(map.entries())
-      .map(([code, v]) => ({ code, ...v, clientsCount: v.clients.size }))
+      .map(([key, v]) => ({ key, ...v, clientsCount: v.clients.size }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 50);
-  }, [filteredQuotes, itemsByQuote]);
+  }, [filteredQuotes, itemsByQuote, productByCode]);
 
   // Produto Campeão (líder em faturamento)
   const productChampion = useMemo(() => {
