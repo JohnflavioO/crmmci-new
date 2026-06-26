@@ -170,6 +170,7 @@ export default function InteligenciaComercial() {
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [clients, setClients] = useState<Record<string, ClientRow>>({});
   const [items, setItems] = useState<ItemRow[]>([]);
+  const [products, setProducts] = useState<ProductRow[]>([]);
   const [sellerProfiles, setSellerProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
   const [drill, setDrill] = useState<{ title: string; subtitle?: string; quotes: QuoteRow[] } | null>(null);
 
