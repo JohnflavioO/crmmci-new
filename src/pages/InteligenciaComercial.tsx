@@ -180,7 +180,7 @@ export default function InteligenciaComercial() {
         if (clientIds.length) {
           const { data: cData } = await supabase
             .from('clients')
-            .select('id, name, company_name, contact_name, email, phone, contact_phone, city, state, created_by')
+            .select('id, name, company_name, contact_name, email, phone, contact_phone, city, state, cpf_cnpj, created_by')
             .in('id', clientIds);
           const map: Record<string, ClientRow> = {};
           (cData || []).forEach((c: any) => { map[c.id] = c; });
