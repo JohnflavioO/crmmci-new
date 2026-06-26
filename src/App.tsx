@@ -149,6 +149,7 @@ function AppRoutes() {
             <Route path="/operational" element={<SafeRoute><OperationalCenter /></SafeRoute>} />
             <Route path="/clients" element={<SafeRoute><Clients /></SafeRoute>} />
             <Route path="/quotes" element={<SafeRoute><Quotes /></SafeRoute>} />
+            <Route path="/inteligencia" element={<SafeRoute><InteligenciaComercial /></SafeRoute>} />
             <Route path="/products" element={<SafeRoute><Products /></SafeRoute>} />
             <Route path="/contracts" element={<SafeRoute><ContractGenerator /></SafeRoute>} />
 
