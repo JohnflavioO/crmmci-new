@@ -301,11 +301,11 @@ export default function InteligenciaComercial() {
   const [search, setSearch] = useState(savedViewState.search);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
 
-  const dataScopeKey = canSeeAll ? 'all-company' : (user?.id || 'user-loading');
+  const dataScopeKey = canSeeAll ? 'all-company' : 'own-quotes';
   const commercialQuery = useQuery({
-    queryKey: ['inteligencia-comercial', dataScopeKey],
+    queryKey: ['inteligencia-comercial', user?.id || 'anonymous', dataScopeKey],
     queryFn: () => loadCommercialData(user?.id, canSeeAll),
-    enabled: canSeeAll || !!user?.id,
+    enabled: !!user?.id,
     staleTime: INTELLIGENCE_STALE_TIME,
     gcTime: INTELLIGENCE_GC_TIME,
     refetchOnWindowFocus: false,
@@ -327,6 +327,10 @@ export default function InteligenciaComercial() {
     console.error(commercialQuery.error);
     toast.error('Erro ao carregar dados: ' + message);
   }, [commercialQuery.error]);
+
+  useEffect(() => {
+    if (!canSeeAll && sellerFilter !== 'all') setSellerFilter('all');
+  }, [canSeeAll, sellerFilter]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -351,13 +355,13 @@ export default function InteligenciaComercial() {
     return quotes.filter(q => {
       const d = new Date(q.approved_at || q.created_at).getTime();
       if (periodDays !== Infinity && now - d > periodDays * 86400000) return false;
-      if (sellerFilter !== 'all' && q.created_by !== sellerFilter) return false;
+      if (canSeeAll && sellerFilter !== 'all' && q.created_by !== sellerFilter) return false;
       const c = q.client_id ? clients[q.client_id] : null;
       if (cityFilter !== 'all' && (c?.city || '') !== cityFilter) return false;
       if (stateFilter !== 'all' && (c?.state || '') !== stateFilter) return false;
       return true;
     });
-  }, [quotes, clients, periodDays, sellerFilter, cityFilter, stateFilter]);
+  }, [quotes, clients, periodDays, canSeeAll, sellerFilter, cityFilter, stateFilter]);
 
   // Previous period for growth comparison
   const previousQuotes = useMemo(() => {
@@ -368,13 +372,13 @@ export default function InteligenciaComercial() {
     return quotes.filter(q => {
       const d = new Date(q.approved_at || q.created_at).getTime();
       if (d < startPrev || d >= startCurr) return false;
-      if (sellerFilter !== 'all' && q.created_by !== sellerFilter) return false;
+      if (canSeeAll && sellerFilter !== 'all' && q.created_by !== sellerFilter) return false;
       const c = q.client_id ? clients[q.client_id] : null;
       if (cityFilter !== 'all' && (c?.city || '') !== cityFilter) return false;
       if (stateFilter !== 'all' && (c?.state || '') !== stateFilter) return false;
       return true;
     });
-  }, [quotes, clients, periodDays, sellerFilter, cityFilter, stateFilter]);
+  }, [quotes, clients, periodDays, canSeeAll, sellerFilter, cityFilter, stateFilter]);
 
   const itemsByQuote = useMemo(() => {
     const m = new Map<string, ItemRow[]>();
