@@ -646,8 +646,6 @@ export default function InteligenciaComercial() {
     return <Badge variant="outline" className={map.c}>{map.l}</Badge>;
   };
 
-  const top5 = filteredAggregated.slice(0, 5);
-  const top5Max = top5[0]?.totalValue || 1;
 
   return (
     <AppLayout>
