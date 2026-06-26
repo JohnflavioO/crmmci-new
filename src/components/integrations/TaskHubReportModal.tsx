@@ -119,15 +119,15 @@ export default function TaskHubReportModal({ open, onOpenChange }: Props) {
       });
 
       if (result.ok) {
-        toast.success("Enviado para o TaskHub!");
+        if ((result.data as any)?.mock) {
+          toast.success("Registrado localmente — integração TaskHub ainda não está ativa.");
+        } else {
+          toast.success("Enviado para o TaskHub!");
+        }
         onOpenChange(false);
       } else {
         const msg = (result.data as any)?.message || result.error || "Falha ao enviar.";
-        if ((result.data as any)?.error === "taskhub_not_configured") {
-          toast.error("Integração com TaskHub ainda não configurada (aguardando API Key).");
-        } else {
-          toast.error(`Erro: ${msg}`);
-        }
+        toast.error(`Erro: ${msg}`);
       }
     } catch (e) {
       toast.error(`Erro inesperado: ${(e as Error).message}`);

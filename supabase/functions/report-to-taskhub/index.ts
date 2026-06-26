@@ -93,10 +93,13 @@ Deno.serve(async (req) => {
   const apiKey = Deno.env.get("TASKHUB_API_KEY");
 
   if (!apiUrl || !apiKey) {
-    return json(503, {
-      error: "taskhub_not_configured",
+    // Dev/mock mode — integration is wired but secrets aren't set yet.
+    // We return 200 with mock=true so clients log it locally and inform the user.
+    return json(200, {
+      ok: true,
+      mock: true,
       message:
-        "TASKHUB_API_URL e/ou TASKHUB_API_KEY ainda não estão configurados nesta instalação. A integração está pronta — basta cadastrar os secrets.",
+        "Integração com TaskHub ainda não ativa (TASKHUB_API_URL / TASKHUB_API_KEY não configurados). Solicitação registrada apenas localmente.",
     });
   }
 
