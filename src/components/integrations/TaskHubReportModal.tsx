@@ -118,19 +118,30 @@ export default function TaskHubReportModal({ open, onOpenChange }: Props) {
         attachments,
       });
 
+      const data = result.data as any;
       if (result.ok) {
-        if ((result.data as any)?.mock) {
+        if (data?.mock) {
           toast.success("Registrado localmente — integração TaskHub ainda não está ativa.");
         } else {
-          toast.success("Enviado para o TaskHub!");
+          const id = data?.taskhub?.id || data?.taskhub?.issue_id || data?.taskhub?.card_id;
+          toast.success(id ? `Card criado no TaskHub (#${id})` : "Enviado para o TaskHub!");
         }
         onOpenChange(false);
       } else {
-        const msg = (result.data as any)?.message || result.error || "Falha ao enviar.";
-        toast.error(`Erro: ${msg}`);
+        const msg =
+          data?.message ||
+          data?.error ||
+          result.error ||
+          "Falha ao enviar.";
+        toast.error(msg, {
+          description: "Solicitação salva como pendente no log local.",
+          duration: 8000,
+        });
       }
     } catch (e) {
-      toast.error(`Erro inesperado: ${(e as Error).message}`);
+      toast.error(`Falha ao criar card no TaskHub: ${(e as Error).message}`, {
+        description: "Solicitação salva como pendente no log local.",
+      });
     } finally {
       setSubmitting(false);
     }
