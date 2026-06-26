@@ -219,6 +219,12 @@ export default function InteligenciaComercial() {
         }
 
 
+        // Load products for name/brand resolution
+        const { data: pData } = await supabase
+          .from('products')
+          .select('id, name, brand, code, sku');
+        setProducts((pData || []) as ProductRow[]);
+
         const quoteIds = valid.map((q: any) => q.id);
         if (quoteIds.length) {
           const chunkSize = 200;
@@ -227,7 +233,7 @@ export default function InteligenciaComercial() {
             const chunk = quoteIds.slice(i, i + chunkSize);
             const { data: iData } = await supabase
               .from('quote_items')
-              .select('quote_id, product_code, description, brand, model, quantity, total_price, line_total')
+              .select('quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total')
               .in('quote_id', chunk);
             if (iData) allItems.push(...(iData as any));
           }
