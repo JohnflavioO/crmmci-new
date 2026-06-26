@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import AppLayout from '@/components/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -98,6 +99,126 @@ interface ProductRow {
   sku: string | null;
 }
 
+type IntelligenceTab = 'dashboard' | 'ranking' | 'top' | 'products' | 'evolution' | 'alerts';
+type IntelligenceViewState = {
+  period: '30' | '90' | '180' | '365' | 'all';
+  sellerFilter: string;
+  cityFilter: string;
+  stateFilter: string;
+  brandFilter: string;
+  activeFilter: 'all' | 'active' | 'inactive';
+  search: string;
+  activeTab: IntelligenceTab;
+};
+type CommercialData = {
+  quotes: QuoteRow[];
+  clients: Record<string, ClientRow>;
+  items: ItemRow[];
+  products: ProductRow[];
+  sellerProfiles: { user_id: string; full_name: string }[];
+  loadedAt: number;
+};
+
+const INTELLIGENCE_VIEW_STATE_KEY = 'mci:inteligencia-comercial:view-state:v1';
+const INTELLIGENCE_STALE_TIME = 5 * 60 * 1000;
+const INTELLIGENCE_GC_TIME = 30 * 60 * 1000;
+const defaultViewState: IntelligenceViewState = {
+  period: 'all',
+  sellerFilter: 'all',
+  cityFilter: 'all',
+  stateFilter: 'all',
+  brandFilter: 'all',
+  activeFilter: 'all',
+  search: '',
+  activeTab: 'dashboard',
+};
+const emptyCommercialData: CommercialData = {
+  quotes: [],
+  clients: {},
+  items: [],
+  products: [],
+  sellerProfiles: [],
+  loadedAt: 0,
+};
+
+const readSavedViewState = (): IntelligenceViewState => {
+  if (typeof window === 'undefined') return defaultViewState;
+  try {
+    const raw = window.sessionStorage.getItem(INTELLIGENCE_VIEW_STATE_KEY);
+    if (!raw) return defaultViewState;
+    return { ...defaultViewState, ...JSON.parse(raw) };
+  } catch {
+    return defaultViewState;
+  }
+};
+
+const loadCommercialData = async (userId: string | undefined, canSeeAll: boolean): Promise<CommercialData> => {
+  let qQuery = supabase
+    .from('quotes')
+    .select('id, quote_number, client_id, client_name, salesperson, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration')
+    .order('created_at', { ascending: false })
+    .limit(5000);
+
+  if (!canSeeAll) {
+    if (!userId) return emptyCommercialData;
+    qQuery = qQuery.eq('created_by', userId);
+  }
+
+  const { data: qData, error: qErr } = await qQuery;
+  if (qErr) throw qErr;
+
+  const valid = ((qData || []) as QuoteRow[]).filter(isCountable);
+
+  const [clientsRes, productsRes, profilesRes] = await Promise.all([
+    supabase
+      .from('clients')
+      .select('id, name, company_name, contact_name, email, phone, contact_phone, city, state, cpf_cnpj, created_by'),
+    supabase
+      .from('products')
+      .select('id, name, brand, code, sku'),
+    canSeeAll
+      ? supabase
+          .from('profiles')
+          .select('user_id, full_name, active')
+          .eq('active', true)
+      : Promise.resolve({ data: [], error: null } as any),
+  ]);
+
+  if (clientsRes.error) throw clientsRes.error;
+  if (productsRes.error) throw productsRes.error;
+  if ((profilesRes as any).error) throw (profilesRes as any).error;
+
+  const clients: Record<string, ClientRow> = {};
+  ((clientsRes.data || []) as any[]).forEach(c => { clients[c.id] = c; });
+
+  const quoteIds = valid.map(q => q.id);
+  const allItems: ItemRow[] = [];
+  if (quoteIds.length) {
+    const chunkSize = 200;
+    for (let i = 0; i < quoteIds.length; i += chunkSize) {
+      const chunk = quoteIds.slice(i, i + chunkSize);
+      const { data: iData, error: iErr } = await supabase
+        .from('quote_items')
+        .select('quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total')
+        .in('quote_id', chunk);
+      if (iErr) throw iErr;
+      if (iData) allItems.push(...(iData as any));
+    }
+  }
+
+  return {
+    quotes: valid,
+    clients,
+    items: allItems,
+    products: (productsRes.data || []) as ProductRow[],
+    sellerProfiles: (((profilesRes as any).data || []) as any[]).map(p => ({
+      user_id: p.user_id,
+      full_name: p.full_name || 'Vendedor',
+    })),
+    loadedAt: Date.now(),
+  };
+};
+
 const itemValue = (it: ItemRow): number => {
   const tp = Number(it.total_price || 0);
   if (tp > 0) return tp;
@@ -166,87 +287,61 @@ export default function InteligenciaComercial() {
   const { user, isAdmin, isGestor } = useAuth();
   const canSeeAll = isAdmin || isGestor;
 
-  const [loading, setLoading] = useState(true);
-  const [quotes, setQuotes] = useState<QuoteRow[]>([]);
-  const [clients, setClients] = useState<Record<string, ClientRow>>({});
-  const [items, setItems] = useState<ItemRow[]>([]);
-  const [products, setProducts] = useState<ProductRow[]>([]);
-  const [sellerProfiles, setSellerProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
+  const savedViewState = useMemo(readSavedViewState, []);
+  const [activeTab, setActiveTab] = useState<IntelligenceTab>(savedViewState.activeTab);
   const [drill, setDrill] = useState<{ title: string; subtitle?: string; quotes: QuoteRow[] } | null>(null);
 
   // Filters
-  const [period, setPeriod] = useState<'30' | '90' | '180' | '365' | 'all'>('all');
-  const [sellerFilter, setSellerFilter] = useState<string>('all');
-  const [cityFilter, setCityFilter] = useState<string>('all');
-  const [stateFilter, setStateFilter] = useState<string>('all');
-  const [brandFilter, setBrandFilter] = useState<string>('all');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [search, setSearch] = useState('');
+  const [period, setPeriod] = useState<'30' | '90' | '180' | '365' | 'all'>(savedViewState.period);
+  const [sellerFilter, setSellerFilter] = useState<string>(savedViewState.sellerFilter);
+  const [cityFilter, setCityFilter] = useState<string>(savedViewState.cityFilter);
+  const [stateFilter, setStateFilter] = useState<string>(savedViewState.stateFilter);
+  const [brandFilter, setBrandFilter] = useState<string>(savedViewState.brandFilter);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>(savedViewState.activeFilter);
+  const [search, setSearch] = useState(savedViewState.search);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
 
+  const dataScopeKey = canSeeAll ? 'all-company' : (user?.id || 'user-loading');
+  const commercialQuery = useQuery({
+    queryKey: ['inteligencia-comercial', dataScopeKey],
+    queryFn: () => loadCommercialData(user?.id, canSeeAll),
+    enabled: canSeeAll || !!user?.id,
+    staleTime: INTELLIGENCE_STALE_TIME,
+    gcTime: INTELLIGENCE_GC_TIME,
+    refetchOnWindowFocus: false,
+    placeholderData: previousData => previousData,
+  });
+
+  const data = commercialQuery.data || emptyCommercialData;
+  const quotes = data.quotes;
+  const clients = data.clients;
+  const items = data.items;
+  const products = data.products;
+  const sellerProfiles = data.sellerProfiles;
+  const isInitialLoading = commercialQuery.isLoading && !commercialQuery.data;
+  const isBackgroundUpdating = commercialQuery.isFetching && !!commercialQuery.data;
+
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        let qQuery = supabase
-          .from('quotes')
-          .select('id, quote_number, client_id, client_name, salesperson, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration')
-          .order('created_at', { ascending: false })
-          .limit(5000);
+    if (!commercialQuery.error) return;
+    const message = commercialQuery.error instanceof Error ? commercialQuery.error.message : String(commercialQuery.error);
+    console.error(commercialQuery.error);
+    toast.error('Erro ao carregar dados: ' + message);
+  }, [commercialQuery.error]);
 
-        if (!canSeeAll && user) qQuery = qQuery.eq('created_by', user.id);
-        const { data: qData, error: qErr } = await qQuery;
-        if (qErr) throw qErr;
-
-        const valid = (qData || []).filter(isCountable);
-        setQuotes(valid as QuoteRow[]);
-
-        // Load ALL clients visible to the current role so filters (state/city) work for every seller
-        const { data: cData } = await supabase
-          .from('clients')
-          .select('id, name, company_name, contact_name, email, phone, contact_phone, city, state, cpf_cnpj, created_by');
-        const map: Record<string, ClientRow> = {};
-        (cData || []).forEach((c: any) => { map[c.id] = c; });
-        setClients(map);
-
-        // Load seller profiles list (managers/admin can choose any seller)
-        if (canSeeAll) {
-          const { data: profs } = await supabase
-            .from('profiles')
-            .select('user_id, full_name, active')
-            .eq('active', true);
-          setSellerProfiles((profs || []).map((p: any) => ({ user_id: p.user_id, full_name: p.full_name || 'Vendedor' })));
-        }
-
-
-        // Load products for name/brand resolution
-        const { data: pData } = await supabase
-          .from('products')
-          .select('id, name, brand, code, sku');
-        setProducts((pData || []) as ProductRow[]);
-
-        const quoteIds = valid.map((q: any) => q.id);
-        if (quoteIds.length) {
-          const chunkSize = 200;
-          const allItems: ItemRow[] = [];
-          for (let i = 0; i < quoteIds.length; i += chunkSize) {
-            const chunk = quoteIds.slice(i, i + chunkSize);
-            const { data: iData } = await supabase
-              .from('quote_items')
-              .select('quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total')
-              .in('quote_id', chunk);
-            if (iData) allItems.push(...(iData as any));
-          }
-          setItems(allItems);
-        }
-      } catch (e: any) {
-        console.error(e);
-        toast.error('Erro ao carregar dados: ' + (e.message || e));
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [user, canSeeAll]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const viewState: IntelligenceViewState = {
+      period,
+      sellerFilter,
+      cityFilter,
+      stateFilter,
+      brandFilter,
+      activeFilter,
+      search,
+      activeTab,
+    };
+    window.sessionStorage.setItem(INTELLIGENCE_VIEW_STATE_KEY, JSON.stringify(viewState));
+  }, [period, sellerFilter, cityFilter, stateFilter, brandFilter, activeFilter, search, activeTab]);
 
   // ---------- Period windows ----------
   const periodDays = period === 'all' ? Infinity : parseInt(period, 10);
