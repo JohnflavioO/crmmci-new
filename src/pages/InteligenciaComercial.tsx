@@ -661,14 +661,14 @@ export default function InteligenciaComercial() {
         icon: TrendingUp, tone: 'emerald',
         title: `Receita cresceu ${g.toFixed(1)}% vs período anterior`,
         desc: `De ${fmtCompact(prevKpis.totalRevenue)} para ${fmtCompact(kpis.totalRevenue)}.`,
-        onClick: drillRevenue,
+        onClick: () => drillRevenue(),
       });
     } else if (g != null && g <= -10) {
       items.push({
         icon: TrendingDown, tone: 'red',
         title: `Receita caiu ${Math.abs(g).toFixed(1)}% vs período anterior`,
         desc: `Atenção: queda de ${fmtCompact(prevKpis.totalRevenue - kpis.totalRevenue)} no período.`,
-        onClick: drillRevenue,
+        onClick: () => drillRevenue(),
       });
     }
 
