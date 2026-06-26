@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import AppLayout from '@/components/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -98,6 +99,161 @@ interface ProductRow {
   sku: string | null;
 }
 
+type IntelligenceTab = 'dashboard' | 'ranking' | 'top' | 'products' | 'evolution' | 'alerts';
+type IntelligenceViewState = {
+  period: '30' | '90' | '180' | '365' | 'all';
+  sellerFilter: string;
+  cityFilter: string;
+  stateFilter: string;
+  brandFilter: string;
+  activeFilter: 'all' | 'active' | 'inactive';
+  search: string;
+  activeTab: IntelligenceTab;
+};
+type CommercialData = {
+  quotes: QuoteRow[];
+  clients: Record<string, ClientRow>;
+  items: ItemRow[];
+  products: ProductRow[];
+  sellerProfiles: { user_id: string; full_name: string }[];
+  loadedAt: number;
+};
+
+const INTELLIGENCE_VIEW_STATE_KEY = 'mci:inteligencia-comercial:view-state:v1';
+const INTELLIGENCE_DATA_CACHE_PREFIX = 'mci:inteligencia-comercial:data-cache:v1:';
+const INTELLIGENCE_STALE_TIME = 5 * 60 * 1000;
+const INTELLIGENCE_GC_TIME = 30 * 60 * 1000;
+const defaultViewState: IntelligenceViewState = {
+  period: 'all',
+  sellerFilter: 'all',
+  cityFilter: 'all',
+  stateFilter: 'all',
+  brandFilter: 'all',
+  activeFilter: 'all',
+  search: '',
+  activeTab: 'dashboard',
+};
+const emptyCommercialData: CommercialData = {
+  quotes: [],
+  clients: {},
+  items: [],
+  products: [],
+  sellerProfiles: [],
+  loadedAt: 0,
+};
+
+const isValidTab = (value: unknown): value is IntelligenceTab =>
+  ['dashboard', 'ranking', 'top', 'products', 'evolution', 'alerts'].includes(String(value));
+
+const readSavedViewState = (): IntelligenceViewState => {
+  if (typeof window === 'undefined') return defaultViewState;
+  try {
+    const raw = window.sessionStorage.getItem(INTELLIGENCE_VIEW_STATE_KEY);
+    if (!raw) return defaultViewState;
+    const parsed = JSON.parse(raw) as Partial<IntelligenceViewState>;
+    return {
+      period: ['30', '90', '180', '365', 'all'].includes(String(parsed.period)) ? parsed.period as IntelligenceViewState['period'] : defaultViewState.period,
+      sellerFilter: typeof parsed.sellerFilter === 'string' ? parsed.sellerFilter : defaultViewState.sellerFilter,
+      cityFilter: typeof parsed.cityFilter === 'string' ? parsed.cityFilter : defaultViewState.cityFilter,
+      stateFilter: typeof parsed.stateFilter === 'string' ? parsed.stateFilter : defaultViewState.stateFilter,
+      brandFilter: typeof parsed.brandFilter === 'string' ? parsed.brandFilter : defaultViewState.brandFilter,
+      activeFilter: ['all', 'active', 'inactive'].includes(String(parsed.activeFilter)) ? parsed.activeFilter as IntelligenceViewState['activeFilter'] : defaultViewState.activeFilter,
+      search: typeof parsed.search === 'string' ? parsed.search : defaultViewState.search,
+      activeTab: isValidTab(parsed.activeTab) ? parsed.activeTab : defaultViewState.activeTab,
+    };
+  } catch {
+    return defaultViewState;
+  }
+};
+
+const readCachedCommercialData = (cacheKey: string | undefined): CommercialData | undefined => {
+  if (!cacheKey || typeof window === 'undefined') return undefined;
+  try {
+    const raw = window.sessionStorage.getItem(`${INTELLIGENCE_DATA_CACHE_PREFIX}${cacheKey}`);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as CommercialData;
+    return parsed?.loadedAt ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const writeCachedCommercialData = (cacheKey: string | undefined, data: CommercialData | undefined) => {
+  if (!cacheKey || !data?.loadedAt || typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(`${INTELLIGENCE_DATA_CACHE_PREFIX}${cacheKey}`, JSON.stringify(data));
+  } catch {
+    // Se o cache local ficar grande demais, o cache em memória do React Query continua ativo.
+  }
+};
+
+const loadCommercialData = async (userId: string | undefined, canSeeAll: boolean): Promise<CommercialData> => {
+  let qQuery = supabase
+    .from('quotes')
+    .select('id, quote_number, client_id, client_name, salesperson, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration')
+    .order('created_at', { ascending: false })
+    .limit(5000);
+
+  if (!canSeeAll) {
+    if (!userId) return emptyCommercialData;
+    qQuery = qQuery.eq('created_by', userId);
+  }
+
+  const { data: qData, error: qErr } = await qQuery;
+  if (qErr) throw qErr;
+
+  const valid = ((qData || []) as QuoteRow[]).filter(isCountable);
+
+  const [clientsRes, productsRes, profilesRes] = await Promise.all([
+    supabase
+      .from('clients')
+      .select('id, name, company_name, contact_name, email, phone, contact_phone, city, state, cpf_cnpj, created_by'),
+    supabase
+      .from('products')
+      .select('id, name, brand, code, sku'),
+    canSeeAll
+      ? supabase
+          .from('profiles')
+          .select('user_id, full_name, active')
+          .eq('active', true)
+      : Promise.resolve({ data: [], error: null } as any),
+  ]);
+
+  if (clientsRes.error) throw clientsRes.error;
+  if (productsRes.error) throw productsRes.error;
+  if ((profilesRes as any).error) throw (profilesRes as any).error;
+
+  const clients: Record<string, ClientRow> = {};
+  ((clientsRes.data || []) as any[]).forEach(c => { clients[c.id] = c; });
+
+  const quoteIds = valid.map(q => q.id);
+  const allItems: ItemRow[] = [];
+  if (quoteIds.length) {
+    const chunkSize = 200;
+    for (let i = 0; i < quoteIds.length; i += chunkSize) {
+      const chunk = quoteIds.slice(i, i + chunkSize);
+      const { data: iData, error: iErr } = await supabase
+        .from('quote_items')
+        .select('quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total')
+        .in('quote_id', chunk);
+      if (iErr) throw iErr;
+      if (iData) allItems.push(...(iData as any));
+    }
+  }
+
+  return {
+    quotes: valid,
+    clients,
+    items: allItems,
+    products: (productsRes.data || []) as ProductRow[],
+    sellerProfiles: (((profilesRes as any).data || []) as any[]).map(p => ({
+      user_id: p.user_id,
+      full_name: p.full_name || 'Vendedor',
+    })),
+    loadedAt: Date.now(),
+  };
+};
+
 const itemValue = (it: ItemRow): number => {
   const tp = Number(it.total_price || 0);
   if (tp > 0) return tp;
@@ -166,87 +322,72 @@ export default function InteligenciaComercial() {
   const { user, isAdmin, isGestor } = useAuth();
   const canSeeAll = isAdmin || isGestor;
 
-  const [loading, setLoading] = useState(true);
-  const [quotes, setQuotes] = useState<QuoteRow[]>([]);
-  const [clients, setClients] = useState<Record<string, ClientRow>>({});
-  const [items, setItems] = useState<ItemRow[]>([]);
-  const [products, setProducts] = useState<ProductRow[]>([]);
-  const [sellerProfiles, setSellerProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
+  const savedViewState = useMemo(readSavedViewState, []);
+  const [activeTab, setActiveTab] = useState<IntelligenceTab>(savedViewState.activeTab);
   const [drill, setDrill] = useState<{ title: string; subtitle?: string; quotes: QuoteRow[] } | null>(null);
 
   // Filters
-  const [period, setPeriod] = useState<'30' | '90' | '180' | '365' | 'all'>('all');
-  const [sellerFilter, setSellerFilter] = useState<string>('all');
-  const [cityFilter, setCityFilter] = useState<string>('all');
-  const [stateFilter, setStateFilter] = useState<string>('all');
-  const [brandFilter, setBrandFilter] = useState<string>('all');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [search, setSearch] = useState('');
+  const [period, setPeriod] = useState<'30' | '90' | '180' | '365' | 'all'>(savedViewState.period);
+  const [sellerFilter, setSellerFilter] = useState<string>(savedViewState.sellerFilter);
+  const [cityFilter, setCityFilter] = useState<string>(savedViewState.cityFilter);
+  const [stateFilter, setStateFilter] = useState<string>(savedViewState.stateFilter);
+  const [brandFilter, setBrandFilter] = useState<string>(savedViewState.brandFilter);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>(savedViewState.activeFilter);
+  const [search, setSearch] = useState(savedViewState.search);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
 
+  const dataScopeKey = canSeeAll ? 'all-company' : 'own-quotes';
+  const dataCacheKey = user?.id ? `${user.id}:${dataScopeKey}` : undefined;
+  const commercialQuery = useQuery({
+    queryKey: ['inteligencia-comercial', user?.id || 'anonymous', dataScopeKey],
+    queryFn: () => loadCommercialData(user?.id, canSeeAll),
+    enabled: !!user?.id,
+    staleTime: INTELLIGENCE_STALE_TIME,
+    gcTime: INTELLIGENCE_GC_TIME,
+    refetchOnWindowFocus: false,
+    initialData: () => readCachedCommercialData(dataCacheKey),
+    initialDataUpdatedAt: () => readCachedCommercialData(dataCacheKey)?.loadedAt,
+    placeholderData: previousData => previousData,
+  });
+
+  const data = commercialQuery.data || emptyCommercialData;
+  const quotes = data.quotes;
+  const clients = data.clients;
+  const items = data.items;
+  const products = data.products;
+  const sellerProfiles = data.sellerProfiles;
+  const isInitialLoading = commercialQuery.isLoading && !commercialQuery.data;
+  const isBackgroundUpdating = commercialQuery.isFetching && !!commercialQuery.data;
+
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        let qQuery = supabase
-          .from('quotes')
-          .select('id, quote_number, client_id, client_name, salesperson, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration')
-          .order('created_at', { ascending: false })
-          .limit(5000);
+    if (!commercialQuery.error) return;
+    const message = commercialQuery.error instanceof Error ? commercialQuery.error.message : String(commercialQuery.error);
+    console.error(commercialQuery.error);
+    toast.error('Erro ao carregar dados: ' + message);
+  }, [commercialQuery.error]);
 
-        if (!canSeeAll && user) qQuery = qQuery.eq('created_by', user.id);
-        const { data: qData, error: qErr } = await qQuery;
-        if (qErr) throw qErr;
+  useEffect(() => {
+    writeCachedCommercialData(dataCacheKey, commercialQuery.data);
+  }, [dataCacheKey, commercialQuery.data]);
 
-        const valid = (qData || []).filter(isCountable);
-        setQuotes(valid as QuoteRow[]);
+  useEffect(() => {
+    if (!canSeeAll && sellerFilter !== 'all') setSellerFilter('all');
+  }, [canSeeAll, sellerFilter]);
 
-        // Load ALL clients visible to the current role so filters (state/city) work for every seller
-        const { data: cData } = await supabase
-          .from('clients')
-          .select('id, name, company_name, contact_name, email, phone, contact_phone, city, state, cpf_cnpj, created_by');
-        const map: Record<string, ClientRow> = {};
-        (cData || []).forEach((c: any) => { map[c.id] = c; });
-        setClients(map);
-
-        // Load seller profiles list (managers/admin can choose any seller)
-        if (canSeeAll) {
-          const { data: profs } = await supabase
-            .from('profiles')
-            .select('user_id, full_name, active')
-            .eq('active', true);
-          setSellerProfiles((profs || []).map((p: any) => ({ user_id: p.user_id, full_name: p.full_name || 'Vendedor' })));
-        }
-
-
-        // Load products for name/brand resolution
-        const { data: pData } = await supabase
-          .from('products')
-          .select('id, name, brand, code, sku');
-        setProducts((pData || []) as ProductRow[]);
-
-        const quoteIds = valid.map((q: any) => q.id);
-        if (quoteIds.length) {
-          const chunkSize = 200;
-          const allItems: ItemRow[] = [];
-          for (let i = 0; i < quoteIds.length; i += chunkSize) {
-            const chunk = quoteIds.slice(i, i + chunkSize);
-            const { data: iData } = await supabase
-              .from('quote_items')
-              .select('quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total')
-              .in('quote_id', chunk);
-            if (iData) allItems.push(...(iData as any));
-          }
-          setItems(allItems);
-        }
-      } catch (e: any) {
-        console.error(e);
-        toast.error('Erro ao carregar dados: ' + (e.message || e));
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [user, canSeeAll]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const viewState: IntelligenceViewState = {
+      period,
+      sellerFilter,
+      cityFilter,
+      stateFilter,
+      brandFilter,
+      activeFilter,
+      search,
+      activeTab,
+    };
+    window.sessionStorage.setItem(INTELLIGENCE_VIEW_STATE_KEY, JSON.stringify(viewState));
+  }, [period, sellerFilter, cityFilter, stateFilter, brandFilter, activeFilter, search, activeTab]);
 
   // ---------- Period windows ----------
   const periodDays = period === 'all' ? Infinity : parseInt(period, 10);
@@ -256,13 +397,13 @@ export default function InteligenciaComercial() {
     return quotes.filter(q => {
       const d = new Date(q.approved_at || q.created_at).getTime();
       if (periodDays !== Infinity && now - d > periodDays * 86400000) return false;
-      if (sellerFilter !== 'all' && q.created_by !== sellerFilter) return false;
+      if (canSeeAll && sellerFilter !== 'all' && q.created_by !== sellerFilter) return false;
       const c = q.client_id ? clients[q.client_id] : null;
       if (cityFilter !== 'all' && (c?.city || '') !== cityFilter) return false;
       if (stateFilter !== 'all' && (c?.state || '') !== stateFilter) return false;
       return true;
     });
-  }, [quotes, clients, periodDays, sellerFilter, cityFilter, stateFilter]);
+  }, [quotes, clients, periodDays, canSeeAll, sellerFilter, cityFilter, stateFilter]);
 
   // Previous period for growth comparison
   const previousQuotes = useMemo(() => {
@@ -273,13 +414,13 @@ export default function InteligenciaComercial() {
     return quotes.filter(q => {
       const d = new Date(q.approved_at || q.created_at).getTime();
       if (d < startPrev || d >= startCurr) return false;
-      if (sellerFilter !== 'all' && q.created_by !== sellerFilter) return false;
+      if (canSeeAll && sellerFilter !== 'all' && q.created_by !== sellerFilter) return false;
       const c = q.client_id ? clients[q.client_id] : null;
       if (cityFilter !== 'all' && (c?.city || '') !== cityFilter) return false;
       if (stateFilter !== 'all' && (c?.state || '') !== stateFilter) return false;
       return true;
     });
-  }, [quotes, clients, periodDays, sellerFilter, cityFilter, stateFilter]);
+  }, [quotes, clients, periodDays, canSeeAll, sellerFilter, cityFilter, stateFilter]);
 
   const itemsByQuote = useMemo(() => {
     const m = new Map<string, ItemRow[]>();
@@ -562,14 +703,14 @@ export default function InteligenciaComercial() {
         icon: TrendingUp, tone: 'emerald',
         title: `Receita cresceu ${g.toFixed(1)}% vs período anterior`,
         desc: `De ${fmtCompact(prevKpis.totalRevenue)} para ${fmtCompact(kpis.totalRevenue)}.`,
-        onClick: drillRevenue,
+        onClick: () => drillRevenue(),
       });
     } else if (g != null && g <= -10) {
       items.push({
         icon: TrendingDown, tone: 'red',
         title: `Receita caiu ${Math.abs(g).toFixed(1)}% vs período anterior`,
         desc: `Atenção: queda de ${fmtCompact(prevKpis.totalRevenue - kpis.totalRevenue)} no período.`,
-        onClick: drillRevenue,
+        onClick: () => drillRevenue(),
       });
     }
 
@@ -705,7 +846,7 @@ export default function InteligenciaComercial() {
     openDrill(`Top Cliente: ${top5[0].clientName}`, `${clientLocation(top5[0].client)} • ${clientCnpjLabel(top5[0].client)}`, filteredQuotes.filter(q => top5[0].quoteIds.includes(q.id)));
   };
 
-  if (loading) {
+  if (isInitialLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-32">
@@ -825,7 +966,13 @@ export default function InteligenciaComercial() {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="dashboard" className="space-y-4">
+        {isBackgroundUpdating && (
+          <div className="fixed right-4 top-4 z-50 rounded-full border bg-background/95 px-3 py-2 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur">
+            Atualizando dados...
+          </div>
+        )}
+
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as IntelligenceTab)} className="space-y-4">
           <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full h-auto">
             <TabsTrigger value="dashboard" className="gap-1.5"><BarChart3 className="h-4 w-4" /><span className="hidden sm:inline">Dashboard</span></TabsTrigger>
             <TabsTrigger value="ranking" className="gap-1.5"><Trophy className="h-4 w-4" /><span className="hidden sm:inline">Rankings</span></TabsTrigger>
