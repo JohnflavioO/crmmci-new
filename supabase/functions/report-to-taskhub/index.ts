@@ -152,7 +152,10 @@ Deno.serve(async (req) => {
     received_at: new Date().toISOString(),
   };
 
-  const result = await forwardWithRetry(apiUrl, apiKey, forwarded);
+  const base = apiUrl.replace(/\/+$/, "");
+  const slug = String(body.source_app).trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
+  const endpoint = `${base}/api/public/integrations/${slug}/issues`;
+  const result = await forwardWithRetry(endpoint, apiKey, forwarded);
 
   if (result.ok) {
     return json(200, { ok: true, taskhub: result.data, attempts: result.attempts });
