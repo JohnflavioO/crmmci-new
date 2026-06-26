@@ -57,7 +57,7 @@ async function forwardWithRetry(url: string, key: string, body: unknown) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${key}`,
+          "X-Api-Key": key,
           "X-Integration-Source": "lovable-taskhub-bridge",
         },
         body: JSON.stringify(body),
