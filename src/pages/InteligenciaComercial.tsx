@@ -178,16 +178,23 @@ export default function InteligenciaComercial() {
         const valid = (qData || []).filter(isCountable);
         setQuotes(valid as QuoteRow[]);
 
-        const clientIds = Array.from(new Set(valid.map((q: any) => q.client_id).filter(Boolean)));
-        if (clientIds.length) {
-          const { data: cData } = await supabase
-            .from('clients')
-            .select('id, name, company_name, contact_name, email, phone, contact_phone, city, state, cpf_cnpj, created_by')
-            .in('id', clientIds);
-          const map: Record<string, ClientRow> = {};
-          (cData || []).forEach((c: any) => { map[c.id] = c; });
-          setClients(map);
+        // Load ALL clients visible to the current role so filters (state/city) work for every seller
+        const { data: cData } = await supabase
+          .from('clients')
+          .select('id, name, company_name, contact_name, email, phone, contact_phone, city, state, cpf_cnpj, created_by');
+        const map: Record<string, ClientRow> = {};
+        (cData || []).forEach((c: any) => { map[c.id] = c; });
+        setClients(map);
+
+        // Load seller profiles list (managers/admin can choose any seller)
+        if (canSeeAll) {
+          const { data: profs } = await supabase
+            .from('profiles')
+            .select('user_id, full_name, active')
+            .eq('active', true);
+          setSellerProfiles((profs || []).map((p: any) => ({ user_id: p.user_id, full_name: p.full_name || 'Vendedor' })));
         }
+
 
         const quoteIds = valid.map((q: any) => q.id);
         if (quoteIds.length) {
