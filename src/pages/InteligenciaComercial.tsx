@@ -898,13 +898,13 @@ export default function InteligenciaComercial() {
                     <TableRow>
                       <TableHead className="w-12">#</TableHead>
                       <TableHead>Empresa</TableHead>
-                      <TableHead>Responsável</TableHead>
-                      <TableHead>Cidade</TableHead>
+                      <TableHead>Cidade/UF</TableHead>
+                      <TableHead>CNPJ</TableHead>
+                      <TableHead>Vendedor</TableHead>
                       <TableHead className="text-right">Compras</TableHead>
                       <TableHead className="text-right">Valor Total</TableHead>
                       <TableHead className="text-right">Ticket Médio</TableHead>
-                      <TableHead>Última</TableHead>
-                      <TableHead className="text-right">Dias</TableHead>
+                      <TableHead>Última compra</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -912,14 +912,26 @@ export default function InteligenciaComercial() {
                     {filteredAggregated.slice(0, 300).map((a, i) => (
                       <TableRow key={a.clientId} className="cursor-pointer" onClick={() => setSelectedClient(a.clientId)}>
                         <TableCell className="font-bold">{i + 1}</TableCell>
-                        <TableCell className="font-medium">{a.clientName}</TableCell>
-                        <TableCell>{a.client?.contact_name || '-'}</TableCell>
-                        <TableCell>{a.city || '-'}{a.state ? ` / ${a.state}` : ''}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="leading-tight">
+                            <div>{a.clientName}</div>
+                            <div className="text-[10px] text-muted-foreground">{a.client?.contact_name || ''}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs">{clientLocation(a.client)}</TableCell>
+                        <TableCell className="text-xs font-mono">{a.cnpj ? formatCnpj(a.cnpj) : '—'}</TableCell>
+                        <TableCell className="text-xs">{a.salesperson || '—'}</TableCell>
                         <TableCell className="text-right">{a.quotesCount}</TableCell>
                         <TableCell className="text-right font-semibold">{fmtBRL(a.totalValue)}</TableCell>
                         <TableCell className="text-right">{fmtBRL(a.ticketMedio)}</TableCell>
-                        <TableCell>{a.lastPurchase?.toLocaleDateString('pt-BR') || '-'}</TableCell>
-                        <TableCell className="text-right">{a.daysSinceLast ?? '-'}</TableCell>
+                        <TableCell>
+                          {a.lastPurchase ? (
+                            <div className="leading-tight">
+                              <div className="text-sm">{a.lastPurchase.toLocaleDateString('pt-BR')}</div>
+                              <div className="text-[10px] text-muted-foreground">Há {a.daysSinceLast} dias</div>
+                            </div>
+                          ) : '—'}
+                        </TableCell>
                         <TableCell>{statusBadge(a.status)}</TableCell>
                       </TableRow>
                     ))}
@@ -931,44 +943,55 @@ export default function InteligenciaComercial() {
 
           {/* Clientes (top) */}
           <TabsContent value="top" className="grid md:grid-cols-2 gap-4">
-            <TopList title="Top 10 — Faturamento" items={[...filteredAggregated].slice(0, 10).map(a => ({ name: a.clientName, value: fmtBRL(a.totalValue) }))} onClick={n => setSelectedClient(aggregated.find(a => a.clientName === n)?.clientId || null)} />
-            <TopList title="Top 10 — Quantidade de Compras" items={[...filteredAggregated].sort((a, b) => b.quotesCount - a.quotesCount).slice(0, 10).map(a => ({ name: a.clientName, value: `${a.quotesCount} compras` }))} onClick={n => setSelectedClient(aggregated.find(a => a.clientName === n)?.clientId || null)} />
-            <TopList title="Top 10 — Maior Ticket Médio" items={[...filteredAggregated].sort((a, b) => b.ticketMedio - a.ticketMedio).slice(0, 10).map(a => ({ name: a.clientName, value: fmtBRL(a.ticketMedio) }))} onClick={n => setSelectedClient(aggregated.find(a => a.clientName === n)?.clientId || null)} />
-            <TopList title="Top 10 — Recorrentes" items={[...filteredAggregated].filter(a => a.isRecurrent).sort((a, b) => b.quotesCount - a.quotesCount).slice(0, 10).map(a => ({ name: a.clientName, value: `${a.quotesCount}x — ${fmtBRL(a.totalValue)}` }))} onClick={n => setSelectedClient(aggregated.find(a => a.clientName === n)?.clientId || null)} />
+            <TopList title="Top 10 — Faturamento" items={[...filteredAggregated].slice(0, 10).map(a => ({ name: a.clientName, sub: `${clientLocation(a.client)} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: fmtBRL(a.totalValue), id: a.clientId }))} onClick={id => setSelectedClient(id)} />
+            <TopList title="Top 10 — Quantidade de Compras" items={[...filteredAggregated].sort((a, b) => b.quotesCount - a.quotesCount).slice(0, 10).map(a => ({ name: a.clientName, sub: `${clientLocation(a.client)} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: `${a.quotesCount} compras`, id: a.clientId }))} onClick={id => setSelectedClient(id)} />
+            <TopList title="Top 10 — Maior Ticket Médio" items={[...filteredAggregated].sort((a, b) => b.ticketMedio - a.ticketMedio).slice(0, 10).map(a => ({ name: a.clientName, sub: `${clientLocation(a.client)} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: fmtBRL(a.ticketMedio), id: a.clientId }))} onClick={id => setSelectedClient(id)} />
+            <TopList title="Top 10 — Recorrentes" items={[...filteredAggregated].filter(a => a.isRecurrent).sort((a, b) => b.quotesCount - a.quotesCount).slice(0, 10).map(a => ({ name: a.clientName, sub: `${clientLocation(a.client)} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: `${a.quotesCount}x — ${fmtBRL(a.totalValue)}`, id: a.clientId }))} onClick={id => setSelectedClient(id)} />
           </TabsContent>
 
           {/* Products */}
           <TabsContent value="products">
             <Card>
-              <CardHeader><CardTitle className="text-base">Produtos Mais Vendidos</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><Crown className="h-4 w-4 text-amber-500" /> Produtos Mais Vendidos</CardTitle></CardHeader>
               <CardContent className="overflow-x-auto">
+                {topProducts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6">Sem dados suficientes.</p>
+                ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-12">#</TableHead>
                       <TableHead>Produto</TableHead>
+                      <TableHead>Marca</TableHead>
                       <TableHead>Código</TableHead>
                       <TableHead className="text-right">Qtd Vendida</TableHead>
                       <TableHead className="text-right">Valor Vendido</TableHead>
                       <TableHead className="text-right">Clientes</TableHead>
+                      <TableHead>Último orçamento</TableHead>
+                      <TableHead>Última venda</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {topProducts.map((p, i) => (
-                      <TableRow key={p.code}>
+                      <TableRow key={p.code + i}>
                         <TableCell className="font-bold">{i + 1}</TableCell>
                         <TableCell className="font-medium max-w-md truncate">{p.desc}</TableCell>
-                        <TableCell className="font-mono text-xs">{p.code}</TableCell>
+                        <TableCell className="text-xs"><Badge variant="secondary">{p.brand}</Badge></TableCell>
+                        <TableCell className="font-mono text-xs">{p.code || '—'}</TableCell>
                         <TableCell className="text-right">{p.qty}</TableCell>
                         <TableCell className="text-right font-semibold">{fmtBRL(p.value)}</TableCell>
                         <TableCell className="text-right">{p.clientsCount}</TableCell>
+                        <TableCell className="font-mono text-xs">{p.lastQuoteNumber || '—'}</TableCell>
+                        <TableCell className="text-xs">{p.lastDate?.toLocaleDateString('pt-BR') || '—'}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
+
 
           {/* Evolution */}
           <TabsContent value="evolution">
