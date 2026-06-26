@@ -120,6 +120,7 @@ type CommercialData = {
 };
 
 const INTELLIGENCE_VIEW_STATE_KEY = 'mci:inteligencia-comercial:view-state:v1';
+const INTELLIGENCE_DATA_CACHE_PREFIX = 'mci:inteligencia-comercial:data-cache:v1:';
 const INTELLIGENCE_STALE_TIME = 5 * 60 * 1000;
 const INTELLIGENCE_GC_TIME = 30 * 60 * 1000;
 const defaultViewState: IntelligenceViewState = {
@@ -141,14 +142,48 @@ const emptyCommercialData: CommercialData = {
   loadedAt: 0,
 };
 
+const isValidTab = (value: unknown): value is IntelligenceTab =>
+  ['dashboard', 'ranking', 'top', 'products', 'evolution', 'alerts'].includes(String(value));
+
 const readSavedViewState = (): IntelligenceViewState => {
   if (typeof window === 'undefined') return defaultViewState;
   try {
     const raw = window.sessionStorage.getItem(INTELLIGENCE_VIEW_STATE_KEY);
     if (!raw) return defaultViewState;
-    return { ...defaultViewState, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw) as Partial<IntelligenceViewState>;
+    return {
+      period: ['30', '90', '180', '365', 'all'].includes(String(parsed.period)) ? parsed.period as IntelligenceViewState['period'] : defaultViewState.period,
+      sellerFilter: typeof parsed.sellerFilter === 'string' ? parsed.sellerFilter : defaultViewState.sellerFilter,
+      cityFilter: typeof parsed.cityFilter === 'string' ? parsed.cityFilter : defaultViewState.cityFilter,
+      stateFilter: typeof parsed.stateFilter === 'string' ? parsed.stateFilter : defaultViewState.stateFilter,
+      brandFilter: typeof parsed.brandFilter === 'string' ? parsed.brandFilter : defaultViewState.brandFilter,
+      activeFilter: ['all', 'active', 'inactive'].includes(String(parsed.activeFilter)) ? parsed.activeFilter as IntelligenceViewState['activeFilter'] : defaultViewState.activeFilter,
+      search: typeof parsed.search === 'string' ? parsed.search : defaultViewState.search,
+      activeTab: isValidTab(parsed.activeTab) ? parsed.activeTab : defaultViewState.activeTab,
+    };
   } catch {
     return defaultViewState;
+  }
+};
+
+const readCachedCommercialData = (cacheKey: string | undefined): CommercialData | undefined => {
+  if (!cacheKey || typeof window === 'undefined') return undefined;
+  try {
+    const raw = window.sessionStorage.getItem(`${INTELLIGENCE_DATA_CACHE_PREFIX}${cacheKey}`);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as CommercialData;
+    return parsed?.loadedAt ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const writeCachedCommercialData = (cacheKey: string | undefined, data: CommercialData | undefined) => {
+  if (!cacheKey || !data?.loadedAt || typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(`${INTELLIGENCE_DATA_CACHE_PREFIX}${cacheKey}`, JSON.stringify(data));
+  } catch {
+    // Se o cache local ficar grande demais, o cache em memória do React Query continua ativo.
   }
 };
 
@@ -302,6 +337,7 @@ export default function InteligenciaComercial() {
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
 
   const dataScopeKey = canSeeAll ? 'all-company' : 'own-quotes';
+  const dataCacheKey = user?.id ? `${user.id}:${dataScopeKey}` : undefined;
   const commercialQuery = useQuery({
     queryKey: ['inteligencia-comercial', user?.id || 'anonymous', dataScopeKey],
     queryFn: () => loadCommercialData(user?.id, canSeeAll),
@@ -309,6 +345,8 @@ export default function InteligenciaComercial() {
     staleTime: INTELLIGENCE_STALE_TIME,
     gcTime: INTELLIGENCE_GC_TIME,
     refetchOnWindowFocus: false,
+    initialData: () => readCachedCommercialData(dataCacheKey),
+    initialDataUpdatedAt: () => readCachedCommercialData(dataCacheKey)?.loadedAt,
     placeholderData: previousData => previousData,
   });
 
@@ -327,6 +365,10 @@ export default function InteligenciaComercial() {
     console.error(commercialQuery.error);
     toast.error('Erro ao carregar dados: ' + message);
   }, [commercialQuery.error]);
+
+  useEffect(() => {
+    writeCachedCommercialData(dataCacheKey, commercialQuery.data);
+  }, [dataCacheKey, commercialQuery.data]);
 
   useEffect(() => {
     if (!canSeeAll && sellerFilter !== 'all') setSellerFilter('all');
