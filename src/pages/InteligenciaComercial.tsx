@@ -1165,18 +1165,21 @@ function KpiCard({ icon: Icon, label, value, hint, growth, accent = 'emerald', o
   );
 }
 
-function TopList({ title, items, onClick }: { title: string; items: { name: string; value: string }[]; onClick?: (n: string) => void }) {
+function TopList({ title, items, onClick }: { title: string; items: { name: string; sub?: string; value: string; id?: string }[]; onClick?: (idOrName: string) => void }) {
   return (
     <Card>
       <CardHeader><CardTitle className="text-base">{title}</CardTitle></CardHeader>
       <CardContent className="space-y-1">
         {items.length === 0 && <p className="text-xs text-muted-foreground">Sem dados.</p>}
         {items.map((it, i) => (
-          <button key={i} onClick={() => onClick?.(it.name)}
+          <button key={i} onClick={() => onClick?.(it.id ?? it.name)}
             className="w-full flex items-center justify-between gap-2 p-2 rounded hover:bg-muted text-left">
-            <span className="flex items-center gap-2 min-w-0">
+            <span className="flex items-center gap-2 min-w-0 flex-1">
               <Badge variant={i < 3 ? 'default' : 'secondary'} className="shrink-0">{i + 1}</Badge>
-              <span className="truncate text-sm">{it.name}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{it.name}</span>
+                {it.sub && <span className="block truncate text-[10px] text-muted-foreground">{it.sub}</span>}
+              </span>
             </span>
             <span className="text-sm font-semibold shrink-0">{it.value}</span>
           </button>
