@@ -841,7 +841,7 @@ export default function InteligenciaComercial() {
                         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                           <div className={cn('h-full rounded-full transition-all', colors[i])} style={{ width: `${pct}%` }} />
                         </div>
-                        <div className="text-[10px] text-muted-foreground mt-1">{a.quotesCount} compras • Ticket {fmtCompact(a.ticketMedio)}</div>
+                        <div className="text-[10px] text-muted-foreground mt-1 truncate">{clientLocation(a.client)} • {a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'} • {a.quotesCount} compras</div>
                       </button>
                     );
                   })}
