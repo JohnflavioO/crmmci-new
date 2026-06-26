@@ -800,7 +800,7 @@ export default function InteligenciaComercial() {
     openDrill(`Top Cliente: ${top5[0].clientName}`, `${clientLocation(top5[0].client)} • ${clientCnpjLabel(top5[0].client)}`, filteredQuotes.filter(q => top5[0].quoteIds.includes(q.id)));
   };
 
-  if (loading) {
+  if (isInitialLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-32">
@@ -920,7 +920,13 @@ export default function InteligenciaComercial() {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="dashboard" className="space-y-4">
+        {isBackgroundUpdating && (
+          <div className="fixed right-4 top-4 z-50 rounded-full border bg-background/95 px-3 py-2 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur">
+            Atualizando dados...
+          </div>
+        )}
+
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as IntelligenceTab)} className="space-y-4">
           <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full h-auto">
             <TabsTrigger value="dashboard" className="gap-1.5"><BarChart3 className="h-4 w-4" /><span className="hidden sm:inline">Dashboard</span></TabsTrigger>
             <TabsTrigger value="ranking" className="gap-1.5"><Trophy className="h-4 w-4" /><span className="hidden sm:inline">Rankings</span></TabsTrigger>
