@@ -949,16 +949,28 @@ export default function InteligenciaComercial() {
                         amber: 'bg-amber-500/10 text-amber-700 border-amber-500/20',
                         indigo: 'bg-indigo-500/10 text-indigo-700 border-indigo-500/20',
                       };
+                      const clickable = !!it.onClick;
                       return (
-                        <div key={i} className={cn('flex items-start gap-3 p-3 rounded-lg border', tone[it.tone])}>
+                        <button
+                          type="button"
+                          key={i}
+                          onClick={it.onClick}
+                          disabled={!clickable}
+                          className={cn(
+                            'flex items-start gap-3 p-3 rounded-lg border text-left w-full transition-all',
+                            tone[it.tone],
+                            clickable && 'hover:shadow-md hover:-translate-y-0.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40'
+                          )}
+                        >
                           <div className="w-8 h-8 rounded-lg bg-background/60 flex items-center justify-center shrink-0">
                             <Icon className="h-4 w-4" />
                           </div>
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold">{it.title}</p>
                             <p className="text-xs opacity-80 mt-0.5">{it.desc}</p>
+                            {clickable && <p className="text-[10px] opacity-70 mt-1 font-medium">Ver detalhes →</p>}
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
