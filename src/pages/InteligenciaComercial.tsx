@@ -376,7 +376,7 @@ export default function InteligenciaComercial() {
       return a;
     });
     return arr.sort((a, b) => b.totalValue - a.totalValue);
-  }, [filteredQuotes, clients, itemsByQuote]);
+  }, [filteredQuotes, clients, itemsByQuote, productByCode]);
 
   const filteredAggregated = useMemo(() => {
     return aggregated.filter(a => {
