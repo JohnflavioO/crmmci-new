@@ -355,12 +355,12 @@ export default function InteligenciaComercial() {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       a.monthly[key] = (a.monthly[key] || 0) + val;
       (itemsByQuote.get(q.id) || []).forEach(it => {
-        const brand = it.brand || 'Sem marca';
-        a.brands[brand] = (a.brands[brand] || 0) + Number(it.total_price ?? it.line_total ?? 0);
-        const pk = it.product_code || it.description || 'item';
-        if (!a.products[pk]) a.products[pk] = { qty: 0, value: 0, desc: it.description || pk, brand };
-        a.products[pk].qty += Number(it.quantity || 0);
-        a.products[pk].value += Number(it.total_price ?? it.line_total ?? 0);
+        const r = resolveItem(it);
+        const v = itemValue(it);
+        a.brands[r.brand] = (a.brands[r.brand] || 0) + v;
+        if (!a.products[r.key]) a.products[r.key] = { qty: 0, value: 0, desc: r.name, brand: r.brand };
+        a.products[r.key].qty += Number(it.quantity || 0);
+        a.products[r.key].value += v;
       });
     });
     const arr = Array.from(map.values()).map(a => {
