@@ -77,9 +77,19 @@ function SafeRoute({ children }: { children: ReactNode }) {
   return <ErrorBoundary title="Erro ao carregar esta área">{children}</ErrorBoundary>;
 }
 
+function getAppSafeSearch(search: string) {
+  const params = new URLSearchParams(search);
+  params.delete('__lovable_sha');
+  params.delete('__lovable_token');
+  params.delete('__lovable_load_id');
+
+  const safeSearch = params.toString();
+  return safeSearch ? `?${safeSearch}` : '';
+}
+
 function RedirectPreservingSearch({ to }: { to: string }) {
   const location = useLocation();
-  return <Navigate to={`${to}${location.search}`} replace />;
+  return <Navigate to={`${to}${getAppSafeSearch(location.search)}`} replace />;
 }
 
 function AppRoutes() {
