@@ -1,7 +1,7 @@
 // Kill-switch for stale app-shell service workers.
 // This worker replaces old Workbox/PWA workers at the same path, removes their
 // cached app shell, takes control, and unregisters. It deliberately avoids a
-// fetch handler and client.navigate(), because either can turn a valid editor
+// fetch interception and forced tab navigation, because either can turn a valid editor
 // iframe into a browser-level unavailable/blank page.
 
 function isAppShellCache(name) {
