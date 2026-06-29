@@ -82,44 +82,6 @@
         });
       })();
     </script>
-    <script>
-      /* Recuperação segura do preview Lovable: remove service workers/caches antigos sem
-         registrar novo worker e sem depender de sessionStorage. A versão anterior podia
-         entrar em loop de reload dentro do iframe do editor quando storage de terceiros
-         era bloqueado, deixando a tela branca. */
-      (function () {
-        var host = window.location.hostname;
-        var isLovablePreview = host.indexOf('id-preview--') === 0 || host.indexOf('-preview--') > -1;
-        if (!isLovablePreview) return;
-
-        var recoveryVersion = '2026_06_29_02';
-        var url = new URL(window.location.href);
-        var alreadyRecovered = url.searchParams.get('__mci_preview_recovered') === recoveryVersion;
-        var wasControlled = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-
-        Promise.resolve()
-          .then(function () {
-            if (!('caches' in window)) return [];
-            return caches.keys().then(function (names) {
-              return Promise.allSettled(names.map(function (name) { return caches.delete(name); }));
-            });
-          })
-          .then(function () {
-            if (!('serviceWorker' in navigator)) return [];
-            return navigator.serviceWorker.getRegistrations().then(function (registrations) {
-              return Promise.allSettled(registrations.map(function (registration) { return registration.unregister(); }));
-            });
-          })
-          .then(function () {
-            if (!wasControlled || alreadyRecovered) return;
-            url.searchParams.set('__mci_preview_recovered', recoveryVersion);
-            window.location.replace(url.toString());
-          })
-          .catch(function (error) {
-            try { console.warn('[Preview recovery] falhou sem bloquear o app:', error); } catch (_) {}
-          });
-      })();
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
