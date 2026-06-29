@@ -8,6 +8,12 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
+        entryFileNames: "assets/[name].js",
+        chunkFileNames: "assets/[name].js",
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name?.endsWith(".css")) return "assets/[name][extname]";
+          return "assets/[name]-[hash][extname]";
+        },
         manualChunks: {
           react: ["react", "react-dom", "react-router-dom"],
           ui: ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-select", "@radix-ui/react-tabs", "lucide-react"],
