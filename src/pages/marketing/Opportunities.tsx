@@ -15,9 +15,11 @@ import {
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 export default function Opportunities() {
   const { user, isAdmin, isGestor, isFinanceiro, isLogistica } = useAuth();
+  const navigate = useNavigate();
   const [opportunities, setOpportunities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -31,7 +33,7 @@ export default function Opportunities() {
     // Se não for Gestor nem Admin nem Vendedor (ex: Financeiro/Logistica), redirecionar ou tratar
     if (isFinanceiro || isLogistica) {
       toast.error('Você não tem permissão para acessar este módulo.');
-      window.location.href = '/dashboard';
+      navigate('/dashboard', { replace: true });
       return;
     }
 
@@ -380,7 +382,7 @@ export default function Opportunities() {
                       size="sm" 
                       variant="outline" 
                       className="flex-1 gap-2"
-                      onClick={() => window.location.href = `/quotes?id=${opp.quote_id}`}
+                      onClick={() => navigate(`/quotes?id=${opp.quote_id}`)}
                       disabled={!opp.quote_id}
                     >
                       <ExternalLink className="h-3 w-3" /> Ver Orçamento

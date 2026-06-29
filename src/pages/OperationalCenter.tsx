@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { ActionMenu } from "@/components/ActionMenu";
+import { useNavigate } from "react-router-dom";
 
 const db = supabase as any;
 
@@ -40,6 +41,7 @@ const PRIORITY_CONFIG = {
 export default function OperationalCenter() {
   const { user, profile, isAdmin, isGestor, isFinanceiro, isSupport } = useAuth();
   const { maskValue } = usePrivacy();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   
   // Data states
@@ -230,10 +232,10 @@ export default function OperationalCenter() {
   const handleQuickAction = (action: string, item: any) => {
     switch (action) {
       case 'open_quote':
-        window.location.href = `/quotes?id=${item.id}`;
+        navigate(`/quotes?id=${item.id}`);
         break;
       case 'open_client':
-        window.location.href = `/clients?id=${item.client_id || item.id}`;
+        navigate(`/clients?id=${item.client_id || item.id}`);
         break;
       case 'whatsapp':
         const phone = item.phone || item.clients?.phone || item.contact_phone;
@@ -256,10 +258,10 @@ export default function OperationalCenter() {
         setFollowUpModalOpen(true);
         break;
       case 'open_os':
-        window.location.href = `/suporte/os/${item.id}`;
+        navigate(`/suporte/os/${item.id}`);
         break;
       case 'open_slip':
-        window.location.href = `/bank-slips?id=${item.id}`;
+        navigate(`/bank-slips?id=${item.id}`);
         break;
       default:
         toast.info(`Ação ${action} ainda não implementada.`);
@@ -397,7 +399,7 @@ export default function OperationalCenter() {
                   origin: t.type || 'Tarefa',
                   actions: [
                     { label: 'Concluir', icon: CheckCircle2, onClick: () => toast.success("Tarefa concluída!") },
-                    { label: 'Abrir', icon: ExternalLink, onClick: () => window.location.href = '/tasks' }
+                    { label: 'Abrir', icon: ExternalLink, onClick: () => navigate('/tasks') }
                   ]
                 }))}
               />
@@ -424,7 +426,7 @@ export default function OperationalCenter() {
                     origin: `Total ${maskValue(parseFloat(s.total_value))}`,
                     actions: [
                       { label: 'Cobrar', icon: MessageSquare, onClick: () => toast.info(`Lembrete enviado para ${s.full_name}`) },
-                      { label: 'Abrir Dashboard', icon: BarChart3, onClick: () => window.location.href = `/dashboard?seller=${s.user_id}` }
+                      { label: 'Abrir Dashboard', icon: BarChart3, onClick: () => navigate(`/dashboard?seller=${s.user_id}`) }
                     ]
                   }))}
                 />

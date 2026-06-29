@@ -36,6 +36,12 @@ class DiagnosticErrorBoundary extends React.Component<Props, State> {
     window.location.reload();
   };
 
+  handleGoHome = () => {
+    this.setState({ hasError: false, error: null, errorInfo: null });
+    window.history.pushState({}, '', '/');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
+
   render() {
     if (this.state.hasError) {
       return (
@@ -83,7 +89,7 @@ class DiagnosticErrorBoundary extends React.Component<Props, State> {
               </Button>
               <Button 
                 variant="outline" 
-                onClick={() => window.location.href = '/'}
+                onClick={this.handleGoHome}
                 className="border-slate-700 text-slate-300 hover:bg-slate-800"
               >
                 Voltar ao Início

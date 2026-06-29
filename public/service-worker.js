@@ -1,25 +1,12 @@
 // Kill-switch for stale app-shell service workers.
 // This worker replaces old Workbox/PWA workers at the same path, removes their
 // cached app shell, takes control, and unregisters. It deliberately avoids a
-// fetch handler and avoids navigating Lovable preview tabs, because either can
-// turn a valid editor iframe into a browser-level unavailable/blank page.
+// fetch interception and forced tab navigation, because either can turn a valid editor
+// iframe into a browser-level unavailable/blank page.
 
 function isAppShellCache(name) {
   const hasWorkboxBucket = /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name);
   return hasWorkboxBucket && (!self.registration.scope || name.endsWith(self.registration.scope) || name.includes(self.location.origin));
-}
-
-function isPreviewHost(url) {
-  try {
-    const host = new URL(url).hostname;
-    return host.startsWith("id-preview--")
-      || host.includes("-preview--")
-      || host.endsWith(".lovableproject.com")
-      || host.endsWith(".lovableproject-dev.com")
-      || host.endsWith(".beta.lovable.dev");
-  } catch (_) {
-    return true;
-  }
 }
 
 async function clearAppShellCaches() {
@@ -39,14 +26,6 @@ self.addEventListener("activate", (event) =>
       try {
         await clearAppShellCaches();
         await self.clients.claim();
-        if (!isPreviewHost(self.registration.scope)) {
-          const clients = await self.clients.matchAll({ type: "window" });
-          await Promise.allSettled(
-            clients
-              .filter((client) => !isPreviewHost(client.url))
-              .map((client) => client.navigate(client.url)),
-          );
-        }
       } finally {
         await self.registration.unregister();
       }
