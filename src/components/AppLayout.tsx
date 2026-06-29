@@ -11,6 +11,16 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+function getAppSafeSearch(search: string) {
+  const params = new URLSearchParams(search);
+  params.delete('__lovable_sha');
+  params.delete('__lovable_token');
+  params.delete('__lovable_load_id');
+
+  const safeSearch = params.toString();
+  return safeSearch ? `?${safeSearch}` : '';
+}
+
 export default function AppLayout({ children }: { children: ReactNode }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
@@ -21,7 +31,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!loading && isSupportOnly) {
       console.log('[AppLayout] Restricted access: support_tech redirected to support dashboard');
-      navigate(`/suporte${location.search}`);
+      navigate(`/suporte${getAppSafeSearch(location.search)}`);
     }
   }, [isSupportOnly, loading, location.search, navigate]);
 
