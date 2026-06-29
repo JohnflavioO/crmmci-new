@@ -110,44 +110,10 @@
         };
       })();
 
-      /* Lovable preview hardening: remove stale app-shell service workers/caches
-         without redirecting or reloading the editor iframe. */
-      (function () {
-        var host = window.location.hostname;
-        var isPreview = window.self !== window.top
-          || host.indexOf('id-preview--') === 0
-          || host.indexOf('-preview--') !== -1
-          || /\.lovableproject(?:-dev)?\.com$/.test(host)
-          || /\.beta\.lovable\.dev$/.test(host);
-
-        if (!isPreview) return;
-
-        try {
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations()
-              .then(function (registrations) {
-                registrations.forEach(function (registration) {
-                  registration.unregister().catch(function () {});
-                });
-              })
-              .catch(function () {});
-          }
-        } catch (_) {}
-
-        try {
-          if ('caches' in window) {
-            caches.keys()
-              .then(function (names) {
-                names.forEach(function (name) {
-                  if (/(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name)) {
-                    caches.delete(name).catch(function () {});
-                  }
-                });
-              })
-              .catch(function () {});
-          }
-        } catch (_) {}
-      })();
+      /* Não desregistramos service workers no HTML do preview. O ambiente do editor
+         pode depender de registros próprios da plataforma; mexer neles causa a tela
+         de "página indisponível" antes do React iniciar. A limpeza do PWA antigo fica
+         isolada nos arquivos /sw.js e /service-worker.js. */
     </script>
     <link rel="icon" type="image/png" href="/favicon.png">
     <!-- TODO: Set the document title to the name of your application -->
