@@ -5,6 +5,16 @@ import { useAuth } from '@/hooks/useAuth';
 
 const LS_KEY = 'app_version';
 
+const isPreviewRuntime = () => {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  return window.self !== window.top
+    || host.startsWith('id-preview--')
+    || host.includes('-preview--')
+    || host.includes('lovable.app')
+    || host.endsWith('.lovableproject.com');
+};
+
 export interface AppVersionInfo {
   version: string;
   force_update: boolean;
@@ -50,11 +60,14 @@ export function useAppVersion() {
       try { localStorage.setItem(LS_KEY, remote.version); } catch {}
       setLocal(remote.version);
     }
-    try { await clearBrowserCachesAndWorkers(); } catch {}
-    try {
-      reloadWithCacheBust();
-    } catch {}
-    // Fallback garantido (preview e produção): força recarregamento
+
+    if (!isPreviewRuntime()) {
+      try { await clearBrowserCachesAndWorkers(); } catch {}
+      try {
+        reloadWithCacheBust();
+      } catch {}
+    }
+
     setTimeout(() => {
       try { window.location.reload(); } catch {}
     }, 150);

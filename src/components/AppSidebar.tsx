@@ -60,19 +60,26 @@ export default function AppSidebar({ onNavigate }: Props) {
 
   const handleRefreshApp = useCallback(async () => {
     setRefreshing(true);
+    const host = window.location.hostname;
+    const isPreview = window.self !== window.top
+      || host.startsWith('id-preview--')
+      || host.includes('-preview--')
+      || host.includes('lovable.app')
+      || host.endsWith('.lovableproject.com');
+
     try {
-      // Clear all caches (service worker + browser caches)
-      if ('caches' in window) {
-        const names = await caches.keys();
-        await Promise.all(names.map(n => caches.delete(n)));
+      if (!isPreview) {
+        if ('caches' in window) {
+          const names = await caches.keys();
+          await Promise.all(names.map(n => caches.delete(n)));
+        }
+
+        const reg = await navigator.serviceWorker?.getRegistration();
+        if (reg) {
+          await reg.unregister();
+        }
       }
-      // Force service worker update if available
-      const reg = await navigator.serviceWorker?.getRegistration();
-      if (reg) {
-        await reg.update();
-        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-      }
-      // Hard reload
+
       window.location.reload();
     } catch {
       window.location.reload();
