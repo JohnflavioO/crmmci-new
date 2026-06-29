@@ -33,6 +33,83 @@
         };
       })();
 
+      /* Lovable preview token guard: keep the editor authorization params on every
+         same-origin SPA navigation. Without this, leaving/returning to the editor can
+         reload a preview URL that the platform no longer authorizes, causing the
+         browser-level "page unavailable" white screen before React can mount. */
+      (function () {
+        var host = window.location.hostname;
+        var isPreview = window.self !== window.top
+          || host.indexOf('id-preview--') === 0
+          || host.indexOf('preview--') !== -1
+          || /\.lovableproject(?:-dev)?\.com$/.test(host)
+          || /\.beta\.lovable\.dev$/.test(host);
+
+        if (!isPreview) return;
+
+        var paramNames = ['__lovable_sha', '__lovable_token', '__lovable_load_id'];
+        var storageKey = '__mci_lovable_preview_params';
+
+        function readStored() {
+          try { return JSON.parse(window.sessionStorage.getItem(storageKey) || '{}') || {}; }
+          catch (_) { return {}; }
+        }
+
+        function writeStored(values) {
+          try { window.sessionStorage.setItem(storageKey, JSON.stringify(values)); }
+          catch (_) {}
+        }
+
+        function readFromSearch(search) {
+          var params = new URLSearchParams(search || '');
+          var values = {};
+          paramNames.forEach(function (name) {
+            var value = params.get(name);
+            if (value) values[name] = value;
+          });
+          return values;
+        }
+
+        var preserved = Object.assign(readStored(), readFromSearch(window.location.search));
+        writeStored(preserved);
+
+        function mergePreviewParams(rawUrl) {
+          if (!rawUrl || !Object.keys(preserved).length) return rawUrl;
+          try {
+            var original = String(rawUrl);
+            if (/^(mailto:|tel:|javascript:|data:)/i.test(original)) return rawUrl;
+            var url = new URL(original, window.location.href);
+            if (url.origin !== window.location.origin) return rawUrl;
+
+            Object.keys(preserved).forEach(function (name) {
+              if (!url.searchParams.has(name) && preserved[name]) {
+                url.searchParams.set(name, preserved[name]);
+              }
+            });
+
+            return url.pathname + url.search + url.hash;
+          } catch (_) {
+            return rawUrl;
+          }
+        }
+
+        if (Object.keys(preserved).length) {
+          var repairedUrl = mergePreviewParams(window.location.href);
+          if (repairedUrl && repairedUrl !== window.location.pathname + window.location.search + window.location.hash) {
+            try { window.history.replaceState(window.history.state, '', repairedUrl); } catch (_) {}
+          }
+        }
+
+        var originalPushState = window.history.pushState;
+        var originalReplaceState = window.history.replaceState;
+        window.history.pushState = function (state, title, url) {
+          return originalPushState.call(this, state, title, url == null ? url : mergePreviewParams(url));
+        };
+        window.history.replaceState = function (state, title, url) {
+          return originalReplaceState.call(this, state, title, url == null ? url : mergePreviewParams(url));
+        };
+      })();
+
       /* Lovable preview hardening: remove stale app-shell service workers/caches
          without redirecting or reloading the editor iframe. */
       (function () {
@@ -40,8 +117,8 @@
         var isPreview = window.self !== window.top
           || host.indexOf('id-preview--') === 0
           || host.indexOf('-preview--') !== -1
-          || host.indexOf('lovable.app') !== -1
-          || /\.lovableproject\.com$/.test(host);
+          || /\.lovableproject(?:-dev)?\.com$/.test(host)
+          || /\.beta\.lovable\.dev$/.test(host);
 
         if (!isPreview) return;
 
@@ -62,7 +139,9 @@
             caches.keys()
               .then(function (names) {
                 names.forEach(function (name) {
-                  caches.delete(name).catch(function () {});
+                  if (/(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name)) {
+                    caches.delete(name).catch(function () {});
+                  }
                 });
               })
               .catch(function () {});

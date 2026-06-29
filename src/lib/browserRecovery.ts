@@ -3,7 +3,12 @@ const CACHE_VERSION = "v2026-06-20-preview-safe-recovery";
 const isLovablePreviewRuntime = () => {
   if (typeof window === "undefined") return false;
   const host = window.location.hostname;
-  return host.startsWith("id-preview--") || host.includes("-preview--") || host.endsWith(".lovableproject.com");
+  return window.self !== window.top
+    || host.startsWith("id-preview--")
+    || host.includes("-preview--")
+    || host.endsWith(".lovableproject.com")
+    || host.endsWith(".lovableproject-dev.com")
+    || host.endsWith(".beta.lovable.dev");
 };
 
 const createMemoryStorage = (): Storage => {

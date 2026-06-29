@@ -61,12 +61,14 @@ export function useAppVersion() {
       setLocal(remote.version);
     }
 
-    if (!isPreviewRuntime()) {
-      try { await clearBrowserCachesAndWorkers(); } catch {}
-      try {
-        reloadWithCacheBust();
-      } catch {}
+    if (isPreviewRuntime()) {
+      return;
     }
+
+    try { await clearBrowserCachesAndWorkers(); } catch {}
+    try {
+      reloadWithCacheBust();
+    } catch {}
 
     setTimeout(() => {
       try { window.location.reload(); } catch {}
