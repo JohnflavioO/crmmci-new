@@ -1,7 +1,6 @@
 // Kill-switch for stale app-shell service workers.
-// Important: do NOT add a fetch handler here. A worker that intercepts the
-// editor preview navigation can make Chrome show "page unavailable" before
-// React/Vite ever runs. This file only clears old app caches and unregisters.
+// This worker must be able to take over browsers still controlled by an older
+// Workbox/PWA worker and force every request back to the network.
 
 async function clearAllCaches() {
   try {
@@ -14,11 +13,16 @@ async function clearAllCaches() {
 
 self.addEventListener("install", () => self.skipWaiting());
 
+self.addEventListener("fetch", (event) => {
+  event.respondWith(fetch(event.request));
+});
+
 self.addEventListener("activate", (event) =>
   event.waitUntil(
     (async () => {
       try {
         await clearAllCaches();
+        await self.clients.claim();
       } finally {
         await self.registration.unregister();
       }
