@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => ({
           data: ["@tanstack/react-query", "@supabase/supabase-js"],
           charts: ["recharts"],
           pdf: ["jspdf", "jspdf-autotable"],
-          firebase: ["firebase"],
+          firebase: ["firebase/app", "firebase/messaging"],
         },
       },
     },
