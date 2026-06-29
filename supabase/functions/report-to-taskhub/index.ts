@@ -166,7 +166,37 @@ Deno.serve(async (req) => {
 
   const ctx = (body.context ?? {}) as Record<string, any>;
 
+  const tipoMap: Record<string, string> = {
+    bug: "bug",
+    improvement: "melhoria",
+    idea: "ideia",
+    request: "solicitacao",
+  };
+  const prioridadeMap: Record<string, string> = {
+    low: "baixa",
+    medium: "media",
+    high: "alta",
+    urgent: "urgente",
+  };
+
   const forwarded = {
+    // Spec fields (pt-BR)
+    tipo: tipoMap[body.type] ?? body.type,
+    prioridade: prioridadeMap[body.priority ?? "medium"] ?? body.priority ?? "media",
+    titulo: String(body.title).trim(),
+    descricao: String(body.description).trim(),
+    modulo: body.module ?? ctx.module ?? null,
+    url: ctx.page_url ?? null,
+    usuario: {
+      id: ctx.user_id ?? null,
+      nome: ctx.user_name ?? null,
+      email: ctx.user_email ?? null,
+      role: ctx.user_role ?? null,
+    },
+    versao_crm: ctx.app_version ?? null,
+    anexos: body.attachments ?? [],
+
+    // Back-compat fields
     source: body.source_app,
     project: body.source_app,
     type: body.type,
