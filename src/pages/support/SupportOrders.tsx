@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2, MessageCircle, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ActionMenu } from '@/components/ActionMenu';
 
@@ -28,6 +28,7 @@ export const STATUS_OPTIONS = [
 
 export default function SupportOrders() {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const filterStatus = params.get('status') || '';
   const [orders, setOrders] = useState<any[]>([]);
@@ -290,7 +291,7 @@ export default function SupportOrders() {
                         { 
                           label: "Ver Detalhes", 
                           icon: ExternalLink, 
-                          onClick: () => window.location.href = `/suporte/os/${o.id}`,
+                          onClick: () => navigate(`/suporte/os/${o.id}`),
                           isPrimary: true
                         },
                         { 

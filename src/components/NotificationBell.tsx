@@ -9,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { requestNotificationPermission } from '@/lib/firebase';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 const db = supabase as any;
 
@@ -25,6 +26,7 @@ interface Notification {
 
 export default function NotificationBell() {
   const { user, isAdmin, isGestor } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
   const [isPushEnabled, setIsPushEnabled] = useState('Notification' in window && Notification.permission === 'granted');
@@ -147,7 +149,7 @@ export default function NotificationBell() {
                 }`}
                 onClick={() => {
                   if (n.related_quote_id) {
-                    window.location.href = `/quotes?id=${n.related_quote_id}`;
+                    navigate(`/quotes?id=${n.related_quote_id}`);
                   }
                 }}
               >

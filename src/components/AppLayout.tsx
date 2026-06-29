@@ -18,9 +18,12 @@ function getAppSafeSearch(search: string) {
   const isLovablePreview = typeof window !== 'undefined' && (
     window.self !== window.top
     || host.startsWith('id-preview--')
+    || host.startsWith('preview--')
     || host.includes('-preview--')
     || host.includes('lovable.app')
     || host.endsWith('.lovableproject.com')
+    || host.endsWith('.lovableproject-dev.com')
+    || host.endsWith('.beta.lovable.dev')
   );
 
   if (!isLovablePreview) {
