@@ -33,6 +33,21 @@ class DiagnosticErrorBoundary extends React.Component<Props, State> {
 
   handleReset = () => {
     this.setState({ hasError: false, error: null, errorInfo: null });
+    const host = window.location.hostname;
+    const isPreview = window.self !== window.top
+      || host.startsWith('id-preview--')
+      || host.includes('-preview--')
+      || host.includes('lovable.app')
+      || host.endsWith('.lovableproject.com')
+      || host.endsWith('.lovableproject-dev.com')
+      || host.endsWith('.beta.lovable.dev');
+
+    if (isPreview) {
+      window.history.replaceState(window.history.state, '', window.location.href);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      return;
+    }
+
     window.location.reload();
   };
 

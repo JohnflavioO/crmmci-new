@@ -80,8 +80,15 @@ export default function AppSidebar({ onNavigate }: Props) {
         }
       }
 
+      if (isPreview) {
+        window.history.replaceState(window.history.state, '', window.location.href);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+        return;
+      }
+
       window.location.reload();
     } catch {
+      if (isPreview) return;
       window.location.reload();
     }
   }, []);

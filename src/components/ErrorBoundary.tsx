@@ -11,7 +11,13 @@ import {
 const isPreviewRuntime = () => {
   if (typeof window === 'undefined') return false;
   const host = window.location.hostname;
-  return host.startsWith('id-preview--') || host.includes('-preview--') || host.includes('lovable.app') || host.endsWith('.lovableproject.com');
+  return window.self !== window.top
+    || host.startsWith('id-preview--')
+    || host.includes('-preview--')
+    || host.includes('lovable.app')
+    || host.endsWith('.lovableproject.com')
+    || host.endsWith('.lovableproject-dev.com')
+    || host.endsWith('.beta.lovable.dev');
 };
 
 interface Props {
@@ -54,6 +60,12 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   handleReload = () => {
+    if (isPreviewRuntime()) {
+      window.history.replaceState(window.history.state, '', window.location.href);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      this.setState({ hasError: false, error: null });
+      return;
+    }
     window.location.reload();
   };
 
