@@ -6,10 +6,16 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   build: {
-    cssCodeSplit: false,
     rollupOptions: {
       output: {
-        inlineDynamicImports: true,
+        manualChunks: {
+          react: ["react", "react-dom", "react-router-dom"],
+          ui: ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-select", "@radix-ui/react-tabs", "lucide-react"],
+          data: ["@tanstack/react-query", "@supabase/supabase-js"],
+          charts: ["recharts"],
+          pdf: ["jspdf", "jspdf-autotable"],
+          firebase: ["firebase/app", "firebase/messaging"],
+        },
       },
     },
   },
