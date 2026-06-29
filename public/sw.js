@@ -1,6 +1,7 @@
-// Kill-switch for stale app-shell service workers. It never serves cached app
-// assets and never navigates clients by itself; forced client navigation inside
-// Lovable's iframe preview can create a blank-screen reload loop.
+// Kill-switch for stale app-shell service workers.
+// Important: do NOT add a fetch handler here. A worker that intercepts the
+// editor preview navigation can make Chrome show "page unavailable" before
+// React/Vite ever runs. This file only clears old app caches and unregisters.
 
 async function clearAllCaches() {
   try {
@@ -25,8 +26,3 @@ self.addEventListener("activate", (event) =>
     })(),
   ),
 );
-
-self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
-  event.respondWith(fetch(event.request, { cache: "no-store" }));
-});
