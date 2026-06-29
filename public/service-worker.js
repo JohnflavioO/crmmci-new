@@ -19,7 +19,6 @@ self.addEventListener("activate", (event) =>
     (async () => {
       try {
         await clearAllCaches();
-        await self.clients.claim();
       } finally {
         await self.registration.unregister();
       }
