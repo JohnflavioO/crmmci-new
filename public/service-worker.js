@@ -1,6 +1,6 @@
-// Kill-switch for stale app-shell service workers. Old previews/PWA builds can
-// keep serving a broken cached bundle; this worker never serves cache, removes
-// every cache for this origin, refreshes open clients once, then unregisters.
+// Kill-switch for stale app-shell service workers. It never serves cached app
+// assets and never navigates clients by itself; forced client navigation inside
+// Lovable's iframe preview can create a blank-screen reload loop.
 
 async function clearAllCaches() {
   try {
@@ -19,8 +19,6 @@ self.addEventListener("activate", (event) =>
       try {
         await clearAllCaches();
         await self.clients.claim();
-        const windowClients = await self.clients.matchAll({ type: "window" });
-        await Promise.allSettled(windowClients.map((client) => client.navigate(client.url)));
       } finally {
         await self.registration.unregister();
       }
