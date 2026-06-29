@@ -23,8 +23,6 @@ self.addEventListener("activate", (event) =>
       try {
         await clearAllCaches();
         await self.clients.claim();
-        const windowClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-        await Promise.allSettled(windowClients.map((client) => client.navigate(client.url)));
       } finally {
         await self.registration.unregister();
       }
