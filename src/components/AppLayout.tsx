@@ -13,9 +13,21 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 function getAppSafeSearch(search: string) {
   const params = new URLSearchParams(search);
-  params.delete('__lovable_sha');
-  params.delete('__lovable_token');
-  params.delete('__lovable_load_id');
+
+  const host = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isLovablePreview = typeof window !== 'undefined' && (
+    window.self !== window.top
+    || host.startsWith('id-preview--')
+    || host.includes('-preview--')
+    || host.includes('lovable.app')
+    || host.endsWith('.lovableproject.com')
+  );
+
+  if (!isLovablePreview) {
+    params.delete('__lovable_sha');
+    params.delete('__lovable_token');
+    params.delete('__lovable_load_id');
+  }
 
   const safeSearch = params.toString();
   return safeSearch ? `?${safeSearch}` : '';
