@@ -6,10 +6,12 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   build: {
+    assetsInlineLimit: 0,
+    modulePreload: false,
     rollupOptions: {
       output: {
         entryFileNames: "assets/[name].js",
-        chunkFileNames: "assets/[name].js",
+        chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: (assetInfo) => {
           if (assetInfo.name?.endsWith(".css")) return "assets/[name][extname]";
           return "assets/[name]-[hash][extname]";

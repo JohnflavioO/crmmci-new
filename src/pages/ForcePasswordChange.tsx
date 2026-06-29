@@ -10,6 +10,17 @@ import { Loader2, Lock } from 'lucide-react';
 
 const db = supabase as any;
 
+const isPreviewRuntime = () => {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  return window.self !== window.top
+    || host.startsWith('id-preview--')
+    || host.includes('-preview--')
+    || host.endsWith('.lovableproject.com')
+    || host.endsWith('.lovableproject-dev.com')
+    || host.endsWith('.beta.lovable.dev');
+};
+
 export default function ForcePasswordChange() {
   const { user } = useAuth();
   const [newPassword, setNewPassword] = useState('');
@@ -36,7 +47,9 @@ export default function ForcePasswordChange() {
 
       toast.success('Senha atualizada com sucesso!');
       // Reload to clear the flag from auth context
-      setTimeout(() => window.location.reload(), 500);
+      if (!isPreviewRuntime()) {
+        setTimeout(() => window.location.reload(), 500);
+      }
     } catch (err: any) {
       toast.error('Erro ao alterar senha: ' + err.message);
     } finally {

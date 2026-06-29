@@ -8,7 +8,22 @@ console.log('[Main] Inciando renderização...');
 const isPreviewRuntime = () => {
   if (typeof window === 'undefined') return false;
   const h = window.location.hostname;
-  return h.startsWith('id-preview--') || h.includes('-preview--') || h.endsWith('.lovableproject.com');
+  return window.self !== window.top
+    || h.startsWith('id-preview--')
+    || h.includes('-preview--')
+    || h.includes('lovable.app')
+    || h.endsWith('.lovableproject.com')
+    || h.endsWith('.lovableproject-dev.com')
+    || h.endsWith('.beta.lovable.dev');
+};
+
+const safeReload = () => {
+  if (isPreviewRuntime()) {
+    window.history.replaceState(window.history.state, '', window.location.href);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    return;
+  }
+  window.location.reload();
 };
 
 const escapeHtml = (value: string) => value.replace(/[&<>"]/g, (char) => {
@@ -35,11 +50,11 @@ const renderFatalStartupError = (error: unknown) => {
     </main>
   `;
 
-  document.getElementById("mci-reload")?.addEventListener("click", () => window.location.reload());
+  document.getElementById("mci-reload")?.addEventListener("click", safeReload);
   document.getElementById("mci-clean")?.addEventListener("click", () => {
     try { window.localStorage.clear(); } catch {}
     try { window.sessionStorage.clear(); } catch {}
-    window.location.reload();
+    safeReload();
   });
 };
 
