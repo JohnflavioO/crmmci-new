@@ -12,6 +12,17 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const db = supabase as any;
 
+const isPreviewRuntime = () => {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  return window.self !== window.top
+    || host.startsWith('id-preview--')
+    || host.includes('-preview--')
+    || host.endsWith('.lovableproject.com')
+    || host.endsWith('.lovableproject-dev.com')
+    || host.endsWith('.beta.lovable.dev');
+};
+
 export default function UserProfileEditor() {
   const { user, profile } = useAuth();
   const [open, setOpen] = useState(false);
@@ -80,7 +91,9 @@ export default function UserProfileEditor() {
       if (error) throw error;
       toast.success('Perfil atualizado!');
       setOpen(false);
-      window.location.reload();
+      if (!isPreviewRuntime()) {
+        window.location.reload();
+      }
     } catch (err: any) {
       toast.error('Erro: ' + err.message);
     } finally {

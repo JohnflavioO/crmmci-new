@@ -43,6 +43,7 @@ export default function OperationalCenter() {
   const { maskValue } = usePrivacy();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   
   // Data states
   const [data, setData] = useState<any>({
@@ -227,7 +228,7 @@ export default function OperationalCenter() {
     }
 
     loadAllData();
-  }, [user?.id, isAdmin, isGestor, isFinanceiro, isSupport]);
+  }, [user?.id, isAdmin, isGestor, isFinanceiro, isSupport, refreshKey]);
 
   const handleQuickAction = (action: string, item: any) => {
     switch (action) {
@@ -296,7 +297,7 @@ export default function OperationalCenter() {
           </div>
           <div className="flex items-center gap-3">
             <PrivacyToggle />
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => window.location.reload()}>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => setRefreshKey((key) => key + 1)}>
               <RefreshCw className="h-4 w-4" /> Atualizar
             </Button>
             <Badge variant="secondary" className="px-4 py-1.5 rounded-full font-bold uppercase tracking-wider text-[10px] hidden sm:inline-flex">
