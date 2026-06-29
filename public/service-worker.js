@@ -8,20 +8,6 @@ function isAppShellCache(name) {
   return hasWorkboxBucket && (!self.registration.scope || name.endsWith(self.registration.scope));
 }
 
-function isPreviewUrl(rawUrl) {
-  try {
-    const url = new URL(rawUrl);
-    return url.hostname.startsWith("id-preview--")
-      || url.hostname.startsWith("preview--")
-      || url.hostname.includes("-preview--")
-      || url.hostname.endsWith(".lovableproject.com")
-      || url.hostname.endsWith(".lovableproject-dev.com")
-      || url.hostname.endsWith(".beta.lovable.dev");
-  } catch (_) {
-    return false;
-  }
-}
-
 async function clearAppShellCaches() {
   try {
     const cacheNames = await caches.keys();
@@ -41,10 +27,7 @@ self.addEventListener("activate", (event) =>
         await self.clients.claim();
         const windowClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
         await Promise.allSettled(
-          windowClients.map((client) => {
-            if (!client.url || isPreviewUrl(client.url)) return undefined;
-            return client.navigate(client.url);
-          }),
+          windowClients.map((client) => client.url ? client.navigate(client.url) : undefined),
         );
       } finally {
         await self.registration.unregister();

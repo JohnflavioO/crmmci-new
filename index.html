@@ -110,10 +110,45 @@
         };
       })();
 
-      /* Não desregistramos service workers no HTML do preview. O ambiente do editor
-         pode depender de registros próprios da plataforma; mexer neles causa a tela
-         de "página indisponível" antes do React iniciar. A limpeza do PWA antigo fica
-         isolada nos arquivos /sw.js e /service-worker.js. */
+      /* Limpeza segura: remove somente service workers antigos do app-shell MCI
+         (/sw.js e /service-worker.js). Não toca no worker de push Firebase nem em
+         qualquer worker da plataforma, evitando loop de reload no editor. */
+      (function () {
+        if (!('serviceWorker' in navigator)) return;
+
+        var appShellWorkerPaths = ['/sw.js', '/service-worker.js'];
+        var isAppShellScript = function (scriptURL) {
+          try {
+            var url = new URL(scriptURL);
+            return url.origin === window.location.origin && appShellWorkerPaths.indexOf(url.pathname) !== -1;
+          } catch (_) {
+            return false;
+          }
+        };
+
+        var isAppShellCache = function (name) {
+          return /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name)
+            && (name.indexOf(window.location.origin) !== -1 || name.indexOf(window.location.host) !== -1);
+        };
+
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.getRegistrations().then(function (registrations) {
+            registrations.forEach(function (registration) {
+              var worker = registration.active || registration.waiting || registration.installing;
+              if (worker && isAppShellScript(worker.scriptURL)) {
+                try { registration.update(); } catch (_) {}
+                try { registration.unregister(); } catch (_) {}
+              }
+            });
+          }).catch(function () {});
+
+          if ('caches' in window) {
+            caches.keys().then(function (names) {
+              return Promise.allSettled(names.filter(isAppShellCache).map(function (name) { return caches.delete(name); }));
+            }).catch(function () {});
+          }
+        });
+      })();
     </script>
     <link rel="icon" type="image/png" href="/favicon.png">
     <!-- TODO: Set the document title to the name of your application -->
