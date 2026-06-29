@@ -44,19 +44,19 @@ const isPlaceholderUrl = (u?: string | null) => {
 
 /**
  * Builds the final endpoint URL.
- * Accepts either a base URL (https://taskhub.app) OR a full endpoint
- * (https://taskhub.app/api/public/integrations/<slug>/issues) for TASKHUB_API_URL.
+ * Spec: POST /api/integrations/crm-mci/cards
+ * Accepts either a base URL (https://taskhub.app) OR a full endpoint already
+ * containing /api/integrations/<slug>/cards (or legacy /api/public/integrations/<slug>/issues).
  */
 function buildEndpoint(apiUrl: string, sourceApp: string): string {
   const trimmed = apiUrl.replace(/\/+$/, "");
-  const slug = sourceApp.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
-  if (/\/api\/public\/integrations\/[^/]+\/issues$/i.test(trimmed)) {
-    return trimmed; // user already configured the full endpoint
+  const slug = (sourceApp || "crm-mci").trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
+  if (/\/api\/integrations\/[^/]+\/cards$/i.test(trimmed)) return trimmed;
+  if (/\/api\/public\/integrations\/[^/]+\/issues$/i.test(trimmed)) return trimmed;
+  if (/\/api\/integrations\/?$/i.test(trimmed)) {
+    return `${trimmed.replace(/\/$/, "")}/${slug}/cards`;
   }
-  if (/\/api\/public\/integrations\/?$/i.test(trimmed)) {
-    return `${trimmed.replace(/\/$/, "")}/${slug}/issues`;
-  }
-  return `${trimmed}/api/public/integrations/${slug}/issues`;
+  return `${trimmed}/api/integrations/${slug}/cards`;
 }
 
 async function forwardWithRetry(url: string, key: string, body: unknown) {
@@ -166,7 +166,37 @@ Deno.serve(async (req) => {
 
   const ctx = (body.context ?? {}) as Record<string, any>;
 
+  const tipoMap: Record<string, string> = {
+    bug: "bug",
+    improvement: "melhoria",
+    idea: "ideia",
+    request: "solicitacao",
+  };
+  const prioridadeMap: Record<string, string> = {
+    low: "baixa",
+    medium: "media",
+    high: "alta",
+    urgent: "urgente",
+  };
+
   const forwarded = {
+    // Spec fields (pt-BR)
+    tipo: tipoMap[body.type] ?? body.type,
+    prioridade: prioridadeMap[body.priority ?? "medium"] ?? body.priority ?? "media",
+    titulo: String(body.title).trim(),
+    descricao: String(body.description).trim(),
+    modulo: body.module ?? ctx.module ?? null,
+    url: ctx.page_url ?? null,
+    usuario: {
+      id: ctx.user_id ?? null,
+      nome: ctx.user_name ?? null,
+      email: ctx.user_email ?? null,
+      role: ctx.user_role ?? null,
+    },
+    versao_crm: ctx.app_version ?? null,
+    anexos: body.attachments ?? [],
+
+    // Back-compat fields
     source: body.source_app,
     project: body.source_app,
     type: body.type,
