@@ -111,13 +111,22 @@ export default function NotificationBell() {
     }
   };
 
-  if (!user) return null;
-
   const filtered = useMemo(() => {
     if (typeFilter === 'all') return notifications;
     if (typeFilter === 'unread') return notifications.filter(n => !n.is_read);
     return notifications.filter(n => (n.type || '').startsWith(typeFilter));
   }, [notifications, typeFilter]);
+
+  const availableTypes = useMemo(() => {
+    const set = new Set<string>();
+    notifications.forEach(n => {
+      const key = n.type?.startsWith('demonstration_') ? 'demonstration' : n.type;
+      if (key) set.add(key);
+    });
+    return Array.from(set);
+  }, [notifications]);
+
+  if (!user) return null;
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
