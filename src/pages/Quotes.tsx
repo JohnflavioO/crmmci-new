@@ -36,6 +36,41 @@ import PrivacyToggle from '@/components/PrivacyToggle';
 
 const db = supabase as any;
 
+const renderDemoBadge = (q: any, size: 'sm' | 'xs' = 'xs') => {
+  if (!q?.is_demonstration) return null;
+  const end = q.demonstration_end_date ? new Date(q.demonstration_end_date + 'T00:00:00') : null;
+  let suffix = '';
+  let className = 'bg-amber-500 text-white border-amber-600';
+  if (end) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const diff = Math.round((end.getTime() - today.getTime()) / 86400000);
+    if (diff < 0) {
+      suffix = ` · vencida há ${Math.abs(diff)}d`;
+      className = 'bg-red-600 text-white border-red-700 animate-pulse';
+    } else if (diff === 0) {
+      suffix = ' · vence hoje';
+      className = 'bg-red-500 text-white border-red-600';
+    } else if (diff <= 3) {
+      suffix = ` · ${diff}d restantes`;
+      className = 'bg-orange-500 text-white border-orange-600';
+    } else if (diff <= 7) {
+      suffix = ` · ${diff}d restantes`;
+      className = 'bg-amber-500 text-white border-amber-600';
+    } else {
+      suffix = ` · ${diff}d restantes`;
+    }
+  }
+  const sizeCls = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-1.5 py-0.5 text-[10px]';
+  return (
+    <span
+      title={end ? `Demonstração até ${end.toLocaleDateString('pt-BR')}` : 'Demonstração'}
+      className={`inline-flex items-center rounded-full font-bold border tracking-wide ${sizeCls} ${className}`}
+    >
+      DEMONSTRAÇÃO{suffix}
+    </span>
+  );
+};
+
 const normalizeProductText = (value: any): string =>
   (value ?? '').toString().toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
