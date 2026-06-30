@@ -306,14 +306,22 @@ export async function requestNotificationPermission(): Promise<string> {
     throw new FcmError("vapid_missing", "VAPID Key não configurada no cliente.");
 
   const messaging = await getMessagingOrThrow();
+  console.log("[FCM] Firebase Messaging inicializado.");
 
   let permission: NotificationPermission;
   try {
+    console.log("[FCM] Chamando Notification.requestPermission()…");
     permission = await Notification.requestPermission();
+    console.log("[FCM] Notification.requestPermission() ->", permission);
   } catch (e: any) {
+    console.error("[FCM] Notification.requestPermission() THREW", {
+      name: e?.name,
+      message: e?.message,
+      error: e,
+    });
     throw new FcmError(
       "permission_request_failed",
-      `Falha ao solicitar permissão: ${e?.message || e}`,
+      `Falha ao solicitar permissão: ${e?.name || ""} ${e?.message || e}`,
       e
     );
   }
@@ -329,21 +337,34 @@ export async function requestNotificationPermission(): Promise<string> {
       "Permissão não concedida (usuário fechou o prompt)."
     );
 
+  console.log("[FCM] Registrando Service Worker…");
   const swReg = await registerSW();
 
   let token: string | null = null;
   try {
+    console.log("[FCM] Chamando getToken() com VAPID…", {
+      vapidPreview: `${VAPID_KEY.slice(0, 10)}…${VAPID_KEY.slice(-6)}`,
+      swScope: swReg.scope,
+    });
     token = await getToken(messaging, {
       vapidKey: VAPID_KEY,
       serviceWorkerRegistration: swReg,
     });
+    console.log("[FCM] getToken() ->", token ? `${token.slice(0, 16)}…${token.slice(-6)}` : "(vazio)");
   } catch (e: any) {
     const msg = e?.message || String(e);
     let code = "get_token_failed";
     if (/permission/i.test(msg)) code = "permission_denied";
     else if (/applicationServerKey|vapid/i.test(msg)) code = "vapid_invalid";
     else if (/push service|registration/i.test(msg)) code = "push_service_failed";
-    throw new FcmError(code, `getToken() falhou: ${msg}`, e);
+    console.error("[FCM] getToken() FAILED", {
+      code,
+      name: e?.name,
+      message: msg,
+      stack: e?.stack,
+      error: e,
+    });
+    throw new FcmError(code, `getToken() falhou: ${e?.name || ""} ${msg}`, e);
   }
 
   if (!token)
@@ -352,7 +373,9 @@ export async function requestNotificationPermission(): Promise<string> {
       "getToken() retornou vazio. Verifique VAPID Key e Service Worker."
     );
 
+  console.log("[FCM] Salvando token no banco…");
   await saveTokenToDatabase(token);
+  console.log("[FCM] Token salvo com sucesso.");
   return token;
 }
 
