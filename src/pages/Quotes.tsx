@@ -31,6 +31,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { usePrivacy } from '@/hooks/usePrivacy';
+import PrivacyToggle from '@/components/PrivacyToggle';
 
 const db = supabase as any;
 
@@ -249,6 +251,7 @@ function PaymentMethodFields({ method, date, onDateChange, installments, onInsta
 export default function Quotes() {
   const { user, profile, isGestor, isAdmin } = useAuth();
   const isMobile = useIsMobile();
+  const { isHidden: privacyHidden } = usePrivacy();
   const [quotes, setQuotes] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -1950,8 +1953,9 @@ export default function Quotes() {
                 </Button>
               )}
             </div>
-            <p className="text-sm font-semibold text-foreground">
-              Total: <span className="text-primary">{formatCurrency(filteredTotal)}</span>
+            <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+              Total: <span className="text-primary">{privacyHidden ? '••••••••' : formatCurrency(filteredTotal)}</span>
+              <PrivacyToggle />
             </p>
           </div>
 
