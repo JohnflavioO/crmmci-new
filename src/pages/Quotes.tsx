@@ -816,6 +816,8 @@ export default function Quotes() {
         shipping_notes: quote.shipping_notes || '',
         followup_date: safeDateValue(quote.followup_date),
         is_demonstration: quote.is_demonstration || false,
+        demonstration_start_date: safeDateValue(quote.demonstration_start_date),
+        demonstration_end_date: safeDateValue(quote.demonstration_end_date),
       };
 
       console.log('[Quotes.handleEdit] Sucesso no processamento dos dados:', {
