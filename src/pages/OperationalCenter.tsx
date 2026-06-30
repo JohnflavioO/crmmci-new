@@ -431,8 +431,45 @@ export default function OperationalCenter() {
                   ]
                 }))}
               />
+
+              <OperationalCard
+                title="Demonstrações Ativas"
+                count={data.seller.demonstrations.length}
+                priority={
+                  data.seller.demonstrations.some((d: any) => {
+                    const diff = differenceInDays(new Date(d.demonstration_end_date), new Date());
+                    return diff < 0;
+                  })
+                    ? "urgent"
+                    : data.seller.demonstrations.some((d: any) => differenceInDays(new Date(d.demonstration_end_date), new Date()) <= 3)
+                    ? "attention"
+                    : "normal"
+                }
+                icon={Package}
+                description="Propostas em demonstração com prazo definido"
+                items={data.seller.demonstrations.slice(0, 6).map((d: any) => {
+                  const end = new Date(d.demonstration_end_date);
+                  const diff = differenceInDays(end, new Date());
+                  const label =
+                    diff < 0 ? `🔴 Vencida há ${Math.abs(diff)}d` :
+                    diff === 0 ? '⏰ Vence hoje' :
+                    diff <= 3 ? `⚠️ ${diff}d restantes` :
+                    `${diff}d restantes`;
+                  return {
+                    id: d.id,
+                    title: d.clients?.company_name || d.clients?.name || d.client_name,
+                    subtitle: `Fim: ${format(end, 'dd/MM/yyyy')} · ${label}`,
+                    origin: `${d.quote_number} · ${maskValue(parseFloat(d.total_amount) || 0)}`,
+                    actions: [
+                      { label: 'WhatsApp', icon: Phone, onClick: () => handleQuickAction('whatsapp', d) },
+                      { label: 'Abrir', icon: ExternalLink, onClick: () => handleQuickAction('open_quote', d) }
+                    ]
+                  };
+                })}
+              />
             </div>
           </section>
+
 
           {/* GESTOR SECTIONS */}
           {isGestor && (
