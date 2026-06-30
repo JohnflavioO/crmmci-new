@@ -852,34 +852,49 @@ export type Database = {
       }
       notifications: {
         Row: {
+          company_id: string | null
           created_at: string
           id: string
           is_read: boolean
           message: string
+          module: string | null
+          priority: string
+          read_at: string | null
           related_client_id: string | null
           related_quote_id: string | null
+          related_url: string | null
           title: string
           type: string
           user_id: string
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           id?: string
           is_read?: boolean
           message: string
+          module?: string | null
+          priority?: string
+          read_at?: string | null
           related_client_id?: string | null
           related_quote_id?: string | null
+          related_url?: string | null
           title: string
           type?: string
           user_id: string
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           id?: string
           is_read?: boolean
           message?: string
+          module?: string | null
+          priority?: string
+          read_at?: string | null
           related_client_id?: string | null
           related_quote_id?: string | null
+          related_url?: string | null
           title?: string
           type?: string
           user_id?: string
@@ -2475,6 +2490,7 @@ export type Database = {
           browser: string | null
           company_id: string | null
           created_at: string
+          device_info: Json | null
           device_type: string | null
           fcm_token: string
           id: string
@@ -2487,6 +2503,7 @@ export type Database = {
           browser?: string | null
           company_id?: string | null
           created_at?: string
+          device_info?: Json | null
           device_type?: string | null
           fcm_token: string
           id?: string
@@ -2499,6 +2516,7 @@ export type Database = {
           browser?: string | null
           company_id?: string | null
           created_at?: string
+          device_info?: Json | null
           device_type?: string | null
           fcm_token?: string
           id?: string

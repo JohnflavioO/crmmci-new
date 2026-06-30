@@ -118,21 +118,29 @@ Deno.serve(async (req) => {
           message,
           type: meta.type,
           related_quote_id: q.id,
+          related_url: `/quotes?id=${q.id}`,
+          module: "demonstracao",
+          priority: stage === "overdue" ? "alta" : stage === "due" ? "alta" : "normal",
           is_read: false,
         });
         createdCount++;
 
-        // Push (se houver tokens ativos)
-        const { data: tokens } = await supabase
-          .from("user_push_tokens")
-          .select("fcm_token")
-          .eq("user_id", userId)
-          .eq("is_active", true);
-
-        if (tokens && tokens.length) {
-          // Apenas log; o envio FCM real depende de credenciais separadas
-          console.log(`[demo-reminders] push p/ ${userId} (${tokens.length} token(s)): ${title}`);
-          pushCount += tokens.length;
+        // Disparar push FCM real
+        try {
+          await supabase.functions.invoke("send-push-notifications", {
+            body: {
+              action: "send_push",
+              notification: {
+                userId,
+                title,
+                body: message,
+                data: { url: `/quotes?id=${q.id}`, quoteId: q.id, type: meta.type },
+              },
+            },
+          });
+          pushCount++;
+        } catch (e) {
+          console.warn("[demo-reminders] push falhou:", e);
         }
       }
     }
