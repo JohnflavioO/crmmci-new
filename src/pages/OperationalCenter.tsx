@@ -52,14 +52,16 @@ export default function OperationalCenter() {
       noResponseProposals: [],
       forgottenClients: [],
       smartOpportunities: [],
-      urgentTasks: []
+      urgentTasks: [],
+      demonstrations: []
     },
     manager: {
       teamNoFollowup: [],
       stuckFunnels: [],
       forecastRisk: [],
       topSellers: [],
-      alerts: []
+      alerts: [],
+      teamDemonstrations: []
     },
     finance: {
       expiringSlips: [],
