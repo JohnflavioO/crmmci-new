@@ -358,14 +358,20 @@ export async function getFcmDiagnostics(): Promise<FcmDiagnostics> {
           errors.push(`SW register: ${serviceWorkerRegisterError}`);
         }
       }
-      serviceWorkerRegistered = !!reg;
+      serviceWorkerRegistered = isFirebaseMessagingRegistration(reg);
       serviceWorkerScope = reg?.scope ?? null;
       const sw = reg?.active || reg?.installing || reg?.waiting;
       serviceWorkerState = sw?.state ?? null;
+      if (reg && !serviceWorkerRegistered) {
+        errors.push(`SW conflito: escopo raiz usa ${sw?.scriptURL || "script desconhecido"}, não /firebase-messaging-sw.js`);
+      }
       try {
         const ready = await navigator.serviceWorker.ready;
-        serviceWorkerReady = !!ready;
+        serviceWorkerReady = isFirebaseMessagingRegistration(ready);
         serviceWorkerReadyScope = ready.scope ?? null;
+        if (ready && !serviceWorkerReady) {
+          errors.push(`SW ready conflito: ${swInfo(ready)?.scriptURL || "script desconhecido"}`);
+        }
       } catch (e: any) {
         errors.push(`SW ready: ${e?.message || e}`);
       }
