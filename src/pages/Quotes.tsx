@@ -1953,8 +1953,9 @@ export default function Quotes() {
                 </Button>
               )}
             </div>
-            <p className="text-sm font-semibold text-foreground">
-              Total: <span className="text-primary">{formatCurrency(filteredTotal)}</span>
+            <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+              Total: <span className="text-primary">{privacyHidden ? '••••••••' : formatCurrency(filteredTotal)}</span>
+              <PrivacyToggle />
             </p>
           </div>
 
