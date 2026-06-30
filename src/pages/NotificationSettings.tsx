@@ -235,6 +235,10 @@ export default function NotificationSettings() {
                   ok={diag.serviceWorkerRegistered}
                   label={`Service Worker registrado${diag.serviceWorkerScope ? ` — scope ${diag.serviceWorkerScope}` : ''}${diag.serviceWorkerState ? ` (${diag.serviceWorkerState})` : ''}`}
                 />
+                <DiagRow
+                  ok={diag.serviceWorkerReady}
+                  label={`Service Worker ready${diag.serviceWorkerReadyScope ? ` — scope ${diag.serviceWorkerReadyScope}` : ''}`}
+                />
                 {diag.serviceWorkerRegisterError && (
                   <div className="ml-6 text-xs text-destructive">
                     register() error: <span className="font-mono">{diag.serviceWorkerRegisterError}</span>
@@ -242,12 +246,42 @@ export default function NotificationSettings() {
                 )}
                 <DiagRow ok={diag.firebaseInitialized} label="Firebase inicializado" />
                 <DiagRow ok={diag.messagingSupported} label="Firebase Messaging suportado" />
-                <DiagRow ok={diag.vapidConfigured} label="VAPID Key configurada" />
+                <DiagRow ok={diag.vapidConfigured} label={`VAPID Key configurada (${diag.vapidKeyMasked})`} />
+                <DiagRow ok={diag.getTokenExecuted} label="getToken executado" />
                 <DiagRow
-                  ok={diag.tokenObtained}
-                  label={`Token FCM obtido${diag.tokenPreview ? ` (${diag.tokenPreview})` : ''}`}
+                  ok={diag.tokenReturned}
+                  label={`Token retornado${diag.tokenPreview ? ` (${diag.tokenPreview})` : ''}`}
                 />
                 <DiagRow ok={diag.tokenSavedInDb} label="Token salvo no banco (user_push_tokens)" />
+                <div className="pt-2 text-xs text-muted-foreground space-y-0.5">
+                  <div><span className="font-medium">Firebase project:</span> {diag.firebaseProjectId}</div>
+                  <div><span className="font-medium">Sender ID:</span> {diag.messagingSenderId}</div>
+                  <div><span className="font-medium">Firebase SDK:</span> {diag.firebaseSdkVersion}</div>
+                </div>
+                {diag.tokenTechnicalError && (
+                  <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive space-y-2">
+                    <div className="font-semibold">Erro técnico do token</div>
+                    <div className="grid gap-1">
+                      <div><span className="font-medium">error.code:</span> <span className="font-mono break-all">{diag.tokenTechnicalError.code}</span></div>
+                      <div><span className="font-medium">error.message:</span> <span className="font-mono break-words">{diag.tokenTechnicalError.message}</span></div>
+                      {diag.tokenTechnicalError.name && (
+                        <div><span className="font-medium">name:</span> <span className="font-mono">{diag.tokenTechnicalError.name}</span></div>
+                      )}
+                      {diag.tokenTechnicalError.stackSummary && (
+                        <div>
+                          <div className="font-medium mb-1">stack resumida:</div>
+                          <pre className="whitespace-pre-wrap break-words rounded bg-background/60 p-2 font-mono text-[10px] leading-relaxed">{diag.tokenTechnicalError.stackSummary}</pre>
+                        </div>
+                      )}
+                      <div className="pt-1 text-destructive/80">
+                        <div><span className="font-medium">messaging inicializado:</span> {diag.tokenTechnicalError.messagingInitialized ? 'sim' : 'não'}</div>
+                        <div><span className="font-medium">VAPID usada:</span> <span className="font-mono">{diag.tokenTechnicalError.vapidKeyMasked}</span></div>
+                        <div><span className="font-medium">SW passado ao getToken:</span> <span className="font-mono break-all">{diag.tokenTechnicalError.serviceWorkerRegistration?.scriptURL || 'indisponível'}</span></div>
+                        <div><span className="font-medium">SW ready:</span> <span className="font-mono break-all">{diag.tokenTechnicalError.serviceWorkerReady?.scriptURL || 'indisponível'}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">
                   <span className="font-medium">Device ID:</span>
                   <span className="font-mono">{diag.deviceId}</span>
