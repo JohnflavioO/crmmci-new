@@ -321,7 +321,7 @@ export default function Quotes() {
       // aplicamos o filtro de responsável para evitar confusão.
       // Por padrão, mostramos apenas os orçamentos do usuário atual.
       let quotesQuery = db.from('quotes')
-        .select('*, clients(company_name, name, phone), quote_items(transfer_status)')
+        .select('*, clients(company_name, name, phone), quote_items(transfer_status, quantity)')
         .order('created_at', { ascending: false })
         .limit(200);
       
