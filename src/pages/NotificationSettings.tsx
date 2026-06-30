@@ -228,9 +228,18 @@ export default function NotificationSettings() {
                 />
                 <DiagRow ok={diag.serviceWorkerApi} label="Service Worker API disponível" />
                 <DiagRow
-                  ok={diag.serviceWorkerRegistered}
-                  label={`Service Worker registrado${diag.serviceWorkerScope ? ` (${diag.serviceWorkerScope})` : ''}`}
+                  ok={diag.serviceWorkerFileReachable}
+                  label="Arquivo /firebase-messaging-sw.js servido"
                 />
+                <DiagRow
+                  ok={diag.serviceWorkerRegistered}
+                  label={`Service Worker registrado${diag.serviceWorkerScope ? ` — scope ${diag.serviceWorkerScope}` : ''}${diag.serviceWorkerState ? ` (${diag.serviceWorkerState})` : ''}`}
+                />
+                {diag.serviceWorkerRegisterError && (
+                  <div className="ml-6 text-xs text-destructive">
+                    register() error: <span className="font-mono">{diag.serviceWorkerRegisterError}</span>
+                  </div>
+                )}
                 <DiagRow ok={diag.firebaseInitialized} label="Firebase inicializado" />
                 <DiagRow ok={diag.messagingSupported} label="Firebase Messaging suportado" />
                 <DiagRow ok={diag.vapidConfigured} label="VAPID Key configurada" />

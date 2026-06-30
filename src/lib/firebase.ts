@@ -114,8 +114,11 @@ export interface FcmDiagnostics {
   notificationApi: boolean;
   permission: NotificationPermission | "unavailable";
   serviceWorkerApi: boolean;
+  serviceWorkerFileReachable: boolean;
   serviceWorkerRegistered: boolean;
   serviceWorkerScope: string | null;
+  serviceWorkerState: string | null;
+  serviceWorkerRegisterError: string | null;
   firebaseInitialized: boolean;
   messagingSupported: boolean;
   vapidConfigured: boolean;
@@ -139,16 +142,50 @@ export async function getFcmDiagnostics(): Promise<FcmDiagnostics> {
 
   let serviceWorkerRegistered = false;
   let serviceWorkerScope: string | null = null;
+  let serviceWorkerState: string | null = null;
+  let serviceWorkerFileReachable = false;
+  let serviceWorkerRegisterError: string | null = null;
+
   if (serviceWorkerApi) {
+    // 1) Confere que o arquivo é servido na raiz do domínio
     try {
-      const reg = await navigator.serviceWorker.getRegistration(
-        "/firebase-messaging-sw.js"
-      );
+      const resp = await fetch("/firebase-messaging-sw.js", { cache: "no-store" });
+      serviceWorkerFileReachable = resp.ok;
+      if (!resp.ok) {
+        errors.push(`SW file HTTP ${resp.status} em /firebase-messaging-sw.js`);
+      } else {
+        const ct = resp.headers.get("content-type") || "";
+        if (!/javascript/i.test(ct)) {
+          errors.push(`SW file servido com content-type inesperado: ${ct}`);
+        }
+      }
+    } catch (e: any) {
+      errors.push(`SW fetch: ${e?.message || e}`);
+    }
+
+    // 2) Verifica registro existente; se não houver, tenta registrar e captura o erro real
+    try {
+      let reg = await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js");
+      if (!reg && serviceWorkerFileReachable) {
+        try {
+          reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js", {
+            scope: "/",
+          });
+          await navigator.serviceWorker.ready;
+        } catch (e: any) {
+          serviceWorkerRegisterError = `${e?.name || "Error"}: ${e?.message || e}`;
+          errors.push(`SW register: ${serviceWorkerRegisterError}`);
+        }
+      }
       serviceWorkerRegistered = !!reg;
       serviceWorkerScope = reg?.scope ?? null;
+      const sw = reg?.active || reg?.installing || reg?.waiting;
+      serviceWorkerState = sw?.state ?? null;
     } catch (e: any) {
       errors.push(`SW lookup: ${e?.message || e}`);
     }
+  } else {
+    errors.push("navigator.serviceWorker indisponível (contexto não-seguro ou navegador sem suporte).");
   }
 
   let firebaseInitialized = false;
@@ -195,8 +232,11 @@ export async function getFcmDiagnostics(): Promise<FcmDiagnostics> {
     notificationApi,
     permission,
     serviceWorkerApi,
+    serviceWorkerFileReachable,
     serviceWorkerRegistered,
     serviceWorkerScope,
+    serviceWorkerState,
+    serviceWorkerRegisterError,
     firebaseInitialized,
     messagingSupported,
     vapidConfigured,
