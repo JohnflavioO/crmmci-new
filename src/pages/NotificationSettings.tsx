@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Smartphone, Volume2, VolumeX, Send, RefreshCw, Trash2, ShieldCheck } from 'lucide-react';
-import { requestNotificationPermission } from '@/lib/firebase';
+import { Bell, Smartphone, Volume2, VolumeX, Send, RefreshCw, Trash2, ShieldCheck, Activity, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { requestNotificationPermission, getFcmDiagnostics, markFcmTestPerformed, type FcmDiagnostics } from '@/lib/firebase';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -37,6 +37,8 @@ export default function NotificationSettings() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [diag, setDiag] = useState<FcmDiagnostics | null>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
 
   const loadDevices = async () => {
     if (!user) return;
@@ -50,18 +52,29 @@ export default function NotificationSettings() {
     setLoading(false);
   };
 
-  useEffect(() => { loadDevices(); }, [user]);
+  const runDiagnostics = async () => {
+    setDiagLoading(true);
+    try {
+      const d = await getFcmDiagnostics();
+      setDiag(d);
+    } finally {
+      setDiagLoading(false);
+    }
+  };
+
+  useEffect(() => { loadDevices(); runDiagnostics(); }, [user]);
 
   const handleEnablePush = async () => {
-    const token = await requestNotificationPermission();
-    setPermission(typeof Notification !== 'undefined' ? Notification.permission : 'default');
-    if (token) {
+    try {
+      await requestNotificationPermission();
+      setPermission(typeof Notification !== 'undefined' ? Notification.permission : 'default');
       toast.success('Push ativado e dispositivo registrado!');
       await loadDevices();
-    } else if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
-      toast.error('Notificações bloqueadas. Habilite nas permissões do site.');
-    } else {
-      toast.message('Não foi possível ativar. Tente novamente.');
+      await runDiagnostics();
+    } catch (e: any) {
+      setPermission(typeof Notification !== 'undefined' ? Notification.permission : 'default');
+      toast.error(`[${e?.code || 'erro'}] ${e?.message || 'Falha ao ativar push'}`, { duration: 8000 });
+      await runDiagnostics();
     }
   };
 
@@ -97,9 +110,11 @@ export default function NotificationSettings() {
         logger.warn('Push test invoke failed:', e);
       }
 
+      markFcmTestPerformed();
+      await runDiagnostics();
       toast.success('Notificação de teste enviada!');
     } catch (e: any) {
-      toast.error(e?.message || 'Falha ao enviar teste');
+      toast.error(`[${e?.code || 'erro'}] ${e?.message || 'Falha ao enviar teste'}`, { duration: 8000 });
     } finally {
       setTesting(false);
     }
@@ -191,6 +206,65 @@ export default function NotificationSettings() {
           <CardHeader className="flex flex-row items-start justify-between gap-2">
             <div>
               <CardTitle className="text-base flex items-center gap-2">
+                <Activity className="h-4 w-4" /> Diagnóstico FCM
+              </CardTitle>
+              <CardDescription>Verificação completa do fluxo de push.</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" onClick={runDiagnostics} disabled={diagLoading}>
+              <RefreshCw className={`h-4 w-4 ${diagLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {!diag ? (
+              <p className="text-sm text-muted-foreground">Executando diagnóstico…</p>
+            ) : (
+              <div className="space-y-1.5 text-sm">
+                <DiagRow ok={diag.isSecureContext} label="Contexto seguro (HTTPS)" />
+                <DiagRow ok={diag.notificationApi} label="Notification API disponível" />
+                <DiagRow
+                  ok={diag.permission === 'granted'}
+                  warn={diag.permission === 'default'}
+                  label={`Permissão do navegador: ${diag.permission}`}
+                />
+                <DiagRow ok={diag.serviceWorkerApi} label="Service Worker API disponível" />
+                <DiagRow
+                  ok={diag.serviceWorkerRegistered}
+                  label={`Service Worker registrado${diag.serviceWorkerScope ? ` (${diag.serviceWorkerScope})` : ''}`}
+                />
+                <DiagRow ok={diag.firebaseInitialized} label="Firebase inicializado" />
+                <DiagRow ok={diag.messagingSupported} label="Firebase Messaging suportado" />
+                <DiagRow ok={diag.vapidConfigured} label="VAPID Key configurada" />
+                <DiagRow
+                  ok={diag.tokenObtained}
+                  label={`Token FCM obtido${diag.tokenPreview ? ` (${diag.tokenPreview})` : ''}`}
+                />
+                <DiagRow ok={diag.tokenSavedInDb} label="Token salvo no banco (user_push_tokens)" />
+                <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">
+                  <span className="font-medium">Device ID:</span>
+                  <span className="font-mono">{diag.deviceId}</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-medium">Último teste:</span>
+                  <span>
+                    {diag.lastTestAt
+                      ? formatDistanceToNow(new Date(diag.lastTestAt), { addSuffix: true, locale: ptBR })
+                      : 'nunca'}
+                  </span>
+                </div>
+                {diag.errors.length > 0 && (
+                  <div className="mt-2 p-2 rounded border border-destructive/40 bg-destructive/5 text-xs text-destructive space-y-1">
+                    {diag.errors.map((e, i) => (<div key={i}>• {e}</div>))}
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-start justify-between gap-2">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
                 <Smartphone className="h-4 w-4" /> Dispositivos conectados
               </CardTitle>
               <CardDescription>Navegadores e celulares que recebem suas notificações push.</CardDescription>
@@ -235,5 +309,16 @@ export default function NotificationSettings() {
         </Card>
       </div>
     </AppLayout>
+  );
+}
+
+function DiagRow({ ok, warn, label }: { ok: boolean; warn?: boolean; label: string }) {
+  const Icon = ok ? CheckCircle2 : warn ? AlertCircle : XCircle;
+  const cls = ok ? 'text-emerald-600' : warn ? 'text-amber-600' : 'text-destructive';
+  return (
+    <div className="flex items-center gap-2">
+      <Icon className={`h-4 w-4 shrink-0 ${cls}`} />
+      <span className={ok ? '' : 'text-muted-foreground'}>{label}</span>
+    </div>
   );
 }

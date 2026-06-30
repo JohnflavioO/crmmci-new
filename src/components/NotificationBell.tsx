@@ -58,14 +58,12 @@ export default function NotificationBell() {
   );
 
   const handleEnablePush = async () => {
-    const token = await requestNotificationPermission();
-    if (token) {
+    try {
+      await requestNotificationPermission();
       setIsPushEnabled(true);
       toast.success('Notificações push ativadas!');
-    } else if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
-      toast.error('Notificações bloqueadas no navegador. Habilite nas configurações do site.');
-    } else {
-      toast.message('Não foi possível ativar agora. Tente novamente.');
+    } catch (e: any) {
+      toast.error(`[${e?.code || 'erro'}] ${e?.message || 'Falha ao ativar push'}`);
     }
   };
 
