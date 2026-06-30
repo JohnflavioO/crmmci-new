@@ -70,6 +70,43 @@ function isFirebaseMessagingRegistration(reg: ServiceWorkerRegistration | null |
   }
 }
 
+async function waitForFirebaseWorkerActivation(
+  registration: ServiceWorkerRegistration,
+  timeoutMs = 8000
+): Promise<ServiceWorkerRegistration> {
+  if (isFirebaseMessagingRegistration(registration) && registration.active?.state === "activated") {
+    return registration;
+  }
+
+  const candidate = registration.installing || registration.waiting || registration.active;
+  if (candidate && new URL(candidate.scriptURL).pathname === "/firebase-messaging-sw.js") {
+    try {
+      candidate.postMessage({ type: "SKIP_WAITING" });
+    } catch {
+      // segue aguardando statechange
+    }
+  }
+
+  await new Promise<void>((resolve) => {
+    const done = () => resolve();
+    const timeout = window.setTimeout(done, timeoutMs);
+    const worker = registration.installing || registration.waiting;
+    if (!worker) {
+      window.clearTimeout(timeout);
+      done();
+      return;
+    }
+    worker.addEventListener("statechange", () => {
+      if (worker.state === "activated") {
+        window.clearTimeout(timeout);
+        done();
+      }
+    });
+  });
+
+  return registration;
+}
+
 interface TokenAttemptDiagnostics {
   executed: boolean;
   returned: boolean;
@@ -209,6 +246,8 @@ async function registerSW(): Promise<ServiceWorkerRegistration> {
     // Sequência obrigatória para FCM: register('/firebase-messaging-sw.js') -> ready -> getToken(...registration)
     const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
     console.log("[FCM] navigator.serviceWorker.register('/firebase-messaging-sw.js') ->", swInfo(registration));
+
+    await waitForFirebaseWorkerActivation(registration);
 
     const ready = await navigator.serviceWorker.ready;
     console.log("[FCM] navigator.serviceWorker.ready ->", swInfo(ready));
