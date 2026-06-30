@@ -2085,6 +2085,15 @@ export default function Quotes() {
                             DEMONSTRAÇÃO
                           </span>
                         )}
+                        {(() => {
+                          const tc = (q.quote_items || []).filter((it: any) => !!it.transfer_status).length;
+                          if (!tc) return null;
+                          return (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-orange-100 text-orange-800 border border-orange-200" title="Itens em transferência">
+                              ⇄ {tc} {tc === 1 ? 'Item' : 'Itens'} em transferência
+                            </span>
+                          );
+                        })()}
                       </div>
                     </TableCell>
                     <TableCell>{q.clients?.company_name || q.clients?.name || q.client_name || '-'}</TableCell>
