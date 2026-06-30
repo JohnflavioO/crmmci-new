@@ -110,9 +110,11 @@ export default function NotificationSettings() {
         logger.warn('Push test invoke failed:', e);
       }
 
+      markFcmTestPerformed();
+      await runDiagnostics();
       toast.success('Notificação de teste enviada!');
     } catch (e: any) {
-      toast.error(e?.message || 'Falha ao enviar teste');
+      toast.error(`[${e?.code || 'erro'}] ${e?.message || 'Falha ao enviar teste'}`, { duration: 8000 });
     } finally {
       setTesting(false);
     }
