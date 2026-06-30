@@ -191,6 +191,8 @@ const defaultForm = {
   shipping_notes: '',
   followup_date: '' as string,
   is_demonstration: false,
+  demonstration_start_date: '' as string,
+  demonstration_end_date: '' as string,
 };
 
 const QUICK_ENTRY_STATUSES = ['contato_feito', 'sent', 'negociacao'];
