@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Bell, Check, X, ShieldCheck, Settings, Filter } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -11,22 +10,7 @@ import { ptBR } from 'date-fns/locale';
 import { requestNotificationPermission } from '@/lib/firebase';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-
-const db = supabase as any;
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: string;
-  priority?: string | null;
-  module?: string | null;
-  related_url?: string | null;
-  is_read: boolean;
-  created_at: string;
-  related_quote_id?: string;
-  related_client_id?: string;
-}
+import { useNotifications, type AppNotification } from '@/contexts/NotificationsContext';
 
 const TYPE_LABELS: Record<string, string> = {
   quote_status: 'Orçamento',
@@ -37,6 +21,7 @@ const TYPE_LABELS: Record<string, string> = {
   demonstration_3d: 'Demonstração',
   demonstration_due: 'Demonstração',
   demonstration_overdue: 'Demonstração',
+  demonstration: 'Demonstração',
   financial: 'Financeiro',
   logistics: 'Logística',
   task: 'Tarefa',
@@ -65,39 +50,12 @@ const typeColor: Record<string, string> = {
 export default function NotificationBell() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { notifications, unreadCount, preferences, markRead, markAllRead, deleteOne } = useNotifications();
   const [open, setOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [isPushEnabled, setIsPushEnabled] = useState(
     typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted'
   );
-
-  const fetchNotifications = useCallback(async () => {
-    if (!user) return;
-    const { data } = await db
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(100);
-    setNotifications(data || []);
-  }, [user]);
-
-  useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
-
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel('notifications-bell')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${user.id}`,
-      }, () => { fetchNotifications(); })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user, fetchNotifications]);
 
   const handleEnablePush = async () => {
     const token = await requestNotificationPermission();
@@ -126,35 +84,16 @@ export default function NotificationBell() {
     return Array.from(set);
   }, [notifications]);
 
-  if (!user) return null;
+  // Quando o usuário desliga "Notificações internas", ocultamos o sino por completo.
+  if (!user || !preferences.notifications_enabled) return null;
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
-
-  const markAllRead = async () => {
-    const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
-    if (unreadIds.length === 0) return;
-    await db.from('notifications').update({ is_read: true }).in('id', unreadIds);
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-  };
-
-  const markRead = async (id: string) => {
-    await db.from('notifications').update({ is_read: true }).eq('id', id);
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
-  };
-
-  const deleteNotification = async (id: string) => {
-    await db.from('notifications').delete().eq('id', id);
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
-
-  const handleClick = (n: Notification) => {
+  const handleClick = (n: AppNotification) => {
     if (!n.is_read) markRead(n.id);
     setOpen(false);
     if (n.related_url) { navigate(n.related_url); return; }
     if (n.related_quote_id) { navigate(`/quotes?id=${n.related_quote_id}`); return; }
     if (n.related_client_id) { navigate(`/clients?id=${n.related_client_id}`); return; }
   };
-
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -227,7 +166,7 @@ export default function NotificationBell() {
                 onClick={() => handleClick(n)}
               >
                 <button
-                  onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }}
+                  onClick={(e) => { e.stopPropagation(); deleteOne(n.id); }}
                   className="absolute top-2 right-2 p-1 rounded hover:bg-muted/80 transition-colors"
                   aria-label="Remover"
                 >
