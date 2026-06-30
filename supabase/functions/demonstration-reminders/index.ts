@@ -142,12 +142,6 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.warn("[demo-reminders] push falhou:", e);
         }
-
-        if (tokens && tokens.length) {
-          // Apenas log; o envio FCM real depende de credenciais separadas
-          console.log(`[demo-reminders] push p/ ${userId} (${tokens.length} token(s)): ${title}`);
-          pushCount += tokens.length;
-        }
       }
     }
 
