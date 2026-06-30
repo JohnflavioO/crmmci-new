@@ -39,34 +39,52 @@ const db = supabase as any;
 const renderDemoBadge = (q: any, size: 'sm' | 'xs' = 'xs') => {
   if (!q?.is_demonstration) return null;
   const end = q.demonstration_end_date ? new Date(q.demonstration_end_date + 'T00:00:00') : null;
-  let suffix = '';
-  let className = 'bg-amber-500 text-white border-amber-600';
+  let detail = '';
+  // Default: violet/indigo elegante
+  let dotCls = 'bg-violet-500';
+  let textCls = 'text-violet-700 dark:text-violet-300';
+  let bgCls = 'bg-violet-50 dark:bg-violet-950/40 border-violet-200 dark:border-violet-800/60';
+  let pulse = false;
+
   if (end) {
     const today = new Date(); today.setHours(0,0,0,0);
     const diff = Math.round((end.getTime() - today.getTime()) / 86400000);
     if (diff < 0) {
-      suffix = ` · vencida há ${Math.abs(diff)}d`;
-      className = 'bg-red-600 text-white border-red-700 animate-pulse';
+      detail = `vencida há ${Math.abs(diff)}d`;
+      dotCls = 'bg-red-500';
+      textCls = 'text-red-700 dark:text-red-300';
+      bgCls = 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800/60';
+      pulse = true;
     } else if (diff === 0) {
-      suffix = ' · vence hoje';
-      className = 'bg-red-500 text-white border-red-600';
+      detail = 'vence hoje';
+      dotCls = 'bg-red-500';
+      textCls = 'text-red-700 dark:text-red-300';
+      bgCls = 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800/60';
     } else if (diff <= 3) {
-      suffix = ` · ${diff}d restantes`;
-      className = 'bg-orange-500 text-white border-orange-600';
+      detail = `${diff}d restantes`;
+      dotCls = 'bg-orange-500';
+      textCls = 'text-orange-700 dark:text-orange-300';
+      bgCls = 'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-800/60';
     } else if (diff <= 7) {
-      suffix = ` · ${diff}d restantes`;
-      className = 'bg-amber-500 text-white border-amber-600';
+      detail = `${diff}d restantes`;
+      dotCls = 'bg-amber-500';
+      textCls = 'text-amber-700 dark:text-amber-300';
+      bgCls = 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800/60';
     } else {
-      suffix = ` · ${diff}d restantes`;
+      detail = `${diff}d`;
     }
   }
-  const sizeCls = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-1.5 py-0.5 text-[10px]';
+  const sizeCls = size === 'sm' ? 'h-6 px-2 text-[11px] gap-1.5' : 'h-5 px-1.5 text-[10px] gap-1';
   return (
     <span
       title={end ? `Demonstração até ${end.toLocaleDateString('pt-BR')}` : 'Demonstração'}
-      className={`inline-flex items-center rounded-full font-bold border tracking-wide ${sizeCls} ${className}`}
+      className={`inline-flex items-center whitespace-nowrap rounded-md border font-medium ${sizeCls} ${bgCls} ${textCls}`}
     >
-      DEMONSTRAÇÃO{suffix}
+      <span className={`relative flex h-1.5 w-1.5 rounded-full ${dotCls}`}>
+        {pulse && <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping ${dotCls}`} />}
+      </span>
+      <span className="uppercase tracking-wider font-semibold">Demo</span>
+      {detail && <span className="opacity-75 font-normal normal-case tracking-normal">· {detail}</span>}
     </span>
   );
 };
