@@ -529,9 +529,42 @@ export default function OperationalCenter() {
                     ]
                   }))}
                 />
+
+                <OperationalCard
+                  title="Demonstrações da Equipe"
+                  count={data.manager.teamDemonstrations.length}
+                  priority={
+                    data.manager.teamDemonstrations.some((d: any) => differenceInDays(new Date(d.demonstration_end_date), new Date()) < 0)
+                      ? "urgent"
+                      : data.manager.teamDemonstrations.some((d: any) => differenceInDays(new Date(d.demonstration_end_date), new Date()) <= 3)
+                      ? "attention"
+                      : "normal"
+                  }
+                  icon={Package}
+                  description="Todas as demonstrações ativas do time"
+                  items={data.manager.teamDemonstrations.slice(0, 8).map((d: any) => {
+                    const end = new Date(d.demonstration_end_date);
+                    const diff = differenceInDays(end, new Date());
+                    const label =
+                      diff < 0 ? `🔴 Vencida há ${Math.abs(diff)}d` :
+                      diff === 0 ? '⏰ Vence hoje' :
+                      diff <= 3 ? `⚠️ ${diff}d restantes` :
+                      `${diff}d restantes`;
+                    return {
+                      id: d.id,
+                      title: d.clients?.company_name || d.clients?.name || d.client_name,
+                      subtitle: `${d.profiles?.full_name || '—'} · ${label}`,
+                      origin: `${d.quote_number} · Fim ${format(end, 'dd/MM')}`,
+                      actions: [
+                        { label: 'Abrir', icon: ExternalLink, onClick: () => handleQuickAction('open_quote', d) }
+                      ]
+                    };
+                  })}
+                />
               </div>
             </section>
           )}
+
 
           {/* FINANCE SECTIONS */}
           {(isFinanceiro || isGestor || isAdmin) && (
