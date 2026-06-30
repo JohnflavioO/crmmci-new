@@ -114,8 +114,11 @@ export interface FcmDiagnostics {
   notificationApi: boolean;
   permission: NotificationPermission | "unavailable";
   serviceWorkerApi: boolean;
+  serviceWorkerFileReachable: boolean;
   serviceWorkerRegistered: boolean;
   serviceWorkerScope: string | null;
+  serviceWorkerState: string | null;
+  serviceWorkerRegisterError: string | null;
   firebaseInitialized: boolean;
   messagingSupported: boolean;
   vapidConfigured: boolean;
