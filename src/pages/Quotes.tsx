@@ -2173,11 +2173,7 @@ export default function Quotes() {
                             <Store className="h-2.5 w-2.5" /> Revenda
                           </span>
                         )}
-                        {q.is_demonstration && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white border border-amber-600 tracking-wide">
-                            DEMONSTRAÇÃO
-                          </span>
-                        )}
+                        {renderDemoBadge(q)}
                         {(() => {
                           const tc = (q.quote_items || [])
                             .filter((it: any) => !!it.transfer_status)
