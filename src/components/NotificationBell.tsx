@@ -155,14 +155,6 @@ export default function NotificationBell() {
     if (n.related_client_id) { navigate(`/clients?id=${n.related_client_id}`); return; }
   };
 
-  const availableTypes = useMemo(() => {
-    const set = new Set<string>();
-    notifications.forEach(n => {
-      const key = n.type?.startsWith('demonstration_') ? 'demonstration' : n.type;
-      if (key) set.add(key);
-    });
-    return Array.from(set);
-  }, [notifications]);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
