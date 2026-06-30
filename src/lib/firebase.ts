@@ -1,4 +1,4 @@
-import { initializeApp, type FirebaseApp } from "firebase/app";
+import { getApps, initializeApp, SDK_VERSION, type FirebaseApp } from "firebase/app";
 import { getMessaging, getToken, isSupported, type Messaging } from "firebase/messaging";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
@@ -17,6 +17,7 @@ const VAPID_KEY =
   "BMS4aQERHypWXmwrWRAvU3keQDe9u7M-tEdBinML8tf0HXf8Q4QAyKKJ2RXwTO8ZAk9gFw2esIuEp89UkGsUN6Q";
 
 const DEVICE_ID_KEY = "mci_device_id";
+const LAST_TOKEN_ATTEMPT_KEY = "mci_fcm_last_token_attempt";
 
 let app: FirebaseApp | null = null;
 let _messaging: Messaging | null = null;
@@ -32,8 +33,157 @@ export class FcmError extends Error {
 }
 
 function ensureApp(): FirebaseApp {
-  if (!app) app = initializeApp(firebaseConfig);
+  if (!app) app = getApps()[0] ?? initializeApp(firebaseConfig);
   return app;
+}
+
+function maskValue(value: string, left = 10, right = 6): string {
+  if (!value) return "ausente";
+  if (value.length <= left + right) return `${value.slice(0, 4)}…`;
+  return `${value.slice(0, left)}…${value.slice(-right)}`;
+}
+
+function summarizeStack(stack?: string | null): string | null {
+  if (!stack) return null;
+  return stack.split("\n").slice(0, 6).join("\n");
+}
+
+function swInfo(reg: ServiceWorkerRegistration | null | undefined) {
+  if (!reg) return null;
+  const worker = reg.active || reg.waiting || reg.installing;
+  return {
+    scope: reg.scope,
+    activeState: reg.active?.state ?? null,
+    waitingState: reg.waiting?.state ?? null,
+    installingState: reg.installing?.state ?? null,
+    scriptURL: worker?.scriptURL ?? null,
+  };
+}
+
+function isFirebaseMessagingRegistration(reg: ServiceWorkerRegistration | null | undefined): boolean {
+  const scriptURL = swInfo(reg)?.scriptURL;
+  if (!scriptURL) return false;
+  try {
+    return new URL(scriptURL).pathname === "/firebase-messaging-sw.js";
+  } catch {
+    return scriptURL.endsWith("/firebase-messaging-sw.js");
+  }
+}
+
+async function waitForFirebaseWorkerActivation(
+  registration: ServiceWorkerRegistration,
+  timeoutMs = 8000
+): Promise<ServiceWorkerRegistration> {
+  if (isFirebaseMessagingRegistration(registration) && registration.active?.state === "activated") {
+    return registration;
+  }
+
+  const candidate = registration.installing || registration.waiting || registration.active;
+  if (candidate && new URL(candidate.scriptURL).pathname === "/firebase-messaging-sw.js") {
+    try {
+      candidate.postMessage({ type: "SKIP_WAITING" });
+    } catch {
+      // segue aguardando statechange
+    }
+  }
+
+  await new Promise<void>((resolve) => {
+    const done = () => resolve();
+    const timeout = window.setTimeout(done, timeoutMs);
+    const worker = registration.installing || registration.waiting;
+    if (!worker) {
+      window.clearTimeout(timeout);
+      done();
+      return;
+    }
+    worker.addEventListener("statechange", () => {
+      if (worker.state === "activated") {
+        window.clearTimeout(timeout);
+        done();
+      }
+    });
+  });
+
+  return registration;
+}
+
+interface TokenAttemptDiagnostics {
+  executed: boolean;
+  returned: boolean;
+  savedInDb: boolean;
+  tokenPreview: string | null;
+  error: TokenTechnicalError | null;
+  timestamp: string;
+}
+
+export interface TokenTechnicalError {
+  code: string;
+  message: string;
+  name: string | null;
+  stack: string | null;
+  stackSummary: string | null;
+  timestamp: string;
+  vapidKeyMasked: string;
+  messagingInitialized: boolean;
+  firebaseProjectId: string;
+  messagingSenderId: string;
+  firebaseSdkVersion: string;
+  notificationPermission: NotificationPermission | "unavailable";
+  serviceWorkerRegistration: ReturnType<typeof swInfo>;
+  serviceWorkerReady: ReturnType<typeof swInfo>;
+}
+
+function readLastTokenAttempt(): TokenAttemptDiagnostics | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LAST_TOKEN_ATTEMPT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLastTokenAttempt(attempt: TokenAttemptDiagnostics) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(LAST_TOKEN_ATTEMPT_KEY, JSON.stringify(attempt));
+  } catch {
+    // diagnóstico não deve quebrar o fluxo principal
+  }
+}
+
+function clearTokenTechnicalError() {
+  const previous = readLastTokenAttempt();
+  if (previous) {
+    writeLastTokenAttempt({ ...previous, error: null });
+  }
+}
+
+function buildTokenTechnicalError(
+  error: any,
+  messagingInitialized: boolean,
+  registration: ServiceWorkerRegistration | null,
+  readyRegistration: ServiceWorkerRegistration | null,
+  fallbackCode = "messaging/get-token-failed"
+): TokenTechnicalError {
+  const code = typeof error?.code === "string" && error.code ? error.code : fallbackCode;
+  const message = error?.message ? String(error.message) : String(error || "Erro desconhecido em getToken().");
+  return {
+    code,
+    message,
+    name: error?.name ?? null,
+    stack: error?.stack ?? null,
+    stackSummary: summarizeStack(error?.stack),
+    timestamp: new Date().toISOString(),
+    vapidKeyMasked: maskValue(VAPID_KEY),
+    messagingInitialized,
+    firebaseProjectId: firebaseConfig.projectId,
+    messagingSenderId: firebaseConfig.messagingSenderId,
+    firebaseSdkVersion: SDK_VERSION,
+    notificationPermission: typeof Notification !== "undefined" ? Notification.permission : "unavailable",
+    serviceWorkerRegistration: swInfo(registration),
+    serviceWorkerReady: swInfo(readyRegistration),
+  };
 }
 
 function getDeviceId(): string {
@@ -77,36 +227,32 @@ async function registerSW(): Promise<ServiceWorkerRegistration> {
       "Service Worker API indisponível neste navegador."
     );
   try {
-    const existing = await navigator.serviceWorker.getRegistration(
-      "/firebase-messaging-sw.js"
-    );
-    console.log("[FCM] serviceWorker.getRegistration ->", existing);
-    if (existing) {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    console.log("[FCM] serviceWorker.getRegistrations ->", registrations.map(swInfo));
+
+    const rootRegistration = await navigator.serviceWorker.getRegistration("/");
+    console.log("[FCM] serviceWorker.getRegistration('/') ->", swInfo(rootRegistration));
+
+    if (rootRegistration?.active && isFirebaseMessagingRegistration(rootRegistration)) {
       const ready = await navigator.serviceWorker.ready;
-      console.log("[FCM] serviceWorker.ready (existing) ->", {
-        scope: ready.scope,
-        active: ready.active?.state,
-        installing: ready.installing?.state,
-        waiting: ready.waiting?.state,
-      });
-      return existing;
+      console.log("[FCM] serviceWorker.ready (reutilizado) ->", swInfo(ready));
+      return ready;
     }
-    const reg = await navigator.serviceWorker.register(
-      "/firebase-messaging-sw.js",
-      { scope: "/" }
-    );
-    console.log("[FCM] serviceWorker.register OK ->", {
-      scope: reg.scope,
-      active: reg.active?.state,
-      installing: reg.installing?.state,
-      waiting: reg.waiting?.state,
-    });
+
+    if (rootRegistration?.active && !isFirebaseMessagingRegistration(rootRegistration)) {
+      console.warn("[FCM] Conflito de Service Worker no escopo raiz. Registrando firebase-messaging-sw.js sobre o registro atual.", swInfo(rootRegistration));
+    }
+
+    // Sequência obrigatória para FCM: register('/firebase-messaging-sw.js') -> ready -> getToken(...registration)
+    const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    console.log("[FCM] navigator.serviceWorker.register('/firebase-messaging-sw.js') ->", swInfo(registration));
+
+    await waitForFirebaseWorkerActivation(registration);
+
     const ready = await navigator.serviceWorker.ready;
-    console.log("[FCM] serviceWorker.ready ->", {
-      scope: ready.scope,
-      active: ready.active?.state,
-    });
-    return reg;
+    console.log("[FCM] navigator.serviceWorker.ready ->", swInfo(ready));
+
+    return registration;
   } catch (e: any) {
     console.error("[FCM] serviceWorker.register FAILED", {
       name: e?.name,
@@ -143,15 +289,24 @@ export interface FcmDiagnostics {
   serviceWorkerApi: boolean;
   serviceWorkerFileReachable: boolean;
   serviceWorkerRegistered: boolean;
+  serviceWorkerReady: boolean;
   serviceWorkerScope: string | null;
+  serviceWorkerReadyScope: string | null;
   serviceWorkerState: string | null;
   serviceWorkerRegisterError: string | null;
   firebaseInitialized: boolean;
   messagingSupported: boolean;
   vapidConfigured: boolean;
+  vapidKeyMasked: string;
+  firebaseProjectId: string;
+  messagingSenderId: string;
+  firebaseSdkVersion: string;
+  getTokenExecuted: boolean;
+  tokenReturned: boolean;
   tokenObtained: boolean;
   tokenSavedInDb: boolean;
   tokenPreview: string | null;
+  tokenTechnicalError: TokenTechnicalError | null;
   deviceId: string;
   lastTestAt: string | null;
   errors: string[];
@@ -168,7 +323,9 @@ export async function getFcmDiagnostics(): Promise<FcmDiagnostics> {
   const serviceWorkerApi = windowAvailable && "serviceWorker" in navigator;
 
   let serviceWorkerRegistered = false;
+  let serviceWorkerReady = false;
   let serviceWorkerScope: string | null = null;
+  let serviceWorkerReadyScope: string | null = null;
   let serviceWorkerState: string | null = null;
   let serviceWorkerFileReachable = false;
   let serviceWorkerRegisterError: string | null = null;
@@ -192,22 +349,32 @@ export async function getFcmDiagnostics(): Promise<FcmDiagnostics> {
 
     // 2) Verifica registro existente; se não houver, tenta registrar e captura o erro real
     try {
-      let reg = await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js");
+      let reg = await navigator.serviceWorker.getRegistration("/");
       if (!reg && serviceWorkerFileReachable) {
         try {
-          reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js", {
-            scope: "/",
-          });
-          await navigator.serviceWorker.ready;
+          reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
         } catch (e: any) {
           serviceWorkerRegisterError = `${e?.name || "Error"}: ${e?.message || e}`;
           errors.push(`SW register: ${serviceWorkerRegisterError}`);
         }
       }
-      serviceWorkerRegistered = !!reg;
+      serviceWorkerRegistered = isFirebaseMessagingRegistration(reg);
       serviceWorkerScope = reg?.scope ?? null;
       const sw = reg?.active || reg?.installing || reg?.waiting;
       serviceWorkerState = sw?.state ?? null;
+      if (reg && !serviceWorkerRegistered) {
+        errors.push(`SW conflito: escopo raiz usa ${sw?.scriptURL || "script desconhecido"}, não /firebase-messaging-sw.js`);
+      }
+      try {
+        const ready = await navigator.serviceWorker.ready;
+        serviceWorkerReady = isFirebaseMessagingRegistration(ready);
+        serviceWorkerReadyScope = ready.scope ?? null;
+        if (ready && !serviceWorkerReady) {
+          errors.push(`SW ready conflito: ${swInfo(ready)?.scriptURL || "script desconhecido"}`);
+        }
+      } catch (e: any) {
+        errors.push(`SW ready: ${e?.message || e}`);
+      }
     } catch (e: any) {
       errors.push(`SW lookup: ${e?.message || e}`);
     }
@@ -226,6 +393,7 @@ export async function getFcmDiagnostics(): Promise<FcmDiagnostics> {
   }
 
   const vapidConfigured = !!VAPID_KEY && VAPID_KEY.length > 20;
+  const lastAttempt = readLastTokenAttempt();
 
   const deviceId = getDeviceId();
   let tokenSavedInDb = false;
@@ -261,15 +429,24 @@ export async function getFcmDiagnostics(): Promise<FcmDiagnostics> {
     serviceWorkerApi,
     serviceWorkerFileReachable,
     serviceWorkerRegistered,
+    serviceWorkerReady,
     serviceWorkerScope,
+    serviceWorkerReadyScope,
     serviceWorkerState,
     serviceWorkerRegisterError,
     firebaseInitialized,
     messagingSupported,
     vapidConfigured,
-    tokenObtained: tokenSavedInDb,
+    vapidKeyMasked: maskValue(VAPID_KEY),
+    firebaseProjectId: firebaseConfig.projectId,
+    messagingSenderId: firebaseConfig.messagingSenderId,
+    firebaseSdkVersion: SDK_VERSION,
+    getTokenExecuted: !!lastAttempt?.executed,
+    tokenReturned: !!lastAttempt?.returned || tokenSavedInDb,
+    tokenObtained: !!lastAttempt?.returned || tokenSavedInDb,
     tokenSavedInDb,
-    tokenPreview,
+    tokenPreview: tokenPreview ?? lastAttempt?.tokenPreview ?? null,
+    tokenTechnicalError: lastAttempt?.error ?? null,
     deviceId,
     lastTestAt,
     errors,
@@ -306,7 +483,13 @@ export async function requestNotificationPermission(): Promise<string> {
     throw new FcmError("vapid_missing", "VAPID Key não configurada no cliente.");
 
   const messaging = await getMessagingOrThrow();
-  console.log("[FCM] Firebase Messaging inicializado.");
+  console.log("[FCM] Firebase Messaging inicializado.", {
+    messagingInitialized: !!messaging,
+    firebaseProjectId: firebaseConfig.projectId,
+    messagingSenderId: firebaseConfig.messagingSenderId,
+    firebaseSdkVersion: SDK_VERSION,
+    vapidKeyMasked: maskValue(VAPID_KEY),
+  });
 
   let permission: NotificationPermission;
   try {
@@ -337,22 +520,23 @@ export async function requestNotificationPermission(): Promise<string> {
       "Permissão não concedida (usuário fechou o prompt)."
     );
 
-  console.log("[FCM] Registrando Service Worker…");
-  const swReg = await registerSW();
+  console.log("[FCM] Registrando/obtendo Service Worker…");
+  const registration = await registerSW();
 
   let token: string | null = null;
 
   // Diagnóstico pré-getToken
-  let readyReg: ServiceWorkerRegistration | null = null;
+  let readyRegistration: ServiceWorkerRegistration | null = null;
   try {
-    readyReg = await navigator.serviceWorker.ready;
+    readyRegistration = await navigator.serviceWorker.ready;
+    console.log("[FCM] Resultado final navigator.serviceWorker.ready ->", swInfo(readyRegistration));
   } catch (e: any) {
     console.error("[FCM] navigator.serviceWorker.ready FAILED", {
       name: e?.name, message: e?.message, stack: e?.stack,
     });
   }
 
-  const pushSub = await swReg.pushManager.getSubscription().catch((e) => {
+  const pushSub = await registration.pushManager.getSubscription().catch((e) => {
     console.error("[FCM] pushManager.getSubscription FAILED", {
       name: e?.name, message: e?.message,
     });
@@ -361,23 +545,14 @@ export async function requestNotificationPermission(): Promise<string> {
 
   console.log("[FCM] Pré-getToken diagnostics:", {
     messagingInitialized: !!messaging,
-    vapidKeyPreview: `${VAPID_KEY.slice(0, 10)}…${VAPID_KEY.slice(-6)}`,
+    firebaseProjectId: firebaseConfig.projectId,
+    messagingSenderId: firebaseConfig.messagingSenderId,
+    firebaseSdkVersion: SDK_VERSION,
+    vapidKeyMasked: maskValue(VAPID_KEY),
     vapidKeyLength: VAPID_KEY.length,
-    swRegPassedToGetToken: {
-      scope: swReg.scope,
-      active: swReg.active?.state,
-      installing: swReg.installing?.state,
-      waiting: swReg.waiting?.state,
-      scriptURL: swReg.active?.scriptURL,
-    },
-    swReady: readyReg
-      ? {
-          scope: readyReg.scope,
-          active: readyReg.active?.state,
-          scriptURL: readyReg.active?.scriptURL,
-          sameAsPassed: readyReg === swReg,
-        }
-      : null,
+    serviceWorkerRegistrationPassedToGetToken: swInfo(registration),
+    serviceWorkerReady: swInfo(readyRegistration),
+    sameRegistrationAsReady: readyRegistration === registration,
     existingPushSubscription: pushSub
       ? { endpoint: pushSub.endpoint, expirationTime: pushSub.expirationTime }
       : null,
@@ -387,60 +562,115 @@ export async function requestNotificationPermission(): Promise<string> {
   });
 
   try {
-    console.log("[FCM] Chamando getToken()…");
+    console.log("[FCM] Chamando getToken(messaging, { vapidKey, serviceWorkerRegistration })…", {
+      messagingInitialized: !!messaging,
+      vapidKeyMasked: maskValue(VAPID_KEY),
+      serviceWorkerRegistration: swInfo(registration),
+      serviceWorkerReady: swInfo(readyRegistration),
+    });
+    writeLastTokenAttempt({
+      executed: true,
+      returned: false,
+      savedInDb: false,
+      tokenPreview: null,
+      error: null,
+      timestamp: new Date().toISOString(),
+    });
     token = await getToken(messaging, {
       vapidKey: VAPID_KEY,
-      serviceWorkerRegistration: swReg,
+      serviceWorkerRegistration: registration,
     });
     console.log("[FCM] getToken() retornou:", {
       hasToken: !!token,
       length: token?.length ?? 0,
       preview: token ? `${token.slice(0, 16)}…${token.slice(-6)}` : null,
-      raw: token, // token completo no console para auditoria
     });
   } catch (e: any) {
-    const msg = e?.message || String(e);
-    let code = "get_token_failed";
-    if (/permission/i.test(msg)) code = "permission_denied";
-    else if (/applicationServerKey|vapid/i.test(msg)) code = "vapid_invalid";
-    else if (/push service|registration/i.test(msg)) code = "push_service_failed";
+    const technicalError = buildTokenTechnicalError(e, !!messaging, registration, readyRegistration);
+    writeLastTokenAttempt({
+      executed: true,
+      returned: false,
+      savedInDb: false,
+      tokenPreview: null,
+      error: technicalError,
+      timestamp: technicalError.timestamp,
+    });
     console.error("[FCM] getToken() THREW EXCEPTION", {
-      mappedCode: code,
-      errorName: e?.name,
-      errorCode: e?.code,
-      errorMessage: msg,
-      errorStack: e?.stack,
+      errorName: technicalError.name,
+      errorCode: technicalError.code,
+      errorMessage: technicalError.message,
+      errorStack: technicalError.stack,
       errorCause: e?.cause,
       errorCustomData: e?.customData,
       errorServerResponse: e?.serverResponse,
       errorJSON: (() => { try { return JSON.stringify(e, Object.getOwnPropertyNames(e)); } catch { return null; } })(),
+      messagingInitialized: technicalError.messagingInitialized,
+      firebaseProjectId: technicalError.firebaseProjectId,
+      messagingSenderId: technicalError.messagingSenderId,
+      firebaseSdkVersion: technicalError.firebaseSdkVersion,
+      vapidKeyMasked: technicalError.vapidKeyMasked,
+      serviceWorkerRegistrationPassedToGetToken: technicalError.serviceWorkerRegistration,
+      serviceWorkerReady: technicalError.serviceWorkerReady,
       rawError: e,
     });
     throw new FcmError(
-      code,
-      `getToken() falhou: ${e?.name || ""} ${e?.code ? `[${e.code}] ` : ""}${msg}`,
-      e
+      technicalError.code,
+      `getToken() falhou: ${technicalError.code} — ${technicalError.message}`,
+      technicalError
     );
   }
 
   if (!token) {
+    const emptyTokenError = buildTokenTechnicalError(
+      { code: "messaging/empty-token", message: "getToken() retornou vazio sem lançar exceção.", name: "EmptyTokenError" },
+      !!messaging,
+      registration,
+      readyRegistration,
+      "messaging/empty-token"
+    );
+    writeLastTokenAttempt({
+      executed: true,
+      returned: false,
+      savedInDb: false,
+      tokenPreview: null,
+      error: emptyTokenError,
+      timestamp: emptyTokenError.timestamp,
+    });
     console.error("[FCM] getToken() retornou string VAZIA (sem exceção)", {
       messaging: !!messaging,
-      vapidKeyPreview: `${VAPID_KEY.slice(0, 10)}…${VAPID_KEY.slice(-6)}`,
-      swScope: swReg.scope,
-      swActiveState: swReg.active?.state,
-      readyScope: readyReg?.scope,
+      vapidKeyMasked: maskValue(VAPID_KEY),
+      serviceWorkerRegistration: swInfo(registration),
+      serviceWorkerReady: swInfo(readyRegistration),
       permission: Notification.permission,
       hint: "Provável VAPID Key incompatível com o Sender ID do Firebase project, ou bloqueio do push service.",
     });
     throw new FcmError(
-      "empty_token",
-      "getToken() retornou vazio (sem exceção). Verifique VAPID Key vs Sender ID e se o push service do navegador está acessível."
+      emptyTokenError.code,
+      emptyTokenError.message,
+      emptyTokenError
     );
   }
 
+  writeLastTokenAttempt({
+    executed: true,
+    returned: true,
+    savedInDb: false,
+    tokenPreview: `${token.slice(0, 16)}…${token.slice(-6)}`,
+    error: null,
+    timestamp: new Date().toISOString(),
+  });
+
   console.log("[FCM] Salvando token no banco…");
   await saveTokenToDatabase(token);
+  writeLastTokenAttempt({
+    executed: true,
+    returned: true,
+    savedInDb: true,
+    tokenPreview: `${token.slice(0, 16)}…${token.slice(-6)}`,
+    error: null,
+    timestamp: new Date().toISOString(),
+  });
+  clearTokenTechnicalError();
   console.log("[FCM] Token salvo com sucesso.");
   return token;
 }
