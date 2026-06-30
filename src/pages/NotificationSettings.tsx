@@ -311,3 +311,14 @@ export default function NotificationSettings() {
     </AppLayout>
   );
 }
+
+function DiagRow({ ok, warn, label }: { ok: boolean; warn?: boolean; label: string }) {
+  const Icon = ok ? CheckCircle2 : warn ? AlertCircle : XCircle;
+  const cls = ok ? 'text-emerald-600' : warn ? 'text-amber-600' : 'text-destructive';
+  return (
+    <div className="flex items-center gap-2">
+      <Icon className={`h-4 w-4 shrink-0 ${cls}`} />
+      <span className={ok ? '' : 'text-muted-foreground'}>{label}</span>
+    </div>
+  );
+}
