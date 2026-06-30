@@ -31,6 +31,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { usePrivacy } from '@/hooks/usePrivacy';
+import PrivacyToggle from '@/components/PrivacyToggle';
 
 const db = supabase as any;
 
