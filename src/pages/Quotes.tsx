@@ -2063,11 +2063,7 @@ export default function Quotes() {
                       <div>
                         <p className="font-medium text-sm flex items-center gap-1.5 flex-wrap">
                           <span>{q.quote_number}</span>
-                          {q.is_demonstration && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white border border-amber-600 tracking-wide">
-                              DEMONSTRAÇÃO
-                            </span>
-                          )}
+                          {renderDemoBadge(q, 'sm')}
                         </p>
                         <p className="text-xs text-muted-foreground">{q.clients?.company_name || q.clients?.name || q.client_name || '-'}</p>
                         <p className="text-xs text-muted-foreground">{safeFormatDate(q.quote_date)}</p>
