@@ -2017,11 +2017,13 @@ export default function Quotes() {
                         </span>
                       )}
                       {(() => {
-                        const tc = (q.quote_items || []).filter((it: any) => !!it.transfer_status).length;
+                        const tc = (q.quote_items || [])
+                          .filter((it: any) => !!it.transfer_status)
+                          .reduce((sum: number, it: any) => sum + (Number(it.quantity) || 1), 0);
                         if (!tc) return null;
                         return (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
-                            ⇄ {tc} {tc === 1 ? 'Item' : 'Itens'} em transferência
+                            ⇄ {tc} {tc === 1 ? 'unid.' : 'unids.'} em transferência
                           </span>
                         );
                       })()}
