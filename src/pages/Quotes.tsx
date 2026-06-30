@@ -1326,10 +1326,8 @@ export default function Quotes() {
                         onChange={e => {
                           const val = e.target.value;
                           if (!canExtend && val && val > maxEndStr) {
-                            toast({
-                              title: 'Prazo máximo: 30 dias',
+                            toast.error('Prazo máximo: 30 dias', {
                               description: 'Vendedores só podem definir até 30 dias de demonstração. Solicite ao gestor para estender.',
-                              variant: 'destructive',
                             });
                             setForm(p => ({ ...p, demonstration_end_date: maxEndStr }));
                             return;
