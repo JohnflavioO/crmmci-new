@@ -251,6 +251,7 @@ function PaymentMethodFields({ method, date, onDateChange, installments, onInsta
 export default function Quotes() {
   const { user, profile, isGestor, isAdmin } = useAuth();
   const isMobile = useIsMobile();
+  const { isHidden: privacyHidden } = usePrivacy();
   const [quotes, setQuotes] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [search, setSearch] = useState('');
