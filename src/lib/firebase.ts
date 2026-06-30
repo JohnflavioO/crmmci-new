@@ -341,37 +341,103 @@ export async function requestNotificationPermission(): Promise<string> {
   const swReg = await registerSW();
 
   let token: string | null = null;
+
+  // Diagnóstico pré-getToken
+  let readyReg: ServiceWorkerRegistration | null = null;
   try {
-    console.log("[FCM] Chamando getToken() com VAPID…", {
-      vapidPreview: `${VAPID_KEY.slice(0, 10)}…${VAPID_KEY.slice(-6)}`,
-      swScope: swReg.scope,
+    readyReg = await navigator.serviceWorker.ready;
+  } catch (e: any) {
+    console.error("[FCM] navigator.serviceWorker.ready FAILED", {
+      name: e?.name, message: e?.message, stack: e?.stack,
     });
+  }
+
+  const pushSub = await swReg.pushManager.getSubscription().catch((e) => {
+    console.error("[FCM] pushManager.getSubscription FAILED", {
+      name: e?.name, message: e?.message,
+    });
+    return null;
+  });
+
+  console.log("[FCM] Pré-getToken diagnostics:", {
+    messagingInitialized: !!messaging,
+    vapidKeyPreview: `${VAPID_KEY.slice(0, 10)}…${VAPID_KEY.slice(-6)}`,
+    vapidKeyLength: VAPID_KEY.length,
+    swRegPassedToGetToken: {
+      scope: swReg.scope,
+      active: swReg.active?.state,
+      installing: swReg.installing?.state,
+      waiting: swReg.waiting?.state,
+      scriptURL: swReg.active?.scriptURL,
+    },
+    swReady: readyReg
+      ? {
+          scope: readyReg.scope,
+          active: readyReg.active?.state,
+          scriptURL: readyReg.active?.scriptURL,
+          sameAsPassed: readyReg === swReg,
+        }
+      : null,
+    existingPushSubscription: pushSub
+      ? { endpoint: pushSub.endpoint, expirationTime: pushSub.expirationTime }
+      : null,
+    notificationPermission: Notification.permission,
+    isSecureContext: window.isSecureContext,
+    location: window.location.origin,
+  });
+
+  try {
+    console.log("[FCM] Chamando getToken()…");
     token = await getToken(messaging, {
       vapidKey: VAPID_KEY,
       serviceWorkerRegistration: swReg,
     });
-    console.log("[FCM] getToken() ->", token ? `${token.slice(0, 16)}…${token.slice(-6)}` : "(vazio)");
+    console.log("[FCM] getToken() retornou:", {
+      hasToken: !!token,
+      length: token?.length ?? 0,
+      preview: token ? `${token.slice(0, 16)}…${token.slice(-6)}` : null,
+      raw: token, // token completo no console para auditoria
+    });
   } catch (e: any) {
     const msg = e?.message || String(e);
     let code = "get_token_failed";
     if (/permission/i.test(msg)) code = "permission_denied";
     else if (/applicationServerKey|vapid/i.test(msg)) code = "vapid_invalid";
     else if (/push service|registration/i.test(msg)) code = "push_service_failed";
-    console.error("[FCM] getToken() FAILED", {
-      code,
-      name: e?.name,
-      message: msg,
-      stack: e?.stack,
-      error: e,
+    console.error("[FCM] getToken() THREW EXCEPTION", {
+      mappedCode: code,
+      errorName: e?.name,
+      errorCode: e?.code,
+      errorMessage: msg,
+      errorStack: e?.stack,
+      errorCause: e?.cause,
+      errorCustomData: e?.customData,
+      errorServerResponse: e?.serverResponse,
+      errorJSON: (() => { try { return JSON.stringify(e, Object.getOwnPropertyNames(e)); } catch { return null; } })(),
+      rawError: e,
     });
-    throw new FcmError(code, `getToken() falhou: ${e?.name || ""} ${msg}`, e);
+    throw new FcmError(
+      code,
+      `getToken() falhou: ${e?.name || ""} ${e?.code ? `[${e.code}] ` : ""}${msg}`,
+      e
+    );
   }
 
-  if (!token)
+  if (!token) {
+    console.error("[FCM] getToken() retornou string VAZIA (sem exceção)", {
+      messaging: !!messaging,
+      vapidKeyPreview: `${VAPID_KEY.slice(0, 10)}…${VAPID_KEY.slice(-6)}`,
+      swScope: swReg.scope,
+      swActiveState: swReg.active?.state,
+      readyScope: readyReg?.scope,
+      permission: Notification.permission,
+      hint: "Provável VAPID Key incompatível com o Sender ID do Firebase project, ou bloqueio do push service.",
+    });
     throw new FcmError(
       "empty_token",
-      "getToken() retornou vazio. Verifique VAPID Key e Service Worker."
+      "getToken() retornou vazio (sem exceção). Verifique VAPID Key vs Sender ID e se o push service do navegador está acessível."
     );
+  }
 
   console.log("[FCM] Salvando token no banco…");
   await saveTokenToDatabase(token);
