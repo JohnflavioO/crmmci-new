@@ -1220,20 +1220,61 @@ export default function Quotes() {
               </div>
 
               {/* Tipo da Proposta */}
-              <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50/50">
-                <div>
-                  <Label htmlFor="is-demonstration" className="text-sm font-semibold cursor-pointer">
-                    Marcar como Demonstração
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Quando ativado, a proposta exibirá o selo <strong>DEMONSTRAÇÃO</strong> em destaque (listagem, PDF e link público).
-                  </p>
+              <div className="space-y-3 p-3 rounded-lg border border-amber-200 bg-amber-50/50">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <Label htmlFor="is-demonstration" className="text-sm font-semibold cursor-pointer">
+                      Marcar como Demonstração
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Quando ativado, a proposta exibirá o selo <strong>DEMONSTRAÇÃO</strong> e o sistema enviará lembretes automáticos antes do fim do prazo (7d / 3d / no dia / vencido).
+                    </p>
+                  </div>
+                  <Switch
+                    id="is-demonstration"
+                    checked={!!form.is_demonstration}
+                    onCheckedChange={(checked) => setForm(p => {
+                      if (!checked) {
+                        return { ...p, is_demonstration: false, demonstration_start_date: '', demonstration_end_date: '' };
+                      }
+                      const today = new Date();
+                      const end = new Date();
+                      end.setDate(end.getDate() + 30);
+                      return {
+                        ...p,
+                        is_demonstration: true,
+                        is_reseller: false,
+                        demonstration_start_date: p.demonstration_start_date || today.toISOString().slice(0, 10),
+                        demonstration_end_date: p.demonstration_end_date || end.toISOString().slice(0, 10),
+                      };
+                    })}
+                  />
                 </div>
-                <Switch
-                  id="is-demonstration"
-                  checked={!!form.is_demonstration}
-                  onCheckedChange={(checked) => setForm(p => ({ ...p, is_demonstration: checked, is_reseller: checked ? false : p.is_reseller }))}
-                />
+                {form.is_demonstration && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-amber-200">
+                    <div>
+                      <Label className="text-xs">Início da demonstração</Label>
+                      <Input
+                        type="date"
+                        value={form.demonstration_start_date}
+                        onChange={e => setForm(p => ({ ...p, demonstration_start_date: e.target.value }))}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Fim da demonstração (prazo)</Label>
+                      <Input
+                        type="date"
+                        value={form.demonstration_end_date}
+                        onChange={e => setForm(p => ({ ...p, demonstration_end_date: e.target.value }))}
+                        className="mt-1"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Padrão: 30 dias após o início. Pode ser ajustado livremente.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
 
