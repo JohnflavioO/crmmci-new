@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Bell, Check, X, ShieldCheck } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Bell, Check, X, ShieldCheck, Settings, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { requestNotificationPermission } from '@/lib/firebase';
@@ -18,63 +19,105 @@ interface Notification {
   title: string;
   message: string;
   type: string;
+  priority?: string | null;
+  module?: string | null;
+  related_url?: string | null;
   is_read: boolean;
   created_at: string;
   related_quote_id?: string;
   related_client_id?: string;
 }
 
+const TYPE_LABELS: Record<string, string> = {
+  quote_status: 'Orçamento',
+  new_client: 'Novo cliente',
+  followup: 'Follow-up',
+  followup_push: 'Follow-up',
+  demonstration_7d: 'Demonstração',
+  demonstration_3d: 'Demonstração',
+  demonstration_due: 'Demonstração',
+  demonstration_overdue: 'Demonstração',
+  financial: 'Financeiro',
+  logistics: 'Logística',
+  task: 'Tarefa',
+  comment: 'Comentário',
+  info: 'Info',
+  test: 'Teste',
+};
+
+const typeColor: Record<string, string> = {
+  quote_status: 'bg-blue-50 border-blue-200',
+  new_client: 'bg-emerald-50 border-emerald-200',
+  followup: 'bg-amber-50 border-amber-200',
+  followup_push: 'bg-amber-50 border-amber-200',
+  demonstration_7d: 'bg-violet-50 border-violet-200',
+  demonstration_3d: 'bg-violet-50 border-violet-200',
+  demonstration_due: 'bg-orange-50 border-orange-200',
+  demonstration_overdue: 'bg-red-50 border-red-200',
+  financial: 'bg-emerald-50 border-emerald-200',
+  logistics: 'bg-sky-50 border-sky-200',
+  task: 'bg-indigo-50 border-indigo-200',
+  comment: 'bg-slate-50 border-slate-200',
+  test: 'bg-muted',
+  info: 'bg-muted',
+};
+
 export default function NotificationBell() {
-  const { user, isAdmin, isGestor } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
-  const [isPushEnabled, setIsPushEnabled] = useState('Notification' in window && Notification.permission === 'granted');
-
-  const canSee = isAdmin || isGestor;
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [isPushEnabled, setIsPushEnabled] = useState(
+    typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted'
+  );
 
   const fetchNotifications = useCallback(async () => {
-    if (!user || !canSee) return;
+    if (!user) return;
     const { data } = await db
       .from('notifications')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(100);
     setNotifications(data || []);
-  }, [user, canSee]);
+  }, [user]);
+
+  useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
 
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
-
-  useEffect(() => {
-    if (!user || !canSee) return;
+    if (!user) return;
     const channel = supabase
       .channel('notifications-bell')
       .on('postgres_changes', {
-        event: 'INSERT',
+        event: '*',
         schema: 'public',
         table: 'notifications',
         filter: `user_id=eq.${user.id}`,
-      }, () => {
-        fetchNotifications();
-      })
+      }, () => { fetchNotifications(); })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user, canSee, fetchNotifications]);
+  }, [user, fetchNotifications]);
 
   const handleEnablePush = async () => {
     const token = await requestNotificationPermission();
     if (token) {
       setIsPushEnabled(true);
-      toast.success("Notificações push ativadas com sucesso!");
-    } else if (Notification.permission === 'denied') {
-      toast.error("As notificações foram bloqueadas no seu navegador. Por favor, habilite-as nas configurações do site.");
+      toast.success('Notificações push ativadas!');
+    } else if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+      toast.error('Notificações bloqueadas no navegador. Habilite nas configurações do site.');
+    } else {
+      toast.message('Não foi possível ativar agora. Tente novamente.');
     }
   };
 
-  if (!canSee) return null;
+  if (!user) return null;
+
+  const filtered = useMemo(() => {
+    if (typeFilter === 'all') return notifications;
+    if (typeFilter === 'unread') return notifications.filter(n => !n.is_read);
+    return notifications.filter(n => (n.type || '').startsWith(typeFilter));
+  }, [notifications, typeFilter]);
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
@@ -95,12 +138,22 @@ export default function NotificationBell() {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  const typeColor: Record<string, string> = {
-    quote_status: 'bg-blue-100 border-blue-200',
-    new_client: 'bg-emerald-100 border-emerald-200',
-    followup: 'bg-amber-100 border-amber-200',
-    info: 'bg-muted',
+  const handleClick = (n: Notification) => {
+    if (!n.is_read) markRead(n.id);
+    setOpen(false);
+    if (n.related_url) { navigate(n.related_url); return; }
+    if (n.related_quote_id) { navigate(`/quotes?id=${n.related_quote_id}`); return; }
+    if (n.related_client_id) { navigate(`/clients?id=${n.related_client_id}`); return; }
   };
+
+  const availableTypes = useMemo(() => {
+    const set = new Set<string>();
+    notifications.forEach(n => {
+      const key = n.type?.startsWith('demonstration_') ? 'demonstration' : n.type;
+      if (key) set.add(key);
+    });
+    return Array.from(set);
+  }, [notifications]);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -116,62 +169,75 @@ export default function NotificationBell() {
       </SheetTrigger>
       <SheetContent side="right" className="w-full sm:w-96 p-0 flex flex-col" aria-describedby={undefined}>
         <SheetHeader className="p-4 pb-2 border-b border-border">
-          <SheetTitle className="text-lg font-bold">Notificações</SheetTitle>
+          <div className="flex items-center justify-between">
+            <SheetTitle className="text-lg font-bold">Notificações</SheetTitle>
+            <button
+              onClick={() => { setOpen(false); navigate('/configuracoes/notificacoes'); }}
+              className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground"
+              aria-label="Configurações de notificações"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+          </div>
         </SheetHeader>
 
-        {unreadCount > 0 && (
-          <div className="px-4 py-2">
-            <Button size="sm" variant="default" className="w-full" onClick={markAllRead}>
-              <Check className="h-4 w-4 mr-2" /> Marcar todas como lidas
-            </Button>
-          </div>
-        )}
-
-        <div className="px-4 py-2 text-sm text-muted-foreground flex items-center justify-between">
-          <span>{unreadCount > 0 ? `${unreadCount} notificação(ões) nova(s)` : 'Nenhuma notificação nova'}</span>
-          {!isPushEnabled && 'Notification' in window && (
-            <Button variant="ghost" size="sm" onClick={handleEnablePush} className="h-7 text-xs gap-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50">
-              <ShieldCheck className="h-3 w-3" /> Ativar Push
+        <div className="px-4 py-2 flex items-center gap-2 border-b border-border">
+          <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="unread">Não lidas</SelectItem>
+              {availableTypes.map(t => (
+                <SelectItem key={t} value={t}>
+                  {TYPE_LABELS[t] || TYPE_LABELS[`${t}_due`] || t}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {unreadCount > 0 && (
+            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={markAllRead}>
+              <Check className="h-3 w-3 mr-1" /> Ler tudo
             </Button>
           )}
         </div>
 
-        <ScrollArea className="flex-1 px-4 pb-4">
+        {!isPushEnabled && typeof window !== 'undefined' && 'Notification' in window && (
+          <div className="px-4 py-2 border-b border-border">
+            <Button variant="ghost" size="sm" onClick={handleEnablePush} className="h-7 text-xs gap-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50 w-full justify-start">
+              <ShieldCheck className="h-3 w-3" /> Ativar notificações push do navegador
+            </Button>
+          </div>
+        )}
+
+        <ScrollArea className="flex-1 px-4 py-3">
           <div className="space-y-2">
-            {notifications.length === 0 && (
+            {filtered.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-8">Sem notificações</p>
             )}
-            {notifications.map(n => (
+            {filtered.map(n => (
               <div
                 key={n.id}
                 className={`relative p-3 rounded-lg border transition-colors cursor-pointer ${
                   n.is_read ? 'bg-muted/30 border-border opacity-70' : (typeColor[n.type] || 'bg-accent/50 border-accent')
                 }`}
-                onClick={() => {
-                  if (n.related_quote_id) {
-                    navigate(`/quotes?id=${n.related_quote_id}`);
-                  }
-                }}
+                onClick={() => handleClick(n)}
               >
                 <button
-                  onClick={() => deleteNotification(n.id)}
+                  onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }}
                   className="absolute top-2 right-2 p-1 rounded hover:bg-muted/80 transition-colors"
                   aria-label="Remover"
                 >
                   <X className="h-3 w-3 text-muted-foreground" />
                 </button>
                 {!n.is_read && (
-                  <button
-                    onClick={() => markRead(n.id)}
-                    className="absolute top-2 right-8 p-1 rounded hover:bg-muted/80 transition-colors"
-                    aria-label="Marcar como lida"
-                  >
-                    <Check className="h-3 w-3 text-muted-foreground" />
-                  </button>
+                  <span className="absolute top-3 left-2 h-2 w-2 rounded-full bg-primary" />
                 )}
-                <p className="text-sm font-semibold pr-14">{n.title}</p>
-                <p className="text-xs text-muted-foreground mt-1">{n.message}</p>
-                <p className="text-[10px] text-muted-foreground mt-2">
+                <p className={`text-sm font-semibold pr-7 ${!n.is_read ? 'pl-4' : ''}`}>{n.title}</p>
+                <p className={`text-xs text-muted-foreground mt-1 ${!n.is_read ? 'pl-4' : ''}`}>{n.message}</p>
+                <p className={`text-[10px] text-muted-foreground mt-2 ${!n.is_read ? 'pl-4' : ''}`}>
                   {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: ptBR })}
                 </p>
               </div>
