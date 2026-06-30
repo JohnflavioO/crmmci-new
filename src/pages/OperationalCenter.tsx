@@ -191,6 +191,7 @@ export default function OperationalCenter() {
         const myForgottenClients = results[resultIdx++]?.data || [];
         const myOpportunities = results[resultIdx++]?.data || [];
         const myTasks = results[resultIdx++]?.data || [];
+        const myDemonstrations = results[resultIdx++]?.data || [];
 
         const overdueFollowups = myQuotes.filter((q: any) => q.followup_date && isBefore(new Date(q.followup_date), now));
         const noResponseProposals = myQuotes.filter((q: any) => q.status === 'sent' && isBefore(new Date(q.updated_at), subDays(now, 3)));
@@ -202,12 +203,14 @@ export default function OperationalCenter() {
           noResponseProposals,
           forgottenClients: myForgottenClients,
           smartOpportunities: myOpportunities,
-          urgentTasks: myTasks
+          urgentTasks: myTasks,
+          demonstrations: myDemonstrations
         };
 
         if (isGestor || isAdmin) {
           const teamSellers = results[resultIdx++]?.data || [];
           const stuckFunnels = results[resultIdx++]?.data || [];
+          const teamDemonstrations = results[resultIdx++]?.data || [];
           
           newData.manager = {
             teamNoFollowup: teamSellers.filter((s: any) => Number(s.pending_count) > 5),
@@ -216,7 +219,8 @@ export default function OperationalCenter() {
             topSellers: [...teamSellers].sort((a, b) => Number(b.total_value) - Number(a.total_value)).slice(0, 5),
             alerts: [
               ...(stuckFunnels.filter((q: any) => Number(q.total_amount) > 50000).map((q: any) => ({ type: 'high_value_stuck', data: q }))),
-            ]
+            ],
+            teamDemonstrations
           };
         }
 
