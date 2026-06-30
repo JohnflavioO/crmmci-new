@@ -1198,6 +1198,8 @@ export type Database = {
           company_id: string | null
           created_at: string | null
           created_by: string | null
+          demonstration_end_date: string | null
+          demonstration_start_date: string | null
           discount: number | null
           external_order_id: string | null
           external_status: string | null
@@ -1254,6 +1256,8 @@ export type Database = {
           company_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          demonstration_end_date?: string | null
+          demonstration_start_date?: string | null
           discount?: number | null
           external_order_id?: string | null
           external_status?: string | null
@@ -1310,6 +1314,8 @@ export type Database = {
           company_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          demonstration_end_date?: string | null
+          demonstration_start_date?: string | null
           discount?: number | null
           external_order_id?: string | null
           external_status?: string | null

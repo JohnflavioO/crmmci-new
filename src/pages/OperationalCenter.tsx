@@ -52,14 +52,16 @@ export default function OperationalCenter() {
       noResponseProposals: [],
       forgottenClients: [],
       smartOpportunities: [],
-      urgentTasks: []
+      urgentTasks: [],
+      demonstrations: []
     },
     manager: {
       teamNoFollowup: [],
       stuckFunnels: [],
       forecastRisk: [],
       topSellers: [],
-      alerts: []
+      alerts: [],
+      teamDemonstrations: []
     },
     finance: {
       expiringSlips: [],
@@ -122,6 +124,18 @@ export default function OperationalCenter() {
             .limit(10)
         );
 
+        // Demonstrações ativas do vendedor
+        queries.push(
+          db.from('quotes')
+            .select('id, quote_number, client_name, clients(company_name, name, phone), demonstration_start_date, demonstration_end_date, total_amount')
+            .eq('is_demonstration', true)
+            .eq('created_by', user.id)
+            .not('demonstration_end_date', 'is', null)
+            .order('demonstration_end_date', { ascending: true })
+            .limit(20)
+        );
+
+
         // --- GESTOR QUERIES ---
         if (isGestor || isAdmin) {
           queries.push(db.rpc('get_team_dashboard_sellers').catch((err: any) => {
@@ -135,6 +149,15 @@ export default function OperationalCenter() {
               .lt('updated_at', threeDaysAgo)
               .order('total_amount', { ascending: false })
               .limit(10)
+          );
+          // Demonstrações da equipe
+          queries.push(
+            db.from('quotes')
+              .select('id, quote_number, client_name, clients(company_name, name), profiles!quotes_created_by_fkey(full_name), demonstration_start_date, demonstration_end_date, total_amount')
+              .eq('is_demonstration', true)
+              .not('demonstration_end_date', 'is', null)
+              .order('demonstration_end_date', { ascending: true })
+              .limit(30)
           );
         }
 
@@ -168,6 +191,7 @@ export default function OperationalCenter() {
         const myForgottenClients = results[resultIdx++]?.data || [];
         const myOpportunities = results[resultIdx++]?.data || [];
         const myTasks = results[resultIdx++]?.data || [];
+        const myDemonstrations = results[resultIdx++]?.data || [];
 
         const overdueFollowups = myQuotes.filter((q: any) => q.followup_date && isBefore(new Date(q.followup_date), now));
         const noResponseProposals = myQuotes.filter((q: any) => q.status === 'sent' && isBefore(new Date(q.updated_at), subDays(now, 3)));
@@ -179,12 +203,14 @@ export default function OperationalCenter() {
           noResponseProposals,
           forgottenClients: myForgottenClients,
           smartOpportunities: myOpportunities,
-          urgentTasks: myTasks
+          urgentTasks: myTasks,
+          demonstrations: myDemonstrations
         };
 
         if (isGestor || isAdmin) {
           const teamSellers = results[resultIdx++]?.data || [];
           const stuckFunnels = results[resultIdx++]?.data || [];
+          const teamDemonstrations = results[resultIdx++]?.data || [];
           
           newData.manager = {
             teamNoFollowup: teamSellers.filter((s: any) => Number(s.pending_count) > 5),
@@ -193,7 +219,8 @@ export default function OperationalCenter() {
             topSellers: [...teamSellers].sort((a, b) => Number(b.total_value) - Number(a.total_value)).slice(0, 5),
             alerts: [
               ...(stuckFunnels.filter((q: any) => Number(q.total_amount) > 50000).map((q: any) => ({ type: 'high_value_stuck', data: q }))),
-            ]
+            ],
+            teamDemonstrations
           };
         }
 
@@ -404,8 +431,45 @@ export default function OperationalCenter() {
                   ]
                 }))}
               />
+
+              <OperationalCard
+                title="Demonstrações Ativas"
+                count={data.seller.demonstrations.length}
+                priority={
+                  data.seller.demonstrations.some((d: any) => {
+                    const diff = differenceInDays(new Date(d.demonstration_end_date), new Date());
+                    return diff < 0;
+                  })
+                    ? "urgent"
+                    : data.seller.demonstrations.some((d: any) => differenceInDays(new Date(d.demonstration_end_date), new Date()) <= 3)
+                    ? "attention"
+                    : "normal"
+                }
+                icon={Package}
+                description="Propostas em demonstração com prazo definido"
+                items={data.seller.demonstrations.slice(0, 6).map((d: any) => {
+                  const end = new Date(d.demonstration_end_date);
+                  const diff = differenceInDays(end, new Date());
+                  const label =
+                    diff < 0 ? `🔴 Vencida há ${Math.abs(diff)}d` :
+                    diff === 0 ? '⏰ Vence hoje' :
+                    diff <= 3 ? `⚠️ ${diff}d restantes` :
+                    `${diff}d restantes`;
+                  return {
+                    id: d.id,
+                    title: d.clients?.company_name || d.clients?.name || d.client_name,
+                    subtitle: `Fim: ${format(end, 'dd/MM/yyyy')} · ${label}`,
+                    origin: `${d.quote_number} · ${maskValue(parseFloat(d.total_amount) || 0)}`,
+                    actions: [
+                      { label: 'WhatsApp', icon: Phone, onClick: () => handleQuickAction('whatsapp', d) },
+                      { label: 'Abrir', icon: ExternalLink, onClick: () => handleQuickAction('open_quote', d) }
+                    ]
+                  };
+                })}
+              />
             </div>
           </section>
+
 
           {/* GESTOR SECTIONS */}
           {isGestor && (
@@ -465,9 +529,42 @@ export default function OperationalCenter() {
                     ]
                   }))}
                 />
+
+                <OperationalCard
+                  title="Demonstrações da Equipe"
+                  count={data.manager.teamDemonstrations.length}
+                  priority={
+                    data.manager.teamDemonstrations.some((d: any) => differenceInDays(new Date(d.demonstration_end_date), new Date()) < 0)
+                      ? "urgent"
+                      : data.manager.teamDemonstrations.some((d: any) => differenceInDays(new Date(d.demonstration_end_date), new Date()) <= 3)
+                      ? "attention"
+                      : "normal"
+                  }
+                  icon={Package}
+                  description="Todas as demonstrações ativas do time"
+                  items={data.manager.teamDemonstrations.slice(0, 8).map((d: any) => {
+                    const end = new Date(d.demonstration_end_date);
+                    const diff = differenceInDays(end, new Date());
+                    const label =
+                      diff < 0 ? `🔴 Vencida há ${Math.abs(diff)}d` :
+                      diff === 0 ? '⏰ Vence hoje' :
+                      diff <= 3 ? `⚠️ ${diff}d restantes` :
+                      `${diff}d restantes`;
+                    return {
+                      id: d.id,
+                      title: d.clients?.company_name || d.clients?.name || d.client_name,
+                      subtitle: `${d.profiles?.full_name || '—'} · ${label}`,
+                      origin: `${d.quote_number} · Fim ${format(end, 'dd/MM')}`,
+                      actions: [
+                        { label: 'Abrir', icon: ExternalLink, onClick: () => handleQuickAction('open_quote', d) }
+                      ]
+                    };
+                  })}
+                />
               </div>
             </section>
           )}
+
 
           {/* FINANCE SECTIONS */}
           {(isFinanceiro || isGestor || isAdmin) && (

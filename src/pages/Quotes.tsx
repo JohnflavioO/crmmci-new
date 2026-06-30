@@ -36,6 +36,41 @@ import PrivacyToggle from '@/components/PrivacyToggle';
 
 const db = supabase as any;
 
+const renderDemoBadge = (q: any, size: 'sm' | 'xs' = 'xs') => {
+  if (!q?.is_demonstration) return null;
+  const end = q.demonstration_end_date ? new Date(q.demonstration_end_date + 'T00:00:00') : null;
+  let suffix = '';
+  let className = 'bg-amber-500 text-white border-amber-600';
+  if (end) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const diff = Math.round((end.getTime() - today.getTime()) / 86400000);
+    if (diff < 0) {
+      suffix = ` · vencida há ${Math.abs(diff)}d`;
+      className = 'bg-red-600 text-white border-red-700 animate-pulse';
+    } else if (diff === 0) {
+      suffix = ' · vence hoje';
+      className = 'bg-red-500 text-white border-red-600';
+    } else if (diff <= 3) {
+      suffix = ` · ${diff}d restantes`;
+      className = 'bg-orange-500 text-white border-orange-600';
+    } else if (diff <= 7) {
+      suffix = ` · ${diff}d restantes`;
+      className = 'bg-amber-500 text-white border-amber-600';
+    } else {
+      suffix = ` · ${diff}d restantes`;
+    }
+  }
+  const sizeCls = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-1.5 py-0.5 text-[10px]';
+  return (
+    <span
+      title={end ? `Demonstração até ${end.toLocaleDateString('pt-BR')}` : 'Demonstração'}
+      className={`inline-flex items-center rounded-full font-bold border tracking-wide ${sizeCls} ${className}`}
+    >
+      DEMONSTRAÇÃO{suffix}
+    </span>
+  );
+};
+
 const normalizeProductText = (value: any): string =>
   (value ?? '').toString().toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -191,6 +226,8 @@ const defaultForm = {
   shipping_notes: '',
   followup_date: '' as string,
   is_demonstration: false,
+  demonstration_start_date: '' as string,
+  demonstration_end_date: '' as string,
 };
 
 const QUICK_ENTRY_STATUSES = ['contato_feito', 'sent', 'negociacao'];
@@ -667,6 +704,8 @@ export default function Quotes() {
         shipping_phone: form.use_alt_shipping_address ? (form.shipping_phone || null) : null,
         shipping_notes: form.use_alt_shipping_address ? (form.shipping_notes || null) : null,
         is_demonstration: !!form.is_demonstration,
+        demonstration_start_date: form.is_demonstration ? (form.demonstration_start_date || null) : null,
+        demonstration_end_date: form.is_demonstration ? (form.demonstration_end_date || null) : null,
       };
 
       // Garantir que campos de data nulos ou vazios sejam salvos como null e não strings inválidas
@@ -814,6 +853,8 @@ export default function Quotes() {
         shipping_notes: quote.shipping_notes || '',
         followup_date: safeDateValue(quote.followup_date),
         is_demonstration: quote.is_demonstration || false,
+        demonstration_start_date: safeDateValue(quote.demonstration_start_date),
+        demonstration_end_date: safeDateValue(quote.demonstration_end_date),
       };
 
       console.log('[Quotes.handleEdit] Sucesso no processamento dos dados:', {
@@ -1214,20 +1255,61 @@ export default function Quotes() {
               </div>
 
               {/* Tipo da Proposta */}
-              <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50/50">
-                <div>
-                  <Label htmlFor="is-demonstration" className="text-sm font-semibold cursor-pointer">
-                    Marcar como Demonstração
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Quando ativado, a proposta exibirá o selo <strong>DEMONSTRAÇÃO</strong> em destaque (listagem, PDF e link público).
-                  </p>
+              <div className="space-y-3 p-3 rounded-lg border border-amber-200 bg-amber-50/50">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <Label htmlFor="is-demonstration" className="text-sm font-semibold cursor-pointer">
+                      Marcar como Demonstração
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Quando ativado, a proposta exibirá o selo <strong>DEMONSTRAÇÃO</strong> e o sistema enviará lembretes automáticos antes do fim do prazo (7d / 3d / no dia / vencido).
+                    </p>
+                  </div>
+                  <Switch
+                    id="is-demonstration"
+                    checked={!!form.is_demonstration}
+                    onCheckedChange={(checked) => setForm(p => {
+                      if (!checked) {
+                        return { ...p, is_demonstration: false, demonstration_start_date: '', demonstration_end_date: '' };
+                      }
+                      const today = new Date();
+                      const end = new Date();
+                      end.setDate(end.getDate() + 30);
+                      return {
+                        ...p,
+                        is_demonstration: true,
+                        is_reseller: false,
+                        demonstration_start_date: p.demonstration_start_date || today.toISOString().slice(0, 10),
+                        demonstration_end_date: p.demonstration_end_date || end.toISOString().slice(0, 10),
+                      };
+                    })}
+                  />
                 </div>
-                <Switch
-                  id="is-demonstration"
-                  checked={!!form.is_demonstration}
-                  onCheckedChange={(checked) => setForm(p => ({ ...p, is_demonstration: checked, is_reseller: checked ? false : p.is_reseller }))}
-                />
+                {form.is_demonstration && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-amber-200">
+                    <div>
+                      <Label className="text-xs">Início da demonstração</Label>
+                      <Input
+                        type="date"
+                        value={form.demonstration_start_date}
+                        onChange={e => setForm(p => ({ ...p, demonstration_start_date: e.target.value }))}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Fim da demonstração (prazo)</Label>
+                      <Input
+                        type="date"
+                        value={form.demonstration_end_date}
+                        onChange={e => setForm(p => ({ ...p, demonstration_end_date: e.target.value }))}
+                        className="mt-1"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Padrão: 30 dias após o início. Pode ser ajustado livremente.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
 
@@ -1981,11 +2063,7 @@ export default function Quotes() {
                       <div>
                         <p className="font-medium text-sm flex items-center gap-1.5 flex-wrap">
                           <span>{q.quote_number}</span>
-                          {q.is_demonstration && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white border border-amber-600 tracking-wide">
-                              DEMONSTRAÇÃO
-                            </span>
-                          )}
+                          {renderDemoBadge(q, 'sm')}
                         </p>
                         <p className="text-xs text-muted-foreground">{q.clients?.company_name || q.clients?.name || q.client_name || '-'}</p>
                         <p className="text-xs text-muted-foreground">{safeFormatDate(q.quote_date)}</p>
@@ -2095,11 +2173,7 @@ export default function Quotes() {
                             <Store className="h-2.5 w-2.5" /> Revenda
                           </span>
                         )}
-                        {q.is_demonstration && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white border border-amber-600 tracking-wide">
-                            DEMONSTRAÇÃO
-                          </span>
-                        )}
+                        {renderDemoBadge(q)}
                         {(() => {
                           const tc = (q.quote_items || [])
                             .filter((it: any) => !!it.transfer_status)
