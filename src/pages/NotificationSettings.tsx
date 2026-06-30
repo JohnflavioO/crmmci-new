@@ -37,6 +37,8 @@ export default function NotificationSettings() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [diag, setDiag] = useState<FcmDiagnostics | null>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
 
   const loadDevices = async () => {
     if (!user) return;
@@ -50,18 +52,29 @@ export default function NotificationSettings() {
     setLoading(false);
   };
 
-  useEffect(() => { loadDevices(); }, [user]);
+  const runDiagnostics = async () => {
+    setDiagLoading(true);
+    try {
+      const d = await getFcmDiagnostics();
+      setDiag(d);
+    } finally {
+      setDiagLoading(false);
+    }
+  };
+
+  useEffect(() => { loadDevices(); runDiagnostics(); }, [user]);
 
   const handleEnablePush = async () => {
-    const token = await requestNotificationPermission();
-    setPermission(typeof Notification !== 'undefined' ? Notification.permission : 'default');
-    if (token) {
+    try {
+      await requestNotificationPermission();
+      setPermission(typeof Notification !== 'undefined' ? Notification.permission : 'default');
       toast.success('Push ativado e dispositivo registrado!');
       await loadDevices();
-    } else if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
-      toast.error('Notificações bloqueadas. Habilite nas permissões do site.');
-    } else {
-      toast.message('Não foi possível ativar. Tente novamente.');
+      await runDiagnostics();
+    } catch (e: any) {
+      setPermission(typeof Notification !== 'undefined' ? Notification.permission : 'default');
+      toast.error(`[${e?.code || 'erro'}] ${e?.message || 'Falha ao ativar push'}`, { duration: 8000 });
+      await runDiagnostics();
     }
   };
 
