@@ -1285,14 +1285,34 @@ export default function Quotes() {
                     })}
                   />
                 </div>
-                {form.is_demonstration && (
+                {form.is_demonstration && (() => {
+                  const canExtend = isAdmin || isGestor;
+                  const startStr = form.demonstration_start_date || new Date().toISOString().slice(0, 10);
+                  const startDate = new Date(startStr + 'T00:00:00');
+                  const maxEndDate = new Date(startDate);
+                  maxEndDate.setDate(maxEndDate.getDate() + 30);
+                  const maxEndStr = maxEndDate.toISOString().slice(0, 10);
+                  return (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-amber-200">
                     <div>
                       <Label className="text-xs">Início da demonstração</Label>
                       <Input
                         type="date"
                         value={form.demonstration_start_date}
-                        onChange={e => setForm(p => ({ ...p, demonstration_start_date: e.target.value }))}
+                        onChange={e => {
+                          const newStart = e.target.value;
+                          setForm(p => {
+                            let newEnd = p.demonstration_end_date;
+                            if (!canExtend && newStart && newEnd) {
+                              const s = new Date(newStart + 'T00:00:00');
+                              const max = new Date(s);
+                              max.setDate(max.getDate() + 30);
+                              const maxStr = max.toISOString().slice(0, 10);
+                              if (newEnd > maxStr) newEnd = maxStr;
+                            }
+                            return { ...p, demonstration_start_date: newStart, demonstration_end_date: newEnd };
+                          });
+                        }}
                         className="mt-1"
                       />
                     </div>
@@ -1301,15 +1321,32 @@ export default function Quotes() {
                       <Input
                         type="date"
                         value={form.demonstration_end_date}
-                        onChange={e => setForm(p => ({ ...p, demonstration_end_date: e.target.value }))}
+                        min={form.demonstration_start_date || undefined}
+                        max={canExtend ? undefined : maxEndStr}
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (!canExtend && val && val > maxEndStr) {
+                            toast({
+                              title: 'Prazo máximo: 30 dias',
+                              description: 'Vendedores só podem definir até 30 dias de demonstração. Solicite ao gestor para estender.',
+                              variant: 'destructive',
+                            });
+                            setForm(p => ({ ...p, demonstration_end_date: maxEndStr }));
+                            return;
+                          }
+                          setForm(p => ({ ...p, demonstration_end_date: val }));
+                        }}
                         className="mt-1"
                       />
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        Padrão: 30 dias após o início. Pode ser ajustado livremente.
+                        {canExtend
+                          ? 'Padrão: 30 dias após o início. Admin/Gestor pode ajustar livremente.'
+                          : 'Máximo de 30 dias após o início. Apenas Admin/Gestor pode estender.'}
                       </p>
                     </div>
                   </div>
-                )}
+                  );
+                })()}
               </div>
 
 
