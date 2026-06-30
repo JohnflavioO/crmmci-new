@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
 
     const { data: quotes, error } = await supabase
       .from("quotes")
-      .select("id, quote_number, client_name, salesperson_id, created_by, demonstration_start_date, demonstration_end_date")
+      .select("id, quote_number, client_name, salesperson_id, created_by, company_id, demonstration_start_date, demonstration_end_date")
       .eq("is_demonstration", true)
       .not("demonstration_end_date", "is", null);
 
@@ -74,20 +74,22 @@ Deno.serve(async (req) => {
     let createdCount = 0;
     let pushCount = 0;
 
-    for (const q of (quotes ?? []) as QuoteDemo[]) {
+    for (const q of (quotes ?? []) as (QuoteDemo & { company_id: string | null })[]) {
       const stage = stageForQuote(q.demonstration_end_date, today);
       if (!stage) continue;
 
       const ownerId = q.salesperson_id ?? q.created_by;
       if (!ownerId) continue;
 
-      // Determinar destinatários: vendedor + gestores/admins (RLS bypass via service role)
+      // Destinatários: vendedor + gestores/admins DA MESMA company_id (isolamento)
       const recipients = new Set<string>([ownerId]);
-      const { data: managers } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .in("role", ["admin", "gestor"]);
-      (managers ?? []).forEach((m: any) => recipients.add(m.user_id));
+      let managersQuery = supabase
+        .from("profiles")
+        .select("user_id, company_id, user_roles!inner(role)")
+        .in("user_roles.role", ["admin", "gestor"]);
+      if (q.company_id) managersQuery = managersQuery.eq("company_id", q.company_id);
+      const { data: managers } = await managersQuery;
+      (managers ?? []).forEach((m: any) => { if (m.user_id) recipients.add(m.user_id); });
 
       const diffDays = Math.abs(
         Math.round(
@@ -100,7 +102,6 @@ Deno.serve(async (req) => {
       const message = meta.msgFn(q, diffDays);
 
       for (const userId of recipients) {
-        // Evitar duplicar a notificação no mesmo dia/estágio
         const { data: existing } = await supabase
           .from("notifications")
           .select("id")
@@ -121,11 +122,11 @@ Deno.serve(async (req) => {
           related_url: `/quotes?id=${q.id}`,
           module: "demonstracao",
           priority: stage === "overdue" ? "alta" : stage === "due" ? "alta" : "normal",
+          company_id: q.company_id ?? null,
           is_read: false,
         });
         createdCount++;
 
-        // Disparar push FCM real
         try {
           await supabase.functions.invoke("send-push-notifications", {
             body: {

@@ -1,9 +1,10 @@
 // send-push-notifications
 // Modes:
-//   action="scan_followups" -> varre orçamentos com follow-up vencido e cria notif interna + push
-//   action="send_push" -> envia push FCM v1 para o usuário indicado
-// FCM real é usado quando FIREBASE_SERVICE_ACCOUNT estiver configurado; caso contrário,
-// somente loga (modo degradado) sem quebrar a notificação interna.
+//   action="scan_followups" -> varre follow-ups vencidos e cria notif interna + push
+//   action="send_push"      -> envia push FCM v1 para o usuário indicado
+//
+// Isolamento: notificações de follow-up são criadas dentro do company_id do vendedor.
+// Push é enviado apenas para tokens cujo company_id bate com o do destinatário (quando definido).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
@@ -12,11 +13,28 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const isDev = (Deno.env.get("ENVIRONMENT") ?? "production").toLowerCase() !== "production";
+const log = {
+  debug: (...a: unknown[]) => { if (isDev) console.log(...a); },
+  warn:  (...a: unknown[]) => console.warn(...a),
+  error: (...a: unknown[]) => console.error(...a),
+};
+
 interface PushNotification {
   userId: string;
   title: string;
   body: string;
   data?: Record<string, string>;
+}
+
+function validatePush(input: unknown): { ok: true; value: PushNotification } | { ok: false; error: string } {
+  if (!input || typeof input !== "object") return { ok: false, error: "notification missing" };
+  const n = input as Record<string, unknown>;
+  if (typeof n.userId !== "string" || !n.userId) return { ok: false, error: "userId required" };
+  if (typeof n.title !== "string" || !n.title) return { ok: false, error: "title required" };
+  if (typeof n.body !== "string") return { ok: false, error: "body required" };
+  if (n.data && (typeof n.data !== "object" || Array.isArray(n.data))) return { ok: false, error: "data must be object" };
+  return { ok: true, value: n as unknown as PushNotification };
 }
 
 // ===== Google OAuth (Service Account JWT) =====
@@ -31,10 +49,8 @@ function base64url(input: ArrayBuffer | string): string {
 }
 
 function pemToArrayBuffer(pem: string): ArrayBuffer {
-  const b64 = pem
-    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
-    .replace(/-----END PRIVATE KEY-----/g, "")
-    .replace(/\s+/g, "");
+  const b64 = pem.replace(/-----BEGIN PRIVATE KEY-----/g, "")
+                  .replace(/-----END PRIVATE KEY-----/g, "").replace(/\s+/g, "");
   const bin = atob(b64);
   const buf = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
@@ -45,7 +61,7 @@ async function getAccessToken(): Promise<{ token: string; projectId: string } | 
   const raw = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
   if (!raw) return null;
   let sa: any;
-  try { sa = JSON.parse(raw); } catch { console.error("FIREBASE_SERVICE_ACCOUNT inválido"); return null; }
+  try { sa = JSON.parse(raw); } catch { log.error("FIREBASE_SERVICE_ACCOUNT inválido"); return null; }
   cachedProjectId = sa.project_id;
 
   if (cachedToken && Date.now() < cachedToken.exp - 60_000) {
@@ -58,16 +74,12 @@ async function getAccessToken(): Promise<{ token: string; projectId: string } | 
     iss: sa.client_email,
     scope: "https://www.googleapis.com/auth/firebase.messaging",
     aud: "https://oauth2.googleapis.com/token",
-    iat: now,
-    exp: now + 3600,
+    iat: now, exp: now + 3600,
   };
   const unsigned = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(payload))}`;
   const key = await crypto.subtle.importKey(
-    "pkcs8",
-    pemToArrayBuffer(sa.private_key),
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["sign"],
+    "pkcs8", pemToArrayBuffer(sa.private_key),
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"],
   );
   const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsigned));
   const jwt = `${unsigned}.${base64url(sig)}`;
@@ -78,10 +90,7 @@ async function getAccessToken(): Promise<{ token: string; projectId: string } | 
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
   });
   const json = await res.json();
-  if (!res.ok || !json.access_token) {
-    console.error("OAuth Google falhou:", json);
-    return null;
-  }
+  if (!res.ok || !json.access_token) { log.error("OAuth Google falhou:", json); return null; }
   cachedToken = { token: json.access_token, exp: Date.now() + (json.expires_in ?? 3600) * 1000 };
   return { token: cachedToken.token, projectId: sa.project_id };
 }
@@ -89,7 +98,7 @@ async function getAccessToken(): Promise<{ token: string; projectId: string } | 
 async function sendFcm(token: string, n: PushNotification): Promise<{ ok: boolean; error?: string; invalid?: boolean }> {
   const auth = await getAccessToken();
   if (!auth) {
-    console.log(`[push:log] ${n.title} -> ${token.slice(0, 12)}… (sem FIREBASE_SERVICE_ACCOUNT)`);
+    log.debug(`[push:log] ${n.title} -> ${token.slice(0, 12)}… (sem FIREBASE_SERVICE_ACCOUNT)`);
     return { ok: false, error: "no_service_account" };
   }
 
@@ -98,19 +107,13 @@ async function sendFcm(token: string, n: PushNotification): Promise<{ ok: boolea
       token,
       notification: { title: n.title, body: n.body },
       data: n.data ? Object.fromEntries(Object.entries(n.data).map(([k, v]) => [k, String(v)])) : undefined,
-      webpush: {
-        fcm_options: n.data?.url ? { link: n.data.url } : undefined,
-      },
+      webpush: { fcm_options: n.data?.url ? { link: n.data.url } : undefined },
     },
   };
 
   const res = await fetch(
     `https://fcm.googleapis.com/v1/projects/${auth.projectId}/messages:send`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${auth.token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(message),
-    },
+    { method: "POST", headers: { Authorization: `Bearer ${auth.token}`, "Content-Type": "application/json" }, body: JSON.stringify(message) },
   );
   const text = await res.text();
   if (res.ok) return { ok: true };
@@ -120,21 +123,39 @@ async function sendFcm(token: string, n: PushNotification): Promise<{ ok: boolea
     const status = j?.error?.status || "";
     if (status === "NOT_FOUND" || status === "INVALID_ARGUMENT" || status === "UNREGISTERED") invalid = true;
   } catch { /* ignore */ }
-  console.error("FCM erro:", res.status, text);
+  log.error("FCM erro:", res.status, text);
   return { ok: false, error: text, invalid };
 }
 
 async function sendPushToUser(supabase: any, n: PushNotification): Promise<{ sent: number; failed: number }> {
-  const { data: tokens } = await supabase
-    .from("user_push_tokens")
-    .select("id, fcm_token")
-    .eq("user_id", n.userId)
-    .eq("is_active", true);
+  // Respeita preferência do usuário (sino interno desligado = sem push)
+  const { data: prefs } = await supabase
+    .from("user_preferences")
+    .select("notifications_enabled")
+    .eq("user_id", n.userId).maybeSingle();
+  if (prefs && prefs.notifications_enabled === false) {
+    log.debug(`[push] user ${n.userId} desabilitou notificações`);
+    return { sent: 0, failed: 0 };
+  }
 
+  // company_id do destinatário (para escopo)
+  const { data: profile } = await supabase
+    .from("profiles").select("company_id").eq("user_id", n.userId).maybeSingle();
+  const recipientCompany = profile?.company_id ?? null;
+
+  let q = supabase.from("user_push_tokens")
+    .select("id, fcm_token, company_id")
+    .eq("user_id", n.userId).eq("is_active", true);
+  const { data: tokens } = await q;
   if (!tokens?.length) return { sent: 0, failed: 0 };
 
+  // Se o usuário tem company_id, filtra tokens compatíveis (tolera tokens antigos sem company_id)
+  const filtered = recipientCompany
+    ? tokens.filter((t: any) => !t.company_id || t.company_id === recipientCompany)
+    : tokens;
+
   let sent = 0, failed = 0;
-  for (const t of tokens) {
+  for (const t of filtered) {
     const r = await sendFcm(t.fcm_token, n);
     if (r.ok) sent++;
     else {
@@ -151,7 +172,7 @@ async function handleScanFollowups(supabase: any) {
   const today = new Date().toISOString().split("T")[0];
   const { data: quotes, error } = await supabase
     .from("quotes")
-    .select("id, quote_number, client_name, salesperson_id, followup_date, status")
+    .select("id, quote_number, client_name, salesperson_id, followup_date, status, company_id")
     .in("status", ["Contato Feito", "Proposta Enviada", "Pré-venda", "Em Negociação", "Lançamento Rápido"])
     .not("followup_date", "is", null)
     .lte("followup_date", today);
@@ -173,7 +194,7 @@ async function handleScanFollowups(supabase: any) {
     await supabase.from("notifications").insert({
       user_id: q.salesperson_id, title, message: body, type: "followup_push",
       related_quote_id: q.id, is_read: false, module: "orcamentos",
-      related_url: `/quotes?id=${q.id}`,
+      related_url: `/quotes?id=${q.id}`, company_id: q.company_id ?? null,
     });
     await sendPushToUser(supabase, {
       userId: q.salesperson_id, title, body,
@@ -200,7 +221,13 @@ Deno.serve(async (req) => {
     if (action === "scan_followups") return await handleScanFollowups(supabase);
 
     if (action === "send_push") {
-      const result = await sendPushToUser(supabase, body.notification);
+      const v = validatePush(body.notification);
+      if (!v.ok) {
+        return new Response(JSON.stringify({ error: v.error }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const result = await sendPushToUser(supabase, v.value);
       return new Response(JSON.stringify({ success: true, ...result }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -210,7 +237,7 @@ Deno.serve(async (req) => {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
-    console.error("send-push-notifications erro:", err);
+    log.error("send-push-notifications erro:", err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
