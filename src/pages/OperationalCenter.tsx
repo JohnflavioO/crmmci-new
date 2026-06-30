@@ -124,6 +124,18 @@ export default function OperationalCenter() {
             .limit(10)
         );
 
+        // Demonstrações ativas do vendedor
+        queries.push(
+          db.from('quotes')
+            .select('id, quote_number, client_name, clients(company_name, name, phone), demonstration_start_date, demonstration_end_date, total_amount')
+            .eq('is_demonstration', true)
+            .eq('created_by', user.id)
+            .not('demonstration_end_date', 'is', null)
+            .order('demonstration_end_date', { ascending: true })
+            .limit(20)
+        );
+
+
         // --- GESTOR QUERIES ---
         if (isGestor || isAdmin) {
           queries.push(db.rpc('get_team_dashboard_sellers').catch((err: any) => {
