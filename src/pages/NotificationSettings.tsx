@@ -1,0 +1,244 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import AppLayout from '@/components/AppLayout';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Bell, Smartphone, Volume2, VolumeX, Send, RefreshCw, Trash2, ShieldCheck } from 'lucide-react';
+import { requestNotificationPermission } from '@/lib/firebase';
+import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+const db = supabase as any;
+const LS_ENABLED = 'mci:notif:enabled';
+const LS_SOUND = 'mci:notif:sound';
+
+interface Device {
+  id: string;
+  fcm_token: string;
+  device_type: string | null;
+  browser: string | null;
+  last_seen_at: string;
+  is_active: boolean;
+}
+
+export default function NotificationSettings() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [enabled, setEnabled] = useState(() => localStorage.getItem(LS_ENABLED) !== 'false');
+  const [sound, setSound] = useState(() => localStorage.getItem(LS_SOUND) !== 'false');
+  const [permission, setPermission] = useState<NotificationPermission>(
+    typeof Notification !== 'undefined' ? Notification.permission : 'default'
+  );
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  const loadDevices = async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data } = await db
+      .from('user_push_tokens')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('last_seen_at', { ascending: false });
+    setDevices(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { loadDevices(); }, [user]);
+
+  useEffect(() => { localStorage.setItem(LS_ENABLED, String(enabled)); }, [enabled]);
+  useEffect(() => { localStorage.setItem(LS_SOUND, String(sound)); }, [sound]);
+
+  const handleEnablePush = async () => {
+    const token = await requestNotificationPermission();
+    setPermission(typeof Notification !== 'undefined' ? Notification.permission : 'default');
+    if (token) {
+      toast.success('Push ativado e dispositivo registrado!');
+      await loadDevices();
+    } else if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+      toast.error('Notificações bloqueadas. Habilite nas permissões do site.');
+    } else {
+      toast.message('Não foi possível ativar. Tente novamente.');
+    }
+  };
+
+  const handleTest = async () => {
+    if (!user) return;
+    setTesting(true);
+    try {
+      const { error } = await db.from('notifications').insert({
+        user_id: user.id,
+        title: '🔔 Notificação de teste',
+        message: 'Se você está vendo isso, sua Central de Notificações está funcionando.',
+        type: 'test',
+        priority: 'normal',
+        module: 'configuracoes',
+        is_read: false,
+      });
+      if (error) throw error;
+
+      // Tenta também push real via edge function
+      try {
+        const { error: pushErr } = await supabase.functions.invoke('send-push-notifications', {
+          body: {
+            action: 'send_push',
+            notification: {
+              userId: user.id,
+              title: '🔔 Notificação de teste',
+              body: 'Push do MCI CRM chegou no seu navegador.',
+              data: { url: '/configuracoes/notificacoes' },
+            },
+          },
+        });
+        if (pushErr) console.warn('Push test error:', pushErr);
+      } catch (e) {
+        console.warn('Push test invoke failed:', e);
+      }
+
+      if (sound && typeof Audio !== 'undefined') {
+        try {
+          const a = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');
+          a.volume = 0.4; a.play().catch(() => {});
+        } catch { /* no-op */ }
+      }
+      toast.success('Notificação de teste enviada!');
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao enviar teste');
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const removeDevice = async (id: string) => {
+    await db.from('user_push_tokens').delete().eq('id', id);
+    setDevices(prev => prev.filter(d => d.id !== id));
+    toast.success('Dispositivo removido');
+  };
+
+  return (
+    <AppLayout>
+      <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Bell className="h-6 w-6" /> Notificações
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Gerencie como e onde você recebe alertas do MCI CRM.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => navigate(-1)}>Voltar</Button>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Preferências</CardTitle>
+            <CardDescription>Controle global da central interna e do som.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="font-medium">Notificações internas</Label>
+                <p className="text-xs text-muted-foreground">Sino e central dentro do CRM.</p>
+              </div>
+              <Switch checked={enabled} onCheckedChange={setEnabled} />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="font-medium flex items-center gap-2">
+                  {sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />} Som
+                </Label>
+                <p className="text-xs text-muted-foreground">Reproduzir som ao chegar novas notificações.</p>
+              </div>
+              <Switch checked={sound} onCheckedChange={setSound} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4" /> Push do navegador (Firebase FCM)
+            </CardTitle>
+            <CardDescription>
+              Status atual:{' '}
+              <Badge variant={permission === 'granted' ? 'default' : permission === 'denied' ? 'destructive' : 'secondary'}>
+                {permission === 'granted' ? 'Permitido' : permission === 'denied' ? 'Bloqueado' : 'Não solicitado'}
+              </Badge>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={handleEnablePush} disabled={permission === 'granted'}>
+                <ShieldCheck className="h-4 w-4 mr-2" />
+                {permission === 'granted' ? 'Push ativo' : 'Ativar push do navegador'}
+              </Button>
+              <Button variant="outline" onClick={handleTest} disabled={testing}>
+                <Send className="h-4 w-4 mr-2" /> {testing ? 'Enviando...' : 'Testar notificação'}
+              </Button>
+            </div>
+            {permission === 'denied' && (
+              <p className="text-xs text-destructive">
+                Push foi bloqueado neste navegador. Abra as permissões do site e libere "Notificações".
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-start justify-between gap-2">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Smartphone className="h-4 w-4" /> Dispositivos conectados
+              </CardTitle>
+              <CardDescription>Navegadores e celulares que recebem suas notificações push.</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" onClick={loadDevices} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {devices.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                Nenhum dispositivo registrado. Clique em "Ativar push do navegador" acima.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {devices.map(d => (
+                  <div key={d.id} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={d.is_active ? 'default' : 'secondary'} className="text-[10px]">
+                          {d.device_type || 'desktop'}
+                        </Badge>
+                        <span className="text-sm font-medium truncate">
+                          {(d.browser || '').split(' ').slice(0, 4).join(' ') || 'Navegador'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Última sincronização: {formatDistanceToNow(new Date(d.last_seen_at), { addSuffix: true, locale: ptBR })}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">
+                        {d.fcm_token.slice(0, 24)}…
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => removeDevice(d.id)} aria-label="Remover dispositivo">
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
+  );
+}
