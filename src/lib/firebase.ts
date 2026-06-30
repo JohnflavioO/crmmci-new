@@ -80,16 +80,43 @@ async function registerSW(): Promise<ServiceWorkerRegistration> {
     const existing = await navigator.serviceWorker.getRegistration(
       "/firebase-messaging-sw.js"
     );
-    if (existing) return existing;
+    console.log("[FCM] serviceWorker.getRegistration ->", existing);
+    if (existing) {
+      const ready = await navigator.serviceWorker.ready;
+      console.log("[FCM] serviceWorker.ready (existing) ->", {
+        scope: ready.scope,
+        active: ready.active?.state,
+        installing: ready.installing?.state,
+        waiting: ready.waiting?.state,
+      });
+      return existing;
+    }
     const reg = await navigator.serviceWorker.register(
-      "/firebase-messaging-sw.js"
+      "/firebase-messaging-sw.js",
+      { scope: "/" }
     );
-    await navigator.serviceWorker.ready;
+    console.log("[FCM] serviceWorker.register OK ->", {
+      scope: reg.scope,
+      active: reg.active?.state,
+      installing: reg.installing?.state,
+      waiting: reg.waiting?.state,
+    });
+    const ready = await navigator.serviceWorker.ready;
+    console.log("[FCM] serviceWorker.ready ->", {
+      scope: ready.scope,
+      active: ready.active?.state,
+    });
     return reg;
   } catch (e: any) {
+    console.error("[FCM] serviceWorker.register FAILED", {
+      name: e?.name,
+      message: e?.message,
+      stack: e?.stack,
+      error: e,
+    });
     throw new FcmError(
       "sw_register_failed",
-      `Falha ao registrar /firebase-messaging-sw.js: ${e?.message || e}`,
+      `Falha ao registrar /firebase-messaging-sw.js: ${e?.name || ""} ${e?.message || e}`,
       e
     );
   }
