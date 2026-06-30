@@ -37,6 +37,7 @@ export default function NotificationSettings() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [activatingPush, setActivatingPush] = useState(false);
   const [diag, setDiag] = useState<FcmDiagnostics | null>(null);
   const [diagLoading, setDiagLoading] = useState(false);
 
@@ -65,6 +66,7 @@ export default function NotificationSettings() {
   useEffect(() => { loadDevices(); runDiagnostics(); }, [user]);
 
   const handleEnablePush = async () => {
+    setActivatingPush(true);
     try {
       await requestNotificationPermission();
       setPermission(typeof Notification !== 'undefined' ? Notification.permission : 'default');
@@ -73,8 +75,10 @@ export default function NotificationSettings() {
       await runDiagnostics();
     } catch (e: any) {
       setPermission(typeof Notification !== 'undefined' ? Notification.permission : 'default');
-      toast.error(`[${e?.code || 'erro'}] ${e?.message || 'Falha ao ativar push'}`, { duration: 8000 });
+      toast.error(`[${e?.code || 'erro'}] ${e?.message || 'Falha ao ativar push'}`, { duration: 12000 });
       await runDiagnostics();
+    } finally {
+      setActivatingPush(false);
     }
   };
 
@@ -94,7 +98,7 @@ export default function NotificationSettings() {
       if (error) throw error;
 
       try {
-        const { error: pushErr } = await supabase.functions.invoke('send-push-notifications', {
+        const { data: pushData, error: pushErr } = await supabase.functions.invoke('send-push-notifications', {
           body: {
             action: 'send_push',
             notification: {
@@ -105,9 +109,14 @@ export default function NotificationSettings() {
             },
           },
         });
-        if (pushErr) logger.warn('Push test error:', pushErr);
+        if (pushErr) throw pushErr;
+        if (!pushData?.success) throw new Error(pushData?.error || 'send-push-notifications retornou success=false');
+        if ((pushData.sent ?? 0) < 1) {
+          throw new Error(`Push real não enviado: sent=${pushData.sent ?? 0}, failed=${pushData.failed ?? 0}`);
+        }
       } catch (e) {
         logger.warn('Push test invoke failed:', e);
+        throw e;
       }
 
       markFcmTestPerformed();
@@ -186,9 +195,13 @@ export default function NotificationSettings() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-wrap gap-2">
-              <Button onClick={handleEnablePush} disabled={permission === 'granted'}>
+              <Button onClick={handleEnablePush} disabled={activatingPush}>
                 <ShieldCheck className="h-4 w-4 mr-2" />
-                {permission === 'granted' ? 'Push ativo' : 'Ativar push do navegador'}
+                {activatingPush
+                  ? 'Ativando...'
+                  : diag?.tokenSavedInDb
+                    ? 'Reativar push do navegador'
+                    : 'Ativar push do navegador'}
               </Button>
               <Button variant="outline" onClick={handleTest} disabled={testing}>
                 <Send className="h-4 w-4 mr-2" /> {testing ? 'Enviando...' : 'Testar notificação'}
