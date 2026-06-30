@@ -1,7 +1,9 @@
-import { initializeApp } from "firebase/app";
-import { getMessaging, onBackgroundMessage } from "firebase/messaging/sw";
+/* eslint-disable no-undef */
+// Service Worker do Firebase Messaging (escopo clássico — não use ESM aqui).
+importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js');
 
-const firebaseConfig = {
+firebase.initializeApp({
   apiKey: "AIzaSyA7Xg9BQ4kzg6QqGnlxynbp92nSs2jtGeI",
   authDomain: "push-mci-crm.firebaseapp.com",
   projectId: "push-mci-crm",
@@ -9,39 +11,31 @@ const firebaseConfig = {
   messagingSenderId: "741697309199",
   appId: "1:741697309199:web:aaf8751a1b31749eaa717a",
   measurementId: "G-39Q3MK7TX4"
-};
+});
 
-const app = initializeApp(firebaseConfig);
-const messaging = getMessaging(app);
+const messaging = firebase.messaging();
 
-onBackgroundMessage(messaging, (payload) => {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  
-  const notificationTitle = payload.notification?.title || 'Lembrete de Follow-up';
-  const notificationOptions = {
-    body: payload.notification?.body,
+messaging.onBackgroundMessage((payload) => {
+  const title = payload.notification?.title || 'MCI CRM';
+  const options = {
+    body: payload.notification?.body || '',
     icon: '/favicon.png',
-    data: payload.data
+    badge: '/favicon.png',
+    data: payload.data || {},
+    tag: payload.data?.tag || undefined,
   };
-
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  self.registration.showNotification(title, options);
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const urlToOpen = event.notification.data?.url || '/';
-  
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      for (let i = 0; i < windowClients.length; i++) {
-        const client = windowClients[i];
-        if (client.url === urlToOpen && 'focus' in client) {
-          return client.focus();
-        }
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+      for (const c of wins) {
+        if (c.url.includes(urlToOpen) && 'focus' in c) return c.focus();
       }
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
-      }
+      if (clients.openWindow) return clients.openWindow(urlToOpen);
     })
   );
 });

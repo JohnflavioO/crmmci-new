@@ -13,10 +13,10 @@ import { requestNotificationPermission } from '@/lib/firebase';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useNotifications } from '@/contexts/NotificationsContext';
+import { logger } from '@/lib/logger';
 
 const db = supabase as any;
-const LS_ENABLED = 'mci:notif:enabled';
-const LS_SOUND = 'mci:notif:sound';
 
 interface Device {
   id: string;
@@ -30,8 +30,7 @@ interface Device {
 export default function NotificationSettings() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [enabled, setEnabled] = useState(() => localStorage.getItem(LS_ENABLED) !== 'false');
-  const [sound, setSound] = useState(() => localStorage.getItem(LS_SOUND) !== 'false');
+  const { preferences, setPreference } = useNotifications();
   const [permission, setPermission] = useState<NotificationPermission>(
     typeof Notification !== 'undefined' ? Notification.permission : 'default'
   );
@@ -52,9 +51,6 @@ export default function NotificationSettings() {
   };
 
   useEffect(() => { loadDevices(); }, [user]);
-
-  useEffect(() => { localStorage.setItem(LS_ENABLED, String(enabled)); }, [enabled]);
-  useEffect(() => { localStorage.setItem(LS_SOUND, String(sound)); }, [sound]);
 
   const handleEnablePush = async () => {
     const token = await requestNotificationPermission();
@@ -84,7 +80,6 @@ export default function NotificationSettings() {
       });
       if (error) throw error;
 
-      // Tenta também push real via edge function
       try {
         const { error: pushErr } = await supabase.functions.invoke('send-push-notifications', {
           body: {
@@ -97,17 +92,11 @@ export default function NotificationSettings() {
             },
           },
         });
-        if (pushErr) console.warn('Push test error:', pushErr);
+        if (pushErr) logger.warn('Push test error:', pushErr);
       } catch (e) {
-        console.warn('Push test invoke failed:', e);
+        logger.warn('Push test invoke failed:', e);
       }
 
-      if (sound && typeof Audio !== 'undefined') {
-        try {
-          const a = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');
-          a.volume = 0.4; a.play().catch(() => {});
-        } catch { /* no-op */ }
-      }
       toast.success('Notificação de teste enviada!');
     } catch (e: any) {
       toast.error(e?.message || 'Falha ao enviar teste');
@@ -140,24 +129,30 @@ export default function NotificationSettings() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Preferências</CardTitle>
-            <CardDescription>Controle global da central interna e do som.</CardDescription>
+            <CardDescription>Controle global da central interna e do som. Sincronizado entre dispositivos.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <Label className="font-medium">Notificações internas</Label>
-                <p className="text-xs text-muted-foreground">Sino e central dentro do CRM.</p>
+                <p className="text-xs text-muted-foreground">Sino, badge e realtime dentro do CRM.</p>
               </div>
-              <Switch checked={enabled} onCheckedChange={setEnabled} />
+              <Switch
+                checked={preferences.notifications_enabled}
+                onCheckedChange={(v) => setPreference({ notifications_enabled: v })}
+              />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <Label className="font-medium flex items-center gap-2">
-                  {sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />} Som
+                  {preferences.sound_enabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />} Som
                 </Label>
                 <p className="text-xs text-muted-foreground">Reproduzir som ao chegar novas notificações.</p>
               </div>
-              <Switch checked={sound} onCheckedChange={setSound} />
+              <Switch
+                checked={preferences.sound_enabled}
+                onCheckedChange={(v) => setPreference({ sound_enabled: v })}
+              />
             </div>
           </CardContent>
         </Card>

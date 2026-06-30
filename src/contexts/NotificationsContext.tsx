@@ -1,0 +1,189 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { logger } from '@/lib/logger';
+
+const db = supabase as any;
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  priority?: string | null;
+  module?: string | null;
+  related_url?: string | null;
+  is_read: boolean;
+  created_at: string;
+  related_quote_id?: string;
+  related_client_id?: string;
+}
+
+interface Preferences {
+  notifications_enabled: boolean;
+  sound_enabled: boolean;
+}
+
+interface Ctx {
+  notifications: AppNotification[];
+  unreadCount: number;
+  preferences: Preferences;
+  loading: boolean;
+  refresh: () => Promise<void>;
+  markRead: (id: string) => Promise<void>;
+  markAllRead: () => Promise<void>;
+  deleteOne: (id: string) => Promise<void>;
+  setPreference: (patch: Partial<Preferences>) => Promise<void>;
+}
+
+const NotificationsContext = createContext<Ctx | null>(null);
+
+const SOUND_SRC = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+
+export function NotificationsProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [preferences, setPreferences] = useState<Preferences>({
+    notifications_enabled: true,
+    sound_enabled: true,
+  });
+  const [loading, setLoading] = useState(false);
+  const lastIdRef = useRef<string | null>(null);
+  const initializedRef = useRef(false);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!user) { setNotifications([]); return; }
+    setLoading(true);
+    const { data, error } = await db
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error) logger.error('[notifications] fetch error', error);
+    const list = (data || []) as AppNotification[];
+    setNotifications(list);
+    if (list[0]) lastIdRef.current = list[0].id;
+    setLoading(false);
+  }, [user]);
+
+  const fetchPreferences = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await db
+      .from('user_preferences')
+      .select('notifications_enabled, sound_enabled')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (error) { logger.error('[prefs] fetch error', error); return; }
+    if (data) setPreferences({
+      notifications_enabled: !!data.notifications_enabled,
+      sound_enabled: !!data.sound_enabled,
+    });
+  }, [user]);
+
+  // Initial load
+  useEffect(() => {
+    if (!user) return;
+    fetchPreferences();
+    fetchNotifications();
+    initializedRef.current = true;
+  }, [user, fetchPreferences, fetchNotifications]);
+
+  // Realtime — só ativa quando notificações estiverem habilitadas
+  useEffect(() => {
+    if (!user || !preferences.notifications_enabled) return;
+    const channel = supabase
+      .channel(`notifications-user-${user.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`,
+      }, (payload) => {
+        logger.debug('[notifications] realtime event', payload.eventType);
+        if (payload.eventType === 'INSERT') {
+          const n = payload.new as AppNotification;
+          setNotifications(prev => {
+            if (prev.some(p => p.id === n.id)) return prev;
+            return [n, ...prev].slice(0, 100);
+          });
+          // som apenas para notificações novas (não lidas)
+          if (preferences.sound_enabled && !n.is_read && typeof Audio !== 'undefined') {
+            try { const a = new Audio(SOUND_SRC); a.volume = 0.4; a.play().catch(() => {}); } catch { /* no-op */ }
+          }
+        } else if (payload.eventType === 'UPDATE') {
+          const n = payload.new as AppNotification;
+          setNotifications(prev => prev.map(p => p.id === n.id ? { ...p, ...n } : p));
+        } else if (payload.eventType === 'DELETE') {
+          const oldId = (payload.old as any)?.id;
+          if (oldId) setNotifications(prev => prev.filter(p => p.id !== oldId));
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, preferences.notifications_enabled, preferences.sound_enabled]);
+
+  // Reconecta e recarrega ao reativar
+  useEffect(() => {
+    if (preferences.notifications_enabled && initializedRef.current) {
+      fetchNotifications();
+    }
+  }, [preferences.notifications_enabled, fetchNotifications]);
+
+  const markRead = useCallback(async (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    const { error } = await db.from('notifications').update({ is_read: true }).eq('id', id);
+    if (error) logger.error('[notifications] markRead error', error);
+  }, []);
+
+  const markAllRead = useCallback(async () => {
+    const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
+    if (!unreadIds.length) return;
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    const { error } = await db.from('notifications').update({ is_read: true }).in('id', unreadIds);
+    if (error) logger.error('[notifications] markAllRead error', error);
+  }, [notifications]);
+
+  const deleteOne = useCallback(async (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    const { error } = await db.from('notifications').delete().eq('id', id);
+    if (error) logger.error('[notifications] delete error', error);
+  }, []);
+
+  const setPreference = useCallback(async (patch: Partial<Preferences>) => {
+    if (!user) return;
+    const next = { ...preferences, ...patch };
+    setPreferences(next);
+    const { error } = await db.from('user_preferences').upsert({
+      user_id: user.id,
+      notifications_enabled: next.notifications_enabled,
+      sound_enabled: next.sound_enabled,
+    }, { onConflict: 'user_id' });
+    if (error) logger.error('[prefs] upsert error', error);
+  }, [user, preferences]);
+
+  const unreadCount = useMemo(
+    () => preferences.notifications_enabled ? notifications.filter(n => !n.is_read).length : 0,
+    [notifications, preferences.notifications_enabled]
+  );
+
+  const value: Ctx = {
+    notifications,
+    unreadCount,
+    preferences,
+    loading,
+    refresh: fetchNotifications,
+    markRead,
+    markAllRead,
+    deleteOne,
+    setPreference,
+  };
+
+  return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
+}
+
+export function useNotifications() {
+  const ctx = useContext(NotificationsContext);
+  if (!ctx) throw new Error('useNotifications must be used inside NotificationsProvider');
+  return ctx;
+}

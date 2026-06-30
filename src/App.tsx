@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { PrivacyProvider } from "@/hooks/usePrivacy";
+import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import AppVersionBanner from "./components/AppVersionBanner";
@@ -212,12 +213,14 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <PrivacyProvider>
-              <AppRoutes />
-              <AppVersionBanner />
-              
-              <Toaster />
-              <Sonner position="top-right" closeButton theme="light" />
-              <PWAUpdatePrompt />
+              <NotificationsProvider>
+                <AppRoutes />
+                <AppVersionBanner />
+
+                <Toaster />
+                <Sonner position="top-right" closeButton theme="light" />
+                <PWAUpdatePrompt />
+              </NotificationsProvider>
             </PrivacyProvider>
           </AuthProvider>
         </BrowserRouter>
