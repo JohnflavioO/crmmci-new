@@ -212,7 +212,7 @@ const App = () => (
             <PrivacyProvider>
               <AppRoutes />
               <AppVersionBanner />
-              <TaskHubFloatingButton />
+              
               <Toaster />
               <Sonner position="top-right" closeButton theme="light" />
               <PWAUpdatePrompt />
