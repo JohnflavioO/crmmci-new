@@ -150,6 +150,15 @@ export default function OperationalCenter() {
               .order('total_amount', { ascending: false })
               .limit(10)
           );
+          // Demonstrações da equipe
+          queries.push(
+            db.from('quotes')
+              .select('id, quote_number, client_name, clients(company_name, name), profiles!quotes_created_by_fkey(full_name), demonstration_start_date, demonstration_end_date, total_amount')
+              .eq('is_demonstration', true)
+              .not('demonstration_end_date', 'is', null)
+              .order('demonstration_end_date', { ascending: true })
+              .limit(30)
+          );
         }
 
         // --- FINANCE QUERIES ---
