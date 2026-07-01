@@ -221,21 +221,42 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess, editOrde
         freight_value: Number(freightValue) || 0,
       };
 
-      const { data: order, error } = await supabase
-        .from('technical_purchase_orders')
-        .insert({
-          order_type: 'Venda',
-          status: 'pendente',
-          purchase_date: new Date().toISOString().split('T')[0],
-          total_amount: total,
-          notes: JSON.stringify(meta),
-        })
-        .select()
-        .single();
-      if (error) throw error;
+      let orderId = editOrderId as string | undefined;
+
+      if (isEdit && orderId) {
+        const { error: updErr } = await supabase
+          .from('technical_purchase_orders')
+          .update({
+            status,
+            total_amount: total,
+            notes: JSON.stringify(meta),
+          })
+          .eq('id', orderId);
+        if (updErr) throw updErr;
+
+        const { error: delErr } = await supabase
+          .from('technical_purchase_order_items')
+          .delete()
+          .eq('purchase_order_id', orderId);
+        if (delErr) throw delErr;
+      } else {
+        const { data: order, error } = await supabase
+          .from('technical_purchase_orders')
+          .insert({
+            order_type: 'Venda',
+            status: 'pendente',
+            purchase_date: new Date().toISOString().split('T')[0],
+            total_amount: total,
+            notes: JSON.stringify(meta),
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        orderId = order.id;
+      }
 
       const itemsToInsert = items.map(i => ({
-        purchase_order_id: order.id,
+        purchase_order_id: orderId!,
         product_id: i.product_id,
         quantity: i.quantity,
         unit_price: i.unit_price,
@@ -246,11 +267,11 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess, editOrde
         .insert(itemsToInsert);
       if (itemsErr) throw itemsErr;
 
-      toast.success('Venda registrada com sucesso!');
+      toast.success(isEdit ? 'Venda atualizada!' : 'Venda registrada com sucesso!');
       onSuccess();
       onOpenChange(false);
     } catch (e: any) {
-      toast.error('Erro ao registrar venda: ' + e.message);
+      toast.error('Erro ao salvar venda: ' + e.message);
     } finally {
       setSubmitting(false);
     }
