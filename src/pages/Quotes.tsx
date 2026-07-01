@@ -192,6 +192,7 @@ interface QuoteItem {
   is_gift: boolean;
   description_layout?: 'compact' | 'expanded';
   transfer_status?: string | null;
+  is_presale?: boolean;
 }
 
 const TRANSFER_OPTIONS = [
@@ -204,6 +205,7 @@ const emptyItem = (): QuoteItem => ({
   specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0, image_url: '', is_gift: false,
   description_layout: 'compact',
   transfer_status: null,
+  is_presale: false,
 });
 
 const shippingMethods = [
@@ -768,6 +770,7 @@ export default function Quotes() {
         line_total: item.line_total, image_url: item.image_url, is_gift: item.is_gift,
         description_layout: item.description_layout || 'compact',
         transfer_status: item.transfer_status || null,
+        is_presale: !!item.is_presale,
       }));
 
       if (validItems.length > 0) {
@@ -937,6 +940,7 @@ export default function Quotes() {
           discount_percent: item.discount_percent, unit_total: item.unit_total,
           line_total: item.line_total, image_url: item.image_url, is_gift: item.is_gift || false,
           transfer_status: item.transfer_status || null,
+          is_presale: !!item.is_presale,
         }));
         await db.from('quote_items').insert(dupItems);
       }
@@ -1768,6 +1772,11 @@ export default function Quotes() {
                               ⇄ Em Transferência {TRANSFER_OPTIONS.find(o => o.value === item.transfer_status)?.label || ''}
                             </span>
                           )}
+                          {item.is_presale && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-600 text-white text-[10px] font-bold uppercase tracking-wide">
+                              🏷️ Pré-venda
+                            </span>
+                          )}
                         </div>
                         {items.length > 1 && (
                           <Button type="button" size="icon" variant="ghost" onClick={() => removeItem(idx)}>
@@ -1956,6 +1965,22 @@ export default function Quotes() {
                             </Button>
                           )}
                         </div>
+                      </div>
+                      {/* Pré-venda */}
+                      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-dashed">
+                        <Label className="text-xs font-semibold text-purple-700">Pré-venda:</Label>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={item.is_presale ? 'default' : 'outline'}
+                          className={cn(
+                            "h-7 text-xs gap-1",
+                            item.is_presale && "bg-purple-600 hover:bg-purple-700 text-white border-purple-600"
+                          )}
+                          onClick={() => updateItem(idx, 'is_presale', !item.is_presale)}
+                        >
+                          🏷️ {item.is_presale ? 'Marcado como Pré-venda ✓' : 'Marcar como Pré-venda'}
+                        </Button>
                       </div>
                     </div>
                   ))}
