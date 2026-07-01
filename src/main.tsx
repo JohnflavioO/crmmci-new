@@ -1,7 +1,6 @@
-import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
-import "./index.css";
 import { installBrowserSafetyGuards } from "@/lib/browserRecovery";
+import { createRoot } from "react-dom/client";
+import "./index.css";
 
 console.log('[Main] Inciando renderização...');
 
@@ -68,16 +67,33 @@ if (typeof window !== 'undefined') {
   });
 }
 
-try {
+async function startApp() {
   const rootElement = document.getElementById("root");
-  if (rootElement) {
-    console.log('[Main] Elemento root encontrado');
-    const root = createRoot(rootElement);
-    root.render(<App />);
-    console.log('[Main] Renderização solicitada');
-  } else {
+  if (!rootElement) {
     console.error('[Main] Elemento root não encontrado!');
+    return;
   }
+
+  console.log('[Main] Elemento root encontrado');
+  const { default: App } = await import("./App.tsx");
+  const root = createRoot(rootElement);
+  root.render(<App />);
+  window.__mciReactMounted = true;
+  console.log('[Main] Renderização solicitada');
+}
+
+declare global {
+  interface Window {
+    __mciReactMounted?: boolean;
+  }
+}
+
+try {
+  installBrowserSafetyGuards();
+  void startApp().catch((error) => {
+    console.error('[Main] Erro fatal durante a inicialização assíncrona:', error);
+    renderFatalStartupError(error);
+  });
 } catch (error) {
   console.error('[Main] Erro fatal durante a renderização:', error);
   renderFatalStartupError(error);
