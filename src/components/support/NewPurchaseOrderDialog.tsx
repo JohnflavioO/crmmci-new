@@ -534,7 +534,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess, editOrde
                 Salvando...
               </>
             ) : (
-              'Finalizar Venda'
+              isEdit ? 'Salvar Alterações' : 'Finalizar Venda'
             )}
           </Button>
         </div>
