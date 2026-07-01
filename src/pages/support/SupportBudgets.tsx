@@ -249,9 +249,9 @@ export default function SupportBudgets() {
                 </div>
                 <div className="flex justify-center pt-2 border-t">
                   <ActionMenu className="w-full justify-center" actions={[
+                    { label: 'Editar', icon: Pencil, onClick: () => openEdit(budget), isSecondary: true },
                     { label: 'Imprimir / PDF', icon: FileText, onClick: () => printBudget(budget), isPrimary: true },
                     { label: 'WhatsApp', icon: MessageCircle, onClick: () => sendWhatsApp(budget), className: 'text-green-600' },
-                    { label: 'Editar', icon: Pencil, onClick: () => openEdit(budget) },
                     { label: 'Excluir', icon: Trash2, onClick: () => remove(budget), variant: 'destructive' },
                   ]} />
                 </div>
