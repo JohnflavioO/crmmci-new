@@ -55,6 +55,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  editOrderId?: string | null;
 }
 
 const PAYMENT_METHODS = [
@@ -68,7 +69,8 @@ const PAYMENT_METHODS = [
 
 const FREIGHT_TYPES = ['Correios', 'Motoboy', 'Transportadora', 'Retirada'];
 
-export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess }: Props) {
+export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess, editOrderId }: Props) {
+  const isEdit = !!editOrderId;
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -83,6 +85,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess }: Props)
   const [discount, setDiscount] = useState<number>(0);
   const [freightType, setFreightType] = useState<string>('Correios');
   const [freightValue, setFreightValue] = useState<number>(0);
+  const [status, setStatus] = useState<string>('pendente');
 
   useEffect(() => {
     if (!open) return;
@@ -94,16 +97,57 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess }: Props)
     setDiscount(0);
     setFreightType('Correios');
     setFreightValue(0);
+    setStatus('pendente');
 
     (async () => {
       const [{ data: cs }, { data: ps }] = await Promise.all([
         supabase.from('technical_clients').select("id,name,cpf_cnpj").order('name'),
         supabase.from('technical_products').select('id,name,price').order('name'),
       ]);
-      setClients((cs || []) as any);
-      setProducts((ps || []) as any);
+      const clientList = (cs || []) as Client[];
+      const productList = (ps || []) as Product[];
+      setClients(clientList);
+      setProducts(productList);
+
+      if (editOrderId) {
+        const [{ data: order }, { data: orderItems }] = await Promise.all([
+          supabase.from('technical_purchase_orders').select('*').eq('id', editOrderId).maybeSingle(),
+          supabase
+            .from('technical_purchase_order_items')
+            .select('*, technical_products(name)')
+            .eq('purchase_order_id', editOrderId),
+        ]);
+        if (order) {
+          setStatus(order.status || 'pendente');
+          let meta: any = {};
+          try { meta = order.notes ? JSON.parse(order.notes) : {}; } catch { meta = {}; }
+          setPayment(meta.payment_method || 'pix');
+          setDiscount(Number(meta.discount_percent) || 0);
+          setFreightType(meta.freight_type || 'Correios');
+          setFreightValue(Number(meta.freight_value) || 0);
+          if (meta.client_id) {
+            const found = clientList.find(c => c.id === meta.client_id);
+            if (found) setSelectedClient(found);
+            else if (meta.client_name) setSelectedClient({ id: meta.client_id, name: meta.client_name });
+          } else if (meta.client_name) {
+            setSelectedClient({ id: 'external', name: meta.client_name });
+          }
+        }
+        if (orderItems) {
+          setItems(
+            orderItems.map((it: any) => ({
+              id: it.id,
+              product_id: it.product_id,
+              product_name: it.technical_products?.name || '—',
+              quantity: Number(it.quantity) || 1,
+              unit_price: Number(it.unit_price) || 0,
+              subtotal: Number(it.total_price) || 0,
+            }))
+          );
+        }
+      }
     })();
-  }, [open]);
+  }, [open, editOrderId]);
 
   const filteredClients = useMemo(() => {
     if (!clientSearch.trim() || selectedClient) return [];
@@ -177,21 +221,42 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess }: Props)
         freight_value: Number(freightValue) || 0,
       };
 
-      const { data: order, error } = await supabase
-        .from('technical_purchase_orders')
-        .insert({
-          order_type: 'Venda',
-          status: 'pendente',
-          purchase_date: new Date().toISOString().split('T')[0],
-          total_amount: total,
-          notes: JSON.stringify(meta),
-        })
-        .select()
-        .single();
-      if (error) throw error;
+      let orderId = editOrderId as string | undefined;
+
+      if (isEdit && orderId) {
+        const { error: updErr } = await supabase
+          .from('technical_purchase_orders')
+          .update({
+            status,
+            total_amount: total,
+            notes: JSON.stringify(meta),
+          })
+          .eq('id', orderId);
+        if (updErr) throw updErr;
+
+        const { error: delErr } = await supabase
+          .from('technical_purchase_order_items')
+          .delete()
+          .eq('purchase_order_id', orderId);
+        if (delErr) throw delErr;
+      } else {
+        const { data: order, error } = await supabase
+          .from('technical_purchase_orders')
+          .insert({
+            order_type: 'Venda',
+            status: 'pendente',
+            purchase_date: new Date().toISOString().split('T')[0],
+            total_amount: total,
+            notes: JSON.stringify(meta),
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        orderId = order.id;
+      }
 
       const itemsToInsert = items.map(i => ({
-        purchase_order_id: order.id,
+        purchase_order_id: orderId!,
         product_id: i.product_id,
         quantity: i.quantity,
         unit_price: i.unit_price,
@@ -202,11 +267,11 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess }: Props)
         .insert(itemsToInsert);
       if (itemsErr) throw itemsErr;
 
-      toast.success('Venda registrada com sucesso!');
+      toast.success(isEdit ? 'Venda atualizada!' : 'Venda registrada com sucesso!');
       onSuccess();
       onOpenChange(false);
     } catch (e: any) {
-      toast.error('Erro ao registrar venda: ' + e.message);
+      toast.error('Erro ao salvar venda: ' + e.message);
     } finally {
       setSubmitting(false);
     }
@@ -216,8 +281,36 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess }: Props)
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Nova Venda de Peças</DialogTitle>
+          <DialogTitle className="text-xl font-bold">
+            {isEdit ? 'Editar Ordem de Compra' : 'Nova Venda de Peças'}
+          </DialogTitle>
         </DialogHeader>
+
+        {isEdit && (
+          <section className="space-y-2">
+            <h3 className="font-semibold">Status da Ordem</h3>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: 'pendente', label: 'Pendente' },
+                { key: 'pago', label: 'Pago' },
+                { key: 'entregue', label: 'Entregue' },
+                { key: 'cancelado', label: 'Cancelado' },
+              ].map(s => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => setStatus(s.key)}
+                  className={cn(
+                    'px-3 py-1 text-xs border rounded-md transition-colors',
+                    status === s.key ? 'border-primary bg-primary/10 text-primary' : 'hover:bg-muted'
+                  )}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* 1. Cliente */}
         <section className="space-y-2">
@@ -441,7 +534,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess }: Props)
                 Salvando...
               </>
             ) : (
-              'Finalizar Venda'
+              isEdit ? 'Salvar Alterações' : 'Finalizar Venda'
             )}
           </Button>
         </div>

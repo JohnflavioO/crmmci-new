@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ShoppingCart, Search, Plus, Trash2, Printer } from 'lucide-react';
+import { ShoppingCart, Search, Plus, Trash2, Printer, Pencil } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { Button } from '@/components/ui/button';
@@ -70,6 +70,7 @@ export default function SupportPurchases() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editOrderId, setEditOrderId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -169,12 +170,17 @@ export default function SupportPurchases() {
           <h1 className="text-2xl font-bold tracking-tight">Ordens de Compra</h1>
           <p className="text-sm text-muted-foreground">Gestão de vendas de peças</p>
         </div>
-        <Button size="sm" className="gap-2" onClick={() => setDialogOpen(true)}>
+        <Button size="sm" className="gap-2" onClick={() => { setEditOrderId(null); setDialogOpen(true); }}>
           <Plus className="h-4 w-4" /> Nova Venda
         </Button>
       </div>
 
-      <NewPurchaseOrderDialog open={dialogOpen} onOpenChange={setDialogOpen} onSuccess={fetchOrders} />
+      <NewPurchaseOrderDialog
+        open={dialogOpen}
+        onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditOrderId(null); }}
+        onSuccess={fetchOrders}
+        editOrderId={editOrderId}
+      />
 
       <div className="flex gap-3 bg-card p-4 rounded-xl border">
         <div className="relative flex-1">
@@ -245,6 +251,14 @@ export default function SupportPurchases() {
                           className="text-primary hover:underline text-sm font-medium"
                         >
                           Detalhes
+                        </button>
+                        <button
+                          onClick={() => { setEditOrderId(o.id); setDialogOpen(true); }}
+                          className="text-blue-500 hover:text-blue-600"
+                          aria-label="Editar"
+                          title="Editar"
+                        >
+                          <Pencil className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => deleteOrder(o.id)}
