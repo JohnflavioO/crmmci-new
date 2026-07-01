@@ -2270,7 +2270,7 @@ export default function Quotes() {
                   return (
                   <TableRow key={q.id}>
                     <TableCell className="font-medium">
-                      <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                         {q.quote_number}
                         {q.source === 'loja_integrada' && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-purple-100 text-purple-800 border border-purple-200">
