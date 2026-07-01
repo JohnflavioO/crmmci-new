@@ -170,12 +170,17 @@ export default function SupportPurchases() {
           <h1 className="text-2xl font-bold tracking-tight">Ordens de Compra</h1>
           <p className="text-sm text-muted-foreground">Gestão de vendas de peças</p>
         </div>
-        <Button size="sm" className="gap-2" onClick={() => setDialogOpen(true)}>
+        <Button size="sm" className="gap-2" onClick={() => { setEditOrderId(null); setDialogOpen(true); }}>
           <Plus className="h-4 w-4" /> Nova Venda
         </Button>
       </div>
 
-      <NewPurchaseOrderDialog open={dialogOpen} onOpenChange={setDialogOpen} onSuccess={fetchOrders} />
+      <NewPurchaseOrderDialog
+        open={dialogOpen}
+        onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditOrderId(null); }}
+        onSuccess={fetchOrders}
+        editOrderId={editOrderId}
+      />
 
       <div className="flex gap-3 bg-card p-4 rounded-xl border">
         <div className="relative flex-1">
