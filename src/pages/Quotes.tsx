@@ -378,7 +378,7 @@ export default function Quotes() {
       // aplicamos o filtro de responsável para evitar confusão.
       // Por padrão, mostramos apenas os orçamentos do usuário atual.
       let quotesQuery = db.from('quotes')
-        .select('*, clients(company_name, name, phone), quote_items(transfer_status, quantity)')
+        .select('*, clients(company_name, name, phone), quote_items(transfer_status, quantity, is_presale)')
         .order('created_at', { ascending: false })
         .limit(200);
       
@@ -2183,6 +2183,17 @@ export default function Quotes() {
                           </span>
                         );
                       })()}
+                      {(() => {
+                        const pc = (q.quote_items || [])
+                          .filter((it: any) => !!it.is_presale)
+                          .reduce((sum: number, it: any) => sum + (Number(it.quantity) || 1), 0);
+                        if (!pc) return null;
+                        return (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                            🏷️ {pc} {pc === 1 ? 'unid.' : 'unids.'} em pré-venda
+                          </span>
+                        );
+                      })()}
                       {renderPaymentInfo(q)}
                       <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${ps.className}`}>
                         <PsIcon className="h-3 w-3" /> {ps.label}
@@ -2260,6 +2271,17 @@ export default function Quotes() {
                           return (
                             <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-orange-100 text-orange-800 border border-orange-200" title="Unidades em transferência">
                               ⇄ {tc} {tc === 1 ? 'unid.' : 'unids.'} em transferência
+                            </span>
+                          );
+                        })()}
+                        {(() => {
+                          const pc = (q.quote_items || [])
+                            .filter((it: any) => !!it.is_presale)
+                            .reduce((sum: number, it: any) => sum + (Number(it.quantity) || 1), 0);
+                          if (!pc) return null;
+                          return (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-purple-100 text-purple-800 border border-purple-200" title="Unidades em pré-venda">
+                              🏷️ {pc} {pc === 1 ? 'unid.' : 'unids.'} em pré-venda
                             </span>
                           );
                         })()}
