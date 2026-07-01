@@ -1772,6 +1772,11 @@ export default function Quotes() {
                               ⇄ Em Transferência {TRANSFER_OPTIONS.find(o => o.value === item.transfer_status)?.label || ''}
                             </span>
                           )}
+                          {item.is_presale && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-600 text-white text-[10px] font-bold uppercase tracking-wide">
+                              🏷️ Pré-venda
+                            </span>
+                          )}
                         </div>
                         {items.length > 1 && (
                           <Button type="button" size="icon" variant="ghost" onClick={() => removeItem(idx)}>
