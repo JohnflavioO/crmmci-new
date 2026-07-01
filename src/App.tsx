@@ -130,10 +130,19 @@ function AppRoutes() {
   }
 
   if (forcePasswordChange) return <ForcePasswordChange />;
-  
+
   // Pending approval logic
   const hasValidRole = profile?.role && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica', 'support_tech', 'support_manager'].includes(profile.role.toLowerCase());
-  const isPending = !isAdmin && !isGestor && !isFinanceiro && !isLogistica && !isSupport && !isApproved && !hasValidRole;
+  const hasAnyRoleFlag = isAdmin || isGestor || isFinanceiro || isLogistica || isSupport;
+
+  // Guard: if we're logged in but profile hasn't loaded yet AND we don't have any role/approval signal,
+  // treat as still-loading instead of "pending". This avoids the false "Aguardando aprovação" screen
+  // when the profile fetch was slow or transiently failed.
+  if (user && !profile && !hasAnyRoleFlag && !isApproved) {
+    return <LoadingScreen />;
+  }
+
+  const isPending = !hasAnyRoleFlag && !isApproved && !hasValidRole;
 
   if (isPending) return <PendingApproval />;
 
