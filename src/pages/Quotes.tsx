@@ -89,6 +89,47 @@ const renderDemoBadge = (q: any, size: 'sm' | 'xs' = 'xs') => {
   );
 };
 
+const sumFlaggedUnits = (items: any[] | undefined, predicate: (item: any) => boolean) =>
+  (items || [])
+    .filter(predicate)
+    .reduce((sum: number, item: any) => sum + (Number(item.quantity) || 1), 0);
+
+const renderQuoteItemFlowBadge = (q: any, size: 'sm' | 'xs' = 'xs') => {
+  const transferUnits = sumFlaggedUnits(q.quote_items, (item) => !!item.transfer_status);
+  const presaleUnits = sumFlaggedUnits(q.quote_items, (item) => !!item.is_presale);
+
+  if (!transferUnits && !presaleUnits) return null;
+
+  const compact = size === 'xs';
+  const unitLabel = (value: number) => `${value} ${value === 1 ? 'unid.' : 'unids.'}`;
+  const parts = [
+    transferUnits ? `${unitLabel(transferUnits)} em transferência` : null,
+    presaleUnits ? `${unitLabel(presaleUnits)} em pré-venda` : null,
+  ].filter(Boolean);
+
+  return (
+    <span
+      title={parts.join(' • ')}
+      className={cn(
+        'inline-flex max-w-full items-center rounded-md border border-border bg-card text-foreground shadow-sm',
+        compact ? 'gap-1 px-1.5 py-0.5 text-[10px]' : 'gap-1.5 px-2 py-1 text-[11px]',
+      )}
+    >
+      <span className={cn(
+        'inline-flex shrink-0 items-center justify-center rounded bg-primary/10 text-primary',
+        compact ? 'h-4 w-4' : 'h-5 w-5',
+      )}>
+        <SplitSquareVertical className={compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
+      </span>
+      <span className="min-w-0 truncate font-semibold">
+        {transferUnits ? `${unitLabel(transferUnits)} transferência` : null}
+        {transferUnits && presaleUnits ? ' + ' : null}
+        {presaleUnits ? `${unitLabel(presaleUnits)} pré-venda` : null}
+      </span>
+    </span>
+  );
+};
+
 const normalizeProductText = (value: any): string =>
   (value ?? '').toString().toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -2172,28 +2213,7 @@ export default function Quotes() {
                           <Store className="h-3 w-3" /> Revenda
                         </span>
                       )}
-                      {(() => {
-                        const tc = (q.quote_items || [])
-                          .filter((it: any) => !!it.transfer_status)
-                          .reduce((sum: number, it: any) => sum + (Number(it.quantity) || 1), 0);
-                        if (!tc) return null;
-                        return (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
-                            ⇄ {tc} {tc === 1 ? 'unid.' : 'unids.'} em transferência
-                          </span>
-                        );
-                      })()}
-                      {(() => {
-                        const pc = (q.quote_items || [])
-                          .filter((it: any) => !!it.is_presale)
-                          .reduce((sum: number, it: any) => sum + (Number(it.quantity) || 1), 0);
-                        if (!pc) return null;
-                        return (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
-                            🏷️ {pc} {pc === 1 ? 'unid.' : 'unids.'} em pré-venda
-                          </span>
-                        );
-                      })()}
+                      {renderQuoteItemFlowBadge(q, 'sm')}
                       {renderPaymentInfo(q)}
                       <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${ps.className}`}>
                         <PsIcon className="h-3 w-3" /> {ps.label}
@@ -2263,28 +2283,7 @@ export default function Quotes() {
                           </span>
                         )}
                         {renderDemoBadge(q)}
-                        {(() => {
-                          const tc = (q.quote_items || [])
-                            .filter((it: any) => !!it.transfer_status)
-                            .reduce((sum: number, it: any) => sum + (Number(it.quantity) || 1), 0);
-                          if (!tc) return null;
-                          return (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-orange-100 text-orange-800 border border-orange-200" title="Unidades em transferência">
-                              ⇄ {tc} {tc === 1 ? 'unid.' : 'unids.'} em transferência
-                            </span>
-                          );
-                        })()}
-                        {(() => {
-                          const pc = (q.quote_items || [])
-                            .filter((it: any) => !!it.is_presale)
-                            .reduce((sum: number, it: any) => sum + (Number(it.quantity) || 1), 0);
-                          if (!pc) return null;
-                          return (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-purple-100 text-purple-800 border border-purple-200" title="Unidades em pré-venda">
-                              🏷️ {pc} {pc === 1 ? 'unid.' : 'unids.'} em pré-venda
-                            </span>
-                          );
-                        })()}
+                        {renderQuoteItemFlowBadge(q)}
                       </div>
                     </TableCell>
                     <TableCell>{q.clients?.company_name || q.clients?.name || q.client_name || '-'}</TableCell>

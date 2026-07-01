@@ -14,7 +14,6 @@ const isPreviewRuntime = () => {
   return window.self !== window.top
     || host.startsWith('id-preview--')
     || host.includes('-preview--')
-    || host.includes('lovable.app')
     || host.endsWith('.lovableproject.com')
     || host.endsWith('.lovableproject-dev.com')
     || host.endsWith('.beta.lovable.dev');
@@ -54,16 +53,14 @@ export default class ErrorBoundary extends Component<Props, State> {
       return;
     }
 
-    if (!isPreviewRuntime() && isLikelyChunkLoadError(error) && shouldRetryChunkLoad()) {
+    if (isLikelyChunkLoadError(error) && shouldRetryChunkLoad()) {
       void clearBrowserCachesAndWorkers().finally(() => reloadWithCacheBust());
     }
   }
 
   handleReload = () => {
     if (isPreviewRuntime()) {
-      window.history.replaceState(window.history.state, '', window.location.href);
-      window.dispatchEvent(new PopStateEvent('popstate'));
-      this.setState({ hasError: false, error: null });
+      reloadWithCacheBust();
       return;
     }
     window.location.reload();

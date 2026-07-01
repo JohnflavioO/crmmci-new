@@ -1,4 +1,10 @@
-import { installBrowserSafetyGuards } from "@/lib/browserRecovery";
+import {
+  clearBrowserCachesAndWorkers,
+  installBrowserSafetyGuards,
+  isLikelyChunkLoadError,
+  reloadWithCacheBust,
+  shouldRetryChunkLoad,
+} from "@/lib/browserRecovery";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 
@@ -10,7 +16,6 @@ const isPreviewRuntime = () => {
   return window.self !== window.top
     || h.startsWith('id-preview--')
     || h.includes('-preview--')
-    || h.includes('lovable.app')
     || h.endsWith('.lovableproject.com')
     || h.endsWith('.lovableproject-dev.com')
     || h.endsWith('.beta.lovable.dev');
@@ -18,11 +23,16 @@ const isPreviewRuntime = () => {
 
 const safeReload = () => {
   if (isPreviewRuntime()) {
-    window.history.replaceState(window.history.state, '', window.location.href);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    reloadWithCacheBust();
     return;
   }
   window.location.reload();
+};
+
+const recoverChunkStartupError = (error: unknown) => {
+  if (!isLikelyChunkLoadError(error) || !shouldRetryChunkLoad()) return false;
+  void clearBrowserCachesAndWorkers().finally(() => reloadWithCacheBust());
+  return true;
 };
 
 const escapeHtml = (value: string) => value.replace(/[&<>"]/g, (char) => {
@@ -92,9 +102,14 @@ try {
   installBrowserSafetyGuards();
   void startApp().catch((error) => {
     console.error('[Main] Erro fatal durante a inicialização assíncrona:', error);
+    if (recoverChunkStartupError(error)) return;
     renderFatalStartupError(error);
   });
 } catch (error) {
   console.error('[Main] Erro fatal durante a renderização:', error);
+  if (recoverChunkStartupError(error)) {
+    // A recuperação já agendou limpeza + reload.
+  } else {
   renderFatalStartupError(error);
+  }
 }

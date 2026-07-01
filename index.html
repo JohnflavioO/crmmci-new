@@ -148,16 +148,28 @@
         };
       })();
 
-      /* Limpeza segura: remove somente service workers antigos do app-shell MCI
-         (/sw.js e /service-worker.js). Não toca no worker de push Firebase nem em
-         qualquer worker da plataforma. Se um worker antigo ainda estiver controlando
-         esta aba, fazemos UMA recarga controlada após unregister para sair do cache
-         antigo sem criar loop branco no preview. */
+      /* Limpeza segura: no preview, qualquer service worker do mesmo domínio pode
+         manter bundles antigos e causar tela branca no iframe. Removemos os workers
+         same-origin no preview e fazemos no máximo UMA recarga controlada. Fora do
+         preview, removemos apenas os workers antigos do app-shell MCI. */
       (function () {
         if (!('serviceWorker' in navigator)) return;
 
         var appShellWorkerPaths = ['/sw.js', '/service-worker.js'];
         var reloadFlag = '__mci_app_shell_sw_reloaded_v3';
+        var host = window.location.hostname;
+        var isPreview = window.self !== window.top
+          || host.indexOf('id-preview--') === 0
+          || host.indexOf('preview--') !== -1
+          || host.indexOf('-preview--') !== -1
+          || /\.lovableproject(?:-dev)?\.com$/.test(host)
+          || /\.beta\.lovable\.dev$/.test(host);
+
+        var isSameOriginScript = function (scriptURL) {
+          try { return new URL(scriptURL).origin === window.location.origin; }
+          catch (_) { return false; }
+        };
+
         var isAppShellScript = function (scriptURL) {
           try {
             var url = new URL(scriptURL);
@@ -167,24 +179,29 @@
           }
         };
 
+        var shouldRemoveWorker = function (scriptURL) {
+          return isPreview ? isSameOriginScript(scriptURL) : isAppShellScript(scriptURL);
+        };
+
         var isAppShellCache = function (name) {
+          if (isPreview) return true;
           return /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name)
             && (name.indexOf(window.location.origin) !== -1 || name.indexOf(window.location.host) !== -1);
         };
 
         var cleanup = function () {
-          var controlledByAppShell = !!(navigator.serviceWorker.controller && isAppShellScript(navigator.serviceWorker.controller.scriptURL));
+          var controlledByRemovableWorker = !!(navigator.serviceWorker.controller && shouldRemoveWorker(navigator.serviceWorker.controller.scriptURL));
           navigator.serviceWorker.getRegistrations().then(function (registrations) {
             return Promise.allSettled(registrations.map(function (registration) {
               var worker = registration.active || registration.waiting || registration.installing;
-              if (worker && isAppShellScript(worker.scriptURL)) {
+              if (worker && shouldRemoveWorker(worker.scriptURL)) {
                 try { registration.update(); } catch (_) {}
                 return registration.unregister();
               }
               return null;
             }));
           }).catch(function () {}).finally(function () {
-            if (!controlledByAppShell) return;
+            if (!controlledByRemovableWorker) return;
             try {
               if (window.sessionStorage.getItem(reloadFlag) === '1') return;
               window.sessionStorage.setItem(reloadFlag, '1');
