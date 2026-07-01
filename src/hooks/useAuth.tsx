@@ -127,14 +127,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
-    
+
     let cancelled = false;
+    let attempt = 0;
 
     const fetchData = async () => {
+      attempt += 1;
       try {
-        console.log('[Auth] Fetching user data for:', user.id);
-        
-        // Buscamos o perfil primeiro para evitar múltiplas chamadas RPC se falhar
+        console.log(`[Auth] Fetching user data for: ${user.id} (attempt ${attempt})`);
+
         const profileRes = await supabase
           .from('profiles')
           .select('full_name, phone, role, avatar_url, force_password_change, company_id, can_access_support_manager')
@@ -159,20 +160,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (cancelled) return;
 
+        const profileData = profileRes.data;
+        const normalizedRole = profileData?.role?.toLowerCase();
+        const approvedByRole = !!normalizedRole && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica'].includes(normalizedRole);
+        const approvedState = approvedRes.data === true || approvedByRole;
+
         console.log('[Auth] Results:', {
           approved: approvedRes.data,
+          approvedState,
           admin: adminRes.data,
           gestor: gestorRes.data,
           financeiro: financeiroRes.data,
           logistica: logisticaRes.data,
-          profile: profileRes.data,
+          profileRole: profileData?.role,
         });
 
-        const normalizedRole = profileRes.data?.role?.toLowerCase();
-        const approvedByRole = !!normalizedRole && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica'].includes(normalizedRole);
-
-        const approvedState = approvedRes.data === true || approvedByRole;
-        
         setIsApproved(approvedState);
         setIsAdmin(adminRes.data === true || normalizedRole === 'admin');
         setIsGestor(gestorRes.data === true || normalizedRole === 'gestor');
@@ -180,13 +182,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLogistica(logisticaRes.data === true || normalizedRole === 'logistica');
         setIsSupportTech(supportTechRes.data === true || normalizedRole === 'support_tech');
         setIsSupportManager(supportManagerRes.data === true || normalizedRole === 'support_manager');
-        setProfile(profileRes.data as any);
-        setForcePasswordChange(profileRes.data?.force_password_change === true);
-        
+
+        if (profileData) {
+          setProfile(profileData as any);
+          setForcePasswordChange(profileData.force_password_change === true);
+        } else if (attempt < 3) {
+          // Profile failed to load — retry with backoff before concluding "pending"
+          console.warn('[Auth] Profile empty, retrying in', attempt * 1000, 'ms');
+          setTimeout(() => { if (!cancelled) fetchData(); }, attempt * 1000);
+          return;
+        }
+
         setLoading(false);
       } catch (e) {
         console.error('[Auth] fetchUserData error:', e);
-      } finally {
+        if (attempt < 3 && !cancelled) {
+          setTimeout(() => { if (!cancelled) fetchData(); }, attempt * 1000);
+          return;
+        }
         if (!cancelled) setLoading(false);
       }
     };
