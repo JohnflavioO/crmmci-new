@@ -10,9 +10,10 @@ export default defineConfig(({ mode }) => ({
     modulePreload: false,
     rollupOptions: {
       output: {
-        // Keep the entry filename stable so old Lovable preview HTML never points
-        // at a deleted hashed entry file (the recurring blank-preview cause).
-        entryFileNames: "assets/index.js",
+        // Use hashed entries again so browsers never keep a stale JS entry.
+        // A permanent /assets/index.js compatibility shim in public/ handles
+        // old preview HTML shells that still reference the former stable entry.
+        entryFileNames: "assets/[name]-[hash].js",
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: (assetInfo) => {
           if (assetInfo.name?.endsWith(".css")) return "assets/[name]-[hash][extname]";
