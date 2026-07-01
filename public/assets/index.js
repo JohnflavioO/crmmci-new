@@ -39,6 +39,17 @@ const getCurrentEntryFromHtml = async () => {
 const boot = async () => {
   const host = window.location.hostname;
   const isViteDev = host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
+  if (isViteDev) {
+    try {
+      const RefreshRuntime = await import("/@react-refresh");
+      RefreshRuntime.injectIntoGlobalHook(window);
+      window.$RefreshReg$ = () => {};
+      window.$RefreshSig$ = () => (type) => type;
+      await import("/@vite/client");
+    } catch (_) {
+      // In production these dev-only endpoints do not exist; continue normally.
+    }
+  }
   const entry = isViteDev ? "/src/main.tsx" : await getCurrentEntryFromHtml();
   const url = new URL(entry, window.location.origin);
   url.searchParams.set("__mci_entry_reload", String(Date.now()));
