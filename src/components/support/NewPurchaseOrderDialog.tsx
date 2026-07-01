@@ -69,7 +69,8 @@ const PAYMENT_METHODS = [
 
 const FREIGHT_TYPES = ['Correios', 'Motoboy', 'Transportadora', 'Retirada'];
 
-export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess }: Props) {
+export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess, editOrderId }: Props) {
+  const isEdit = !!editOrderId;
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -84,6 +85,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess }: Props)
   const [discount, setDiscount] = useState<number>(0);
   const [freightType, setFreightType] = useState<string>('Correios');
   const [freightValue, setFreightValue] = useState<number>(0);
+  const [status, setStatus] = useState<string>('pendente');
 
   useEffect(() => {
     if (!open) return;
@@ -95,16 +97,57 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess }: Props)
     setDiscount(0);
     setFreightType('Correios');
     setFreightValue(0);
+    setStatus('pendente');
 
     (async () => {
       const [{ data: cs }, { data: ps }] = await Promise.all([
         supabase.from('technical_clients').select("id,name,cpf_cnpj").order('name'),
         supabase.from('technical_products').select('id,name,price').order('name'),
       ]);
-      setClients((cs || []) as any);
-      setProducts((ps || []) as any);
+      const clientList = (cs || []) as Client[];
+      const productList = (ps || []) as Product[];
+      setClients(clientList);
+      setProducts(productList);
+
+      if (editOrderId) {
+        const [{ data: order }, { data: orderItems }] = await Promise.all([
+          supabase.from('technical_purchase_orders').select('*').eq('id', editOrderId).maybeSingle(),
+          supabase
+            .from('technical_purchase_order_items')
+            .select('*, technical_products(name)')
+            .eq('purchase_order_id', editOrderId),
+        ]);
+        if (order) {
+          setStatus(order.status || 'pendente');
+          let meta: any = {};
+          try { meta = order.notes ? JSON.parse(order.notes) : {}; } catch { meta = {}; }
+          setPayment(meta.payment_method || 'pix');
+          setDiscount(Number(meta.discount_percent) || 0);
+          setFreightType(meta.freight_type || 'Correios');
+          setFreightValue(Number(meta.freight_value) || 0);
+          if (meta.client_id) {
+            const found = clientList.find(c => c.id === meta.client_id);
+            if (found) setSelectedClient(found);
+            else if (meta.client_name) setSelectedClient({ id: meta.client_id, name: meta.client_name });
+          } else if (meta.client_name) {
+            setSelectedClient({ id: 'external', name: meta.client_name });
+          }
+        }
+        if (orderItems) {
+          setItems(
+            orderItems.map((it: any) => ({
+              id: it.id,
+              product_id: it.product_id,
+              product_name: it.technical_products?.name || '—',
+              quantity: Number(it.quantity) || 1,
+              unit_price: Number(it.unit_price) || 0,
+              subtotal: Number(it.total_price) || 0,
+            }))
+          );
+        }
+      }
     })();
-  }, [open]);
+  }, [open, editOrderId]);
 
   const filteredClients = useMemo(() => {
     if (!clientSearch.trim() || selectedClient) return [];
