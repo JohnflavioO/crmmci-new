@@ -71,8 +71,14 @@ export default function SupportBudgets() {
   const total = useMemo(() => Math.max(0, Number(form.total_services || 0) + Number(form.total_parts || 0) - Number(form.discount || 0)), [form]);
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setOpen(true); };
-  const openEdit = (b: Budget) => {
+  const openEdit = async (b: Budget) => {
     setEditing(b);
+    if (b.technical_order_id && !orders.find(o => o.id === b.technical_order_id)) {
+      const { data } = await supabase.from('technical_orders' as any)
+        .select('id, os_number, client_id, client_name, equipment, parts_value, labor_value')
+        .eq('id', b.technical_order_id).maybeSingle();
+      if (data) setOrders(prev => [data as any, ...prev]);
+    }
     setForm({
       technical_order_id: b.technical_order_id || '',
       total_services: Number(b.total_services) || 0,
