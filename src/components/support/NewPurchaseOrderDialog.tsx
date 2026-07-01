@@ -55,6 +55,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  editOrderId?: string | null;
 }
 
 const PAYMENT_METHODS = [
