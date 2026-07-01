@@ -1961,6 +1961,22 @@ export default function Quotes() {
                           )}
                         </div>
                       </div>
+                      {/* Pré-venda */}
+                      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-dashed">
+                        <Label className="text-xs font-semibold text-purple-700">Pré-venda:</Label>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={item.is_presale ? 'default' : 'outline'}
+                          className={cn(
+                            "h-7 text-xs gap-1",
+                            item.is_presale && "bg-purple-600 hover:bg-purple-700 text-white border-purple-600"
+                          )}
+                          onClick={() => updateItem(idx, 'is_presale', !item.is_presale)}
+                        >
+                          🏷️ {item.is_presale ? 'Marcado como Pré-venda ✓' : 'Marcar como Pré-venda'}
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
