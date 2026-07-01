@@ -2580,6 +2580,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_user_company_id: { Args: never; Returns: string }
       delete_quote_cascade: { Args: { p_quote_id: string }; Returns: undefined }
       generate_quote_number: { Args: never; Returns: string }
       generate_technical_os_number: { Args: never; Returns: string }
