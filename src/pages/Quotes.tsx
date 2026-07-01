@@ -770,6 +770,7 @@ export default function Quotes() {
         line_total: item.line_total, image_url: item.image_url, is_gift: item.is_gift,
         description_layout: item.description_layout || 'compact',
         transfer_status: item.transfer_status || null,
+        is_presale: !!item.is_presale,
       }));
 
       if (validItems.length > 0) {
