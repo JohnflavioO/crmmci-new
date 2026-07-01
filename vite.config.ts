@@ -10,7 +10,9 @@ export default defineConfig(({ mode }) => ({
     modulePreload: false,
     rollupOptions: {
       output: {
-        entryFileNames: "assets/[name]-[hash].js",
+        // Keep the entry filename stable so old Lovable preview HTML never points
+        // at a deleted hashed entry file (the recurring blank-preview cause).
+        entryFileNames: "assets/index.js",
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: (assetInfo) => {
           if (assetInfo.name?.endsWith(".css")) return "assets/[name]-[hash][extname]";
