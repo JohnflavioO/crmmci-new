@@ -192,6 +192,7 @@ interface QuoteItem {
   is_gift: boolean;
   description_layout?: 'compact' | 'expanded';
   transfer_status?: string | null;
+  is_presale?: boolean;
 }
 
 const TRANSFER_OPTIONS = [
@@ -204,6 +205,7 @@ const emptyItem = (): QuoteItem => ({
   specifications: '', unit_price: 0, discount_percent: 0, unit_total: 0, line_total: 0, image_url: '', is_gift: false,
   description_layout: 'compact',
   transfer_status: null,
+  is_presale: false,
 });
 
 const shippingMethods = [
