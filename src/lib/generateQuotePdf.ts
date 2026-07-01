@@ -349,7 +349,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     const specsMaxLines = isExpanded ? 6 : 1;
     const splitSpecs = specs ? wrapCellText(specs, cols[3].w - 3, specsMaxLines) : [];
 
-    const totalLines = Math.max(1, splitModel.length + splitSpecs.length);
+    const totalLines = Math.max(1, splitModel.length + splitSpecs.length) + (item.is_presale ? 1 : 0);
     const lineHeight = 3.6;
     const contentHeight = (totalLines * lineHeight) + 4;
     const rowHeight = Math.max(baseRowHeight, contentHeight);
