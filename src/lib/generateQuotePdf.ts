@@ -349,7 +349,8 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     const specsMaxLines = isExpanded ? 6 : 1;
     const splitSpecs = specs ? wrapCellText(specs, cols[3].w - 3, specsMaxLines) : [];
 
-    const totalLines = Math.max(1, splitModel.length + splitSpecs.length) + (item.is_presale ? 1 : 0);
+    const hasBadges = item.is_presale || !!item.transfer_status;
+    const totalLines = Math.max(1, splitModel.length + splitSpecs.length) + (hasBadges ? 1 : 0);
     const lineHeight = 3.6;
     const contentHeight = (totalLines * lineHeight) + 4;
     const rowHeight = Math.max(baseRowHeight, contentHeight);
@@ -395,24 +396,36 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       doc.setTextColor(30);
     }
 
-    // Pré-venda badge
-    if (item.is_presale) {
-      const badgeText = 'PRÉ-VENDA';
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(6.2);
-      resetTextSpacing();
-      const tw = doc.getTextWidth(badgeText);
-      const padX = 1.4;
-      const badgeW = tw + padX * 2;
-      const badgeH = 3.2;
-      const badgeY = y + (splitModel.length * 3.6) + (splitSpecs.length * 3.6) - 2.4;
-      doc.setFillColor(126, 34, 206); // purple-700
-      doc.roundedRect(descX, badgeY, badgeW, badgeH, 0.6, 0.6, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.text(badgeText, descX + padX, badgeY + 2.3);
-      doc.setTextColor(30);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.1);
+    // Badges (Pré-venda / Transferência)
+    {
+      const badges: { text: string; fill: [number, number, number] }[] = [];
+      if (item.is_presale) badges.push({ text: 'PRÉ-VENDA', fill: [126, 34, 206] });
+      if (item.transfer_status) {
+        const transferLabels: Record<string, string> = { sc_sp: 'SC → SP', sc_ce: 'SC → CE' };
+        const lbl = transferLabels[item.transfer_status] || String(item.transfer_status).toUpperCase();
+        badges.push({ text: `⇄ EM TRANSFERÊNCIA ${lbl}`, fill: [234, 88, 12] }); // orange-600
+      }
+      if (badges.length) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(6.2);
+        resetTextSpacing();
+        const padX = 1.4;
+        const badgeH = 3.2;
+        const badgeY = y + (splitModel.length * 3.6) + (splitSpecs.length * 3.6) - 2.4;
+        let bx = descX;
+        badges.forEach((b) => {
+          const tw = doc.getTextWidth(b.text);
+          const badgeW = tw + padX * 2;
+          doc.setFillColor(b.fill[0], b.fill[1], b.fill[2]);
+          doc.roundedRect(bx, badgeY, badgeW, badgeH, 0.6, 0.6, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.text(b.text, bx + padX, badgeY + 2.3);
+          bx += badgeW + 1.2;
+        });
+        doc.setTextColor(30);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.1);
+      }
     }
 
     // Other Columns
