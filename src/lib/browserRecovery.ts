@@ -75,10 +75,7 @@ export const isLikelyChunkLoadError = (error: unknown) => {
 export const clearBrowserCachesAndWorkers = async () => {
   let clearedCaches = 0;
   let unregisteredWorkers = 0;
-
-  if (isLovablePreviewRuntime()) {
-    return { clearedCaches, unregisteredWorkers };
-  }
+  const isPreview = isLovablePreviewRuntime();
 
   try {
     if ("caches" in window) {
@@ -93,8 +90,17 @@ export const clearBrowserCachesAndWorkers = async () => {
   try {
     if ("serviceWorker" in navigator) {
       const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map((registration) => registration.unregister()));
-      unregisteredWorkers = registrations.length;
+      const sameOriginRegistrations = registrations.filter((registration) => {
+        const worker = registration.active || registration.waiting || registration.installing;
+        if (!worker?.scriptURL) return isPreview;
+        try {
+          return new URL(worker.scriptURL).origin === window.location.origin;
+        } catch {
+          return isPreview;
+        }
+      });
+      await Promise.all(sameOriginRegistrations.map((registration) => registration.unregister()));
+      unregisteredWorkers = sameOriginRegistrations.length;
     }
   } catch (error) {
     console.warn("[Recovery] Não foi possível remover service workers:", error);
@@ -105,10 +111,6 @@ export const clearBrowserCachesAndWorkers = async () => {
 
 export const reloadWithCacheBust = () => {
   const url = new URL(window.location.href);
-
-  if (isLovablePreviewRuntime()) {
-    return;
-  }
 
   url.searchParams.set("__mci_cache", CACHE_VERSION);
   url.searchParams.set("__mci_reload", String(Date.now()));
