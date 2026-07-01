@@ -1,4 +1,4 @@
-const CACHE_VERSION = "v2026-06-20-preview-safe-recovery";
+const CACHE_VERSION = "v2026-07-01-stable-preview-entry";
 
 const isLovablePreviewRuntime = () => {
   if (typeof window === "undefined") return false;
