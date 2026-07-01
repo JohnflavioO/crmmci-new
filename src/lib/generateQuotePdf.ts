@@ -349,7 +349,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     const specsMaxLines = isExpanded ? 6 : 1;
     const splitSpecs = specs ? wrapCellText(specs, cols[3].w - 3, specsMaxLines) : [];
 
-    const totalLines = Math.max(1, splitModel.length + splitSpecs.length);
+    const totalLines = Math.max(1, splitModel.length + splitSpecs.length) + (item.is_presale ? 1 : 0);
     const lineHeight = 3.6;
     const contentHeight = (totalLines * lineHeight) + 4;
     const rowHeight = Math.max(baseRowHeight, contentHeight);
@@ -393,6 +393,26 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       doc.setTextColor(80);
       doc.text(splitSpecs, descX, y + (splitModel.length * 3.6));
       doc.setTextColor(30);
+    }
+
+    // Pré-venda badge
+    if (item.is_presale) {
+      const badgeText = 'PRÉ-VENDA';
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6.2);
+      resetTextSpacing();
+      const tw = doc.getTextWidth(badgeText);
+      const padX = 1.4;
+      const badgeW = tw + padX * 2;
+      const badgeH = 3.2;
+      const badgeY = y + (splitModel.length * 3.6) + (splitSpecs.length * 3.6) - 2.4;
+      doc.setFillColor(126, 34, 206); // purple-700
+      doc.roundedRect(descX, badgeY, badgeW, badgeH, 0.6, 0.6, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.text(badgeText, descX + padX, badgeY + 2.3);
+      doc.setTextColor(30);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.1);
     }
 
     // Other Columns
