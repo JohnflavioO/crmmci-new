@@ -2183,6 +2183,17 @@ export default function Quotes() {
                           </span>
                         );
                       })()}
+                      {(() => {
+                        const pc = (q.quote_items || [])
+                          .filter((it: any) => !!it.is_presale)
+                          .reduce((sum: number, it: any) => sum + (Number(it.quantity) || 1), 0);
+                        if (!pc) return null;
+                        return (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                            🏷️ {pc} {pc === 1 ? 'unid.' : 'unids.'} em pré-venda
+                          </span>
+                        );
+                      })()}
                       {renderPaymentInfo(q)}
                       <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${ps.className}`}>
                         <PsIcon className="h-3 w-3" /> {ps.label}
