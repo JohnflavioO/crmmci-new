@@ -253,6 +253,14 @@ export default function SupportPurchases() {
                           Detalhes
                         </button>
                         <button
+                          onClick={() => { setEditOrderId(o.id); setDialogOpen(true); }}
+                          className="text-blue-500 hover:text-blue-600"
+                          aria-label="Editar"
+                          title="Editar"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
                           onClick={() => deleteOrder(o.id)}
                           className="text-rose-500 hover:text-rose-600"
                           aria-label="Excluir"
