@@ -281,8 +281,36 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess, editOrde
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Nova Venda de Peças</DialogTitle>
+          <DialogTitle className="text-xl font-bold">
+            {isEdit ? 'Editar Ordem de Compra' : 'Nova Venda de Peças'}
+          </DialogTitle>
         </DialogHeader>
+
+        {isEdit && (
+          <section className="space-y-2">
+            <h3 className="font-semibold">Status da Ordem</h3>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: 'pendente', label: 'Pendente' },
+                { key: 'pago', label: 'Pago' },
+                { key: 'entregue', label: 'Entregue' },
+                { key: 'cancelado', label: 'Cancelado' },
+              ].map(s => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => setStatus(s.key)}
+                  className={cn(
+                    'px-3 py-1 text-xs border rounded-md transition-colors',
+                    status === s.key ? 'border-primary bg-primary/10 text-primary' : 'hover:bg-muted'
+                  )}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* 1. Cliente */}
         <section className="space-y-2">
