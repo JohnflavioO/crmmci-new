@@ -75,6 +75,7 @@ export default function Clients() {
   const { isAdmin, isGestor } = useAuth();
   const canSeeAll = isAdmin || isGestor;
   const [cnpjLoading, setCnpjLoading] = useState(false);
+  const [historyClientId, setHistoryClientId] = useState<string | null>(null);
 
   const loadClients = useCallback(async () => {
     if (!user?.id) return;
