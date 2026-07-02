@@ -355,7 +355,7 @@ export default function Quotes() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'commercial' | 'demonstration'>('all');
-  const [responsibleFilter, setResponsibleFilter] = useState('me');
+  const [responsibleFilter, setResponsibleFilter] = useState<string>(() => 'all');
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [sellerProfiles, setSellerProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
