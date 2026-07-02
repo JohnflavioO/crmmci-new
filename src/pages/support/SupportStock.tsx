@@ -64,6 +64,15 @@ export default function SupportStock() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState<{ category: string; brand: string; status: string }>({ category: 'all', brand: 'all', status: 'all' });
 
+  // Import state
+  const [importBrand, setImportBrand] = useState<string>('');
+  const [importMethod, setImportMethod] = useState<ImportMethod>('sheet');
+  const [importText, setImportText] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [preview, setPreview] = useState<ParsedRow[] | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const xmlRef = useRef<HTMLInputElement>(null);
+
   const load = async () => {
     const { data: products } = await supabase.from('technical_products' as any).select('*').order('name');
     setItems((products || []) as any[]);
