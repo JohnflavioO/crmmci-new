@@ -1,21 +1,42 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, AlertTriangle, Search, Tags, History, Printer, SlidersHorizontal, Package, MoreHorizontal, Pencil, Trash2, PlusCircle, Wrench, Download, Upload, FileJson, FileSpreadsheet, FileText, MessageCircle } from 'lucide-react';
+import { Plus, AlertTriangle, Search, Tags, History, Printer, SlidersHorizontal, Package, MoreHorizontal, Pencil, Trash2, PlusCircle, Wrench, Download, Upload, FileJson, FileSpreadsheet, FileText, MessageCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { ActionMenu } from '@/components/ActionMenu';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
+type ImportMethod = 'sheet' | 'xml' | 'pdf' | 'text';
+type ParsedRow = { name: string; code?: string; price?: number; cost?: number; quantity?: number; location?: string; unit_measure?: string };
+
+const norm = (s: any) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+const toNum = (v: any) => {
+  if (v == null || v === '') return 0;
+  const s = String(v).replace(/[^0-9,.-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+};
+const HEADER_MAP: Record<string, (keyof ParsedRow)> = {
+  codigo: 'code', code: 'code', sku: 'code', ref: 'code', referencia: 'code',
+  nome: 'name', descricao: 'name', produto: 'name', name: 'name', item: 'name',
+  preco: 'price', precovenda: 'price', valor: 'price', price: 'price', vlrunit: 'price', valorunitario: 'price',
+  custo: 'cost', precocusto: 'cost', cost: 'cost',
+  qtd: 'quantity', quantidade: 'quantity', estoque: 'quantity', qty: 'quantity', quant: 'quantity',
+  local: 'location', localizacao: 'location', location: 'location', prateleira: 'location',
+  unidade: 'unit_measure', un: 'unit_measure', unit: 'unit_measure',
+};
 
 const CATEGORIES = ['Aputure', 'Amaran', 'Astera', 'Creamsource', 'Outros'];
 const MAINTENANCE_STATUS = ['Aguardando', 'Em Manutenção', 'Pronto', 'Entregue'];
@@ -42,6 +63,15 @@ export default function SupportStock() {
   });
   const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState<{ category: string; brand: string; status: string }>({ category: 'all', brand: 'all', status: 'all' });
+
+  // Import state
+  const [importBrand, setImportBrand] = useState<string>('');
+  const [importMethod, setImportMethod] = useState<ImportMethod>('sheet');
+  const [importText, setImportText] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [preview, setPreview] = useState<ParsedRow[] | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const xmlRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     const { data: products } = await supabase.from('technical_products' as any).select('*').order('name');
@@ -157,6 +187,144 @@ export default function SupportStock() {
     toast.success('Manutenção excluída');
     load();
   };
+
+  // ============ IMPORT HANDLERS ============
+  const mapRows = (rows: any[][]): ParsedRow[] => {
+    if (!rows.length) return [];
+    // Detect header row (first row with >= 2 known headers)
+    let hIdx = 0;
+    for (let i = 0; i < Math.min(rows.length, 5); i++) {
+      const matches = rows[i].filter(c => HEADER_MAP[norm(c)]).length;
+      if (matches >= 2) { hIdx = i; break; }
+    }
+    const headers = rows[hIdx].map(h => HEADER_MAP[norm(h)] || null);
+    const out: ParsedRow[] = [];
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || r.every(c => c == null || c === '')) continue;
+      const obj: any = {};
+      headers.forEach((k, idx) => { if (k) obj[k] = r[idx]; });
+      if (!obj.name && !obj.code) continue;
+      out.push({
+        name: String(obj.name || obj.code || '').trim(),
+        code: obj.code ? String(obj.code).trim() : undefined,
+        price: toNum(obj.price),
+        cost: toNum(obj.cost),
+        quantity: Math.round(toNum(obj.quantity)),
+        location: obj.location ? String(obj.location).trim() : undefined,
+        unit_measure: obj.unit_measure ? String(obj.unit_measure).trim().toUpperCase() : 'UN',
+      });
+    }
+    return out;
+  };
+
+  const handleSheetFile = async (file: File) => {
+    try {
+      setImporting(true);
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: '' });
+      const parsed = mapRows(rows);
+      if (!parsed.length) { toast.error('Nenhuma linha válida encontrada. Verifique os cabeçalhos.'); return; }
+      setPreview(parsed);
+    } catch (e: any) {
+      toast.error('Erro ao ler arquivo: ' + (e.message || e));
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const handleXmlFile = async (file: File) => {
+    try {
+      setImporting(true);
+      const txt = await file.text();
+      const doc = new DOMParser().parseFromString(txt, 'text/xml');
+      const dets = Array.from(doc.getElementsByTagName('det'));
+      const parsed: ParsedRow[] = dets.map(det => {
+        const prod = det.getElementsByTagName('prod')[0];
+        const g = (t: string) => prod?.getElementsByTagName(t)[0]?.textContent || '';
+        return {
+          code: g('cProd'),
+          name: g('xProd'),
+          quantity: Math.round(toNum(g('qCom'))),
+          price: toNum(g('vUnCom')),
+          cost: toNum(g('vUnCom')),
+          unit_measure: (g('uCom') || 'UN').toUpperCase(),
+        };
+      }).filter(r => r.name);
+      if (!parsed.length) { toast.error('Nenhum produto encontrado no XML da NF-e'); return; }
+      setPreview(parsed);
+    } catch (e: any) {
+      toast.error('Erro ao ler XML: ' + (e.message || e));
+    } finally {
+      setImporting(false);
+      if (xmlRef.current) xmlRef.current.value = '';
+    }
+  };
+
+  const handleTextImport = () => {
+    const lines = importText.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return toast.error('Cole ao menos uma linha');
+    const parsed: ParsedRow[] = lines.map(line => {
+      const parts = line.split(/[|;\t]/).map(p => p.trim());
+      const [code, name, price, qty, location] = parts;
+      return {
+        code: code || undefined,
+        name: name || code || '',
+        price: toNum(price),
+        quantity: Math.round(toNum(qty)),
+        location: location || undefined,
+        unit_measure: 'UN',
+      };
+    }).filter(r => r.name);
+    if (!parsed.length) return toast.error('Nenhuma linha válida');
+    setPreview(parsed);
+  };
+
+  const confirmImport = async () => {
+    if (!preview?.length) return;
+    setImporting(true);
+    try {
+      const payload = preview.map(r => ({
+        name: r.name,
+        code: r.code || null,
+        manufacturer: importBrand || null,
+        brand: importBrand || null,
+        category: importBrand || 'Outros',
+        quantity: r.quantity || 0,
+        min_quantity: 0,
+        cost: r.cost || 0,
+        price: r.price || 0,
+        unit_price: r.price || 0,
+        location: r.location || null,
+        unit_measure: r.unit_measure || 'UN',
+        created_by: user?.id,
+      }));
+      const { error } = await supabase.from('technical_products' as any).insert(payload);
+      if (error) throw error;
+      toast.success(`${payload.length} peça(s) importada(s)`);
+      setPreview(null);
+      setImportText('');
+      load();
+    } catch (e: any) {
+      toast.error('Erro ao importar: ' + (e.message || e));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Código', 'Nome', 'Preço', 'Custo', 'Quantidade', 'Local', 'Unidade'],
+      ['EX001', 'Peça exemplo', '199,90', '120,00', '10', 'Prateleira A1', 'UN'],
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Peças');
+    XLSX.writeFile(wb, 'modelo-importacao-pecas.xlsx');
+  };
+
 
   const filtered = items.filter(i => {
     const q = search.toLowerCase();
@@ -476,54 +644,181 @@ export default function SupportStock() {
 
         <TabsContent value="manutencao" className="space-y-6">
           <div className="p-6 border rounded-lg bg-card space-y-6">
-            <div className="flex items-center gap-2 text-primary font-medium">
-              <AlertTriangle className="h-5 w-5" /> Configuração da Importação
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-primary font-medium">
+                <AlertTriangle className="h-5 w-5" /> Configuração da Importação
+              </div>
+              <Button variant="outline" size="sm" className="gap-2" onClick={downloadTemplate}>
+                <Download className="h-4 w-4" /> Baixar modelo Excel
+              </Button>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label>Selecione a Marca</Label>
-                <Select>
+                <Label>Marca (opcional)</Label>
+                <Select value={importBrand} onValueChange={setImportBrand}>
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                   <SelectContent>
                     {brands.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Método de Entrada</Label>
                 <div className="flex bg-muted p-1 rounded-md gap-1">
-                  <Button variant="ghost" size="sm" className="bg-white shadow-sm flex-1 gap-2 text-xs">
-                    <FileSpreadsheet className="h-4 w-4 text-green-600" /> Planilha (Excel/CSV)
-                  </Button>
-                  <Button variant="ghost" size="sm" className="flex-1 gap-2 text-xs">
-                    <FileJson className="h-4 w-4 text-orange-500" /> XML (NF-e)
-                  </Button>
-                  <Button variant="ghost" size="sm" className="flex-1 gap-2 text-xs">
-                    <FileText className="h-4 w-4 text-red-500" /> PDF (DANFE)
-                  </Button>
-                  <Button variant="ghost" size="sm" className="flex-1 gap-2 text-xs">
-                    <FileText className="h-4 w-4 text-slate-500" /> Texto (Massa)
-                  </Button>
+                  {([
+                    { k: 'sheet', icon: <FileSpreadsheet className="h-4 w-4 text-green-600" />, label: 'Planilha (Excel/CSV)' },
+                    { k: 'xml', icon: <FileJson className="h-4 w-4 text-orange-500" />, label: 'XML (NF-e)' },
+                    { k: 'pdf', icon: <FileText className="h-4 w-4 text-red-500" />, label: 'PDF (DANFE)' },
+                    { k: 'text', icon: <FileText className="h-4 w-4 text-slate-500" />, label: 'Texto (Massa)' },
+                  ] as { k: ImportMethod; icon: any; label: string }[]).map(m => (
+                    <Button
+                      key={m.k}
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setImportMethod(m.k)}
+                      className={`flex-1 gap-2 text-xs ${importMethod === m.k ? 'bg-white shadow-sm' : ''}`}
+                    >
+                      {m.icon} {m.label}
+                    </Button>
+                  ))}
                 </div>
               </div>
             </div>
 
-            <div className="border-2 border-dashed rounded-lg p-12 flex flex-col items-center justify-center text-center space-y-4 bg-muted/10">
-              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                <FileSpreadsheet className="h-6 w-6 text-muted-foreground" />
+            {importMethod === 'sheet' && (
+              <div className="border-2 border-dashed rounded-lg p-12 flex flex-col items-center justify-center text-center space-y-4 bg-muted/10"
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) handleSheetFile(f); }}
+              >
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                  <FileSpreadsheet className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Importar Planilha de Peças</h3>
+                  <p className="text-sm text-muted-foreground">Arraste seu arquivo CSV/XLSX aqui, ou clique no botão</p>
+                  <p className="text-xs text-muted-foreground mt-1">Colunas: Código, Nome, Preço, Custo, Quantidade, Local, Unidade</p>
+                </div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleSheetFile(f); }}
+                />
+                <Button
+                  disabled={importing}
+                  onClick={() => fileRef.current?.click()}
+                  className="bg-[#1e293b] hover:bg-[#0f172a] gap-2 px-8"
+                >
+                  {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  Selecionar Arquivo
+                </Button>
               </div>
-              <div>
-                <h3 className="font-semibold text-lg">Importar Planilha de Peças</h3>
-                <p className="text-sm text-muted-foreground">Arraste seu arquivo CSV ou Excel aqui</p>
-                <p className="text-xs text-muted-foreground mt-1">Colunas recomendadas: Código, Nome, Preço, Qtd, Local</p>
+            )}
+
+            {importMethod === 'xml' && (
+              <div className="border-2 border-dashed rounded-lg p-12 flex flex-col items-center justify-center text-center space-y-4 bg-muted/10">
+                <FileJson className="h-8 w-8 text-orange-500" />
+                <div>
+                  <h3 className="font-semibold text-lg">Importar XML da NF-e</h3>
+                  <p className="text-sm text-muted-foreground">Selecione o arquivo XML da nota fiscal eletrônica</p>
+                </div>
+                <input
+                  ref={xmlRef}
+                  type="file"
+                  accept=".xml"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleXmlFile(f); }}
+                />
+                <Button
+                  disabled={importing}
+                  onClick={() => xmlRef.current?.click()}
+                  className="bg-[#1e293b] hover:bg-[#0f172a] gap-2 px-8"
+                >
+                  {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  Selecionar XML
+                </Button>
               </div>
-              <Button className="bg-[#1e293b] hover:bg-[#0f172a] gap-2 px-8">
-                <Upload className="h-4 w-4" /> Selecionar Arquivo
-              </Button>
-            </div>
+            )}
+
+            {importMethod === 'pdf' && (
+              <div className="border-2 border-dashed rounded-lg p-8 text-center space-y-3 bg-muted/10">
+                <FileText className="h-8 w-8 text-red-500 mx-auto" />
+                <h3 className="font-semibold">Importação por PDF (DANFE)</h3>
+                <p className="text-sm text-muted-foreground">
+                  A extração automática de PDF ainda não é suportada. Use o XML da NF-e (mesma nota) — o resultado é mais preciso.
+                </p>
+                <Button variant="outline" size="sm" onClick={() => setImportMethod('xml')}>Usar XML da NF-e</Button>
+              </div>
+            )}
+
+            {importMethod === 'text' && (
+              <div className="space-y-3">
+                <Label className="text-sm">Cole uma linha por peça. Separe por <code>|</code>, <code>;</code> ou tab. Ordem: <b>código | nome | preço | quantidade | local</b></Label>
+                <Textarea
+                  rows={8}
+                  value={importText}
+                  onChange={e => setImportText(e.target.value)}
+                  placeholder={"EX001 | Cabo XLR | 89,90 | 20 | Prateleira A1\nEX002 | Suporte Boom | 249,00 | 5 | Prateleira B2"}
+                  className="font-mono text-xs"
+                />
+                <div className="flex justify-end">
+                  <Button onClick={handleTextImport} className="gap-2">
+                    <Upload className="h-4 w-4" /> Processar Texto
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
+
+          <Dialog open={!!preview} onOpenChange={o => !o && setPreview(null)}>
+            <DialogContent className="sm:max-w-[860px] max-h-[85vh] overflow-hidden flex flex-col">
+              <DialogHeader>
+                <DialogTitle>Pré-visualização da importação ({preview?.length || 0} itens)</DialogTitle>
+              </DialogHeader>
+              <div className="overflow-auto border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Nome</TableHead>
+                      <TableHead className="text-right">Qtd</TableHead>
+                      <TableHead className="text-right">Custo</TableHead>
+                      <TableHead className="text-right">Preço</TableHead>
+                      <TableHead>Local</TableHead>
+                      <TableHead>Un.</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(preview || []).slice(0, 200).map((r, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="text-xs">{r.code || '-'}</TableCell>
+                        <TableCell className="text-xs">{r.name}</TableCell>
+                        <TableCell className="text-right text-xs">{r.quantity ?? 0}</TableCell>
+                        <TableCell className="text-right text-xs">{(r.cost ?? 0).toFixed(2)}</TableCell>
+                        <TableCell className="text-right text-xs">{(r.price ?? 0).toFixed(2)}</TableCell>
+                        <TableCell className="text-xs">{r.location || '-'}</TableCell>
+                        <TableCell className="text-xs">{r.unit_measure || 'UN'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {preview && preview.length > 200 && (
+                <p className="text-xs text-muted-foreground">Mostrando as primeiras 200 linhas de {preview.length}.</p>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPreview(null)} disabled={importing}>Cancelar</Button>
+                <Button onClick={confirmImport} disabled={importing} className="gap-2">
+                  {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  Confirmar Importação
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
 
