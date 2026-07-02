@@ -1,21 +1,42 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, AlertTriangle, Search, Tags, History, Printer, SlidersHorizontal, Package, MoreHorizontal, Pencil, Trash2, PlusCircle, Wrench, Download, Upload, FileJson, FileSpreadsheet, FileText, MessageCircle } from 'lucide-react';
+import { Plus, AlertTriangle, Search, Tags, History, Printer, SlidersHorizontal, Package, MoreHorizontal, Pencil, Trash2, PlusCircle, Wrench, Download, Upload, FileJson, FileSpreadsheet, FileText, MessageCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { ActionMenu } from '@/components/ActionMenu';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
+type ImportMethod = 'sheet' | 'xml' | 'pdf' | 'text';
+type ParsedRow = { name: string; code?: string; price?: number; cost?: number; quantity?: number; location?: string; unit_measure?: string };
+
+const norm = (s: any) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+const toNum = (v: any) => {
+  if (v == null || v === '') return 0;
+  const s = String(v).replace(/[^0-9,.-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+};
+const HEADER_MAP: Record<string, (keyof ParsedRow)> = {
+  codigo: 'code', code: 'code', sku: 'code', ref: 'code', referencia: 'code',
+  nome: 'name', descricao: 'name', produto: 'name', name: 'name', item: 'name',
+  preco: 'price', precovenda: 'price', valor: 'price', price: 'price', vlrunit: 'price', valorunitario: 'price',
+  custo: 'cost', precocusto: 'cost', cost: 'cost',
+  qtd: 'quantity', quantidade: 'quantity', estoque: 'quantity', qty: 'quantity', quant: 'quantity',
+  local: 'location', localizacao: 'location', location: 'location', prateleira: 'location',
+  unidade: 'unit_measure', un: 'unit_measure', unit: 'unit_measure',
+};
 
 const CATEGORIES = ['Aputure', 'Amaran', 'Astera', 'Creamsource', 'Outros'];
 const MAINTENANCE_STATUS = ['Aguardando', 'Em Manutenção', 'Pronto', 'Entregue'];
