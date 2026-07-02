@@ -845,7 +845,7 @@ export default function SupportStock() {
 
       <footer className="text-center py-8 text-xs text-muted-foreground border-t mt-12">
         <p>© 2026 MCI. Todos os direitos reservados.</p>
-        <p>Desenvolvido por <span className="text-primary font-medium">Paulinho Fernando</span></p>
+        <p>Desenvolvido por <span className="text-primary font-medium">Studio On Design</span></p>
       </footer>
     </div>
   );
