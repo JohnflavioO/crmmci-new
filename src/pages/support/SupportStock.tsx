@@ -644,54 +644,181 @@ export default function SupportStock() {
 
         <TabsContent value="manutencao" className="space-y-6">
           <div className="p-6 border rounded-lg bg-card space-y-6">
-            <div className="flex items-center gap-2 text-primary font-medium">
-              <AlertTriangle className="h-5 w-5" /> Configuração da Importação
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-primary font-medium">
+                <AlertTriangle className="h-5 w-5" /> Configuração da Importação
+              </div>
+              <Button variant="outline" size="sm" className="gap-2" onClick={downloadTemplate}>
+                <Download className="h-4 w-4" /> Baixar modelo Excel
+              </Button>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label>Selecione a Marca</Label>
-                <Select>
+                <Label>Marca (opcional)</Label>
+                <Select value={importBrand} onValueChange={setImportBrand}>
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                   <SelectContent>
                     {brands.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Método de Entrada</Label>
                 <div className="flex bg-muted p-1 rounded-md gap-1">
-                  <Button variant="ghost" size="sm" className="bg-white shadow-sm flex-1 gap-2 text-xs">
-                    <FileSpreadsheet className="h-4 w-4 text-green-600" /> Planilha (Excel/CSV)
-                  </Button>
-                  <Button variant="ghost" size="sm" className="flex-1 gap-2 text-xs">
-                    <FileJson className="h-4 w-4 text-orange-500" /> XML (NF-e)
-                  </Button>
-                  <Button variant="ghost" size="sm" className="flex-1 gap-2 text-xs">
-                    <FileText className="h-4 w-4 text-red-500" /> PDF (DANFE)
-                  </Button>
-                  <Button variant="ghost" size="sm" className="flex-1 gap-2 text-xs">
-                    <FileText className="h-4 w-4 text-slate-500" /> Texto (Massa)
-                  </Button>
+                  {([
+                    { k: 'sheet', icon: <FileSpreadsheet className="h-4 w-4 text-green-600" />, label: 'Planilha (Excel/CSV)' },
+                    { k: 'xml', icon: <FileJson className="h-4 w-4 text-orange-500" />, label: 'XML (NF-e)' },
+                    { k: 'pdf', icon: <FileText className="h-4 w-4 text-red-500" />, label: 'PDF (DANFE)' },
+                    { k: 'text', icon: <FileText className="h-4 w-4 text-slate-500" />, label: 'Texto (Massa)' },
+                  ] as { k: ImportMethod; icon: any; label: string }[]).map(m => (
+                    <Button
+                      key={m.k}
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setImportMethod(m.k)}
+                      className={`flex-1 gap-2 text-xs ${importMethod === m.k ? 'bg-white shadow-sm' : ''}`}
+                    >
+                      {m.icon} {m.label}
+                    </Button>
+                  ))}
                 </div>
               </div>
             </div>
 
-            <div className="border-2 border-dashed rounded-lg p-12 flex flex-col items-center justify-center text-center space-y-4 bg-muted/10">
-              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                <FileSpreadsheet className="h-6 w-6 text-muted-foreground" />
+            {importMethod === 'sheet' && (
+              <div className="border-2 border-dashed rounded-lg p-12 flex flex-col items-center justify-center text-center space-y-4 bg-muted/10"
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) handleSheetFile(f); }}
+              >
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                  <FileSpreadsheet className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Importar Planilha de Peças</h3>
+                  <p className="text-sm text-muted-foreground">Arraste seu arquivo CSV/XLSX aqui, ou clique no botão</p>
+                  <p className="text-xs text-muted-foreground mt-1">Colunas: Código, Nome, Preço, Custo, Quantidade, Local, Unidade</p>
+                </div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleSheetFile(f); }}
+                />
+                <Button
+                  disabled={importing}
+                  onClick={() => fileRef.current?.click()}
+                  className="bg-[#1e293b] hover:bg-[#0f172a] gap-2 px-8"
+                >
+                  {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  Selecionar Arquivo
+                </Button>
               </div>
-              <div>
-                <h3 className="font-semibold text-lg">Importar Planilha de Peças</h3>
-                <p className="text-sm text-muted-foreground">Arraste seu arquivo CSV ou Excel aqui</p>
-                <p className="text-xs text-muted-foreground mt-1">Colunas recomendadas: Código, Nome, Preço, Qtd, Local</p>
+            )}
+
+            {importMethod === 'xml' && (
+              <div className="border-2 border-dashed rounded-lg p-12 flex flex-col items-center justify-center text-center space-y-4 bg-muted/10">
+                <FileJson className="h-8 w-8 text-orange-500" />
+                <div>
+                  <h3 className="font-semibold text-lg">Importar XML da NF-e</h3>
+                  <p className="text-sm text-muted-foreground">Selecione o arquivo XML da nota fiscal eletrônica</p>
+                </div>
+                <input
+                  ref={xmlRef}
+                  type="file"
+                  accept=".xml"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleXmlFile(f); }}
+                />
+                <Button
+                  disabled={importing}
+                  onClick={() => xmlRef.current?.click()}
+                  className="bg-[#1e293b] hover:bg-[#0f172a] gap-2 px-8"
+                >
+                  {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  Selecionar XML
+                </Button>
               </div>
-              <Button className="bg-[#1e293b] hover:bg-[#0f172a] gap-2 px-8">
-                <Upload className="h-4 w-4" /> Selecionar Arquivo
-              </Button>
-            </div>
+            )}
+
+            {importMethod === 'pdf' && (
+              <div className="border-2 border-dashed rounded-lg p-8 text-center space-y-3 bg-muted/10">
+                <FileText className="h-8 w-8 text-red-500 mx-auto" />
+                <h3 className="font-semibold">Importação por PDF (DANFE)</h3>
+                <p className="text-sm text-muted-foreground">
+                  A extração automática de PDF ainda não é suportada. Use o XML da NF-e (mesma nota) — o resultado é mais preciso.
+                </p>
+                <Button variant="outline" size="sm" onClick={() => setImportMethod('xml')}>Usar XML da NF-e</Button>
+              </div>
+            )}
+
+            {importMethod === 'text' && (
+              <div className="space-y-3">
+                <Label className="text-sm">Cole uma linha por peça. Separe por <code>|</code>, <code>;</code> ou tab. Ordem: <b>código | nome | preço | quantidade | local</b></Label>
+                <Textarea
+                  rows={8}
+                  value={importText}
+                  onChange={e => setImportText(e.target.value)}
+                  placeholder={"EX001 | Cabo XLR | 89,90 | 20 | Prateleira A1\nEX002 | Suporte Boom | 249,00 | 5 | Prateleira B2"}
+                  className="font-mono text-xs"
+                />
+                <div className="flex justify-end">
+                  <Button onClick={handleTextImport} className="gap-2">
+                    <Upload className="h-4 w-4" /> Processar Texto
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
+
+          <Dialog open={!!preview} onOpenChange={o => !o && setPreview(null)}>
+            <DialogContent className="sm:max-w-[860px] max-h-[85vh] overflow-hidden flex flex-col">
+              <DialogHeader>
+                <DialogTitle>Pré-visualização da importação ({preview?.length || 0} itens)</DialogTitle>
+              </DialogHeader>
+              <div className="overflow-auto border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Nome</TableHead>
+                      <TableHead className="text-right">Qtd</TableHead>
+                      <TableHead className="text-right">Custo</TableHead>
+                      <TableHead className="text-right">Preço</TableHead>
+                      <TableHead>Local</TableHead>
+                      <TableHead>Un.</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(preview || []).slice(0, 200).map((r, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="text-xs">{r.code || '-'}</TableCell>
+                        <TableCell className="text-xs">{r.name}</TableCell>
+                        <TableCell className="text-right text-xs">{r.quantity ?? 0}</TableCell>
+                        <TableCell className="text-right text-xs">{(r.cost ?? 0).toFixed(2)}</TableCell>
+                        <TableCell className="text-right text-xs">{(r.price ?? 0).toFixed(2)}</TableCell>
+                        <TableCell className="text-xs">{r.location || '-'}</TableCell>
+                        <TableCell className="text-xs">{r.unit_measure || 'UN'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {preview && preview.length > 200 && (
+                <p className="text-xs text-muted-foreground">Mostrando as primeiras 200 linhas de {preview.length}.</p>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPreview(null)} disabled={importing}>Cancelar</Button>
+                <Button onClick={confirmImport} disabled={importing} className="gap-2">
+                  {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  Confirmar Importação
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
 
