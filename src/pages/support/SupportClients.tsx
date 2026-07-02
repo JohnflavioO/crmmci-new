@@ -33,22 +33,58 @@ export default function SupportClients() {
     notes: '' 
   });
 
+  const [crmSearch, setCrmSearch] = useState('');
+  const [crmResults, setCrmResults] = useState<any[]>([]);
+  const [linkedCrmId, setLinkedCrmId] = useState<string | null>(null);
+
   const load = async () => {
     const { data } = await supabase.from('technical_clients' as any).select('*').order('created_at', { ascending: false });
     setClients((data || []) as any[]);
   };
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    if (!crmSearch.trim() || crmSearch.trim().length < 2) { setCrmResults([]); return; }
+    const t = setTimeout(async () => {
+      const term = `%${crmSearch.trim()}%`;
+      const { data } = await (supabase.from('clients') as any)
+        .select('id,name,company_name,cpf_cnpj,email,phone,address,city,state,cep,salesperson_id')
+        .or(`name.ilike.${term},company_name.ilike.${term},cpf_cnpj.ilike.${term},email.ilike.${term}`)
+        .limit(6);
+      setCrmResults(data || []);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [crmSearch]);
+
   const emptyForm = { name: '', cpf_cnpj: '', phone: '', whatsapp: '', email: '', address: '', city: '', state: '', zip_code: '', notes: '' };
+
+  const pickCrmClient = (c: any) => {
+    setLinkedCrmId(c.id);
+    setForm({
+      name: c.company_name || c.name || '',
+      cpf_cnpj: c.cpf_cnpj || '',
+      phone: c.phone || '',
+      whatsapp: c.phone || '',
+      email: c.email || '',
+      address: c.address || '',
+      city: c.city || '',
+      state: c.state || '',
+      zip_code: c.cep || '',
+      notes: '',
+    });
+    setCrmSearch('');
+    setCrmResults([]);
+  };
 
   const save = async () => {
     if (!form.name) return toast.error('Nome obrigatório');
 
-    const payload = {
+    const payload: any = {
       name: form.name, cpf_cnpj: form.cpf_cnpj, phone: form.phone, whatsapp: form.whatsapp,
       email: form.email, address: form.address, city: form.city, state: form.state,
       zip_code: form.zip_code, notes: form.notes,
     };
+    if (linkedCrmId) payload.crm_client_id = linkedCrmId;
 
     let error;
     if (editingClient) {
@@ -60,10 +96,11 @@ export default function SupportClients() {
     }
 
     if (error) return toast.error(error.message);
-    toast.success(editingClient ? 'Cliente atualizado' : 'Cliente cadastrado');
+    toast.success(editingClient ? 'Cliente atualizado' : 'Cliente cadastrado e sincronizado com o CRM');
     setOpen(false);
     setStep(1);
     setEditingClient(null);
+    setLinkedCrmId(null);
     setForm(emptyForm);
     load();
   };
