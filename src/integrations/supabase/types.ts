@@ -201,6 +201,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           pipeline_stage: string
+          salesperson_id: string | null
           state: string | null
           updated_at: string | null
         }
@@ -230,6 +231,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           pipeline_stage?: string
+          salesperson_id?: string | null
           state?: string | null
           updated_at?: string | null
         }
@@ -259,6 +261,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           pipeline_stage?: string
+          salesperson_id?: string | null
           state?: string | null
           updated_at?: string | null
         }
@@ -1882,6 +1885,7 @@ export type Database = {
           cpf_cnpj: string | null
           created_at: string
           created_by: string | null
+          crm_client_id: string | null
           document_type: string | null
           email: string | null
           equipments: Json | null
@@ -1901,6 +1905,7 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string
           created_by?: string | null
+          crm_client_id?: string | null
           document_type?: string | null
           email?: string | null
           equipments?: Json | null
@@ -1920,6 +1925,7 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string
           created_by?: string | null
+          crm_client_id?: string | null
           document_type?: string | null
           email?: string | null
           equipments?: Json | null
@@ -1932,7 +1938,15 @@ export type Database = {
           whatsapp?: string | null
           zip_code?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "technical_clients_crm_client_id_fkey"
+            columns: ["crm_client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       technical_cloud_files: {
         Row: {
@@ -2085,6 +2099,7 @@ export type Database = {
           equipment: string | null
           estimated_date: string | null
           exit_date: string | null
+          handoff_quote_id: string | null
           id: string
           labor_value: number
           model: string | null
@@ -2120,6 +2135,7 @@ export type Database = {
           equipment?: string | null
           estimated_date?: string | null
           exit_date?: string | null
+          handoff_quote_id?: string | null
           id?: string
           labor_value?: number
           model?: string | null
@@ -2155,6 +2171,7 @@ export type Database = {
           equipment?: string | null
           estimated_date?: string | null
           exit_date?: string | null
+          handoff_quote_id?: string | null
           id?: string
           labor_value?: number
           model?: string | null
