@@ -604,11 +604,7 @@ export default function Dashboard() {
           />
         </div>
 
-        <div className="mb-4 md:mb-6">
-          <FollowUpAlerts />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-10">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-4 md:mb-6">
           <Card className="shadow-card lg:col-span-2">
             <CardHeader><CardTitle className="font-display text-lg">Últimos Orçamentos — Time</CardTitle></CardHeader>
             <CardContent>
@@ -639,6 +635,10 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+        </div>
+
+        <div className="mb-8 md:mb-10">
+          <FollowUpAlerts />
         </div>
       </div>
 
