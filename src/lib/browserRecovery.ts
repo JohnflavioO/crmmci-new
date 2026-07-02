@@ -114,8 +114,10 @@ export const reloadWithCacheBust = () => {
 
   url.searchParams.set("__mci_cache", CACHE_VERSION);
   url.searchParams.set("__mci_reload", String(Date.now()));
+  url.searchParams.set("__mci_chunk_retry", "1");
   window.location.replace(url.toString());
 };
+
 
 export const runOneTimeCacheRefresh = () => {
   if (isLovablePreviewRuntime()) return;
