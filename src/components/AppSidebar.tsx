@@ -17,7 +17,7 @@ const commercialItems = [
   { to: '/quotes', icon: FileText, label: 'Orçamentos', color: '#15AFA1' },
   
   { to: '/clients', icon: Users, label: 'Clientes' },
-  { to: '/prospect', icon: Target, label: 'Visão Prospect' },
+  { to: '/products', icon: Package, label: 'Produtos' },
   { to: '/pipeline', icon: Filter, label: 'Funil' },
   { to: '/negociacoes', icon: Handshake, label: 'Negociações' },
   { to: '/tasks', icon: ListChecks, label: 'Tarefas' },
@@ -26,7 +26,7 @@ const commercialItems = [
 const analyticItems = [
   { to: '/metrics', icon: BarChart3, label: 'Métricas' },
   { to: '/inteligencia', icon: Brain, label: 'Inteligência Comercial' },
-  { to: '/products', icon: Package, label: 'Produtos' },
+  { to: '/prospect', icon: Target, label: 'Visão Prospect' },
   { to: '/ecoflow', icon: Calculator, label: 'Calculadora Ecoflow' },
 ];
 
