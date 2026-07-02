@@ -71,11 +71,18 @@ if (typeof window !== 'undefined') {
   installBrowserSafetyGuards();
   window.addEventListener('error', (event) => {
     console.error('[Main] Erro global:', event.error ?? event.message);
+    if (recoverChunkStartupError(event.error ?? event.message)) {
+      event.preventDefault?.();
+    }
   });
   window.addEventListener('unhandledrejection', (event) => {
     console.error('[Main] Promessa rejeitada:', event.reason);
+    if (recoverChunkStartupError(event.reason)) {
+      event.preventDefault?.();
+    }
   });
 }
+
 
 async function startApp() {
   const rootElement = document.getElementById("root");

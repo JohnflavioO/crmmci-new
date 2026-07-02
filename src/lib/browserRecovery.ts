@@ -114,8 +114,10 @@ export const reloadWithCacheBust = () => {
 
   url.searchParams.set("__mci_cache", CACHE_VERSION);
   url.searchParams.set("__mci_reload", String(Date.now()));
+  url.searchParams.set("__mci_chunk_retry", "1");
   window.location.replace(url.toString());
 };
+
 
 export const runOneTimeCacheRefresh = () => {
   if (isLovablePreviewRuntime()) return;
@@ -145,9 +147,11 @@ export const clearLocalAppStateAndReload = async () => {
 };
 
 export const shouldRetryChunkLoad = () => {
-  const key = "__mci_chunk_retry";
-  const retried = safeStorage("sessionStorage", (storage) => storage.getItem(key));
-  if (retried === CACHE_VERSION) return false;
-  safeStorage("sessionStorage", (storage) => storage.setItem(key, CACHE_VERSION));
-  return true;
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("__mci_chunk_retry") === "1") return false;
+    return true;
+  } catch {
+    return false;
+  }
 };
