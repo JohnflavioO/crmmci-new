@@ -442,10 +442,7 @@ export default function Dashboard() {
           <h2 className="text-lg font-bold font-display mb-3">Previsão de Faturamento</h2>
           <RevenueForecasting quotes={myQuotes} />
         </div>
-        <div className="mb-4 md:mb-6">
-          <FollowUpAlerts />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-4 md:mb-6">
           <Card className="shadow-card lg:col-span-2">
             <CardHeader><CardTitle className="font-display text-lg">Últimos Orçamentos</CardTitle></CardHeader>
             <CardContent>
@@ -476,6 +473,9 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+        </div>
+        <div className="mb-4 md:mb-6">
+          <FollowUpAlerts />
         </div>
       </AppLayout>
     );
