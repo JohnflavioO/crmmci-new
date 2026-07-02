@@ -188,6 +188,144 @@ export default function SupportStock() {
     load();
   };
 
+  // ============ IMPORT HANDLERS ============
+  const mapRows = (rows: any[][]): ParsedRow[] => {
+    if (!rows.length) return [];
+    // Detect header row (first row with >= 2 known headers)
+    let hIdx = 0;
+    for (let i = 0; i < Math.min(rows.length, 5); i++) {
+      const matches = rows[i].filter(c => HEADER_MAP[norm(c)]).length;
+      if (matches >= 2) { hIdx = i; break; }
+    }
+    const headers = rows[hIdx].map(h => HEADER_MAP[norm(h)] || null);
+    const out: ParsedRow[] = [];
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || r.every(c => c == null || c === '')) continue;
+      const obj: any = {};
+      headers.forEach((k, idx) => { if (k) obj[k] = r[idx]; });
+      if (!obj.name && !obj.code) continue;
+      out.push({
+        name: String(obj.name || obj.code || '').trim(),
+        code: obj.code ? String(obj.code).trim() : undefined,
+        price: toNum(obj.price),
+        cost: toNum(obj.cost),
+        quantity: Math.round(toNum(obj.quantity)),
+        location: obj.location ? String(obj.location).trim() : undefined,
+        unit_measure: obj.unit_measure ? String(obj.unit_measure).trim().toUpperCase() : 'UN',
+      });
+    }
+    return out;
+  };
+
+  const handleSheetFile = async (file: File) => {
+    try {
+      setImporting(true);
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: '' });
+      const parsed = mapRows(rows);
+      if (!parsed.length) { toast.error('Nenhuma linha válida encontrada. Verifique os cabeçalhos.'); return; }
+      setPreview(parsed);
+    } catch (e: any) {
+      toast.error('Erro ao ler arquivo: ' + (e.message || e));
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const handleXmlFile = async (file: File) => {
+    try {
+      setImporting(true);
+      const txt = await file.text();
+      const doc = new DOMParser().parseFromString(txt, 'text/xml');
+      const dets = Array.from(doc.getElementsByTagName('det'));
+      const parsed: ParsedRow[] = dets.map(det => {
+        const prod = det.getElementsByTagName('prod')[0];
+        const g = (t: string) => prod?.getElementsByTagName(t)[0]?.textContent || '';
+        return {
+          code: g('cProd'),
+          name: g('xProd'),
+          quantity: Math.round(toNum(g('qCom'))),
+          price: toNum(g('vUnCom')),
+          cost: toNum(g('vUnCom')),
+          unit_measure: (g('uCom') || 'UN').toUpperCase(),
+        };
+      }).filter(r => r.name);
+      if (!parsed.length) { toast.error('Nenhum produto encontrado no XML da NF-e'); return; }
+      setPreview(parsed);
+    } catch (e: any) {
+      toast.error('Erro ao ler XML: ' + (e.message || e));
+    } finally {
+      setImporting(false);
+      if (xmlRef.current) xmlRef.current.value = '';
+    }
+  };
+
+  const handleTextImport = () => {
+    const lines = importText.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return toast.error('Cole ao menos uma linha');
+    const parsed: ParsedRow[] = lines.map(line => {
+      const parts = line.split(/[|;\t]/).map(p => p.trim());
+      const [code, name, price, qty, location] = parts;
+      return {
+        code: code || undefined,
+        name: name || code || '',
+        price: toNum(price),
+        quantity: Math.round(toNum(qty)),
+        location: location || undefined,
+        unit_measure: 'UN',
+      };
+    }).filter(r => r.name);
+    if (!parsed.length) return toast.error('Nenhuma linha válida');
+    setPreview(parsed);
+  };
+
+  const confirmImport = async () => {
+    if (!preview?.length) return;
+    setImporting(true);
+    try {
+      const payload = preview.map(r => ({
+        name: r.name,
+        code: r.code || null,
+        manufacturer: importBrand || null,
+        brand: importBrand || null,
+        category: importBrand || 'Outros',
+        quantity: r.quantity || 0,
+        min_quantity: 0,
+        cost: r.cost || 0,
+        price: r.price || 0,
+        unit_price: r.price || 0,
+        location: r.location || null,
+        unit_measure: r.unit_measure || 'UN',
+        created_by: user?.id,
+      }));
+      const { error } = await supabase.from('technical_products' as any).insert(payload);
+      if (error) throw error;
+      toast.success(`${payload.length} peça(s) importada(s)`);
+      setPreview(null);
+      setImportText('');
+      load();
+    } catch (e: any) {
+      toast.error('Erro ao importar: ' + (e.message || e));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Código', 'Nome', 'Preço', 'Custo', 'Quantidade', 'Local', 'Unidade'],
+      ['EX001', 'Peça exemplo', '199,90', '120,00', '10', 'Prateleira A1', 'UN'],
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Peças');
+    XLSX.writeFile(wb, 'modelo-importacao-pecas.xlsx');
+  };
+
+
   const filtered = items.filter(i => {
     const q = search.toLowerCase();
     const matchSearch = !q || i.name?.toLowerCase().includes(q) || i.code?.toLowerCase().includes(q) || i.category?.toLowerCase().includes(q);
