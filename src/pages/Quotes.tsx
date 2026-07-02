@@ -350,6 +350,7 @@ export default function Quotes() {
   const { user, profile, isGestor, isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const { isHidden: privacyHidden } = usePrivacy();
+  const canViewTeamQuotes = isAdmin || isGestor;
   const [quotes, setQuotes] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -415,18 +416,15 @@ export default function Quotes() {
         return;
       }
 
-      // SEGURANÇA: Admins e Gestores podem ver tudo via RLS, mas na interface 
-      // aplicamos o filtro de responsável para evitar confusão.
-      // Por padrão, mostramos apenas os orçamentos do usuário atual.
       let quotesQuery = db.from('quotes')
         .select('*, clients(company_name, name, phone), quote_items(transfer_status, quantity, is_presale)')
         .order('created_at', { ascending: false })
-        .limit(200);
+        .limit(1000);
       
       const params = new URLSearchParams(window.location.search);
       const statusFilter = params.get('status');
       
-      if (isGestor) {
+      if (canViewTeamQuotes) {
         if (responsibleFilter === 'me') {
           quotesQuery = quotesQuery.eq('created_by', user.id);
         } else if (responsibleFilter !== 'all') {
@@ -455,7 +453,7 @@ export default function Quotes() {
       setSalespeople(s.data || []);
       setProducts(p.data || []);
 
-      if (isGestor) {
+      if (canViewTeamQuotes) {
         // Obter perfis comerciais ativos para o filtro
         const { data: profiles } = await db.from('profiles')
           .select('user_id, full_name, role, commercial_visible')
@@ -474,7 +472,7 @@ export default function Quotes() {
     } catch (err) {
       console.error('loadData error:', err);
     }
-  }, [isAdmin, isGestor, user?.id]);
+  }, [canViewTeamQuotes, responsibleFilter, user?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -1070,14 +1068,13 @@ export default function Quotes() {
   };
 
   const baseFiltered = quotes.filter((q: any) => {
-    if (isGestor) {
+    if (canViewTeamQuotes) {
       if (responsibleFilter === 'me') {
         if (q.created_by !== user?.id) return false;
       } else if (responsibleFilter !== 'all') {
         if (q.created_by !== responsibleFilter) return false;
       }
-    } else if (isAdmin || !isGestor) {
-      // Vendedor e agora Admin vêem apenas os seus
+    } else {
       if (q.created_by !== user?.id) return false;
     }
     const s = search.toLowerCase();
@@ -2057,7 +2054,7 @@ export default function Quotes() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Buscar orçamento..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
             </div>
-            {isGestor && (
+            {canViewTeamQuotes && (
               <Select value={responsibleFilter} onValueChange={setResponsibleFilter}>
                 <SelectTrigger className="w-full sm:w-[220px] min-h-[44px]">
                   <SelectValue placeholder="Responsável" />
@@ -2120,7 +2117,10 @@ export default function Quotes() {
                 <button
                   key={chip.key}
                   type="button"
-                  onClick={() => setStatusFilter(chip.key)}
+                  onClick={() => {
+                    setStatusFilter(chip.key);
+                    if (canViewTeamQuotes) setResponsibleFilter('all');
+                  }}
                   className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                     active
                       ? 'bg-primary text-primary-foreground border-primary shadow-sm'
@@ -2143,12 +2143,12 @@ export default function Quotes() {
                 {filtered.length} {filtered.length === 1 ? 'orçamento' : 'orçamentos'}
                 {(dateFrom || dateTo) && ' no período selecionado'}
               </p>
-              {(dateFrom || dateTo || statusFilter !== 'all' || search) && (
+              {(dateFrom || dateTo || statusFilter !== 'all' || search || (canViewTeamQuotes && responsibleFilter !== 'all')) && (
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-7 px-2 text-xs gap-1"
-                  onClick={() => { setDateFrom(undefined); setDateTo(undefined); setStatusFilter('all'); setSearch(''); }}
+                  onClick={() => { setDateFrom(undefined); setDateTo(undefined); setStatusFilter('all'); setSearch(''); if (canViewTeamQuotes) setResponsibleFilter('all'); }}
                 >
                   <X className="h-3 w-3" /> Limpar filtros
                 </Button>
