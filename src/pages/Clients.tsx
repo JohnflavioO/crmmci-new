@@ -18,6 +18,7 @@ import { ActionMenu } from '@/components/ActionMenu';
 import ClientFilterBar from '@/components/clients/ClientFilterBar';
 import ClientFilterDrawer, { emptyFilters } from '@/components/clients/ClientFilterDrawer';
 import { useClientFilters } from '@/components/clients/useClientFilters';
+import ClientHistory360 from '@/components/clients/ClientHistory360';
 
 interface Client {
   id: string;
