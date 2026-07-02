@@ -955,10 +955,15 @@ export default function Clients() {
                             className: "text-green-600"
                           },
                           { 
+                            label: "Histórico 360", 
+                            icon: History, 
+                            onClick: () => setHistoryClientId(c.id),
+                            isSecondary: true
+                          },
+                          { 
                             label: "Editar", 
                             icon: Pencil, 
                             onClick: () => handleEdit(c),
-                            isSecondary: true
                           },
                           { 
                             label: "Excluir", 
