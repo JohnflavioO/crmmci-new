@@ -158,8 +158,16 @@ export default function SupportOrderDetail() {
           <h1 className="text-2xl font-bold">{os.os_number}</h1>
           <p className="text-sm text-muted-foreground">{os.client_name} · {os.equipment}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Badge variant="secondary">{STATUS_OPTIONS.find(s => s.key === os.status)?.label}</Badge>
+          {crmClientId && (
+            <Button size="sm" variant="outline" onClick={() => setHistoryOpen(true)}>
+              <History className="h-3 w-3 mr-1" />Histórico 360
+            </Button>
+          )}
+          <Button size="sm" variant="default" disabled={transferring || !crmClientId || !!os.handoff_quote_id} onClick={transferToCommercial}>
+            <ArrowRightCircle className="h-3 w-3 mr-1" />{os.handoff_quote_id ? 'Já transferida' : 'Transferir para Comercial'}
+          </Button>
           <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(trackingUrl); toast.success('Link copiado'); }}>
             <Copy className="h-3 w-3 mr-1" />Link rastreio
           </Button>
@@ -168,6 +176,13 @@ export default function SupportOrderDetail() {
           </a>
         </div>
       </div>
+
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Histórico 360 do Cliente</DialogTitle></DialogHeader>
+          {crmClientId && <ClientHistory360 clientId={crmClientId} />}
+        </DialogContent>
+      </Dialog>
 
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
