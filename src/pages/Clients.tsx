@@ -1014,6 +1014,13 @@ export default function Clients() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!historyClientId} onOpenChange={(o) => !o && setHistoryClientId(null)}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Histórico 360 do Cliente</DialogTitle></DialogHeader>
+          {historyClientId && <ClientHistory360 clientId={historyClientId} />}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
