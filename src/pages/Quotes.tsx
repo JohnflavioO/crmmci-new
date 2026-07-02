@@ -2117,7 +2117,10 @@ export default function Quotes() {
                 <button
                   key={chip.key}
                   type="button"
-                  onClick={() => setStatusFilter(chip.key)}
+                  onClick={() => {
+                    setStatusFilter(chip.key);
+                    if (canViewTeamQuotes) setResponsibleFilter('all');
+                  }}
                   className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                     active
                       ? 'bg-primary text-primary-foreground border-primary shadow-sm'
