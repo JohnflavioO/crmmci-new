@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 const commercialItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Métricas' },
   { to: '/quotes', icon: FileText, label: 'Orçamentos' },
-  { to: '/', icon: Zap, label: 'Central' },
+  
   { to: '/clients', icon: Users, label: 'Clientes' },
   { to: '/pipeline', icon: Kanban, label: 'Funil' },
 ];
