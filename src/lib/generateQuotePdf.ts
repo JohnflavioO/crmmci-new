@@ -401,9 +401,9 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
       const badges: { text: string; fill: [number, number, number] }[] = [];
       if (item.is_presale) badges.push({ text: 'PRÉ-VENDA', fill: [126, 34, 206] });
       if (item.transfer_status) {
-        const transferLabels: Record<string, string> = { sc_sp: 'SC → SP', sc_ce: 'SC → CE' };
+        const transferLabels: Record<string, string> = { sc_sp: 'SC -> SP', sc_ce: 'SC -> CE' };
         const lbl = transferLabels[item.transfer_status] || String(item.transfer_status).toUpperCase();
-        badges.push({ text: `⇄ EM TRANSFERÊNCIA ${lbl}`, fill: [234, 88, 12] }); // orange-600
+        badges.push({ text: `EM TRANSFERENCIA ${lbl}`, fill: [234, 88, 12] }); // orange-600
       }
       if (badges.length) {
         doc.setFont('helvetica', 'bold');
