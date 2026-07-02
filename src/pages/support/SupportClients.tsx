@@ -139,6 +139,35 @@ export default function SupportClients() {
             </DialogHeader>
             
             <div className="space-y-4 py-2">
+              {step === 1 && !editingClient && (
+                <div className="space-y-1.5 rounded-md border border-dashed p-3 bg-muted/30">
+                  <Label className="text-sm font-medium">Buscar cliente já cadastrado no CRM</Label>
+                  <Input
+                    placeholder="Nome, CNPJ/CPF ou e-mail…"
+                    value={crmSearch}
+                    onChange={e => setCrmSearch(e.target.value)}
+                  />
+                  {linkedCrmId && (
+                    <p className="text-xs text-emerald-700">✓ Vinculado a um cliente do CRM. A carteira do vendedor será preservada.</p>
+                  )}
+                  {crmResults.length > 0 && (
+                    <div className="border rounded bg-popover max-h-48 overflow-auto">
+                      {crmResults.map((c: any) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => pickCrmClient(c)}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-muted border-b last:border-b-0"
+                        >
+                          <div className="font-medium">{c.company_name || c.name}</div>
+                          <div className="text-xs text-muted-foreground">{c.cpf_cnpj} · {c.email || c.phone}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">Se o cliente não existir, preencha abaixo — ele será criado automaticamente no CRM.</p>
+                </div>
+              )}
               {step === 1 && (
                 <>
                   <div className="space-y-1.5">
