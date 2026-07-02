@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2, MessageCircle, Store, Phone } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Building2, Upload, Loader2, MessageCircle, Store, Phone, History } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -18,6 +18,7 @@ import { ActionMenu } from '@/components/ActionMenu';
 import ClientFilterBar from '@/components/clients/ClientFilterBar';
 import ClientFilterDrawer, { emptyFilters } from '@/components/clients/ClientFilterDrawer';
 import { useClientFilters } from '@/components/clients/useClientFilters';
+import ClientHistory360 from '@/components/clients/ClientHistory360';
 
 interface Client {
   id: string;
@@ -74,6 +75,7 @@ export default function Clients() {
   const { isAdmin, isGestor } = useAuth();
   const canSeeAll = isAdmin || isGestor;
   const [cnpjLoading, setCnpjLoading] = useState(false);
+  const [historyClientId, setHistoryClientId] = useState<string | null>(null);
 
   const loadClients = useCallback(async () => {
     if (!user?.id) return;
@@ -953,10 +955,15 @@ export default function Clients() {
                             className: "text-green-600"
                           },
                           { 
+                            label: "Histórico 360", 
+                            icon: History, 
+                            onClick: () => setHistoryClientId(c.id),
+                            isSecondary: true
+                          },
+                          { 
                             label: "Editar", 
                             icon: Pencil, 
                             onClick: () => handleEdit(c),
-                            isSecondary: true
                           },
                           { 
                             label: "Excluir", 
@@ -1005,6 +1012,13 @@ export default function Clients() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!historyClientId} onOpenChange={(o) => !o && setHistoryClientId(null)}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Histórico 360 do Cliente</DialogTitle></DialogHeader>
+          {historyClientId && <ClientHistory360 clientId={historyClientId} />}
         </DialogContent>
       </Dialog>
     </AppLayout>

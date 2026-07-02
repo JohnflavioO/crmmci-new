@@ -1,56 +1,107 @@
-# Auditoria do Módulo Suporte Técnico
 
-Mapeei as 10 páginas + componentes e levantei bugs reais (consultas quebradas, botões sem ação, dados mockados). Abaixo o que está quebrado e o que vou corrigir numa única leva.
+# Integração Suporte Técnico ↔ Cadastro único de Clientes
 
-## Bugs identificados
+Objetivo: usar um único cadastro de clientes (tabela `clients`) como fonte da verdade, mantendo `technical_clients` sincronizada, sem quebrar o Suporte existente. Introduzir o campo `salesperson_id` como vendedor da carteira, criar o fluxo "Transferir para Comercial" e um Histórico 360 compartilhado.
 
-| # | Página | Problema |
-|---|---|---|
-| 1 | NewPurchaseOrderDialog / SupportPurchases | Faz `select('document')` em `technical_clients` — coluna não existe (é `cpf_cnpj`). Cliente aparece "—" no detalhe. |
-| 2 | SupportPurchases | Botão **Filtrar** sem ação. Sem filtro por status. |
-| 3 | SupportPurchases | Venda **não baixa estoque** ao salvar. Exclusão não estorna. |
-| 4 | SupportBudgets | Botão **Novo Orçamento** não abre nada. Botões Editar / PDF / WhatsApp só fazem `toast.info`. |
-| 5 | SupportCloud | Botão **Upload** não funciona. Excluir só mostra o item, não deleta. |
-| 6 | SupportReports | 100% dos números são `0` mockados (constantes hardcoded). Filtros sem efeito. |
-| 7 | SupportClients | Reset do form após salvar não limpa `city`, `state`, `zip_code`. Editar reaproveita objeto cru do banco (campos extras vão pro update). |
-| 8 | SupportOrders | Formulário "Nova OS" não tem campo **equipamento**, só modelo/serial → coluna fica vazia. Ação WhatsApp lê `o.clients?.phone` (relação não carregada) — sempre falha. |
-| 9 | SupportOrderDetail | Não tem como **adicionar peças usadas** na OS. `parts_value` é digitado à mão sem vínculo com estoque. |
-| 10 | SupportStock | Botão "Cadastrar Marca" mantém o dialog antigo, mas falta validação de duplicidade. (menor) |
+## 1. Banco de dados (migração única)
 
-## Correções nesta entrega
+**Novo campo de carteira em `clients`:**
+- `salesperson_id uuid` — vendedor responsável pela carteira (nullable = sem carteira).
+- Índice em `salesperson_id`.
+- Backfill: `UPDATE clients SET salesperson_id = created_by WHERE salesperson_id IS NULL` para preservar comportamento atual.
 
-### Migração (DB)
-- **Tabela `technical_order_parts`** (peças usadas em cada OS) + trigger:
-  - INSERT/UPDATE → debita `technical_products.quantity`
-  - DELETE → estorna
-  - Trigger também recalcula `parts_value` e `total_value` da OS automaticamente.
-- **Trigger em `technical_purchase_order_items`** (vendas): debita estoque no INSERT, estorna no DELETE.
-- **Bucket de storage `technical-cloud`** (privado) + policies para suporte fazer upload/leitura/delete.
-- GRANTs e RLS já cobertos por `is_support_any()`.
+**Vínculo entre as duas tabelas de cliente:**
+- Nova coluna em `technical_clients`: `crm_client_id uuid REFERENCES clients(id)`.
+- Índice em `crm_client_id`.
 
-### Frontend (parallel edits)
-1. **NewPurchaseOrderDialog** + **SupportPurchases**: trocar `document` → `cpf_cnpj` em todos os selects/exibições. Adicionar filtro por status no header de Compras.
-2. **SupportBudgets**: criar `NewBudgetDialog` (escolher OS → carregar cliente → digitar serviços/peças/desconto → salvar em `technical_budgets`). Editar abre o mesmo dialog em modo edição. Botão WhatsApp envia link/resumo. PDF: gerar via window.print de uma rota dedicada (simples).
-3. **SupportCloud**: implementar upload real (input file → `storage.upload` no bucket → insert em `technical_cloud_files`). Delete real (storage.remove + delete row). Categoria via Select (Manual / Firmware / Esquema / Outros).
-4. **SupportReports**: substituir todos os mocks por queries reais:
-   - Produtividade por técnico (count de OS por `technician_name`)
-   - Status das OS (counts reais)
-   - Falhas recorrentes (top `reported_defect`)
-   - Equipamentos mais manutenidos (top `equipment`)
-   - Produtos mais utilizados (top `technical_order_parts` por produto)
-   - OS por categoria (`os_type`)
-   - Filtros por técnico e intervalo de datas funcionando.
-5. **SupportClients**: reset completo dos campos; ao editar, passar só os campos editáveis.
-6. **SupportOrders**: adicionar input "Equipamento" no Nova OS; corrigir lookup de telefone do WhatsApp (carregar `technical_clients(phone, whatsapp)` no select).
-7. **SupportOrderDetail**: nova seção **Peças Utilizadas** — buscar peça do estoque, definir qty e preço unitário, adicionar/remover. Trigger faz a baixa e atualiza `parts_value`/`total_value` sozinho.
+**Sincronização automática (triggers):**
+- Trigger `AFTER INSERT` em `technical_clients`: se `crm_client_id` for nulo, tenta casar por `cpf_cnpj` em `clients`; se não achar, cria um novo `clients` (com `created_by = current user`, `salesperson_id = NULL` porque suporte não define carteira) e grava o id em `crm_client_id`.
+- Trigger `AFTER UPDATE` em `technical_clients`: propaga alterações de contato (email/phone/whatsapp/endereço) para o `clients` vinculado — sem tocar em `salesperson_id` nem `created_by`.
+- Não fazemos o caminho inverso (clients → technical_clients) para não poluir o Suporte com clientes que nunca abriram chamado.
 
-## Não escopo nesta entrega
-- Integração com Financeiro principal (você optou por manter isolado).
-- Geração de PDF estilizado de orçamento (uso `window.print` simples).
-- Redesign visual — só correção funcional.
+**Regra de proteção da carteira:**
+- Trigger `BEFORE UPDATE` em `clients`: se `salesperson_id` mudou e o usuário não é `is_admin()` nem `is_gestor()`, reverte para o valor antigo (silencioso). Isso garante que Suporte, Financeiro, Logística e o próprio vendedor não consigam alterar a carteira.
 
-## Detalhes técnicos
-- O trigger de peças usa `OLD/NEW` e ajusta o produto correspondente; em UPDATE de `quantity` ou `product_id` faz o delta correto.
-- `technical_order_parts` herda RLS de `is_support_any()`.
-- Recalc da OS é feito em `AFTER` trigger para não brigar com a regra de `total_value` já gravada no detail.
-- Cloud bucket = privado; URLs geradas via `createSignedUrl` 1h ao listar (ou public read se preferir — pergunto se isso bloquear você).
+**RLS ajustada em `clients`:**
+- Manter policies existentes de `created_by`.
+- Adicionar policy adicional de SELECT/UPDATE limitada a campos por: `salesperson_id = auth.uid()` — para que o vendedor da carteira enxergue e edite (exceto o próprio campo, protegido pelo trigger acima).
+- Adicionar policy SELECT para `is_support_any()`: suporte pode ler o cadastro do cliente (para exibir Histórico 360 e permitir busca ao abrir chamado), sem poder alterar carteira.
+- Manter policy de admin/gestor com acesso total.
+
+**Nova tabela `client_timeline` (opcional, view materializada leve):**
+- Em vez de tabela nova, o Histórico 360 vai ser montado via queries paralelas no frontend (mais simples e sempre atualizado). Nada a criar no banco aqui.
+
+## 2. Fluxo "Transferir para Comercial"
+
+Novo botão na tela de detalhe da OS de Suporte (`SupportOrderDetail.tsx`):
+
+1. Resolve o `clients.id` a partir de `technical_orders.client_id` → `technical_clients.crm_client_id` (cria on-the-fly se ainda não existir, via a trigger).
+2. Lê `clients.salesperson_id`:
+   - Se preenchido → `owner = salesperson_id`.
+   - Se nulo → `owner = NULL` (fica na Central Operacional / distribuição padrão).
+3. Cria em uma transação:
+   - `smart_opportunities`: `cliente_id`, `vendedor_id = owner`, `tipo_oportunidade = 'Suporte→Comercial'`, `motivo` com o número da OS e resumo do defeito relatado, `prioridade = 'média'`, `status = 'Nova'`.
+   - `quotes`: `status = 'draft'`, `client_id`, `created_by = owner` (ou `auth.uid()` do suporte se `owner` nulo), `client_name` preenchido, `notes` com link/ref para a OS.
+   - `notifications` (só se `owner` não nulo): notifica o vendedor com título "Nova oportunidade vinda do Suporte — OS <número>".
+4. Marca a OS com `handoff_quote_id` (novo campo `uuid` em `technical_orders`) para evitar duplicação e mostrar o link do orçamento gerado.
+
+O suporte nunca escreve em `clients.salesperson_id`.
+
+## 3. Cadastro de cliente pelo Suporte
+
+Em `SupportClients.tsx` e no seletor de cliente ao abrir OS:
+
+- Substituir o input simples por um **combobox de busca** que consulta `clients` (por nome, cpf/cnpj, email) — mostra vendedor da carteira ao lado do resultado.
+- Se o usuário escolher um cliente existente: cria (ou reaproveita) `technical_clients` já com `crm_client_id` preenchido.
+- Se clicar em "Cadastrar novo": abre o wizard atual, mas ao salvar a trigger cria o `clients` correspondente automaticamente. O suporte não vê nem define `salesperson_id`.
+
+## 4. Histórico 360 (aba única, reaproveitada)
+
+Novo componente `src/components/clients/ClientHistory360.tsx` — usado nos dois módulos:
+
+- **Cabeçalho**: dados cadastrais + badge com vendedor da carteira + origem (Suporte/Comercial).
+- **Abas internas**:
+  - Orçamentos (`quotes` por `client_id`)
+  - Compras/Faturados (`quotes` status Aprovado/Entregue/Faturado)
+  - Inteligência Comercial (`smart_opportunities`)
+  - Chamados (`technical_orders` via `technical_clients.crm_client_id`)
+  - Equipamentos (`technical_clients.equipments` + equipamentos das OS)
+  - Manutenções (`technical_maintenances`)
+  - Anexos & Observações
+  - Linha do tempo consolidada (merge cronológico dos eventos acima)
+
+Cada query respeita a RLS existente, então cada perfil vê só o que pode.
+
+Pontos de uso:
+- Comercial: nova aba "Histórico 360" em `src/pages/Clients.tsx` (drawer/modal ao abrir o cliente).
+- Suporte: mesmo componente na tela de detalhe do cliente / detalhe da OS.
+
+## 5. Permissões e RLS — resumo
+
+| Ação | Suporte | Vendedor dono | Vendedor não-dono | Gestor / Admin |
+|---|---|---|---|---|
+| Buscar/ver dados básicos do cliente | Sim | Sim | Não | Sim |
+| Editar dados de contato do cliente | Sim (via technical_clients, sync) | Sim | Não | Sim |
+| Alterar `salesperson_id` (carteira) | **Não** (bloqueio por trigger) | **Não** | Não | Sim |
+| Criar cliente novo | Sim (sem carteira) | Sim (fica dono) | — | Sim |
+| Transferir OS → Comercial | Sim | — | — | Sim |
+| Ver Histórico 360 | Sim (limitado por RLS) | Sim | Não | Sim |
+
+## 6. Arquivos afetados
+
+**Backend (uma migração):**
+- `supabase/migrations/…_integrate_support_clients.sql` — colunas novas, backfill, triggers, RLS.
+
+**Frontend:**
+- `src/pages/support/SupportClients.tsx` — combobox de busca em `clients`.
+- `src/pages/support/SupportOrders.tsx` / `SupportOrderDetail.tsx` — seletor de cliente unificado + botão "Transferir para Comercial".
+- `src/components/clients/ClientHistory360.tsx` — novo.
+- `src/pages/Clients.tsx` — aba/drawer "Histórico 360".
+- `src/components/UserPermissionsEditor.tsx` — nada obrigatório (permissões seguem RLS).
+- Tipos regenerados automaticamente pós-migração.
+
+## 7. Não incluído
+
+- Não migro dados existentes de `technical_clients` para `clients` de forma retroativa (você escolheu "só na criação"); apenas conforme os registros forem tocados, a trigger cria/vincula.
+- Não crio nova tabela de timeline — Histórico 360 é query-time.
+- Não altero regras de distribuição de leads existentes quando o cliente não tem carteira: mantenho a oportunidade "sem vendedor" na Central Operacional, como já ocorre.

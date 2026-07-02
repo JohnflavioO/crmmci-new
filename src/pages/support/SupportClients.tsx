@@ -33,22 +33,58 @@ export default function SupportClients() {
     notes: '' 
   });
 
+  const [crmSearch, setCrmSearch] = useState('');
+  const [crmResults, setCrmResults] = useState<any[]>([]);
+  const [linkedCrmId, setLinkedCrmId] = useState<string | null>(null);
+
   const load = async () => {
     const { data } = await supabase.from('technical_clients' as any).select('*').order('created_at', { ascending: false });
     setClients((data || []) as any[]);
   };
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    if (!crmSearch.trim() || crmSearch.trim().length < 2) { setCrmResults([]); return; }
+    const t = setTimeout(async () => {
+      const term = `%${crmSearch.trim()}%`;
+      const { data } = await (supabase.from('clients') as any)
+        .select('id,name,company_name,cpf_cnpj,email,phone,address,city,state,cep,salesperson_id')
+        .or(`name.ilike.${term},company_name.ilike.${term},cpf_cnpj.ilike.${term},email.ilike.${term}`)
+        .limit(6);
+      setCrmResults(data || []);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [crmSearch]);
+
   const emptyForm = { name: '', cpf_cnpj: '', phone: '', whatsapp: '', email: '', address: '', city: '', state: '', zip_code: '', notes: '' };
+
+  const pickCrmClient = (c: any) => {
+    setLinkedCrmId(c.id);
+    setForm({
+      name: c.company_name || c.name || '',
+      cpf_cnpj: c.cpf_cnpj || '',
+      phone: c.phone || '',
+      whatsapp: c.phone || '',
+      email: c.email || '',
+      address: c.address || '',
+      city: c.city || '',
+      state: c.state || '',
+      zip_code: c.cep || '',
+      notes: '',
+    });
+    setCrmSearch('');
+    setCrmResults([]);
+  };
 
   const save = async () => {
     if (!form.name) return toast.error('Nome obrigatório');
 
-    const payload = {
+    const payload: any = {
       name: form.name, cpf_cnpj: form.cpf_cnpj, phone: form.phone, whatsapp: form.whatsapp,
       email: form.email, address: form.address, city: form.city, state: form.state,
       zip_code: form.zip_code, notes: form.notes,
     };
+    if (linkedCrmId) payload.crm_client_id = linkedCrmId;
 
     let error;
     if (editingClient) {
@@ -60,10 +96,11 @@ export default function SupportClients() {
     }
 
     if (error) return toast.error(error.message);
-    toast.success(editingClient ? 'Cliente atualizado' : 'Cliente cadastrado');
+    toast.success(editingClient ? 'Cliente atualizado' : 'Cliente cadastrado e sincronizado com o CRM');
     setOpen(false);
     setStep(1);
     setEditingClient(null);
+    setLinkedCrmId(null);
     setForm(emptyForm);
     load();
   };
@@ -79,7 +116,7 @@ export default function SupportClients() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold font-display">Clientes</h1>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if(!v) { setStep(1); setEditingClient(null); setForm(emptyForm); } }}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if(!v) { setStep(1); setEditingClient(null); setLinkedCrmId(null); setCrmSearch(''); setCrmResults([]); setForm(emptyForm); } }}>
           <DialogTrigger asChild>
             <Button className="bg-[#00966d] hover:bg-[#007a58]">
               <Plus className="h-4 w-4 mr-2" /> Novo Cliente
@@ -102,6 +139,35 @@ export default function SupportClients() {
             </DialogHeader>
             
             <div className="space-y-4 py-2">
+              {step === 1 && !editingClient && (
+                <div className="space-y-1.5 rounded-md border border-dashed p-3 bg-muted/30">
+                  <Label className="text-sm font-medium">Buscar cliente já cadastrado no CRM</Label>
+                  <Input
+                    placeholder="Nome, CNPJ/CPF ou e-mail…"
+                    value={crmSearch}
+                    onChange={e => setCrmSearch(e.target.value)}
+                  />
+                  {linkedCrmId && (
+                    <p className="text-xs text-emerald-700">✓ Vinculado a um cliente do CRM. A carteira do vendedor será preservada.</p>
+                  )}
+                  {crmResults.length > 0 && (
+                    <div className="border rounded bg-popover max-h-48 overflow-auto">
+                      {crmResults.map((c: any) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => pickCrmClient(c)}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-muted border-b last:border-b-0"
+                        >
+                          <div className="font-medium">{c.company_name || c.name}</div>
+                          <div className="text-xs text-muted-foreground">{c.cpf_cnpj} · {c.email || c.phone}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">Se o cliente não existir, preencha abaixo — ele será criado automaticamente no CRM.</p>
+                </div>
+              )}
               {step === 1 && (
                 <>
                   <div className="space-y-1.5">

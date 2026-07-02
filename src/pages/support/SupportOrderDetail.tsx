@@ -10,9 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Copy, ExternalLink, Trash2, Plus } from 'lucide-react';
+import { Copy, ExternalLink, Trash2, Plus, ArrowRightCircle, History } from 'lucide-react';
 import { STATUS_OPTIONS } from './SupportOrders';
 import { useAuth } from '@/hooks/useAuth';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import ClientHistory360 from '@/components/clients/ClientHistory360';
 
 export default function SupportOrderDetail() {
   const { id } = useParams();
@@ -25,6 +27,70 @@ export default function SupportOrderDetail() {
   const [qty, setQty] = useState(1);
   const [unitPrice, setUnitPrice] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [transferring, setTransferring] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [crmClientId, setCrmClientId] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      if (!os?.client_id) return;
+      const { data: tc } = await supabase.from('technical_clients' as any).select('crm_client_id').eq('id', os.client_id).maybeSingle();
+      setCrmClientId((tc as any)?.crm_client_id || null);
+    })();
+  }, [os?.client_id]);
+
+  const transferToCommercial = async () => {
+    if (!crmClientId) return toast.error('Cliente ainda não vinculado ao CRM');
+    if (os.handoff_quote_id) return toast.error('OS já transferida para o Comercial');
+    setTransferring(true);
+    try {
+      const { data: client } = await supabase.from('clients').select('id,salesperson_id,company_name,name,company_id').eq('id', crmClientId).maybeSingle();
+      if (!client) throw new Error('Cliente CRM não encontrado');
+      const owner = client.salesperson_id || user?.id;
+      const clientName = client.company_name || client.name || os.client_name;
+
+      const { data: newQuote, error: qErr } = await supabase.from('quotes').insert({
+        client_id: client.id,
+        client_name: clientName,
+        created_by: owner,
+        status: 'draft',
+        notes: `Origem: Suporte Técnico — OS ${os.os_number}. Defeito: ${os.reported_defect || '-'}`,
+        source: 'suporte',
+      } as any).select('id').maybeSingle();
+      if (qErr) throw qErr;
+
+      await supabase.from('smart_opportunities').insert({
+        cliente_id: client.id,
+        vendedor_id: client.salesperson_id,
+        quote_id: newQuote?.id,
+        produto_base: null,
+        produto_sugerido: null,
+        company_id: client.company_id,
+        tipo_oportunidade: 'Suporte→Comercial',
+        motivo: `OS ${os.os_number} — ${os.equipment || ''} — ${os.reported_defect || 'oportunidade identificada pelo suporte'}`,
+        prioridade: 'média',
+        status: 'Nova',
+      } as any);
+
+      if (client.salesperson_id) {
+        await supabase.from('notifications').insert({
+          user_id: client.salesperson_id,
+          title: `Nova oportunidade — OS ${os.os_number}`,
+          message: `O suporte transferiu o cliente ${clientName} para o comercial. Um orçamento em rascunho foi criado.`,
+          type: 'quote_status',
+          related_quote_id: newQuote?.id,
+        } as any);
+      }
+
+      await supabase.from('technical_orders' as any).update({ handoff_quote_id: newQuote?.id }).eq('id', id);
+      toast.success(client.salesperson_id ? 'Transferido para o vendedor da carteira' : 'Oportunidade criada — aguardando distribuição');
+      load();
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao transferir');
+    } finally {
+      setTransferring(false);
+    }
+  };
 
   const load = async () => {
     const { data } = await supabase.from('technical_orders' as any).select('*').eq('id', id).maybeSingle();
@@ -92,8 +158,16 @@ export default function SupportOrderDetail() {
           <h1 className="text-2xl font-bold">{os.os_number}</h1>
           <p className="text-sm text-muted-foreground">{os.client_name} · {os.equipment}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Badge variant="secondary">{STATUS_OPTIONS.find(s => s.key === os.status)?.label}</Badge>
+          {crmClientId && (
+            <Button size="sm" variant="outline" onClick={() => setHistoryOpen(true)}>
+              <History className="h-3 w-3 mr-1" />Histórico 360
+            </Button>
+          )}
+          <Button size="sm" variant="default" disabled={transferring || !crmClientId || !!os.handoff_quote_id} onClick={transferToCommercial}>
+            <ArrowRightCircle className="h-3 w-3 mr-1" />{os.handoff_quote_id ? 'Já transferida' : 'Transferir para Comercial'}
+          </Button>
           <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(trackingUrl); toast.success('Link copiado'); }}>
             <Copy className="h-3 w-3 mr-1" />Link rastreio
           </Button>
@@ -102,6 +176,13 @@ export default function SupportOrderDetail() {
           </a>
         </div>
       </div>
+
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Histórico 360 do Cliente</DialogTitle></DialogHeader>
+          {crmClientId && <ClientHistory360 clientId={crmClientId} />}
+        </DialogContent>
+      </Dialog>
 
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
