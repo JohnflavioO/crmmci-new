@@ -123,6 +123,10 @@ export default function NotificationSettings() {
   const handleTest = async () => {
     if (!user) return;
     setTesting(true);
+    const results: TestResults = { internal: null, toast: null, push: null };
+    const toastCountBefore = readTs(NOTIF_TIMESTAMP_KEYS.lastToast);
+
+    // 1. Notificação interna (INSERT no banco → dispara realtime → toast)
     try {
       const { error } = await db.from('notifications').insert({
         user_id: user.id,
@@ -134,7 +138,32 @@ export default function NotificationSettings() {
         is_read: false,
       });
       if (error) throw error;
+      results.internal = { ok: true, message: 'Registrada na tabela notifications' };
+    } catch (e: any) {
+      results.internal = { ok: false, message: e?.message || 'Falha ao inserir notificação' };
+    }
 
+    // 2. Toast — verifica em até 3s se o realtime disparou um novo timestamp
+    if (results.internal?.ok) {
+      const deadline = Date.now() + 3000;
+      let toastFired = false;
+      while (Date.now() < deadline) {
+        const cur = readTs(NOTIF_TIMESTAMP_KEYS.lastToast);
+        if (cur && cur !== toastCountBefore) { toastFired = true; break; }
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      results.toast = toastFired
+        ? { ok: true, message: 'Toast exibido no canto da tela' }
+        : { ok: false, message: 'Toast não foi disparado (verifique se as notificações internas estão ativas)' };
+    } else {
+      results.toast = { ok: false, message: 'Depende da notificação interna' };
+    }
+
+    // 3. Push FCM — só se houver token salvo
+    writeTs(PUSH_TIMESTAMP_KEYS.lastPushAttempt, new Date().toISOString());
+    if (!diag?.tokenSavedInDb) {
+      results.push = { ok: false, message: 'Sem token FCM salvo — ative o push do navegador primeiro' };
+    } else {
       try {
         const { data: pushData, error: pushErr } = await supabase.functions.invoke('send-push-notifications', {
           body: {
@@ -152,20 +181,28 @@ export default function NotificationSettings() {
         if ((pushData.sent ?? 0) < 1) {
           throw new Error(`Push real não enviado: sent=${pushData.sent ?? 0}, failed=${pushData.failed ?? 0}`);
         }
-      } catch (e) {
+        results.push = { ok: true, message: `Push entregue ao FCM (sent=${pushData.sent})` };
+        writeTs(PUSH_TIMESTAMP_KEYS.lastPushSuccess, new Date().toISOString());
+      } catch (e: any) {
+        const msg = e?.message || 'Falha ao enviar push';
+        results.push = { ok: false, message: msg };
+        writeTs(PUSH_TIMESTAMP_KEYS.lastFcmError, new Date().toISOString());
+        writeTs(PUSH_TIMESTAMP_KEYS.lastFcmErrorMsg, msg);
         logger.warn('Push test invoke failed:', e);
-        throw e;
       }
-
-      markFcmTestPerformed();
-      await runDiagnostics();
-      toast.success('Notificação de teste enviada!');
-    } catch (e: any) {
-      toast.error(`[${e?.code || 'erro'}] ${e?.message || 'Falha ao enviar teste'}`, { duration: 8000 });
-    } finally {
-      setTesting(false);
     }
+
+    markFcmTestPerformed();
+    await runDiagnostics();
+    setTestResults(results);
+    setTsTick((n) => n + 1);
+    const okCount = [results.internal, results.toast, results.push].filter((r) => r?.ok).length;
+    if (okCount === 3) toast.success('Teste concluído: todos os canais OK');
+    else if (okCount > 0) toast.warning(`Teste parcial: ${okCount}/3 canais OK`);
+    else toast.error('Teste falhou em todos os canais');
+    setTesting(false);
   };
+
 
   const removeDevice = async (id: string) => {
     await db.from('user_push_tokens').delete().eq('id', id);
