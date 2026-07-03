@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -63,6 +63,8 @@ export default function SupportStock() {
   });
   const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState<{ category: string; brand: string; status: string }>({ category: 'all', brand: 'all', status: 'all' });
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   // Import state
   const [importBrand, setImportBrand] = useState<string>('');
@@ -326,9 +328,15 @@ export default function SupportStock() {
   };
 
 
-  const filtered = items.filter(i => {
-    const q = search.toLowerCase();
-    const matchSearch = !q || i.name?.toLowerCase().includes(q) || i.code?.toLowerCase().includes(q) || i.category?.toLowerCase().includes(q);
+  const filtered = useMemo(() => items.filter(i => {
+    const q = search.toLowerCase().trim();
+    const matchSearch = !q
+      || i.name?.toLowerCase().includes(q)
+      || i.code?.toLowerCase().includes(q)
+      || i.category?.toLowerCase().includes(q)
+      || i.manufacturer?.toLowerCase().includes(q)
+      || i.brand?.toLowerCase().includes(q)
+      || i.location?.toLowerCase().includes(q);
     const matchCat = filters.category === 'all' || i.category === filters.category;
     const matchBrand = filters.brand === 'all' || i.manufacturer === filters.brand;
     let matchStatus = true;
@@ -336,7 +344,13 @@ export default function SupportStock() {
     else if (filters.status === 'low') matchStatus = i.quantity > 0 && i.quantity <= i.min_quantity;
     else if (filters.status === 'out') matchStatus = i.quantity <= 0;
     return matchSearch && matchCat && matchBrand && matchStatus;
-  });
+  }), [items, search, filters]);
+
+  useEffect(() => { setPage(1); }, [search, filters]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const activeFilterCount = (filters.category !== 'all' ? 1 : 0) + (filters.brand !== 'all' ? 1 : 0) + (filters.status !== 'all' ? 1 : 0);
 
@@ -581,7 +595,7 @@ export default function SupportStock() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((item) => (
+                {paginated.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-3">
@@ -640,6 +654,29 @@ export default function SupportStock() {
               </TableBody>
             </Table>
           </div>
+
+          {filtered.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+              <p className="text-xs text-muted-foreground">
+                Mostrando <span className="font-semibold text-foreground">{(currentPage - 1) * PAGE_SIZE + 1}</span>
+                {' – '}
+                <span className="font-semibold text-foreground">{Math.min(currentPage * PAGE_SIZE, filtered.length)}</span>
+                {' de '}
+                <span className="font-semibold text-foreground">{filtered.length}</span> peça(s)
+              </p>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setPage(1)}>Início</Button>
+                  <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</Button>
+                  <span className="px-3 text-sm tabular-nums">
+                    Página <span className="font-semibold">{currentPage}</span> de <span className="font-semibold">{totalPages}</span>
+                  </span>
+                  <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Próxima</Button>
+                  <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setPage(totalPages)}>Fim</Button>
+                </div>
+              )}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="manutencao" className="space-y-6">
