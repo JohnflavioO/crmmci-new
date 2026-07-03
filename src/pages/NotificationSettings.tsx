@@ -263,8 +263,14 @@ export default function NotificationSettings() {
             </CardTitle>
             <CardDescription>
               Status atual:{' '}
-              <Badge variant={permission === 'granted' ? 'default' : permission === 'denied' ? 'destructive' : 'secondary'}>
-                {permission === 'granted' ? 'Permitido' : permission === 'denied' ? 'Bloqueado' : 'Não solicitado'}
+              <Badge variant={diag?.tokenSavedInDb && permission === 'granted' ? 'default' : permission === 'denied' ? 'destructive' : 'secondary'}>
+                {diag?.tokenSavedInDb && permission === 'granted'
+                  ? 'Push ativo'
+                  : permission === 'denied'
+                    ? 'Bloqueado'
+                    : permission === 'granted'
+                      ? 'Permitido (sem token)'
+                      : 'Não solicitado'}
               </Badge>
             </CardDescription>
           </CardHeader>
