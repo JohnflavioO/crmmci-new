@@ -122,7 +122,8 @@ function AppRoutes() {
 
   if (!user) {
     return (
-      <Suspense fallback={<LoadingScreen />}>
+      <Suspense fallback={<RouteFallback />}>
+
         <Routes>
           <Route path="/quote/:token" element={<SafeRoute><PublicQuote /></SafeRoute>} />
           <Route path="/rastreamento/os/:token" element={<SafeRoute><PublicTracking /></SafeRoute>} />
@@ -155,7 +156,7 @@ function AppRoutes() {
   const isSupportOnly = isSupport && !isAdmin && !isGestor && !isFinanceiro && !isLogistica;
 
   return (
-    <Suspense fallback={<LoadingScreen />}>
+    <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/rastreamento/os/:token" element={<SafeRoute><PublicTracking /></SafeRoute>} />
         <Route path="/rastreio/pedido/:token" element={<SafeRoute><LogisticsTracking /></SafeRoute>} />

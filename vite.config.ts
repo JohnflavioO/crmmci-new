@@ -7,25 +7,27 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   build: {
     assetsInlineLimit: 0,
-    modulePreload: false,
+    modulePreload: { polyfill: false },
+    cssCodeSplit: true,
+    reportCompressedSize: false,
     rollupOptions: {
       output: {
-        // Use hashed entries again so browsers never keep a stale JS entry.
-        // A permanent /assets/index.js compatibility shim in public/ handles
-        // old preview HTML shells that still reference the former stable entry.
         entryFileNames: "assets/[name]-[hash].js",
         chunkFileNames: "assets/[name]-[hash].js",
-        assetFileNames: (assetInfo) => {
-          if (assetInfo.name?.endsWith(".css")) return "assets/[name]-[hash][extname]";
-          return "assets/[name]-[hash][extname]";
-        },
+        assetFileNames: "assets/[name]-[hash][extname]",
         manualChunks: {
           react: ["react", "react-dom", "react-router-dom"],
-          ui: ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-select", "@radix-ui/react-tabs", "lucide-react"],
+          ui: ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-select", "@radix-ui/react-tabs", "@radix-ui/react-popover", "@radix-ui/react-tooltip", "lucide-react"],
           data: ["@tanstack/react-query", "@supabase/supabase-js"],
           charts: ["recharts"],
           pdf: ["jspdf", "jspdf-autotable"],
           firebase: ["firebase/app", "firebase/messaging"],
+          xlsx: ["xlsx"],
+          motion: ["framer-motion"],
+          dnd: ["@hello-pangea/dnd"],
+          carousel: ["embla-carousel-react"],
+          datefns: ["date-fns"],
+          forms: ["react-hook-form", "@hookform/resolvers", "zod"],
         },
       },
     },

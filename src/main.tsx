@@ -8,7 +8,7 @@ import {
 import { createRoot } from "react-dom/client";
 import "./index.css";
 
-console.log('[Main] Inciando renderização...');
+if (import.meta.env.DEV) console.log('[Main] Inciando renderização...');
 
 const isPreviewRuntime = () => {
   if (typeof window === 'undefined') return false;
