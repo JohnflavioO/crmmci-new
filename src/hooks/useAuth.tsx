@@ -20,21 +20,9 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
-type BooleanRpcResult = {
-  data: boolean;
-  error: { message?: string; code?: string } | null;
-};
-
-const safeBooleanRpc = async (functionName: string): Promise<BooleanRpcResult> => {
-  try {
-    const { data, error } = await (supabase.rpc(functionName as any) as any);
-    if (error) console.error(`[Auth] ${functionName} RPC error:`, error);
-    return { data: data === true, error: error ?? null };
-  } catch (error: any) {
-    console.error(`[Auth] ${functionName} RPC exception:`, error);
-    return { data: false, error };
-  }
-};
+const isDev = import.meta.env.DEV;
+const devLog = (...args: any[]) => { if (isDev) console.log(...args); };
+const devWarn = (...args: any[]) => { if (isDev) console.warn(...args); };
 
 const AuthContext = createContext<AuthContextType>({
   user: null, session: null, loading: true,
@@ -46,7 +34,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-const MAX_LOADING_MS = 12000;
+const APPROVED_ROLES = new Set(['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica', 'support_tech', 'support_manager']);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -67,14 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const timer = setTimeout(() => {
       setLoading(prev => {
         if (!prev) return prev;
-        console.warn('[Auth] Safety timeout reached, forcing loading=false');
+        devWarn('[Auth] Safety timeout reached, forcing loading=false');
         return false;
       });
-    }, 8000); // Reduzi para 8 segundos para ser mais responsivo
-
+    }, 6000);
     return () => clearTimeout(timer);
   }, []);
-
 
   useEffect(() => {
     let currentUserId: string | null = null;
@@ -127,77 +113,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
-
     let cancelled = false;
     let attempt = 0;
 
     const fetchData = async () => {
       attempt += 1;
       try {
-        console.log(`[Auth] Fetching user data for: ${user.id} (attempt ${attempt})`);
-
-        const profileRes = await supabase
-          .from('profiles')
-          .select('full_name, phone, role, avatar_url, force_password_change, company_id, can_access_support_manager')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (cancelled) return;
-
-        if (profileRes.error) {
-          console.error('[Auth] Profile fetch error:', profileRes.error);
-        }
-
-        const [approvedRes, adminRes, gestorRes, financeiroRes, logisticaRes, supportTechRes, supportManagerRes] = await Promise.all([
-          safeBooleanRpc('is_approved'),
-          safeBooleanRpc('is_admin'),
-          safeBooleanRpc('is_gestor'),
-          safeBooleanRpc('is_financeiro'),
-          safeBooleanRpc('is_logistica'),
-          safeBooleanRpc('is_support_tech'),
-          safeBooleanRpc('is_support_manager'),
+        // 1 SELECT profiles + 1 SELECT user_roles + 1 SELECT user_approvals — all parallel
+        const [profileRes, rolesRes, approvalRes] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('full_name, phone, role, avatar_url, force_password_change, company_id, can_access_support_manager')
+            .eq('user_id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', user.id),
+          supabase
+            .from('user_approvals')
+            .select('status')
+            .eq('user_id', user.id)
+            .maybeSingle(),
         ]);
 
         if (cancelled) return;
 
+        if (profileRes.error) console.error('[Auth] Profile fetch error:', profileRes.error);
+        if (rolesRes.error) console.error('[Auth] Roles fetch error:', rolesRes.error);
+
         const profileData = profileRes.data;
         const normalizedRole = profileData?.role?.toLowerCase();
-        const approvedByRole = !!normalizedRole && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica'].includes(normalizedRole);
-        const approvedState = approvedRes.data === true || approvedByRole;
+        const roleSet = new Set<string>((rolesRes.data ?? []).map((r: any) => String(r.role).toLowerCase()));
+        if (normalizedRole) roleSet.add(normalizedRole);
 
-        console.log('[Auth] Results:', {
-          approved: approvedRes.data,
-          approvedState,
-          admin: adminRes.data,
-          gestor: gestorRes.data,
-          financeiro: financeiroRes.data,
-          logistica: logisticaRes.data,
-          profileRole: profileData?.role,
-        });
+        const approvedByStatus = approvalRes.data?.status === 'approved';
+        const approvedByRole = [...roleSet].some(r => APPROVED_ROLES.has(r));
 
-        setIsApproved(approvedState);
-        setIsAdmin(adminRes.data === true || normalizedRole === 'admin');
-        setIsGestor(gestorRes.data === true || normalizedRole === 'gestor');
-        setIsFinanceiro(financeiroRes.data === true || normalizedRole === 'financeiro');
-        setIsLogistica(logisticaRes.data === true || normalizedRole === 'logistica');
-        setIsSupportTech(supportTechRes.data === true || normalizedRole === 'support_tech');
-        setIsSupportManager(supportManagerRes.data === true || normalizedRole === 'support_manager');
+        setIsApproved(approvedByStatus || approvedByRole);
+        setIsAdmin(roleSet.has('admin'));
+        setIsGestor(roleSet.has('gestor'));
+        setIsFinanceiro(roleSet.has('financeiro'));
+        setIsLogistica(roleSet.has('logistica'));
+        setIsSupportTech(roleSet.has('support_tech'));
+        setIsSupportManager(roleSet.has('support_manager'));
 
         if (profileData) {
           setProfile(profileData as any);
           setForcePasswordChange(profileData.force_password_change === true);
-        } else if (attempt < 3) {
-          // Profile failed to load — retry with backoff before concluding "pending"
-          console.warn('[Auth] Profile empty, retrying in', attempt * 1000, 'ms');
-          setTimeout(() => { if (!cancelled) fetchData(); }, attempt * 1000);
+        } else if (attempt < 2) {
+          devWarn('[Auth] Profile empty, retrying');
+          setTimeout(() => { if (!cancelled) fetchData(); }, 800);
           return;
         }
 
+        devLog('[Auth] ready', { roles: [...roleSet] });
         setLoading(false);
       } catch (e) {
         console.error('[Auth] fetchUserData error:', e);
-        if (attempt < 3 && !cancelled) {
-          setTimeout(() => { if (!cancelled) fetchData(); }, attempt * 1000);
+        if (attempt < 2 && !cancelled) {
+          setTimeout(() => { if (!cancelled) fetchData(); }, 800);
           return;
         }
         if (!cancelled) setLoading(false);
@@ -220,11 +195,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ 
-      user, session, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, 
-      isSupportTech, isSupportManager, isSupport: isSupportTech || isSupportManager, 
+    <AuthContext.Provider value={{
+      user, session, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica,
+      isSupportTech, isSupportManager, isSupport: isSupportTech || isSupportManager,
       isSupportOnly: (isSupportTech || isSupportManager) && !isAdmin && !isGestor && !isFinanceiro && !isLogistica,
-      profile, forcePasswordChange, signOut 
+      profile, forcePasswordChange, signOut
     }}>
       {children}
     </AuthContext.Provider>

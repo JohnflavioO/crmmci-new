@@ -12,12 +12,13 @@ import AppVersionBanner from "./components/AppVersionBanner";
 
 import { lazy, Suspense, type ReactNode } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
+import RouteFallback from "@/components/RouteFallback";
 
 import Auth from "./pages/Auth";
 import PendingApproval from "./pages/PendingApproval";
 import NotFound from "./pages/NotFound";
 import ForcePasswordChange from "./pages/ForcePasswordChange";
-import Dashboard from "./pages/Dashboard";
+const Dashboard = lazy(() => import("./pages/Dashboard"));
 
 const OperationalCenter = lazy(() => import("./pages/OperationalCenter"));
 const Clients = lazy(() => import("./pages/Clients"));
@@ -61,7 +62,10 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      staleTime: 30_000,
+      staleTime: 5 * 60_000,
+      gcTime: 30 * 60_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: 'always',
     },
   },
 });
