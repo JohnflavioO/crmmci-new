@@ -53,6 +53,7 @@ const SOUND_SRC = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEA
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [preferences, setPreferences] = useState<Preferences>({
     notifications_enabled: true,
@@ -61,6 +62,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const lastIdRef = useRef<string | null>(null);
   const initializedRef = useRef(false);
+  const snoozeTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const fetchNotifications = useCallback(async () => {
     if (!user) { setNotifications([]); return; }
