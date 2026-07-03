@@ -232,7 +232,7 @@ const App = () => (
                 <AppVersionBanner />
 
                 <Toaster />
-                <Sonner position="top-right" closeButton theme="light" />
+                <Sonner position="bottom-right" closeButton theme="light" richColors />
                 <PWAUpdatePrompt />
               </NotificationsProvider>
             </PrivacyProvider>
