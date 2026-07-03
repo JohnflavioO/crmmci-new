@@ -107,15 +107,15 @@ export default function AppSidebar({ onNavigate }: Props) {
         onFocus={() => prefetchRoute(to)}
         onTouchStart={() => prefetchRoute(to)}
         className={cn(
-          'group relative flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors duration-150 min-h-[38px]',
+          'group relative flex items-center gap-3 pl-4 pr-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 ease-out min-h-[36px]',
           isActive
-            ? 'bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-r before:bg-sidebar-primary'
-            : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/40'
+            ? 'text-sidebar-accent-foreground bg-sidebar-accent/25 before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-r before:bg-sidebar-primary'
+            : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/25 hover:translate-x-[2px]'
         )}
         style={color && !isActive ? { color } : undefined}
       >
-        <Icon className="h-5 w-5" />
-        {label}
+        <Icon className={cn('h-[18px] w-[18px] shrink-0 transition-colors', isActive && 'text-sidebar-primary')} />
+        <span className="truncate">{label}</span>
       </NavLink>
     );
   };
@@ -148,14 +148,14 @@ export default function AppSidebar({ onNavigate }: Props) {
         onFocus={() => prefetchRoute(to)}
         onTouchStart={() => prefetchRoute(to)}
         className={cn(
-          'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors duration-150 min-h-[38px]',
+          'relative flex items-center gap-3 pl-4 pr-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 ease-out min-h-[36px]',
           isActive
-            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-            : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/40'
+            ? 'text-sidebar-accent-foreground bg-sidebar-accent/25 before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-r before:bg-sidebar-primary'
+            : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/25 hover:translate-x-[2px]'
         )}
       >
-        <Icon className="h-5 w-5" />
-        {label}
+        <Icon className={cn('h-[18px] w-[18px] shrink-0 transition-colors', isActive && 'text-sidebar-primary')} />
+        <span className="truncate">{label}</span>
       </NavLink>
     );
   };
@@ -167,17 +167,18 @@ export default function AppSidebar({ onNavigate }: Props) {
         to={to}
         onClick={onNavigate}
         className={cn(
-          'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors duration-150 min-h-[38px]',
+          'relative flex items-center gap-3 pl-4 pr-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 ease-out min-h-[36px]',
           isActive
-            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-            : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/40'
+            ? 'text-sidebar-accent-foreground bg-sidebar-accent/25 before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-r before:bg-sidebar-primary'
+            : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/25 hover:translate-x-[2px]'
         )}
       >
-        <Icon className="h-5 w-5" />
-        {label}
+        <Icon className={cn('h-[18px] w-[18px] shrink-0 transition-colors', isActive && 'text-sidebar-primary')} />
+        <span className="truncate">{label}</span>
       </NavLink>
     );
   };
+
 
   // Logistica-only sidebar
   if (isLogisticaOnly) {
