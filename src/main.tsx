@@ -91,12 +91,12 @@ async function startApp() {
     return;
   }
 
-  console.log('[Main] Elemento root encontrado');
+  if (import.meta.env.DEV) console.log('[Main] Elemento root encontrado');
   const { default: App } = await import("./App.tsx");
   const root = createRoot(rootElement);
   root.render(<App />);
   window.__mciReactMounted = true;
-  console.log('[Main] Renderização solicitada');
+  if (import.meta.env.DEV) console.log('[Main] Renderização solicitada');
 }
 
 declare global {
