@@ -107,10 +107,10 @@ export default function AppSidebar({ onNavigate }: Props) {
         onFocus={() => prefetchRoute(to)}
         onTouchStart={() => prefetchRoute(to)}
         className={cn(
-          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]',
+          'group relative flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors duration-150 min-h-[38px]',
           isActive
-            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-            : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
+            ? 'bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-r before:bg-sidebar-primary'
+            : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/40'
         )}
         style={color && !isActive ? { color } : undefined}
       >
@@ -148,10 +148,10 @@ export default function AppSidebar({ onNavigate }: Props) {
         onFocus={() => prefetchRoute(to)}
         onTouchStart={() => prefetchRoute(to)}
         className={cn(
-          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]',
+          'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors duration-150 min-h-[38px]',
           isActive
             ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-            : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
+            : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/40'
         )}
       >
         <Icon className="h-5 w-5" />
@@ -167,10 +167,10 @@ export default function AppSidebar({ onNavigate }: Props) {
         to={to}
         onClick={onNavigate}
         className={cn(
-          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]',
+          'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors duration-150 min-h-[38px]',
           isActive
             ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-            : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
+            : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/40'
         )}
       >
         <Icon className="h-5 w-5" />
