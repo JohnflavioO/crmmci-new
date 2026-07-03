@@ -13,10 +13,35 @@ import { requestNotificationPermission, getFcmDiagnostics, markFcmTestPerformed,
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useNotifications } from '@/contexts/NotificationsContext';
+import { useNotifications, NOTIF_TIMESTAMP_KEYS } from '@/contexts/NotificationsContext';
 import { logger } from '@/lib/logger';
 
 const db = supabase as any;
+
+const PUSH_TIMESTAMP_KEYS = {
+  lastPushAttempt: 'mci_last_push_attempt_at',
+  lastPushSuccess: 'mci_last_push_success_at',
+  lastFcmError: 'mci_last_fcm_error_at',
+  lastFcmErrorMsg: 'mci_last_fcm_error_msg',
+} as const;
+
+function readTs(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function writeTs(key: string, value: string) {
+  try { localStorage.setItem(key, value); } catch { /* no-op */ }
+}
+function formatTs(iso: string | null): string {
+  if (!iso) return 'nunca';
+  try { return formatDistanceToNow(new Date(iso), { addSuffix: true, locale: ptBR }); } catch { return iso; }
+}
+
+type TestChannelResult = { ok: boolean; message: string };
+type TestResults = {
+  internal: TestChannelResult | null;
+  toast: TestChannelResult | null;
+  push: TestChannelResult | null;
+};
 
 interface Device {
   id: string;
