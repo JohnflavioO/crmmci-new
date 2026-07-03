@@ -107,15 +107,15 @@ export default function AppSidebar({ onNavigate }: Props) {
         onFocus={() => prefetchRoute(to)}
         onTouchStart={() => prefetchRoute(to)}
         className={cn(
-          'group relative flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors duration-150 min-h-[38px]',
+          'group relative flex items-center gap-3 pl-4 pr-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 ease-out min-h-[36px]',
           isActive
-            ? 'bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-r before:bg-sidebar-primary'
-            : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/40'
+            ? 'text-sidebar-accent-foreground bg-sidebar-accent/25 before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-r before:bg-sidebar-primary'
+            : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/25 hover:translate-x-[2px]'
         )}
         style={color && !isActive ? { color } : undefined}
       >
-        <Icon className="h-5 w-5" />
-        {label}
+        <Icon className={cn('h-[18px] w-[18px] shrink-0 transition-colors', isActive && 'text-sidebar-primary')} />
+        <span className="truncate">{label}</span>
       </NavLink>
     );
   };
@@ -148,14 +148,14 @@ export default function AppSidebar({ onNavigate }: Props) {
         onFocus={() => prefetchRoute(to)}
         onTouchStart={() => prefetchRoute(to)}
         className={cn(
-          'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors duration-150 min-h-[38px]',
+          'relative flex items-center gap-3 pl-4 pr-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 ease-out min-h-[36px]',
           isActive
-            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-            : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/40'
+            ? 'text-sidebar-accent-foreground bg-sidebar-accent/25 before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-r before:bg-sidebar-primary'
+            : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/25 hover:translate-x-[2px]'
         )}
       >
-        <Icon className="h-5 w-5" />
-        {label}
+        <Icon className={cn('h-[18px] w-[18px] shrink-0 transition-colors', isActive && 'text-sidebar-primary')} />
+        <span className="truncate">{label}</span>
       </NavLink>
     );
   };
@@ -167,50 +167,75 @@ export default function AppSidebar({ onNavigate }: Props) {
         to={to}
         onClick={onNavigate}
         className={cn(
-          'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors duration-150 min-h-[38px]',
+          'relative flex items-center gap-3 pl-4 pr-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 ease-out min-h-[36px]',
           isActive
-            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-            : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/40'
+            ? 'text-sidebar-accent-foreground bg-sidebar-accent/25 before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-r before:bg-sidebar-primary'
+            : 'text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/25 hover:translate-x-[2px]'
         )}
       >
-        <Icon className="h-5 w-5" />
-        {label}
+        <Icon className={cn('h-[18px] w-[18px] shrink-0 transition-colors', isActive && 'text-sidebar-primary')} />
+        <span className="truncate">{label}</span>
       </NavLink>
     );
   };
+
+
+  const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+    <div className="pt-3 pb-1 px-4">
+      <p className="text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-[0.12em]">{children}</p>
+    </div>
+  );
+
+  const SectionDivider = () => (
+    <div className="my-2 mx-4 h-px bg-sidebar-border/60" />
+  );
+
+  const SidebarHeader = ({ subtitle }: { subtitle: string }) => (
+    <div className="px-4 pt-3 pb-3 flex items-center gap-2.5 border-b border-sidebar-border/60">
+      <img src="/mci-logo.png" alt="MCI Store" className="h-8 w-auto" />
+      <div className="min-w-0">
+        <h1 className="text-[13px] font-semibold font-display text-sidebar-primary-foreground leading-tight truncate">MCI Store</h1>
+        <p className="text-[10px] text-sidebar-foreground/55 truncate">{subtitle}</p>
+      </div>
+    </div>
+  );
+
+  const SidebarFooter = () => (
+    <div className="px-3 pt-3 pb-3 border-t border-sidebar-border/60 space-y-2">
+      <div className="rounded-lg bg-sidebar-accent/30 border border-sidebar-border/50 px-2.5 py-2">
+        <UserProfileEditor />
+      </div>
+      <div className="flex items-center gap-1 px-1">
+        <button onClick={handleRefreshApp} disabled={refreshing}
+          className="flex items-center justify-center gap-1.5 text-[11px] text-sidebar-foreground/55 hover:text-sidebar-foreground transition-colors duration-150 flex-1 py-1.5 rounded-md hover:bg-sidebar-accent/25">
+          <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} /> Atualizar
+        </button>
+        <div className="w-px h-4 bg-sidebar-border/60" />
+        <button onClick={() => { signOut(); onNavigate?.(); }}
+          className="flex items-center justify-center gap-1.5 text-[11px] text-sidebar-foreground/55 hover:text-sidebar-foreground transition-colors duration-150 flex-1 py-1.5 rounded-md hover:bg-sidebar-accent/25">
+          <LogOut className="h-3.5 w-3.5" /> Sair
+        </button>
+      </div>
+      <div className="pt-1 flex justify-center opacity-60">
+        <SidebarVersion />
+      </div>
+    </div>
+  );
 
   // Logistica-only sidebar
   if (isLogisticaOnly) {
     return (
       <aside className="w-full md:w-64 h-full md:h-screen md:fixed md:left-0 md:top-0 flex flex-col border-r border-sidebar-border"
         style={{ background: 'var(--gradient-sidebar)' }}>
-        <div className="p-4 flex items-center gap-3">
-          <img src="/mci-logo.png" alt="MCI Store" className="h-10 w-auto" />
-          <div>
-            <h1 className="text-sm font-bold font-display text-sidebar-primary-foreground">MCI Store</h1>
-            <p className="text-[10px] text-sidebar-foreground/60">Setor Logística</p>
-          </div>
-        </div>
-        <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
+        <SidebarHeader subtitle="Setor Logística" />
+        <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
           {logisticsMenuItems.map(item => (
             <LogisticsLinkItem key={item.to} {...item} />
           ))}
+          <SectionDivider />
           <LinkItem to="/ajuda" icon={HelpCircle} label="Ajuda" />
         </nav>
-        <div className="p-4 border-t border-sidebar-border">
-          <div className="mb-3"><UserProfileEditor /></div>
-          <div className="flex items-center gap-2">
-            <button onClick={handleRefreshApp} disabled={refreshing}
-              className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]">
-              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} /> Atualizar
-            </button>
-            <button onClick={() => { signOut(); onNavigate?.(); }}
-              className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]">
-              <LogOut className="h-4 w-4" /> Sair
-            </button>
-          </div>
-          <SidebarVersion />
-        </div>
+        <SidebarFooter />
       </aside>
     );
   }
@@ -221,33 +246,15 @@ export default function AppSidebar({ onNavigate }: Props) {
     return (
       <aside className="w-full md:w-64 h-full md:h-screen md:fixed md:left-0 md:top-0 flex flex-col border-r border-sidebar-border"
         style={{ background: 'var(--gradient-sidebar)' }}>
-        <div className="p-4 flex items-center gap-3">
-          <img src="/mci-logo.png" alt="MCI Store" className="h-10 w-auto" />
-          <div>
-            <h1 className="text-sm font-bold font-display text-sidebar-primary-foreground">MCI Store</h1>
-            <p className="text-[10px] text-sidebar-foreground/60">Suporte Técnico</p>
-          </div>
-        </div>
-        <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
+        <SidebarHeader subtitle="Suporte Técnico" />
+        <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
           {supportMenuItems.map(item => (
             <LinkItem key={item.to} {...item} />
           ))}
+          <SectionDivider />
           <LinkItem to="/ajuda" icon={HelpCircle} label="Ajuda" />
         </nav>
-        <div className="p-4 border-t border-sidebar-border">
-          <div className="mb-3"><UserProfileEditor /></div>
-          <div className="flex items-center gap-2">
-            <button onClick={handleRefreshApp} disabled={refreshing}
-              className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]">
-              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} /> Atualizar
-            </button>
-            <button onClick={() => { signOut(); onNavigate?.(); }}
-              className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]">
-              <LogOut className="h-4 w-4" /> Sair
-            </button>
-          </div>
-          <SidebarVersion />
-        </div>
+        <SidebarFooter />
       </aside>
     );
   }
@@ -255,67 +262,50 @@ export default function AppSidebar({ onNavigate }: Props) {
   return (
     <aside className="w-full md:w-64 h-full md:h-screen md:fixed md:left-0 md:top-0 flex flex-col border-r border-sidebar-border"
       style={{ background: 'var(--gradient-sidebar)' }}>
-      <div className="p-4 flex items-center gap-3">
-        <img src="/mci-logo.png" alt="MCI Store" className="h-10 w-auto" />
-        <div>
-          <h1 className="text-sm font-bold font-display text-sidebar-primary-foreground">MCI Store</h1>
-          <p className="text-[10px] text-sidebar-foreground/60">
-            {isFinanceiroOnly ? 'Setor Financeiro' : 'Sistema de Orçamentos'}
-          </p>
-        </div>
-      </div>
+      <SidebarHeader subtitle={isFinanceiroOnly ? 'Setor Financeiro' : 'Sistema de Orçamentos'} />
 
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
         {isFinanceiroOnly ? (
           <>
             {financialMenuItems.map(item => (
               <FinancialLinkItem key={item.to} {...item} />
             ))}
-            <div className="pt-4 pb-1 px-3">
-              <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Ajuda</p>
-            </div>
+            <SectionDivider />
+            <SectionLabel>Ajuda</SectionLabel>
             <LinkItem to="/ajuda" icon={HelpCircle} label="Tutoriais" />
           </>
         ) : (
           <>
-            <div className="pt-2 pb-1 px-3">
-              <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Comercial</p>
-            </div>
+            <SectionLabel>Comercial</SectionLabel>
             {commercialItems.map(item => (
               <LinkItem key={item.to} {...item} color={item.color} />
             ))}
 
-            <div className="pt-4 pb-1 px-3">
-              <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Análise e Ferramentas</p>
-            </div>
+            <SectionDivider />
+            <SectionLabel>Análise</SectionLabel>
             {analyticItems.map(item => (
               <LinkItem key={item.to} {...item} />
             ))}
 
             {hasPermission('contracts.use') && (
               <>
-                <div className="pt-4 pb-1 px-3">
-                  <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Ferramentas</p>
-                </div>
+                <SectionDivider />
+                <SectionLabel>Ferramentas</SectionLabel>
                 {toolItems.map(item => (
                   <LinkItem key={item.to} {...item} />
                 ))}
               </>
             )}
 
-
-
-            <div className="pt-4 pb-1 px-3">
-              <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Operacional e Logística</p>
-            </div>
+            <SectionDivider />
+            <SectionLabel>Operacional e Logística</SectionLabel>
             <LinkItem to="/logistics" icon={Truck} label="Acompanhamento" />
             <LinkItem to="/estoque-sc" icon={Warehouse} label="Estoque SC" />
 
             {(isGestor || isFinanceiro) && (
               <>
-                <div className="pt-4 pb-1 px-3">
-                  <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Financeiro</p>
-                </div>
+                <SectionDivider />
+                <SectionLabel>Financeiro</SectionLabel>
                 {financialMenuItems.map(item => (
                   <FinancialLinkItem key={item.to} {...item} />
                 ))}
@@ -324,9 +314,8 @@ export default function AppSidebar({ onNavigate }: Props) {
 
             {(isAdmin || isGestor) && (
               <>
-                <div className="pt-4 pb-1 px-3">
-                  <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Administrativo</p>
-                </div>
+                <SectionDivider />
+                <SectionLabel>Administrativo</SectionLabel>
                 {[{ to: '/approvals', icon: UserCheck, label: 'Aprovações' }].map(item => <LinkItem key={item.to} {...item} />)}
                 {isAdmin && [{ to: '/integrations', icon: Plug, label: 'Integrações' }].map(item => <LinkItem key={item.to} {...item} />)}
               </>
@@ -334,39 +323,21 @@ export default function AppSidebar({ onNavigate }: Props) {
 
             {(isSupport || isAdmin || isGestor) && (
               <>
-                <div className="pt-4 pb-1 px-3">
-                  <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Suporte Técnico</p>
-                </div>
+                <SectionDivider />
+                <SectionLabel>Suporte Técnico</SectionLabel>
                 <LinkItem to="/suporte" icon={Wrench} label="Portal de Suporte" />
               </>
             )}
 
-            <div className="pt-4 pb-1 px-3">
-              <p className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.1em]">Ajuda</p>
-            </div>
+            <SectionDivider />
+            <SectionLabel>Ajuda</SectionLabel>
             <LinkItem to="/ajuda" icon={HelpCircle} label="Tutoriais" />
           </>
         )}
       </nav>
 
-      <div className="p-4 border-t border-sidebar-border">
-        <div className="mb-3">
-          <UserProfileEditor />
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={handleRefreshApp} disabled={refreshing}
-            className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]">
-            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} /> Atualizar
-          </button>
-          <button
-            onClick={() => { signOut(); onNavigate?.(); }}
-            className="flex items-center gap-2 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-1 min-h-[44px]"
-          >
-            <LogOut className="h-4 w-4" /> Sair
-          </button>
-        </div>
-        <SidebarVersion />
-      </div>
+      <SidebarFooter />
     </aside>
   );
 }
+
