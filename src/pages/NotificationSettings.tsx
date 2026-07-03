@@ -482,3 +482,18 @@ function DiagRow({ ok, warn, label }: { ok: boolean; warn?: boolean; label: stri
     </div>
   );
 }
+
+function TestResultRow({ label, result }: { label: string; result: TestChannelResult | null }) {
+  if (!result) return null;
+  const Icon = result.ok ? CheckCircle2 : XCircle;
+  const cls = result.ok ? 'text-emerald-600' : 'text-destructive';
+  return (
+    <div className="flex items-start gap-2">
+      <Icon className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${cls}`} />
+      <div className="flex-1">
+        <span className="font-medium">{label}:</span>{' '}
+        <span className={result.ok ? 'text-muted-foreground' : 'text-destructive'}>{result.message}</span>
+      </div>
+    </div>
+  );
+}
