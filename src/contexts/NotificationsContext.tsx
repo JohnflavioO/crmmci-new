@@ -89,9 +89,15 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     initializedRef.current = true;
   }, [user, fetchPreferences, fetchNotifications]);
 
-  // Realtime — só ativa quando notificações estiverem habilitadas
+  // Refs para evitar re-subscribe quando preferências mudam
+  const notificationsEnabledRef = useRef(preferences.notifications_enabled);
+  const soundEnabledRef = useRef(preferences.sound_enabled);
+  useEffect(() => { notificationsEnabledRef.current = preferences.notifications_enabled; }, [preferences.notifications_enabled]);
+  useEffect(() => { soundEnabledRef.current = preferences.sound_enabled; }, [preferences.sound_enabled]);
+
+  // Realtime — inscreve UMA vez por usuário; leitura das prefs via ref
   useEffect(() => {
-    if (!user || !preferences.notifications_enabled) return;
+    if (!user) return;
     const channel = supabase
       .channel(`notifications-user-${user.id}`)
       .on('postgres_changes', {
@@ -100,15 +106,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         table: 'notifications',
         filter: `user_id=eq.${user.id}`,
       }, (payload) => {
-        logger.debug('[notifications] realtime event', payload.eventType);
+        if (!notificationsEnabledRef.current) return;
         if (payload.eventType === 'INSERT') {
           const n = payload.new as AppNotification;
           setNotifications(prev => {
             if (prev.some(p => p.id === n.id)) return prev;
             return [n, ...prev].slice(0, 100);
           });
-          // som apenas para notificações novas (não lidas)
-          if (preferences.sound_enabled && !n.is_read && typeof Audio !== 'undefined') {
+          if (soundEnabledRef.current && !n.is_read && typeof Audio !== 'undefined') {
             try { const a = new Audio(SOUND_SRC); a.volume = 0.4; a.play().catch(() => {}); } catch { /* no-op */ }
           }
         } else if (payload.eventType === 'UPDATE') {
@@ -121,7 +126,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user, preferences.notifications_enabled, preferences.sound_enabled]);
+  }, [user]);
+
 
   // Reconecta e recarrega ao reativar
   useEffect(() => {

@@ -1,107 +1,90 @@
+# Plano de Otimização de Performance
 
-# Integração Suporte Técnico ↔ Cadastro único de Clientes
+Análise feita no projeto (19.706 linhas em `src/pages`, 456K em componentes, 65+ dependências). Identifiquei os gargalos reais e priorizei os que dão o maior ganho sem risco de quebrar funcionalidades.
 
-Objetivo: usar um único cadastro de clientes (tabela `clients`) como fonte da verdade, mantendo `technical_clients` sincronizada, sem quebrar o Suporte existente. Introduzir o campo `salesperson_id` como vendedor da carteira, criar o fluxo "Transferir para Comercial" e um Histórico 360 compartilhado.
+## Diagnóstico (gargalos reais encontrados)
 
-## 1. Banco de dados (migração única)
+### 1. Autenticação faz 8 requisições em série no login (CRÍTICO)
+`useAuth` executa 1 SELECT em `profiles` + **7 RPCs** (`is_approved`, `is_admin`, `is_gestor`, `is_financeiro`, `is_logistica`, `is_support_tech`, `is_support_manager`) a cada login. Cada RPC é um round-trip. Isso trava a tela de "Carregando MCI CRM..." por 1-3 segundos antes de qualquer rota renderizar.
 
-**Novo campo de carteira em `clients`:**
-- `salesperson_id uuid` — vendedor responsável pela carteira (nullable = sem carteira).
-- Índice em `salesperson_id`.
-- Backfill: `UPDATE clients SET salesperson_id = created_by WHERE salesperson_id IS NULL` para preservar comportamento atual.
+**Impacto:** todo primeiro paint depende disso. É a maior causa da lentidão percebida.
 
-**Vínculo entre as duas tabelas de cliente:**
-- Nova coluna em `technical_clients`: `crm_client_id uuid REFERENCES clients(id)`.
-- Índice em `crm_client_id`.
+### 2. QueryClient sub-configurado
+`staleTime: 30s` e sem `gcTime`. Em navegação entre páginas o React Query refaz fetch de listas grandes (clientes, quotes) que acabaram de ser buscadas. Nenhum `refetchOnWindowFocus: false` — cada foco na aba dispara refetches em cascata.
 
-**Sincronização automática (triggers):**
-- Trigger `AFTER INSERT` em `technical_clients`: se `crm_client_id` for nulo, tenta casar por `cpf_cnpj` em `clients`; se não achar, cria um novo `clients` (com `created_by = current user`, `salesperson_id = NULL` porque suporte não define carteira) e grava o id em `crm_client_id`.
-- Trigger `AFTER UPDATE` em `technical_clients`: propaga alterações de contato (email/phone/whatsapp/endereço) para o `clients` vinculado — sem tocar em `salesperson_id` nem `created_by`.
-- Não fazemos o caminho inverso (clients → technical_clients) para não poluir o Suporte com clientes que nunca abriram chamado.
+### 3. `Dashboard` importado eager
+`App.tsx` importa `Dashboard` sem lazy, mesmo sendo a página inicial pesada. Isso engorda o bundle inicial em ~30KB e atrasa o TTI de rotas que não são o dashboard (logística, financeiro, suporte).
 
-**Regra de proteção da carteira:**
-- Trigger `BEFORE UPDATE` em `clients`: se `salesperson_id` mudou e o usuário não é `is_admin()` nem `is_gestor()`, reverte para o valor antigo (silencioso). Isso garante que Suporte, Financeiro, Logística e o próprio vendedor não consigam alterar a carteira.
+### 4. Suspense fallback é a tela cheia "Carregando MCI CRM..."
+Toda troca de rota mostra um splash escuro de tela cheia. Piora muito a percepção de fluidez.
 
-**RLS ajustada em `clients`:**
-- Manter policies existentes de `created_by`.
-- Adicionar policy adicional de SELECT/UPDATE limitada a campos por: `salesperson_id = auth.uid()` — para que o vendedor da carteira enxergue e edite (exceto o próprio campo, protegido pelo trigger acima).
-- Adicionar policy SELECT para `is_support_any()`: suporte pode ler o cadastro do cliente (para exibir Histórico 360 e permitir busca ao abrir chamado), sem poder alterar carteira.
-- Manter policy de admin/gestor com acesso total.
+### 5. Notifications Realtime reinscreve em cada mudança de som
+O `useEffect` da subscription depende de `preferences.sound_enabled`, então trocar o som desconecta e reconecta o canal Supabase.
 
-**Nova tabela `client_timeline` (opcional, view materializada leve):**
-- Em vez de tabela nova, o Histórico 360 vai ser montado via queries paralelas no frontend (mais simples e sempre atualizado). Nada a criar no banco aqui.
+### 6. Bundle: chunks pesados não isolados
+`framer-motion`, `xlsx`, `@hello-pangea/dnd`, `date-fns` inteiro, `embla-carousel`, `firebase` estão no chunk principal ou mal separados. `xlsx` sozinho tem ~430KB.
 
-## 2. Fluxo "Transferir para Comercial"
+### 7. `console.log` em produção
+`main.tsx` e `useAuth` fazem logs em todo boot/login. Custo pequeno mas polui e adiciona overhead em mobile.
 
-Novo botão na tela de detalhe da OS de Suporte (`SupportOrderDetail.tsx`):
+### 8. Vite config: `modulePreload: false`
+Desativa o preload automático de chunks — cada navegação lazy espera o fetch começar do zero. Bom para HTML antigo, ruim para navegação SPA.
 
-1. Resolve o `clients.id` a partir de `technical_orders.client_id` → `technical_clients.crm_client_id` (cria on-the-fly se ainda não existir, via a trigger).
-2. Lê `clients.salesperson_id`:
-   - Se preenchido → `owner = salesperson_id`.
-   - Se nulo → `owner = NULL` (fica na Central Operacional / distribuição padrão).
-3. Cria em uma transação:
-   - `smart_opportunities`: `cliente_id`, `vendedor_id = owner`, `tipo_oportunidade = 'Suporte→Comercial'`, `motivo` com o número da OS e resumo do defeito relatado, `prioridade = 'média'`, `status = 'Nova'`.
-   - `quotes`: `status = 'draft'`, `client_id`, `created_by = owner` (ou `auth.uid()` do suporte se `owner` nulo), `client_name` preenchido, `notes` com link/ref para a OS.
-   - `notifications` (só se `owner` não nulo): notifica o vendedor com título "Nova oportunidade vinda do Suporte — OS <número>".
-4. Marca a OS com `handoff_quote_id` (novo campo `uuid` em `technical_orders`) para evitar duplicação e mostrar o link do orçamento gerado.
+## Escopo das mudanças
 
-O suporte nunca escreve em `clients.salesperson_id`.
+### Frente A — Auth (maior ganho)
+- Substituir as 7 RPCs por **1 SELECT** em `user_roles` (`select role`) paralelo ao `profiles`. Derivar `isAdmin/isGestor/...` no cliente.
+- Reduzir timeout de segurança de 8s para 4s (o fetch novo dura <300ms).
+- Remover retry+backoff agressivo (3 tentativas × 1s cada); manter 1 retry.
+- Remover logs de debug em produção.
 
-## 3. Cadastro de cliente pelo Suporte
+### Frente B — React Query & navegação
+- `staleTime: 5 min`, `gcTime: 30 min`, `refetchOnWindowFocus: false`, `refetchOnReconnect: 'always'`.
+- Trocar Suspense fallback global por um fallback leve (barra fina de progresso no topo em vez de splash cheio). Manter `LoadingScreen` só no boot inicial de auth.
+- Lazy-load do `Dashboard`.
+- Adicionar prefetch on-hover nos links da sidebar (dispara `import()` do chunk da rota quando o mouse passa).
 
-Em `SupportClients.tsx` e no seletor de cliente ao abrir OS:
+### Frente C — Bundle
+- Ligar `modulePreload: { polyfill: false }` (padrão do Vite).
+- Ampliar `manualChunks`: separar `xlsx`, `framer-motion`, `@hello-pangea/dnd`, `embla-carousel-react`, `date-fns` em chunks próprios (só carregados onde usados).
+- Confirmar que `firebase`, `pdf` já isolados continuam OK.
 
-- Substituir o input simples por um **combobox de busca** que consulta `clients` (por nome, cpf/cnpj, email) — mostra vendedor da carteira ao lado do resultado.
-- Se o usuário escolher um cliente existente: cria (ou reaproveita) `technical_clients` já com `crm_client_id` preenchido.
-- Se clicar em "Cadastrar novo": abre o wizard atual, mas ao salvar a trigger cria o `clients` correspondente automaticamente. O suporte não vê nem define `salesperson_id`.
+### Frente D — Correções pontuais de renderização
+- `NotificationsContext`: dividir o effect de realtime — não re-subscrever ao mudar `sound_enabled` (usar `useRef` para ler o valor atual dentro do handler).
+- `main.tsx` / `useAuth`: envolver `console.log` com `if (import.meta.env.DEV)`.
 
-## 4. Histórico 360 (aba única, reaproveitada)
+## Fora de escopo (intencional)
 
-Novo componente `src/components/clients/ClientHistory360.tsx` — usado nos dois módulos:
+- Não vou refatorar as páginas gigantes (`Quotes 2423`, `BankSlips 1793`, `Logistics 1431`, `InteligenciaComercial 1518`). Cada uma precisa de análise dedicada e o risco de regressão é alto. Fica sugerido para uma próxima rodada focada por página.
+- Não vou trocar bibliotecas (ex.: `date-fns` → `dayjs`, `recharts` → `visx`).
+- Não vou mexer no design/CSS/animações — o pedido diz para não alterar design sem necessidade.
+- Não vou alterar Supabase (RLS, índices, queries do backend) — as políticas atuais são sensíveis e já existem migrations recentes.
 
-- **Cabeçalho**: dados cadastrais + badge com vendedor da carteira + origem (Suporte/Comercial).
-- **Abas internas**:
-  - Orçamentos (`quotes` por `client_id`)
-  - Compras/Faturados (`quotes` status Aprovado/Entregue/Faturado)
-  - Inteligência Comercial (`smart_opportunities`)
-  - Chamados (`technical_orders` via `technical_clients.crm_client_id`)
-  - Equipamentos (`technical_clients.equipments` + equipamentos das OS)
-  - Manutenções (`technical_maintenances`)
-  - Anexos & Observações
-  - Linha do tempo consolidada (merge cronológico dos eventos acima)
+## Detalhes técnicos
 
-Cada query respeita a RLS existente, então cada perfil vê só o que pode.
+### Auth novo (esboço)
+```ts
+const [{ data: profile }, { data: roles }] = await Promise.all([
+  supabase.from('profiles').select('...').eq('user_id', user.id).maybeSingle(),
+  supabase.from('user_roles').select('role').eq('user_id', user.id),
+]);
+const roleSet = new Set((roles ?? []).map(r => r.role));
+setIsAdmin(roleSet.has('admin') || profile?.role === 'admin');
+// ...
+```
+Requer `SELECT` policy em `user_roles` para `authenticated` filtrado por `user_id = auth.uid()` — já existe (o `has_role` roda security-definer, mas há também policy padrão para o próprio usuário; se não houver, adiciono migration).
 
-Pontos de uso:
-- Comercial: nova aba "Histórico 360" em `src/pages/Clients.tsx` (drawer/modal ao abrir o cliente).
-- Suporte: mesmo componente na tela de detalhe do cliente / detalhe da OS.
+### Suspense fallback leve
+Componente `RouteFallback` sem fundo escuro (apenas um `<div className="h-1 bg-emerald-500 animate-pulse fixed top-0"/>`) para evitar flash entre rotas.
 
-## 5. Permissões e RLS — resumo
+### Prefetch on-hover
+Wrapper em `NavLink` que faz `onMouseEnter={() => import('./pages/Foo')}`.
 
-| Ação | Suporte | Vendedor dono | Vendedor não-dono | Gestor / Admin |
-|---|---|---|---|---|
-| Buscar/ver dados básicos do cliente | Sim | Sim | Não | Sim |
-| Editar dados de contato do cliente | Sim (via technical_clients, sync) | Sim | Não | Sim |
-| Alterar `salesperson_id` (carteira) | **Não** (bloqueio por trigger) | **Não** | Não | Sim |
-| Criar cliente novo | Sim (sem carteira) | Sim (fica dono) | — | Sim |
-| Transferir OS → Comercial | Sim | — | — | Sim |
-| Ver Histórico 360 | Sim (limitado por RLS) | Sim | Não | Sim |
+## Ordem de execução
 
-## 6. Arquivos afetados
+1. Frente A (auth) — 1 arquivo
+2. Frente B (query client + fallback + lazy Dashboard + prefetch) — 3-4 arquivos
+3. Frente C (vite.config) — 1 arquivo
+4. Frente D (notifications + logs) — 2 arquivos
 
-**Backend (uma migração):**
-- `supabase/migrations/…_integrate_support_clients.sql` — colunas novas, backfill, triggers, RLS.
-
-**Frontend:**
-- `src/pages/support/SupportClients.tsx` — combobox de busca em `clients`.
-- `src/pages/support/SupportOrders.tsx` / `SupportOrderDetail.tsx` — seletor de cliente unificado + botão "Transferir para Comercial".
-- `src/components/clients/ClientHistory360.tsx` — novo.
-- `src/pages/Clients.tsx` — aba/drawer "Histórico 360".
-- `src/components/UserPermissionsEditor.tsx` — nada obrigatório (permissões seguem RLS).
-- Tipos regenerados automaticamente pós-migração.
-
-## 7. Não incluído
-
-- Não migro dados existentes de `technical_clients` para `clients` de forma retroativa (você escolheu "só na criação"); apenas conforme os registros forem tocados, a trigger cria/vincula.
-- Não crio nova tabela de timeline — Histórico 360 é query-time.
-- Não altero regras de distribuição de leads existentes quando o cliente não tem carteira: mantenho a oportunidade "sem vendedor" na Central Operacional, como já ocorre.
+Validação: build automático + verificar console/network logs no preview.
