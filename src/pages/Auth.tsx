@@ -61,7 +61,7 @@ export default function Auth() {
       </div>
 
       {/* Right side - Login form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center bg-[hsl(170,30%,8%)] relative overflow-hidden">
+      <div className="w-full lg:w-1/2 flex items-center justify-center bg-gradient-to-br from-[hsl(0,0%,4%)] via-[hsl(170,25%,6%)] to-[hsl(170,30%,8%)] relative overflow-hidden">
         {/* Subtle background pattern */}
         <div className="absolute inset-0 opacity-5">
           <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-[hsl(var(--accent))] blur-[120px]" />
