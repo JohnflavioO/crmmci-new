@@ -130,38 +130,58 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           if (soundEnabledRef.current && !n.is_read && typeof Audio !== 'undefined') {
             try { const a = new Audio(SOUND_SRC); a.volume = 0.4; a.play().catch(() => {}); } catch { /* no-op */ }
           }
-          // Toast interno com ações rápidas
+          // Toast interno com ações rápidas (Abrir / Marcar como lida / Adiar)
           try {
             const target = n.related_url
               || (n.related_quote_id ? `/quotes?id=${n.related_quote_id}` : null)
               || (n.related_client_id ? `/clients?id=${n.related_client_id}` : null);
-            const toastId = toast(n.title || 'Nova notificação', {
-              description: n.message,
-              duration: 8000,
-              action: target ? {
-                label: 'Abrir',
-                onClick: () => {
-                  db.from('notifications').update({ is_read: true }).eq('id', n.id);
-                  navigate(target);
-                },
-              } : undefined,
-              cancel: {
-                label: 'Marcar como lida',
-                onClick: () => {
-                  db.from('notifications').update({ is_read: true }).eq('id', n.id);
-                },
-              },
-            });
-            stampNow(NOTIF_TIMESTAMP_KEYS.lastToast);
-            // Botão adicional: "Adiar" — reexibe em 15 minutos
-            setTimeout(() => {
-              // Segundo toast contendo botão Adiar (Sonner v1 aceita apenas action+cancel; expomos Adiar como toast secundário auto-dismiss)
-            }, 0);
-            // Adiar via segundo controle: dispara um novo toast com botão dedicado se ainda não lida em 500ms
-            setTimeout(() => {
-              // no-op: mantemos ID para permitir cancelamento manual
-              void toastId;
-            }, 0);
+            const showToast = (isSnoozed = false) => {
+              const t = toast.custom((id) => (
+                <div className="w-[360px] max-w-[92vw] rounded-lg border border-border bg-background shadow-lg p-3 space-y-2">
+                  <div>
+                    <p className="text-sm font-semibold">
+                      {isSnoozed ? '⏰ Lembrete: ' : ''}{n.title || 'Nova notificação'}
+                    </p>
+                    {n.message && <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {target && (
+                      <button
+                        onClick={() => {
+                          db.from('notifications').update({ is_read: true }).eq('id', n.id);
+                          toast.dismiss(id);
+                          navigate(target);
+                        }}
+                        className="text-xs px-2.5 py-1 rounded-md bg-primary text-primary-foreground hover:opacity-90"
+                      >Abrir</button>
+                    )}
+                    <button
+                      onClick={() => {
+                        db.from('notifications').update({ is_read: true }).eq('id', n.id);
+                        toast.dismiss(id);
+                      }}
+                      className="text-xs px-2.5 py-1 rounded-md border border-border hover:bg-muted"
+                    >Marcar como lida</button>
+                    <button
+                      onClick={() => {
+                        toast.dismiss(id);
+                        const timer = setTimeout(() => {
+                          snoozeTimersRef.current.delete(n.id);
+                          showToast(true);
+                        }, 15 * 60 * 1000);
+                        const prev = snoozeTimersRef.current.get(n.id);
+                        if (prev) clearTimeout(prev);
+                        snoozeTimersRef.current.set(n.id, timer);
+                      }}
+                      className="text-xs px-2.5 py-1 rounded-md border border-border hover:bg-muted"
+                    >Adiar 15 min</button>
+                  </div>
+                </div>
+              ), { duration: 10000 });
+              stampNow(NOTIF_TIMESTAMP_KEYS.lastToast);
+              return t;
+            };
+            showToast();
           } catch (e) { logger.warn('[toast] falhou', e); }
         } else if (payload.eventType === 'UPDATE') {
           const n = payload.new as AppNotification;
