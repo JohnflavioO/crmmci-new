@@ -654,6 +654,29 @@ export default function SupportStock() {
               </TableBody>
             </Table>
           </div>
+
+          {filtered.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+              <p className="text-xs text-muted-foreground">
+                Mostrando <span className="font-semibold text-foreground">{(currentPage - 1) * PAGE_SIZE + 1}</span>
+                {' – '}
+                <span className="font-semibold text-foreground">{Math.min(currentPage * PAGE_SIZE, filtered.length)}</span>
+                {' de '}
+                <span className="font-semibold text-foreground">{filtered.length}</span> peça(s)
+              </p>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setPage(1)}>Início</Button>
+                  <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</Button>
+                  <span className="px-3 text-sm tabular-nums">
+                    Página <span className="font-semibold">{currentPage}</span> de <span className="font-semibold">{totalPages}</span>
+                  </span>
+                  <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Próxima</Button>
+                  <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setPage(totalPages)}>Fim</Button>
+                </div>
+              )}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="manutencao" className="space-y-6">
