@@ -202,6 +202,63 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
 
   y = Math.max(leftY, rightY) + 2;
 
+  // Endereço de entrega alternativo (se preenchido no orçamento)
+  if (quote.use_alt_shipping_address) {
+    const shipAddr = [
+      quote.shipping_address,
+      quote.shipping_address_number ? `nº ${quote.shipping_address_number}` : '',
+      quote.shipping_complement ? `(${quote.shipping_complement})` : '',
+    ].filter(Boolean).join(', ');
+    const shipCityState = [quote.shipping_city, quote.shipping_state].filter(Boolean).join(' - ');
+    const shipSecond = [quote.shipping_neighborhood, shipCityState, quote.shipping_cep ? `CEP: ${quote.shipping_cep}` : '']
+      .filter(Boolean).join(', ');
+
+    const hasAny = shipAddr || shipSecond || quote.shipping_recipient || quote.shipping_phone || quote.shipping_notes;
+    if (hasAny) {
+      // Faixa de destaque
+      doc.setFillColor(240, 249, 245);
+      doc.setDrawColor(21, 175, 161);
+      const boxTop = y;
+      const boxWidth = W - margin * 2;
+      // calcula altura provisória (ajusta depois via retângulo antes do texto)
+      let innerY = boxTop + 4;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(21, 120, 100);
+      // placeholder — desenharemos o retângulo após medir
+      const lines: string[] = [];
+      const pushLine = (s: string) => { if (s) lines.push(s); };
+      if (quote.shipping_recipient) pushLine(`Destinatário: ${quote.shipping_recipient}`);
+      if (shipAddr) pushLine(`Endereço: ${shipAddr}`);
+      if (shipSecond) pushLine(shipSecond);
+      if (quote.shipping_phone) pushLine(`Tel: ${quote.shipping_phone}`);
+      if (quote.shipping_notes) pushLine(`Obs: ${quote.shipping_notes}`);
+
+      const contentWidth = boxWidth - 6;
+      const wrapped: string[] = [];
+      lines.forEach(l => {
+        const parts = doc.splitTextToSize(l, contentWidth);
+        parts.forEach((p: string) => wrapped.push(p));
+      });
+      const boxHeight = 5 + wrapped.length * 3.5 + 2;
+
+      doc.rect(margin, boxTop, boxWidth, boxHeight, 'FD');
+
+      doc.setTextColor(21, 120, 100);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ENDEREÇO DE ENTREGA', margin + 3, boxTop + 4);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0);
+      let ly = boxTop + 8;
+      wrapped.forEach(l => { doc.text(l, margin + 3, ly); ly += 3.5; });
+
+      y = boxTop + boxHeight + 3;
+      doc.setDrawColor(0);
+    }
+  }
+
+
   // Items table header - fixed positions prevent column overlap
   const cols = [
     { label: '#', w: 6 },
