@@ -63,6 +63,8 @@ export default function SupportStock() {
   });
   const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState<{ category: string; brand: string; status: string }>({ category: 'all', brand: 'all', status: 'all' });
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   // Import state
   const [importBrand, setImportBrand] = useState<string>('');
