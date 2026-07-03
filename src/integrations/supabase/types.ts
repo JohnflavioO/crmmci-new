@@ -387,6 +387,7 @@ export type Database = {
           baixa_by: string | null
           client_id: string | null
           client_name: string
+          company_id: string | null
           created_at: string
           created_by: string | null
           due_date: string | null
@@ -409,6 +410,7 @@ export type Database = {
           baixa_by?: string | null
           client_id?: string | null
           client_name?: string
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           due_date?: string | null
@@ -431,6 +433,7 @@ export type Database = {
           baixa_by?: string | null
           client_id?: string | null
           client_name?: string
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           due_date?: string | null
@@ -1987,6 +1990,7 @@ export type Database = {
       technical_maintenances: {
         Row: {
           brand: string | null
+          company_id: string | null
           created_at: string
           description: string | null
           id: string
@@ -1999,6 +2003,7 @@ export type Database = {
         }
         Insert: {
           brand?: string | null
+          company_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -2011,6 +2016,7 @@ export type Database = {
         }
         Update: {
           brand?: string | null
+          company_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
