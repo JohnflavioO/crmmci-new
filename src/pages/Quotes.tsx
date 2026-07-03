@@ -350,7 +350,7 @@ export default function Quotes() {
   const { user, profile, isGestor, isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const { isHidden: privacyHidden } = usePrivacy();
-  const canViewTeamQuotes = isAdmin || isGestor;
+  const canViewTeamQuotes = isGestor;
   const [quotes, setQuotes] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [search, setSearch] = useState('');
