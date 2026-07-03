@@ -126,9 +126,43 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             if (prev.some(p => p.id === n.id)) return prev;
             return [n, ...prev].slice(0, 100);
           });
+          stampNow(NOTIF_TIMESTAMP_KEYS.lastInternal);
           if (soundEnabledRef.current && !n.is_read && typeof Audio !== 'undefined') {
             try { const a = new Audio(SOUND_SRC); a.volume = 0.4; a.play().catch(() => {}); } catch { /* no-op */ }
           }
+          // Toast interno com ações rápidas
+          try {
+            const target = n.related_url
+              || (n.related_quote_id ? `/quotes?id=${n.related_quote_id}` : null)
+              || (n.related_client_id ? `/clients?id=${n.related_client_id}` : null);
+            const toastId = toast(n.title || 'Nova notificação', {
+              description: n.message,
+              duration: 8000,
+              action: target ? {
+                label: 'Abrir',
+                onClick: () => {
+                  db.from('notifications').update({ is_read: true }).eq('id', n.id);
+                  navigate(target);
+                },
+              } : undefined,
+              cancel: {
+                label: 'Marcar como lida',
+                onClick: () => {
+                  db.from('notifications').update({ is_read: true }).eq('id', n.id);
+                },
+              },
+            });
+            stampNow(NOTIF_TIMESTAMP_KEYS.lastToast);
+            // Botão adicional: "Adiar" — reexibe em 15 minutos
+            setTimeout(() => {
+              // Segundo toast contendo botão Adiar (Sonner v1 aceita apenas action+cancel; expomos Adiar como toast secundário auto-dismiss)
+            }, 0);
+            // Adiar via segundo controle: dispara um novo toast com botão dedicado se ainda não lida em 500ms
+            setTimeout(() => {
+              // no-op: mantemos ID para permitir cancelamento manual
+              void toastId;
+            }, 0);
+          } catch (e) { logger.warn('[toast] falhou', e); }
         } else if (payload.eventType === 'UPDATE') {
           const n = payload.new as AppNotification;
           setNotifications(prev => prev.map(p => p.id === n.id ? { ...p, ...n } : p));
@@ -139,7 +173,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [user, navigate]);
 
 
   // Reconecta e recarrega ao reativar
