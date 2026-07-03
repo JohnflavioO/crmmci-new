@@ -986,7 +986,7 @@ export default function InteligenciaComercial() {
           <TabsContent value="dashboard" className="space-y-6">
             {/* GRUPO FINANCEIRO */}
             <KpiGroup title="Financeiro" icon={Wallet} accent="emerald">
-              <KpiCard icon={DollarSign} label="Receita Comercial" value={fmtCompact(kpis.totalRevenue)} hint="Aprovados + Liquidados" growth={growth(kpis.totalRevenue, prevKpis.totalRevenue)} accent="emerald" onClick={drillRevenue} />
+              <KpiCard icon={DollarSign} label="Receita Comercial" value={fmtCompact(kpis.totalRevenue)} hint="Apenas Aprovados" growth={growth(kpis.totalRevenue, prevKpis.totalRevenue)} accent="emerald" onClick={drillRevenue} />
               <KpiCard icon={Wallet} label="Receita Recebida" value={fmtCompact(kpis.totalReceived)} hint="Apenas liquidados" growth={growth(kpis.totalReceived, prevKpis.totalReceived)} accent="emerald" onClick={drillReceived} />
               <KpiCard icon={ShoppingCart} label="Ticket Médio Cliente" value={fmtCompact(kpis.ticketMedio)} growth={growth(kpis.ticketMedio, prevKpis.ticketMedio)} accent="emerald" onClick={drillRevenue} />
               <KpiCard icon={ShoppingCart} label="Valor Médio / Orçamento" value={fmtCompact(kpis.avgQuote)} growth={growth(kpis.avgQuote, prevKpis.avgQuote)} accent="emerald" onClick={drillRevenue} />
