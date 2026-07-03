@@ -13,10 +13,35 @@ import { requestNotificationPermission, getFcmDiagnostics, markFcmTestPerformed,
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useNotifications } from '@/contexts/NotificationsContext';
+import { useNotifications, NOTIF_TIMESTAMP_KEYS } from '@/contexts/NotificationsContext';
 import { logger } from '@/lib/logger';
 
 const db = supabase as any;
+
+const PUSH_TIMESTAMP_KEYS = {
+  lastPushAttempt: 'mci_last_push_attempt_at',
+  lastPushSuccess: 'mci_last_push_success_at',
+  lastFcmError: 'mci_last_fcm_error_at',
+  lastFcmErrorMsg: 'mci_last_fcm_error_msg',
+} as const;
+
+function readTs(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function writeTs(key: string, value: string) {
+  try { localStorage.setItem(key, value); } catch { /* no-op */ }
+}
+function formatTs(iso: string | null): string {
+  if (!iso) return 'nunca';
+  try { return formatDistanceToNow(new Date(iso), { addSuffix: true, locale: ptBR }); } catch { return iso; }
+}
+
+type TestChannelResult = { ok: boolean; message: string };
+type TestResults = {
+  internal: TestChannelResult | null;
+  toast: TestChannelResult | null;
+  push: TestChannelResult | null;
+};
 
 interface Device {
   id: string;
@@ -40,6 +65,19 @@ export default function NotificationSettings() {
   const [activatingPush, setActivatingPush] = useState(false);
   const [diag, setDiag] = useState<FcmDiagnostics | null>(null);
   const [diagLoading, setDiagLoading] = useState(false);
+  const [testResults, setTestResults] = useState<TestResults | null>(null);
+  const [tsTick, setTsTick] = useState(0);
+  const lastInternalAt = readTs(NOTIF_TIMESTAMP_KEYS.lastInternal);
+  const lastToastAt = readTs(NOTIF_TIMESTAMP_KEYS.lastToast);
+  const lastPushAttemptAt = readTs(PUSH_TIMESTAMP_KEYS.lastPushAttempt);
+  const lastPushSuccessAt = readTs(PUSH_TIMESTAMP_KEYS.lastPushSuccess);
+  const lastFcmErrorAt = readTs(PUSH_TIMESTAMP_KEYS.lastFcmError);
+  const lastFcmErrorMsg = readTs(PUSH_TIMESTAMP_KEYS.lastFcmErrorMsg);
+  void tsTick;
+  useEffect(() => {
+    const i = setInterval(() => setTsTick((n) => n + 1), 30000);
+    return () => clearInterval(i);
+  }, []);
 
   const loadDevices = async () => {
     if (!user) return;
@@ -85,6 +123,10 @@ export default function NotificationSettings() {
   const handleTest = async () => {
     if (!user) return;
     setTesting(true);
+    const results: TestResults = { internal: null, toast: null, push: null };
+    const toastCountBefore = readTs(NOTIF_TIMESTAMP_KEYS.lastToast);
+
+    // 1. Notificação interna (INSERT no banco → dispara realtime → toast)
     try {
       const { error } = await db.from('notifications').insert({
         user_id: user.id,
@@ -96,7 +138,32 @@ export default function NotificationSettings() {
         is_read: false,
       });
       if (error) throw error;
+      results.internal = { ok: true, message: 'Registrada na tabela notifications' };
+    } catch (e: any) {
+      results.internal = { ok: false, message: e?.message || 'Falha ao inserir notificação' };
+    }
 
+    // 2. Toast — verifica em até 3s se o realtime disparou um novo timestamp
+    if (results.internal?.ok) {
+      const deadline = Date.now() + 3000;
+      let toastFired = false;
+      while (Date.now() < deadline) {
+        const cur = readTs(NOTIF_TIMESTAMP_KEYS.lastToast);
+        if (cur && cur !== toastCountBefore) { toastFired = true; break; }
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      results.toast = toastFired
+        ? { ok: true, message: 'Toast exibido no canto da tela' }
+        : { ok: false, message: 'Toast não foi disparado (verifique se as notificações internas estão ativas)' };
+    } else {
+      results.toast = { ok: false, message: 'Depende da notificação interna' };
+    }
+
+    // 3. Push FCM — só se houver token salvo
+    writeTs(PUSH_TIMESTAMP_KEYS.lastPushAttempt, new Date().toISOString());
+    if (!diag?.tokenSavedInDb) {
+      results.push = { ok: false, message: 'Sem token FCM salvo — ative o push do navegador primeiro' };
+    } else {
       try {
         const { data: pushData, error: pushErr } = await supabase.functions.invoke('send-push-notifications', {
           body: {
@@ -114,20 +181,28 @@ export default function NotificationSettings() {
         if ((pushData.sent ?? 0) < 1) {
           throw new Error(`Push real não enviado: sent=${pushData.sent ?? 0}, failed=${pushData.failed ?? 0}`);
         }
-      } catch (e) {
+        results.push = { ok: true, message: `Push entregue ao FCM (sent=${pushData.sent})` };
+        writeTs(PUSH_TIMESTAMP_KEYS.lastPushSuccess, new Date().toISOString());
+      } catch (e: any) {
+        const msg = e?.message || 'Falha ao enviar push';
+        results.push = { ok: false, message: msg };
+        writeTs(PUSH_TIMESTAMP_KEYS.lastFcmError, new Date().toISOString());
+        writeTs(PUSH_TIMESTAMP_KEYS.lastFcmErrorMsg, msg);
         logger.warn('Push test invoke failed:', e);
-        throw e;
       }
-
-      markFcmTestPerformed();
-      await runDiagnostics();
-      toast.success('Notificação de teste enviada!');
-    } catch (e: any) {
-      toast.error(`[${e?.code || 'erro'}] ${e?.message || 'Falha ao enviar teste'}`, { duration: 8000 });
-    } finally {
-      setTesting(false);
     }
+
+    markFcmTestPerformed();
+    await runDiagnostics();
+    setTestResults(results);
+    setTsTick((n) => n + 1);
+    const okCount = [results.internal, results.toast, results.push].filter((r) => r?.ok).length;
+    if (okCount === 3) toast.success('Teste concluído: todos os canais OK');
+    else if (okCount > 0) toast.warning(`Teste parcial: ${okCount}/3 canais OK`);
+    else toast.error('Teste falhou em todos os canais');
+    setTesting(false);
   };
+
 
   const removeDevice = async (id: string) => {
     await db.from('user_push_tokens').delete().eq('id', id);
@@ -188,8 +263,14 @@ export default function NotificationSettings() {
             </CardTitle>
             <CardDescription>
               Status atual:{' '}
-              <Badge variant={permission === 'granted' ? 'default' : permission === 'denied' ? 'destructive' : 'secondary'}>
-                {permission === 'granted' ? 'Permitido' : permission === 'denied' ? 'Bloqueado' : 'Não solicitado'}
+              <Badge variant={diag?.tokenSavedInDb && permission === 'granted' ? 'default' : permission === 'denied' ? 'destructive' : 'secondary'}>
+                {diag?.tokenSavedInDb && permission === 'granted'
+                  ? 'Push ativo'
+                  : permission === 'denied'
+                    ? 'Bloqueado'
+                    : permission === 'granted'
+                      ? 'Permitido (sem token)'
+                      : 'Não solicitado'}
               </Badge>
             </CardDescription>
           </CardHeader>
@@ -212,6 +293,29 @@ export default function NotificationSettings() {
                 Push foi bloqueado neste navegador. Abra as permissões do site e libere "Notificações".
               </p>
             )}
+            {testResults && (
+              <div className="rounded-md border border-border bg-muted/40 p-3 space-y-1.5 text-xs">
+                <div className="font-semibold text-sm mb-1">Resultado do teste</div>
+                <TestResultRow label="Notificação interna" result={testResults.internal} />
+                <TestResultRow label="Toast no CRM" result={testResults.toast} />
+                <TestResultRow label="Push FCM (navegador)" result={testResults.push} />
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-muted-foreground pt-1 border-t border-border">
+              <div><span className="font-medium">Última notificação interna:</span> {formatTs(lastInternalAt)}</div>
+              <div><span className="font-medium">Último toast exibido:</span> {formatTs(lastToastAt)}</div>
+              <div><span className="font-medium">Última tentativa de push:</span> {formatTs(lastPushAttemptAt)}</div>
+              <div><span className="font-medium">Último push com sucesso:</span> {formatTs(lastPushSuccessAt)}</div>
+              <div className="sm:col-span-2">
+                <span className="font-medium">Último erro FCM:</span>{' '}
+                {lastFcmErrorAt ? (
+                  <span className="text-destructive">
+                    {formatTs(lastFcmErrorAt)}
+                    {lastFcmErrorMsg ? ` — ${lastFcmErrorMsg}` : ''}
+                  </span>
+                ) : 'nenhum'}
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -375,6 +479,21 @@ function DiagRow({ ok, warn, label }: { ok: boolean; warn?: boolean; label: stri
     <div className="flex items-center gap-2">
       <Icon className={`h-4 w-4 shrink-0 ${cls}`} />
       <span className={ok ? '' : 'text-muted-foreground'}>{label}</span>
+    </div>
+  );
+}
+
+function TestResultRow({ label, result }: { label: string; result: TestChannelResult | null }) {
+  if (!result) return null;
+  const Icon = result.ok ? CheckCircle2 : XCircle;
+  const cls = result.ok ? 'text-emerald-600' : 'text-destructive';
+  return (
+    <div className="flex items-start gap-2">
+      <Icon className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${cls}`} />
+      <div className="flex-1">
+        <span className="font-medium">{label}:</span>{' '}
+        <span className={result.ok ? 'text-muted-foreground' : 'text-destructive'}>{result.message}</span>
+      </div>
     </div>
   );
 }
