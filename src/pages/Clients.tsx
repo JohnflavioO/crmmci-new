@@ -73,7 +73,8 @@ export default function Clients() {
   const [deleting, setDeleting] = useState(false);
   const [sellers, setSellers] = useState<SellerInfo[]>([]);
   const { isAdmin, isGestor } = useAuth();
-  const canSeeAll = isAdmin || isGestor;
+  const canSeeAll = isGestor;
+
   const [cnpjLoading, setCnpjLoading] = useState(false);
   const [historyClientId, setHistoryClientId] = useState<string | null>(null);
 
