@@ -65,6 +65,19 @@ export default function NotificationSettings() {
   const [activatingPush, setActivatingPush] = useState(false);
   const [diag, setDiag] = useState<FcmDiagnostics | null>(null);
   const [diagLoading, setDiagLoading] = useState(false);
+  const [testResults, setTestResults] = useState<TestResults | null>(null);
+  const [tsTick, setTsTick] = useState(0);
+  const lastInternalAt = readTs(NOTIF_TIMESTAMP_KEYS.lastInternal);
+  const lastToastAt = readTs(NOTIF_TIMESTAMP_KEYS.lastToast);
+  const lastPushAttemptAt = readTs(PUSH_TIMESTAMP_KEYS.lastPushAttempt);
+  const lastPushSuccessAt = readTs(PUSH_TIMESTAMP_KEYS.lastPushSuccess);
+  const lastFcmErrorAt = readTs(PUSH_TIMESTAMP_KEYS.lastFcmError);
+  const lastFcmErrorMsg = readTs(PUSH_TIMESTAMP_KEYS.lastFcmErrorMsg);
+  void tsTick;
+  useEffect(() => {
+    const i = setInterval(() => setTsTick((n) => n + 1), 30000);
+    return () => clearInterval(i);
+  }, []);
 
   const loadDevices = async () => {
     if (!user) return;
