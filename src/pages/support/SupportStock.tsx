@@ -76,13 +76,24 @@ export default function SupportStock() {
   const xmlRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
-    const { data: products } = await supabase.from('technical_products' as any).select('*').order('name');
+    const { data: products, error: productsError } = await supabase.from('technical_products' as any).select('*').order('name');
+    if (productsError) {
+      toast.error(`Erro ao carregar estoque: ${productsError.message}`);
+      setItems([]);
+      return;
+    }
     setItems((products || []) as any[]);
     
-    const { data: brandList } = await supabase.from('technical_brands' as any).select('*').order('name');
+    const { data: brandList, error: brandsError } = await supabase.from('technical_brands' as any).select('*').order('name');
+    if (brandsError) {
+      toast.error(`Erro ao carregar marcas: ${brandsError.message}`);
+    }
     setBrands((brandList || []) as any[]);
 
-    const { data: maintList } = await supabase.from('technical_maintenances' as any).select('*').order('created_at', { ascending: false });
+    const { data: maintList, error: maintError } = await supabase.from('technical_maintenances' as any).select('*').order('created_at', { ascending: false });
+    if (maintError) {
+      toast.error(`Erro ao carregar manutenções: ${maintError.message}`);
+    }
     setMaintenances((maintList || []) as any[]);
   };
 
