@@ -816,7 +816,7 @@ export default function InteligenciaComercial() {
   const openDrill = (title: string, subtitle: string, qs: QuoteRow[]) => {
     setDrill({ title, subtitle, quotes: qs.sort((a, b) => new Date(b.approved_at || b.created_at).getTime() - new Date(a.approved_at || a.created_at).getTime()) });
   };
-  const drillRevenue = () => openDrill('Receita Comercial', 'Orçamentos aprovados e liquidados no período', filteredQuotes);
+  const drillRevenue = () => openDrill('Receita Comercial', 'Orçamentos aprovados no período', filteredQuotes);
   const drillReceived = () => openDrill('Receita Recebida', 'Orçamentos liquidados no período', filteredQuotes.filter(isReceived));
   const drillActive = () => {
     const ids = new Set(aggregated.filter(a => a.isActive).flatMap(a => a.quoteIds));
