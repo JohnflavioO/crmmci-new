@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import UserProfileEditor from './UserProfileEditor';
 import SidebarVersion from './SidebarVersion';
 import { usePermissions } from '@/hooks/usePermissions';
+import { prefetchRoute } from '@/lib/routePrefetch';
 
 
 const commercialItems = [
@@ -102,6 +103,9 @@ export default function AppSidebar({ onNavigate }: Props) {
       <NavLink
         to={to}
         onClick={onNavigate}
+        onMouseEnter={() => prefetchRoute(to)}
+        onFocus={() => prefetchRoute(to)}
+        onTouchStart={() => prefetchRoute(to)}
         className={cn(
           'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]',
           isActive
@@ -140,6 +144,9 @@ export default function AppSidebar({ onNavigate }: Props) {
       <NavLink
         to={to}
         onClick={onNavigate}
+        onMouseEnter={() => prefetchRoute(to)}
+        onFocus={() => prefetchRoute(to)}
+        onTouchStart={() => prefetchRoute(to)}
         className={cn(
           'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]',
           isActive
