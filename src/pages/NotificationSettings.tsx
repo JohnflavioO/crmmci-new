@@ -293,6 +293,29 @@ export default function NotificationSettings() {
                 Push foi bloqueado neste navegador. Abra as permissões do site e libere "Notificações".
               </p>
             )}
+            {testResults && (
+              <div className="rounded-md border border-border bg-muted/40 p-3 space-y-1.5 text-xs">
+                <div className="font-semibold text-sm mb-1">Resultado do teste</div>
+                <TestResultRow label="Notificação interna" result={testResults.internal} />
+                <TestResultRow label="Toast no CRM" result={testResults.toast} />
+                <TestResultRow label="Push FCM (navegador)" result={testResults.push} />
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-muted-foreground pt-1 border-t border-border">
+              <div><span className="font-medium">Última notificação interna:</span> {formatTs(lastInternalAt)}</div>
+              <div><span className="font-medium">Último toast exibido:</span> {formatTs(lastToastAt)}</div>
+              <div><span className="font-medium">Última tentativa de push:</span> {formatTs(lastPushAttemptAt)}</div>
+              <div><span className="font-medium">Último push com sucesso:</span> {formatTs(lastPushSuccessAt)}</div>
+              <div className="sm:col-span-2">
+                <span className="font-medium">Último erro FCM:</span>{' '}
+                {lastFcmErrorAt ? (
+                  <span className="text-destructive">
+                    {formatTs(lastFcmErrorAt)}
+                    {lastFcmErrorMsg ? ` — ${lastFcmErrorMsg}` : ''}
+                  </span>
+                ) : 'nenhum'}
+              </div>
+            </div>
           </CardContent>
         </Card>
 
