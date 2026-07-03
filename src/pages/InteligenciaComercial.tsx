@@ -816,7 +816,7 @@ export default function InteligenciaComercial() {
   const openDrill = (title: string, subtitle: string, qs: QuoteRow[]) => {
     setDrill({ title, subtitle, quotes: qs.sort((a, b) => new Date(b.approved_at || b.created_at).getTime() - new Date(a.approved_at || a.created_at).getTime()) });
   };
-  const drillRevenue = () => openDrill('Receita Comercial', 'Orçamentos aprovados e liquidados no período', filteredQuotes);
+  const drillRevenue = () => openDrill('Receita Comercial', 'Orçamentos aprovados no período', filteredQuotes);
   const drillReceived = () => openDrill('Receita Recebida', 'Orçamentos liquidados no período', filteredQuotes.filter(isReceived));
   const drillActive = () => {
     const ids = new Set(aggregated.filter(a => a.isActive).flatMap(a => a.quoteIds));
@@ -986,7 +986,7 @@ export default function InteligenciaComercial() {
           <TabsContent value="dashboard" className="space-y-6">
             {/* GRUPO FINANCEIRO */}
             <KpiGroup title="Financeiro" icon={Wallet} accent="emerald">
-              <KpiCard icon={DollarSign} label="Receita Comercial" value={fmtCompact(kpis.totalRevenue)} hint="Aprovados + Liquidados" growth={growth(kpis.totalRevenue, prevKpis.totalRevenue)} accent="emerald" onClick={drillRevenue} />
+              <KpiCard icon={DollarSign} label="Receita Comercial" value={fmtCompact(kpis.totalRevenue)} hint="Apenas Aprovados" growth={growth(kpis.totalRevenue, prevKpis.totalRevenue)} accent="emerald" onClick={drillRevenue} />
               <KpiCard icon={Wallet} label="Receita Recebida" value={fmtCompact(kpis.totalReceived)} hint="Apenas liquidados" growth={growth(kpis.totalReceived, prevKpis.totalReceived)} accent="emerald" onClick={drillReceived} />
               <KpiCard icon={ShoppingCart} label="Ticket Médio Cliente" value={fmtCompact(kpis.ticketMedio)} growth={growth(kpis.ticketMedio, prevKpis.ticketMedio)} accent="emerald" onClick={drillRevenue} />
               <KpiCard icon={ShoppingCart} label="Valor Médio / Orçamento" value={fmtCompact(kpis.avgQuote)} growth={growth(kpis.avgQuote, prevKpis.avgQuote)} accent="emerald" onClick={drillRevenue} />
