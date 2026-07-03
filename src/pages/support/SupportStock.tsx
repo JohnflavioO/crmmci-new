@@ -328,9 +328,15 @@ export default function SupportStock() {
   };
 
 
-  const filtered = items.filter(i => {
-    const q = search.toLowerCase();
-    const matchSearch = !q || i.name?.toLowerCase().includes(q) || i.code?.toLowerCase().includes(q) || i.category?.toLowerCase().includes(q);
+  const filtered = useMemo(() => items.filter(i => {
+    const q = search.toLowerCase().trim();
+    const matchSearch = !q
+      || i.name?.toLowerCase().includes(q)
+      || i.code?.toLowerCase().includes(q)
+      || i.category?.toLowerCase().includes(q)
+      || i.manufacturer?.toLowerCase().includes(q)
+      || i.brand?.toLowerCase().includes(q)
+      || i.location?.toLowerCase().includes(q);
     const matchCat = filters.category === 'all' || i.category === filters.category;
     const matchBrand = filters.brand === 'all' || i.manufacturer === filters.brand;
     let matchStatus = true;
@@ -338,7 +344,13 @@ export default function SupportStock() {
     else if (filters.status === 'low') matchStatus = i.quantity > 0 && i.quantity <= i.min_quantity;
     else if (filters.status === 'out') matchStatus = i.quantity <= 0;
     return matchSearch && matchCat && matchBrand && matchStatus;
-  });
+  }), [items, search, filters]);
+
+  useEffect(() => { setPage(1); }, [search, filters]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const activeFilterCount = (filters.category !== 'all' ? 1 : 0) + (filters.brand !== 'all' ? 1 : 0) + (filters.status !== 'all' ? 1 : 0);
 
