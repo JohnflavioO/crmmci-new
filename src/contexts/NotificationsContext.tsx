@@ -1,9 +1,20 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { logger } from '@/lib/logger';
 
 const db = supabase as any;
+
+export const NOTIF_TIMESTAMP_KEYS = {
+  lastInternal: 'mci_last_internal_notif_at',
+  lastToast: 'mci_last_toast_at',
+} as const;
+
+function stampNow(key: string) {
+  try { localStorage.setItem(key, new Date().toISOString()); } catch { /* no-op */ }
+}
 
 export interface AppNotification {
   id: string;
