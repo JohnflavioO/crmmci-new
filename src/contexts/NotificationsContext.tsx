@@ -195,6 +195,15 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => { supabase.removeChannel(channel); };
   }, [user, navigate]);
 
+  // Cleanup snooze timers ao desmontar
+  useEffect(() => {
+    const timersRef = snoozeTimersRef;
+    return () => {
+      timersRef.current.forEach((t) => clearTimeout(t));
+      timersRef.current.clear();
+    };
+  }, []);
+
 
   // Reconecta e recarrega ao reativar
   useEffect(() => {
