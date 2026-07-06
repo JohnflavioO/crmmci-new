@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ActionMenu } from '@/components/ActionMenu';
+import OrderDetailsModal from '@/components/support/OrderDetailsModal';
 
 export const STATUS_OPTIONS = [
   { key: 'recebido', label: 'Recebido' },
