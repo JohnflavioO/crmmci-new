@@ -327,6 +327,13 @@ export default function SupportOrders() {
           </Table>
         </CardContent>
       </Card>
+
+      <OrderDetailsModal
+        orderId={detailsId}
+        open={!!detailsId}
+        onOpenChange={(v) => { if (!v) setDetailsId(null); }}
+        onChanged={load}
+      />
     </div>
   );
 }
