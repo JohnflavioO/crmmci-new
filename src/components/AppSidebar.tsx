@@ -28,11 +28,13 @@ const analyticItems = [
   { to: '/metrics', icon: BarChart3, label: 'Métricas' },
   { to: '/inteligencia', icon: Brain, label: 'Inteligência Comercial' },
   { to: '/prospect', icon: Target, label: 'Visão Prospect' },
-  { to: '/ecoflow', icon: Calculator, label: 'Calculadora Ecoflow' },
 ];
 
 const toolItems = [
-  { to: '/contracts', icon: FileText, label: 'Gerador de Contrato' },
+  { to: '/contracts', icon: FileText, label: 'Gerador de Contratos', permission: 'contracts.use' as const },
+  { to: '/assistente', icon: Compass, label: 'Assistente Comercial' },
+  { to: '/ecoflow', icon: Calculator, label: 'Calculadora Ecoflow' },
+  { to: '/tasks', icon: ListChecks, label: 'TaskHub' },
 ];
 
 
