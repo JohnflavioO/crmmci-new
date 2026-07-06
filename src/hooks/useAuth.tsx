@@ -82,8 +82,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsSupportTech(false);
           setIsSupportManager(false);
           setProfile(null);
+          setProfileLoaded(false);
         } else if (newUserId !== currentUserId) {
           currentUserId = newUserId;
+          setProfileLoaded(false);
         }
         // Sessão resolvida — libera o splash imediatamente.
         // Roles/profile carregam em background; App.tsx já lida com profile ausente.
