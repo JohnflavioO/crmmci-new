@@ -105,7 +105,9 @@ export default function SupportOrderDetail() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('technical_products' as any).select('id,name,price,quantity').order('name');
+      const { data } = await supabase.from('technical_products' as any)
+        .select('id,name,code,price,quantity,brand,category,manufacturer,compatibility,notes')
+        .order('name');
       setProducts((data || []) as any[]);
     })();
   }, []);
