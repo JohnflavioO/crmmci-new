@@ -51,7 +51,7 @@ export default function AssistantAudit() {
         .order('created_at', { ascending: false })
         .limit(500);
       setRows((data as any) || []);
-      const userIds = Array.from(new Set(((data as any) || []).map((r: Row) => r.user_id)));
+      const userIds: string[] = Array.from(new Set(((data as any) || []).map((r: Row) => r.user_id))) as string[];
       if (userIds.length) {
         const { data: profs } = await supabase.from('profiles').select('user_id, full_name').in('user_id', userIds);
         const map: Record<string, string> = {};
