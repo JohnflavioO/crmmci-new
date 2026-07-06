@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string; avatar_url?: string; force_password_change?: boolean; company_id?: string; can_access_support_manager?: boolean } | null>(null);
   const [forcePasswordChange, setForcePasswordChange] = useState(false);
 
-  // Safety timeout: never stay loading forever.
+  // Safety timeout: hard cap on splash — never > 3s.
   useEffect(() => {
     const timer = setTimeout(() => {
       setLoading(prev => {
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         devWarn('[Auth] Safety timeout reached, forcing loading=false');
         return false;
       });
-    }, 6000);
+    }, 3000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -80,11 +80,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsSupportTech(false);
           setIsSupportManager(false);
           setProfile(null);
-          setLoading(false);
         } else if (newUserId !== currentUserId) {
           currentUserId = newUserId;
-          setLoading(true);
         }
+        // Sessão resolvida — libera o splash imediatamente.
+        // Roles/profile carregam em background; App.tsx já lida com profile ausente.
+        setLoading(false);
       }
     );
 
@@ -98,11 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const uid = s?.user?.id ?? null;
       setSession(s);
       setUser(s?.user ?? null);
-      if (!uid) {
-        setLoading(false);
-      } else if (uid !== currentUserId) {
-        currentUserId = uid;
-      }
+      if (uid && uid !== currentUserId) currentUserId = uid;
+      setLoading(false);
     }).catch((err) => {
       console.error('[Auth] getSession exception:', err);
       setLoading(false);
