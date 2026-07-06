@@ -700,7 +700,14 @@ export default function AssistenteComercial() {
                   )}
                 </CardContent>
               </Card>
-              {renderResult(lastAssistant.tool_result)}
+              {lastAssistant.tool_result?.preview ? (
+                <PreviewActionCard
+                  preview={lastAssistant.tool_result}
+                  onResolved={() => activeId && loadMessages(activeId)}
+                />
+              ) : (
+                renderResult(lastAssistant.tool_result)
+              )}
             </div>
           )}
         </div>
