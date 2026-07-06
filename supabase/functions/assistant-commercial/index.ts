@@ -23,12 +23,24 @@ type ToolCtx = {
 // ============================================================
 // READ TOOLS — executam direto, sem confirmação
 // ============================================================
+// Escopo por papel: mesmo padrão do CRM.
+// - admin/gestor: veem sua carteira (created_by/salesperson_id = userId) POR PADRÃO.
+//   Só ampliam para equipe/global se args.scope='team' (gestor/admin) for enviado explicitamente.
+// - demais papéis: sempre restritos aos próprios registros.
+function scopeOwn(query: any, column: string, userId: string, profile: any, scope?: string) {
+  const role = profile?.role;
+  const isBoss = role === 'admin' || role === 'gestor';
+  if (isBoss && scope === 'team') return query; // consulta ampla (equipe) somente sob demanda
+  return query.eq(column, userId);
+}
+
 const readTools: Record<string, { schema: any; handler: (args: any, ctx: ToolCtx) => Promise<any> }> = {
   get_clients: {
-    schema: { type: 'function', function: { name: 'get_clients', description: 'Buscar clientes (nome, empresa, cidade, UF, inatividade).', parameters: { type: 'object', properties: { search: { type: 'string' }, city: { type: 'string' }, state: { type: 'string' }, days_inactive: { type: 'number' }, limit: { type: 'number' } } } } },
-    handler: async (args, { supabase }) => {
+    schema: { type: 'function', function: { name: 'get_clients', description: 'Buscar clientes da carteira do usuário. Use scope="team" apenas se admin/gestor pedir explicitamente a equipe inteira.', parameters: { type: 'object', properties: { search: { type: 'string' }, city: { type: 'string' }, state: { type: 'string' }, days_inactive: { type: 'number' }, limit: { type: 'number' }, scope: { type: 'string', enum: ['own','team'] } } } } },
+    handler: async (args, { supabase, userId, profile }) => {
       const limit = Math.min(args?.limit || 50, 200);
-      let q = supabase.from('clients').select('id, name, company_name, email, phone, city, state, salesperson_id, created_at, last_interaction_at').limit(limit);
+      let q = supabase.from('clients').select('id, name, company_name, email, phone, city, state, salesperson_id, created_by, created_at, last_interaction_at').limit(limit);
+      q = scopeOwn(q, 'salesperson_id', userId, profile, args?.scope);
       if (args?.search) q = q.or(`name.ilike.%${args.search}%,company_name.ilike.%${args.search}%,email.ilike.%${args.search}%`);
       if (args?.city) q = q.ilike('city', `%${args.city}%`);
       if (args?.state) q = q.ilike('state', `%${args.state}%`);
@@ -38,21 +50,56 @@ const readTools: Record<string, { schema: any; handler: (args: any, ctx: ToolCtx
       }
       const { data, error } = await q.order('company_name');
       if (error) throw error;
-      return { entity: 'clients', columns: ['company_name', 'name', 'city', 'state', 'email', 'phone'], rows: data, count: data?.length || 0 };
+      return { entity: 'clients', scope: args?.scope || 'own', columns: ['company_name', 'name', 'city', 'state', 'email', 'phone'], rows: data, count: data?.length || 0 };
     },
   },
   get_quotes: {
-    schema: { type: 'function', function: { name: 'get_quotes', description: 'Buscar orçamentos (status, valor, cliente, dias).', parameters: { type: 'object', properties: { status: { type: 'string' }, min_amount: { type: 'number' }, client_name: { type: 'string' }, days_back: { type: 'number' }, limit: { type: 'number' } } } } },
-    handler: async (args, { supabase }) => {
+    schema: { type: 'function', function: { name: 'get_quotes', description: 'Buscar orçamentos da carteira do usuário. Suporta ordenação (created_at, total_amount, items_count) e contagem de itens. Use scope="team" apenas se admin/gestor pedir a equipe.', parameters: { type: 'object', properties: { status: { type: 'string' }, min_amount: { type: 'number' }, client_name: { type: 'string' }, days_back: { type: 'number' }, limit: { type: 'number' }, order_by: { type: 'string', enum: ['created_at','total_amount','items_count'] }, order_dir: { type: 'string', enum: ['asc','desc'] }, include_items_count: { type: 'boolean' }, scope: { type: 'string', enum: ['own','team'] } } } } },
+    handler: async (args, { supabase, userId, profile }) => {
       const limit = Math.min(args?.limit || 50, 200);
-      let q = supabase.from('quotes').select('id, quote_number, client_name, total_amount, total, status, created_at, created_by, payment_method, payment_status').limit(limit);
+      const wantItems = args?.include_items_count || args?.order_by === 'items_count';
+      const cols = wantItems
+        ? 'id, quote_number, client_name, total_amount, total, status, created_at, created_by, payment_method, payment_status, quote_items(count)'
+        : 'id, quote_number, client_name, total_amount, total, status, created_at, created_by, payment_method, payment_status';
+      let q = supabase.from('quotes').select(cols);
+      q = scopeOwn(q, 'created_by', userId, profile, args?.scope);
       if (args?.status) q = q.eq('status', args.status);
       if (args?.min_amount) q = q.gte('total_amount', args.min_amount);
       if (args?.client_name) q = q.ilike('client_name', `%${args.client_name}%`);
       if (args?.days_back) q = q.gte('created_at', new Date(Date.now() - args.days_back * 86400000).toISOString());
-      const { data, error } = await q.order('created_at', { ascending: false });
+
+      const orderBy = args?.order_by === 'items_count' ? 'created_at' : (args?.order_by || 'created_at');
+      const ascending = args?.order_dir === 'asc';
+      q = q.order(orderBy, { ascending }).limit(args?.order_by === 'items_count' ? 500 : limit);
+
+      const { data, error } = await q;
       if (error) throw error;
-      return { entity: 'quotes', columns: ['quote_number', 'client_name', 'total_amount', 'status', 'created_at'], rows: data, count: data?.length || 0 };
+      let rows: any[] = (data || []).map((r: any) => ({
+        ...r,
+        items_count: Array.isArray(r.quote_items) ? (r.quote_items[0]?.count ?? 0) : undefined,
+      }));
+      if (args?.order_by === 'items_count') {
+        rows.sort((a, b) => (b.items_count || 0) - (a.items_count || 0) * (ascending ? -1 : 1));
+        if (ascending) rows.reverse();
+        rows = rows.slice(0, limit);
+      }
+      const columns = wantItems
+        ? ['quote_number','client_name','items_count','total_amount','status','created_at']
+        : ['quote_number','client_name','total_amount','status','created_at'];
+      return { entity: 'quotes', scope: args?.scope || 'own', columns, rows, count: rows.length };
+    },
+  },
+  get_quote_details: {
+    schema: { type: 'function', function: { name: 'get_quote_details', description: 'Detalhes completos de um orçamento (itens, totais). Use quando a pergunta for sobre UM orçamento específico.', parameters: { type: 'object', required: ['quote_id_or_number'], properties: { quote_id_or_number: { type: 'string' } } } } },
+    handler: async (args, { supabase }) => {
+      const key = String(args.quote_id_or_number);
+      const isUuid = /^[0-9a-f-]{36}$/i.test(key);
+      let q = supabase.from('quotes').select('id, quote_number, client_name, total_amount, total, status, created_at, created_by, payment_method, payment_status, quote_items(*)').limit(1);
+      q = isUuid ? q.eq('id', key) : q.eq('quote_number', key);
+      const { data, error } = await q.maybeSingle();
+      if (error) throw error;
+      if (!data) return { entity: 'quote', found: false };
+      return { entity: 'quote', found: true, quote: data, items_count: data.quote_items?.length || 0 };
     },
   },
   get_products: {
