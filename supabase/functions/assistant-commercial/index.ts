@@ -479,6 +479,60 @@ Deno.serve(async (req) => {
       content: message,
     });
 
+    // ============================================================
+    // HYBRID MODE — try SQL fast path before spending tokens on GPT
+    // ============================================================
+    const classification = classify(message);
+    if (classification.mode === 'sql') {
+      const key = cacheKey(userId, classification.tool, classification.args);
+      const cached = sqlCache.get(key);
+      let result: any;
+      let fromCache = false;
+      if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+        result = cached.payload;
+        fromCache = true;
+      } else {
+        try {
+          const tool = toolRegistry[classification.tool];
+          result = await tool.handler(classification.args, { supabase, userId, companyId, context });
+          sqlCache.set(key, { at: Date.now(), payload: result });
+        } catch (e: any) {
+          result = { error: e.message };
+        }
+      }
+      const answer = humanizeSqlResult(classification.label, classification.tool, result);
+      const elapsed = Date.now() - started;
+      await supabase.from('assistant_messages').insert({
+        conversation_id: convId,
+        role: 'assistant',
+        content: answer,
+        model: fromCache ? 'sql:cache' : 'sql',
+        execution_time_ms: elapsed,
+        tool_name: classification.tool,
+        tool_result: result,
+      });
+      await supabase
+        .from('assistant_conversations')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', convId);
+      if (isNew) {
+        // deterministic title without spending tokens
+        const shortTitle = classification.label + (classification.args?.status ? ` ${classification.args.status}` : '');
+        await supabase.from('assistant_conversations').update({ title: shortTitle.slice(0, 60) }).eq('id', convId);
+      }
+      return new Response(
+        JSON.stringify({
+          conversation_id: convId,
+          answer,
+          tool_used: classification.tool,
+          result,
+          mode: fromCache ? 'sql_cache' : 'sql',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+
     const contextBlock = `Contexto do usuário (sempre disponível, use quando fizer sentido):
 - Empresa (company_id): ${companyId ?? 'n/d'}
 - Usuário: ${profile?.full_name ?? userId}
