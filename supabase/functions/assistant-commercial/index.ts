@@ -116,11 +116,13 @@ const readTools: Record<string, { schema: any; handler: (args: any, ctx: ToolCtx
     },
   },
   get_metrics: {
-    schema: { type: 'function', function: { name: 'get_metrics', description: 'Métricas: total, aprovados, receita, conversão, ranking.', parameters: { type: 'object', properties: { days_back: { type: 'number' } } } } },
-    handler: async (args, { supabase }) => {
+    schema: { type: 'function', function: { name: 'get_metrics', description: 'Métricas da carteira do usuário: total, aprovados, receita, conversão. scope="team" só para admin/gestor sob demanda.', parameters: { type: 'object', properties: { days_back: { type: 'number' }, scope: { type: 'string', enum: ['own','team'] } } } } },
+    handler: async (args, { supabase, userId, profile }) => {
       const days = args?.days_back || 30;
       const cutoff = new Date(Date.now() - days * 86400000).toISOString();
-      const { data: quotes, error } = await supabase.from('quotes').select('id, total_amount, total, status, created_by').gte('created_at', cutoff);
+      let q = supabase.from('quotes').select('id, total_amount, total, status, created_by').gte('created_at', cutoff);
+      q = scopeOwn(q, 'created_by', userId, profile, args?.scope);
+      const { data: quotes, error } = await q;
       if (error) throw error;
       const total = quotes?.length || 0;
       const approved = quotes?.filter((q: any) => q.status === 'approved') || [];
@@ -132,24 +134,27 @@ const readTools: Record<string, { schema: any; handler: (args: any, ctx: ToolCtx
         bySeller[k].count++;
         if (q.status === 'approved') bySeller[k].revenue += Number(q.total_amount || q.total || 0);
       }
-      return { entity: 'metrics', summary: { period_days: days, total_quotes: total, approved: approved.length, revenue, conversion_pct: total ? Math.round((approved.length / total) * 1000) / 10 : 0 }, by_seller: bySeller };
+      return { entity: 'metrics', scope: args?.scope || 'own', summary: { period_days: days, total_quotes: total, approved: approved.length, revenue, conversion_pct: total ? Math.round((approved.length / total) * 1000) / 10 : 0 }, by_seller: bySeller };
     },
   },
   get_followups: {
-    schema: { type: 'function', function: { name: 'get_followups', description: 'Follow-ups / tarefas atrasadas ou pendentes.', parameters: { type: 'object', properties: { overdue_only: { type: 'boolean' } } } } },
-    handler: async (args, { supabase }) => {
+    schema: { type: 'function', function: { name: 'get_followups', description: 'Follow-ups/tarefas do usuário (atribuídas a ele).', parameters: { type: 'object', properties: { overdue_only: { type: 'boolean' }, scope: { type: 'string', enum: ['own','team'] } } } } },
+    handler: async (args, { supabase, userId, profile }) => {
       const now = new Date().toISOString();
       let q = supabase.from('tasks').select('id, title, due_date, status, assigned_to, client_id').limit(200);
+      q = scopeOwn(q, 'assigned_to', userId, profile, args?.scope);
       if (args?.overdue_only !== false) q = q.lt('due_date', now).neq('status', 'done');
       const { data, error } = await q.order('due_date');
       if (error) return { entity: 'followups', columns: ['title', 'due_date', 'status'], rows: [], count: 0, note: error.message };
-      return { entity: 'followups', columns: ['title', 'due_date', 'status'], rows: data, count: data?.length || 0 };
+      return { entity: 'followups', scope: args?.scope || 'own', columns: ['title', 'due_date', 'status'], rows: data, count: data?.length || 0 };
     },
   },
   get_pipeline: {
-    schema: { type: 'function', function: { name: 'get_pipeline', description: 'Visão do pipeline por estágio.', parameters: { type: 'object', properties: {} } } },
-    handler: async (_a, { supabase }) => {
-      const { data } = await supabase.from('quotes').select('id, quote_number, client_name, total_amount, status, created_at').in('status', ['draft','sent','negotiation','negociacao','pre_sale','contact_made']).limit(300).order('created_at', { ascending: false });
+    schema: { type: 'function', function: { name: 'get_pipeline', description: 'Pipeline por estágio (carteira do usuário).', parameters: { type: 'object', properties: { scope: { type: 'string', enum: ['own','team'] } } } } },
+    handler: async (args, { supabase, userId, profile }) => {
+      let q = supabase.from('quotes').select('id, quote_number, client_name, total_amount, status, created_at, created_by').in('status', ['draft','sent','negotiation','negociacao','pre_sale','contact_made']).limit(300);
+      q = scopeOwn(q, 'created_by', userId, profile, args?.scope);
+      const { data } = await q.order('created_at', { ascending: false });
       const byStage: Record<string, { count: number; value: number }> = {};
       for (const q of data || []) {
         const s = q.status || 'draft';
@@ -157,7 +162,7 @@ const readTools: Record<string, { schema: any; handler: (args: any, ctx: ToolCtx
         byStage[s].count++;
         byStage[s].value += Number(q.total_amount || 0);
       }
-      return { entity: 'pipeline', summary: byStage, columns: ['quote_number','client_name','total_amount','status'], rows: data, count: data?.length || 0 };
+      return { entity: 'pipeline', scope: args?.scope || 'own', summary: byStage, columns: ['quote_number','client_name','total_amount','status'], rows: data, count: data?.length || 0 };
     },
   },
 };
