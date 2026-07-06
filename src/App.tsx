@@ -118,17 +118,17 @@ function RedirectPreservingSearch({ to }: { to: string }) {
 }
 
 function AppRoutes() {
-  const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, isSupport, forcePasswordChange, profile } = useAuth();
-  const [profileGraceExpired, setProfileGraceExpired] = useState(false);
+  const { user, loading, profileLoaded, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, isSupport, forcePasswordChange, profile } = useAuth();
+  const [hardTimeout, setHardTimeout] = useState(false);
 
   useFollowUpScanner();
 
-  // Se o perfil demora a chegar, damos no máximo 2s antes de destravar a UI.
+  // Salvaguarda: se o profile falhar por muito tempo, destrava a UI depois de 5s.
   useEffect(() => {
-    if (!user || profile) { setProfileGraceExpired(false); return; }
-    const t = setTimeout(() => setProfileGraceExpired(true), 2000);
+    if (!user || profileLoaded) { setHardTimeout(false); return; }
+    const t = setTimeout(() => setHardTimeout(true), 5000);
     return () => clearTimeout(t);
-  }, [user, profile]);
+  }, [user, profileLoaded]);
 
   if (loading) return <LoadingScreen />;
 
@@ -149,14 +149,17 @@ function AppRoutes() {
 
   if (forcePasswordChange) return <ForcePasswordChange />;
 
-  // Pending approval logic
+  // Enquanto o profile/roles não terminaram de carregar, NUNCA mostrar "aguardando aprovação".
+  // Só decide status de aprovação após profileLoaded (ou depois do hardTimeout como salvaguarda).
+  if (!profileLoaded && !hardTimeout) {
+    return <LoadingScreen />;
+  }
+
+  // Pending approval logic — só avaliado após profile carregar
   const hasValidRole = profile?.role && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica', 'support_tech', 'support_manager'].includes(profile.role.toLowerCase());
   const hasAnyRoleFlag = isAdmin || isGestor || isFinanceiro || isLogistica || isSupport;
 
-  // Guard: aguarda profile carregar por até 2s antes de decidir "pending".
-  if (user && !profile && !hasAnyRoleFlag && !isApproved && !profileGraceExpired) {
-    return <LoadingScreen />;
-  }
+  const isPending = !hasAnyRoleFlag && !isApproved && !hasValidRole;
 
   const isPending = !hasAnyRoleFlag && !isApproved && !hasValidRole;
 
