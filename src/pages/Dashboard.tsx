@@ -728,6 +728,7 @@ export default function Dashboard() {
           </div>
         </DialogContent>
       </Dialog>
+      <QuoteQuickViewModal quoteId={quickViewId} open={!!quickViewId} onOpenChange={(v) => !v && setQuickViewId(null)} />
     </AppLayout>
   );
 }
