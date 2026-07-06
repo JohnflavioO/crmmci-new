@@ -2794,10 +2794,32 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_view_company_profile: {
+        Args: { _target_company_id: string; _target_user_id: string }
+        Returns: boolean
+      }
+      can_view_company_role: {
+        Args: { _target_user_id: string }
+        Returns: boolean
+      }
       current_user_company_id: { Args: never; Returns: string }
       delete_quote_cascade: { Args: { p_quote_id: string }; Returns: undefined }
       generate_quote_number: { Args: never; Returns: string }
       generate_technical_os_number: { Args: never; Returns: string }
+      get_current_user_access: {
+        Args: never
+        Returns: {
+          approval_status: string
+          avatar_url: string
+          can_access_support_manager: boolean
+          company_id: string
+          force_password_change: boolean
+          full_name: string
+          phone: string
+          role: string
+          roles: string[]
+        }[]
+      }
       get_public_quote_token: { Args: never; Returns: string }
       get_team_dashboard_recent_quotes: {
         Args: { p_limit?: number; p_owner?: string }

@@ -155,11 +155,12 @@ function AppRoutes() {
     return <LoadingScreen />;
   }
 
-  // Pending approval logic — só avaliado após profile carregar
+  // Pending approval logic — só avaliado após profile carregar com sucesso.
+  // Se o bootstrap falhar, liberar o app em vez de marcar usuário aprovado como pendente por engano.
   const hasValidRole = profile?.role && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica', 'support_tech', 'support_manager'].includes(profile.role.toLowerCase());
   const hasAnyRoleFlag = isAdmin || isGestor || isFinanceiro || isLogistica || isSupport;
 
-  const isPending = !hasAnyRoleFlag && !isApproved && !hasValidRole;
+  const isPending = profileLoaded && !hasAnyRoleFlag && !isApproved && !hasValidRole;
 
   if (isPending) return <PendingApproval />;
 
