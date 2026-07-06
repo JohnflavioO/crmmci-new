@@ -289,15 +289,13 @@ export default function AppSidebar({ onNavigate }: Props) {
               <LinkItem key={item.to} {...item} />
             ))}
 
-            {hasPermission('contracts.use') && (
-              <>
-                <SectionDivider />
-                <SectionLabel>Ferramentas</SectionLabel>
-                {toolItems.map(item => (
-                  <LinkItem key={item.to} {...item} />
-                ))}
-              </>
-            )}
+            <SectionDivider />
+            <SectionLabel>Ferramentas</SectionLabel>
+            {toolItems
+              .filter(item => !item.permission || hasPermission(item.permission))
+              .map(item => (
+                <LinkItem key={item.to} to={item.to} icon={item.icon} label={item.label} />
+              ))}
 
             <SectionDivider />
             <SectionLabel>Operacional e Logística</SectionLabel>
