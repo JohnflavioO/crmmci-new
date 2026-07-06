@@ -6,6 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  profileLoaded: boolean;
   isApproved: boolean;
   isAdmin: boolean;
   isGestor: boolean;
@@ -25,7 +26,7 @@ const devLog = (...args: any[]) => { if (isDev) console.log(...args); };
 const devWarn = (...args: any[]) => { if (isDev) console.warn(...args); };
 
 const AuthContext = createContext<AuthContextType>({
-  user: null, session: null, loading: true,
+  user: null, session: null, loading: true, profileLoaded: false,
   isApproved: false, isAdmin: false, isGestor: false, isFinanceiro: false, isLogistica: false,
   isSupportTech: false, isSupportManager: false, isSupport: false, isSupportOnly: false,
   profile: null, forcePasswordChange: false,
