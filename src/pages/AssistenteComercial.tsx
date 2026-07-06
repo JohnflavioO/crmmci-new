@@ -745,7 +745,7 @@ export default function AssistenteComercial() {
             <Button onClick={commitRename}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
-      </Sheet>
+      </Dialog>
     </AppLayout>
   );
 }
