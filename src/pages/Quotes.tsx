@@ -445,7 +445,7 @@ export default function Quotes() {
       const [q, c, s, p] = await Promise.all([
         quotesQuery,
         db.from('clients').select('id, company_name, name, is_revenda, contrib_icms').eq('created_by', user.id).order('company_name'),
-        db.from('salespeople').select('*').eq('active', true).order('name'),
+        db.from('salespeople').select('id, name, code, active').eq('active', true).order('name'),
         db.from('products').select('id, name, brand, code, sku, category_principal, price, description, image_url').order('name').limit(1000),
       ]);
       setQuotes(q.data || []);
