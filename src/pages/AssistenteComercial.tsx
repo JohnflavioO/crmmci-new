@@ -565,7 +565,7 @@ export default function AssistenteComercial() {
           <Button variant="outline" className="min-h-[40px]" onClick={newConsultation}>
             <Plus className="h-4 w-4" /> Nova consulta
           </Button>
-          <Button variant="ghost" size="icon" className="min-h-[40px] min-w-[40px]" onClick={() => navigate('/settings')}>
+          <Button variant="ghost" size="icon" className="min-h-[40px] min-w-[40px]" onClick={() => navigate('/assistente/configuracoes')} aria-label="Configurações">
             <Settings className="h-4 w-4" />
           </Button>
         </div>
