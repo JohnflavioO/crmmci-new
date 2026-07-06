@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ActionMenu } from '@/components/ActionMenu';
+import OrderDetailsModal from '@/components/support/OrderDetailsModal';
 
 export const STATUS_OPTIONS = [
   { key: 'recebido', label: 'Recebido' },
@@ -34,6 +35,7 @@ export default function SupportOrders() {
   const [orders, setOrders] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [open, setOpen] = useState(params.get('new') === 'true');
+  const [detailsId, setDetailsId] = useState<string | null>(null);
   const DEFAULT_ACCESSORIES = ['Fonte', 'Cabo AC', 'Refletor', 'Case', 'Control Box', 'Head Cable'];
   const [clientSearch, setClientSearch] = useState('');
   const [accessoryInput, setAccessoryInput] = useState('');
@@ -291,7 +293,7 @@ export default function SupportOrders() {
                         { 
                           label: "Ver Detalhes", 
                           icon: ExternalLink, 
-                          onClick: () => navigate(`/suporte/os/${o.id}`),
+                          onClick: () => setDetailsId(o.id),
                           isPrimary: true
                         },
                         { 
@@ -325,6 +327,13 @@ export default function SupportOrders() {
           </Table>
         </CardContent>
       </Card>
+
+      <OrderDetailsModal
+        orderId={detailsId}
+        open={!!detailsId}
+        onOpenChange={(v) => { if (!v) setDetailsId(null); }}
+        onChanged={load}
+      />
     </div>
   );
 }
