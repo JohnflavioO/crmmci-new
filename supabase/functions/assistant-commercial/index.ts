@@ -355,26 +355,41 @@ async function updateAudit(service: any, id: string, patch: any) {
 // ============================================================
 // Classifier (hybrid mode — mantido)
 // ============================================================
-const GPT_KEYWORDS = ['analise','análise','analisar','resumo','resuma','estratégia','previsão','sugira','recomende','cross sell','upsell','compare','escreva','redija','e-mail','email','proposta comercial','por que','porque','explique','interprete','crie','cadastr','edit','aprovar','cancel','mover','duplicar','transferir','agendar','atribuir'];
+// Palavras que forçam raciocínio via GPT (interpretação, superlativos, comparações, agregações não triviais).
+const GPT_KEYWORDS = [
+  'analise','análise','analisar','resumo','resuma','estratégia','previsão','sugira','recomende','recomendação',
+  'cross sell','upsell','compare','comparar','escreva','redija','e-mail','email','proposta comercial',
+  'por que','porque','explique','interprete','crie','cadastr','edit','aprovar','cancel','mover','duplicar','transferir','agendar','atribuir',
+  // superlativos / perguntas analíticas
+  'qual','quais','quem','quanto','quantos','quantas','maior','menor','mais','menos','melhor','pior','top','ranking','media','média',
+  'mediana','soma','total de','com maior','com menor','com mais','com menos','ordem','ordenar','ordenad','classificar',
+];
+// Superlativo detectado explicitamente → sempre GPT (evita cair no fast path).
+const SUPERLATIVE_RE = /\b(qual|quais|quem|top|ranking|mais|menos|maior|menor|melhor|pior|com\s+mais|com\s+menos|com\s+maior|com\s+menor)\b/;
+
 function normalize(s: string) { return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w\s%$]/g,' ').replace(/\s+/g,' ').trim(); }
+
 function classify(raw: string): { mode: 'sql'; tool: string; args: any; label: string } | { mode: 'gpt' } {
   const q = normalize(raw);
+  if (SUPERLATIVE_RE.test(q)) return { mode: 'gpt' };
   for (const kw of GPT_KEYWORDS) if (q.includes(normalize(kw))) return { mode: 'gpt' };
   const daysBack = (q.match(/(\d{1,3})\s+dias?/) || [])[1];
+  // Somente listagens simples caem no fast path.
   if (/\bclientes?\b/.test(q) && /inativ|sem\s+comprar|sem\s+compra/.test(q))
     return { mode: 'sql', tool: 'get_clients', args: { days_inactive: daysBack ? +daysBack : 180, limit: 200 }, label: 'Clientes sem compra recente' };
-  if (/\bclientes?\b/.test(q)) return { mode: 'sql', tool: 'get_clients', args: { limit: 200 }, label: 'Clientes' };
-  if (/\borcament|\bpropost|\bquote/.test(q)) {
+  if (/^(listar|listagem|mostrar|ver)\s+clientes?/.test(q) || /^clientes?$/.test(q))
+    return { mode: 'sql', tool: 'get_clients', args: { limit: 200 }, label: 'Clientes' };
+  if (/^(listar|listagem|mostrar|ver)\s+(orcament|propost|quote)/.test(q)) {
     const args: any = { limit: 200 };
     if (/aprovad/.test(q)) args.status = 'approved';
     else if (/negocia/.test(q)) args.status = 'negotiation';
     if (daysBack) args.days_back = +daysBack;
     return { mode: 'sql', tool: 'get_quotes', args, label: 'Orçamentos' };
   }
-  if (/\bprodutos?\b/.test(q)) return { mode: 'sql', tool: 'get_products', args: { limit: 200 }, label: 'Produtos' };
-  if (/follow[- ]?up|tarefa|atrasad/.test(q)) return { mode: 'sql', tool: 'get_followups', args: {}, label: 'Follow-ups' };
-  if (/\bpipeline\b|funil/.test(q)) return { mode: 'sql', tool: 'get_pipeline', args: {}, label: 'Pipeline' };
-  if (/metric|convers|receita|ranking|ticket|faturament/.test(q)) return { mode: 'sql', tool: 'get_metrics', args: { days_back: daysBack ? +daysBack : 30 }, label: 'Métricas' };
+  if (/^(listar|listagem|mostrar|ver)\s+produtos?/.test(q)) return { mode: 'sql', tool: 'get_products', args: { limit: 200 }, label: 'Produtos' };
+  if (/^follow[- ]?ups?\s+(hoje|atrasad|pendent)/.test(q)) return { mode: 'sql', tool: 'get_followups', args: {}, label: 'Follow-ups' };
+  if (/^pipeline\b/.test(q) || q === 'funil') return { mode: 'sql', tool: 'get_pipeline', args: {}, label: 'Pipeline' };
+  // Qualquer coisa não claramente listagem: GPT interpreta.
   return { mode: 'gpt' };
 }
 
