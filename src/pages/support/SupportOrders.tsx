@@ -35,6 +35,7 @@ export default function SupportOrders() {
   const [orders, setOrders] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [open, setOpen] = useState(params.get('new') === 'true');
+  const [detailsId, setDetailsId] = useState<string | null>(null);
   const DEFAULT_ACCESSORIES = ['Fonte', 'Cabo AC', 'Refletor', 'Case', 'Control Box', 'Head Cable'];
   const [clientSearch, setClientSearch] = useState('');
   const [accessoryInput, setAccessoryInput] = useState('');
