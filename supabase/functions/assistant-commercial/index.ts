@@ -242,24 +242,156 @@ async function generateTitle(userText: string): Promise<string> {
   }
 }
 
+// ---------- Hybrid mode: rule-based classifier ----------
+// Decide se a pergunta pode ser respondida direto via SQL (rápido, grátis)
+// ou precisa de GPT (análise, resumo, estratégia, texto).
+type Classification =
+  | { mode: 'sql'; tool: string; args: any; label: string }
+  | { mode: 'gpt'; reason: string };
+
+const GPT_KEYWORDS = [
+  'analise', 'análise', 'analisar', 'analisa', 'analytics',
+  'resumo', 'resuma', 'resumir', 'sumarize',
+  'estratégia', 'estrategia', 'plano de ação', 'plano',
+  'previsão', 'previsao', 'forecast', 'projete', 'projeção', 'projecao',
+  'sugira', 'sugestão', 'sugestao', 'recomende', 'recomendação', 'recomendacao',
+  'cross sell', 'cross-sell', 'upsell', 'up sell', 'up-sell',
+  'como aumentar', 'como melhorar', 'oportunidade', 'oportunidades',
+  'compare', 'comparação', 'comparacao', 'comparar',
+  'escreva', 'escrever', 'redija', 'redigir', 'e-mail', 'email',
+  'mensagem', 'whatsapp', 'proposta comercial',
+  'por que', 'porque', 'motivo', 'explique', 'interprete',
+  'devo visitar', 'devo ligar', 'devo priorizar',
+];
+
+function normalize(s: string) {
+  return s
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s%$]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function classify(raw: string): Classification {
+  const q = normalize(raw);
+  // 1. GPT triggers first (interpretation words)
+  for (const kw of GPT_KEYWORDS) {
+    if (q.includes(normalize(kw))) return { mode: 'gpt', reason: `keyword:${kw}` };
+  }
+  // 2. Structured intents → SQL fast path
+  // Extract "ultimos N dias"
+  const daysBack = (() => {
+    const m = q.match(/ultim[oa]s?\s+(\d{1,3})\s+dias?/) || q.match(/(\d{1,3})\s+dias?/);
+    return m ? Math.min(parseInt(m[1], 10), 365) : undefined;
+  })();
+  const daysInactive = (() => {
+    const m = q.match(/(?:sem\s+comprar|inativ[oa]s?|sem\s+compra).*?(\d{1,3})/) || q.match(/(\d{1,3})\s+dias?\s+sem/);
+    return m ? Math.min(parseInt(m[1], 10), 3650) : undefined;
+  })();
+  const minAmount = (() => {
+    const m = q.match(/(?:acima|maior|>=?)\s*(?:de\s*)?r?\$?\s*([\d\.]+)\s*(mil|k|milhoes|milhao|milhões|milhão)?/);
+    if (!m) return undefined;
+    let v = parseFloat(m[1].replace(/\./g, ''));
+    if (/mil|k/.test(m[2] || '')) v *= 1000;
+    if (/milh/.test(m[2] || '')) v *= 1_000_000;
+    return v;
+  })();
+
+  // Clients queries
+  if (/\bclientes?\b/.test(q)) {
+    if (/inativ|sem\s+comprar|nao\s+compr|sem\s+compra/.test(q)) {
+      return { mode: 'sql', tool: 'get_clients', args: { days_inactive: daysInactive ?? 180, limit: 200 }, label: 'Clientes sem compra recente' };
+    }
+    const stateMatch = q.match(/\b(sp|rj|mg|rs|pr|sc|ba|df|go|es|pe|ce|pa|am|mt|ms|to|ro|ac|ap|al|rn|se|pb|pi|ma|rr)\b/);
+    const cityMatch = q.match(/(?:em|de|cidade\s+de)\s+([a-z]{3,}(?:\s+[a-z]{3,})?)/);
+    const args: any = { limit: 200 };
+    if (stateMatch) args.state = stateMatch[1].toUpperCase();
+    if (cityMatch) args.city = cityMatch[1];
+    // brand-name search
+    const brandInName = q.match(/\bclientes?\s+(?:da\s+|de\s+)?([a-z0-9]{3,})/);
+    if (brandInName && !stateMatch && !cityMatch && !['sem','com','que','sao','com'].includes(brandInName[1])) {
+      args.search = brandInName[1];
+    }
+    return { mode: 'sql', tool: 'get_clients', args, label: 'Clientes' };
+  }
+
+  // Quotes / propostas / orçamentos
+  if (/\borcament|\bpropost|\bquote/.test(q)) {
+    const args: any = { limit: 200 };
+    if (/aprovad/.test(q)) args.status = 'approved';
+    else if (/rejeit|recusad/.test(q)) args.status = 'rejected';
+    else if (/negocia/.test(q)) args.status = 'negotiation';
+    else if (/enviad/.test(q)) args.status = 'sent';
+    if (daysBack) args.days_back = daysBack;
+    else if (/hoje/.test(q)) args.days_back = 1;
+    else if (/semana/.test(q)) args.days_back = 7;
+    else if (/m[eê]s/.test(q)) args.days_back = 30;
+    if (minAmount) args.min_amount = minAmount;
+    return { mode: 'sql', tool: 'get_quotes', args, label: 'Orçamentos' };
+  }
+
+  // Products
+  if (/\bprodutos?\b/.test(q)) {
+    const args: any = { limit: 200 };
+    const brand = q.match(/\bmarca\s+([a-z0-9]{3,})/) || q.match(/\bda\s+([a-z0-9]{3,})/);
+    if (brand) args.brand = brand[1];
+    return { mode: 'sql', tool: 'get_products', args, label: 'Produtos' };
+  }
+
+  // Follow-ups / tarefas
+  if (/follow[- ]?up|tarefa|atrasad/.test(q)) {
+    return { mode: 'sql', tool: 'get_followups', args: { overdue_only: !/todos|todas|pendente/.test(q) }, label: 'Follow-ups' };
+  }
+
+  // Metrics / conversão / receita / ranking
+  if (/metric|convers|receita|ranking|meta|ticket|desempenh|faturament|vendas?\s+(do|deste|no)/.test(q)) {
+    return { mode: 'sql', tool: 'get_metrics', args: { days_back: daysBack ?? 30 }, label: 'Métricas' };
+  }
+
+  return { mode: 'gpt', reason: 'no_rule_matched' };
+}
+
+// ---------- In-memory cache (per warm instance) ----------
+type CacheEntry = { at: number; payload: any };
+const sqlCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 5 * 60 * 1000;
+function cacheKey(userId: string, tool: string, args: any) {
+  return `${userId}:${tool}:${JSON.stringify(args)}`;
+}
+
+function humanizeSqlResult(label: string, tool: string, result: any): string {
+  if (tool === 'get_metrics' && result?.summary) {
+    const s = result.summary;
+    const revenue = Number(s.revenue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    return `Métricas dos últimos ${s.period_days} dias: ${s.total_quotes} orçamentos, ${s.approved} aprovados (${s.conversion_pct}% de conversão), receita ${revenue}.`;
+  }
+  const n = result?.count ?? 0;
+  const entity = result?.entity || 'registros';
+  const map: Record<string, string> = { clients: 'clientes', quotes: 'orçamentos', products: 'produtos', followups: 'follow-ups' };
+  const noun = map[entity] || 'registros';
+  if (n === 0) return `Nenhum ${noun.replace(/s$/, '')} encontrado para esta consulta.`;
+  return `${label}: ${n} ${noun} encontrados.`;
+}
+
 function openAiError(aiRes: Response, errText: string) {
   let parsed: any = null;
   try { parsed = JSON.parse(errText); } catch {}
   const type = parsed?.error?.type;
   const code = parsed?.error?.code;
-  const isQuota = type === 'insufficient_quota' || code === 'insufficient_quota';
+  const isQuota = type === 'insufficient_quota' || code === 'insufficient_quota' || /billing|quota/i.test(errText);
   const isAuth = aiRes.status === 401;
-  const friendly = isQuota
-    ? 'A chave da OpenAI está sem créditos. Recarregue em platform.openai.com/account/billing e tente novamente.'
-    : isAuth
-    ? 'A chave da OpenAI é inválida ou foi revogada. Atualize o secret OPENAI_API_KEY.'
-    : 'Não foi possível consultar o modelo agora. Tente novamente em instantes.';
+  const isRate = aiRes.status === 429 && !isQuota;
+  const friendly =
+    'Assistente temporariamente indisponível. O serviço de IA está fora do ar no momento, mas as consultas inteligentes do CRM continuam funcionando normalmente. Use os botões abaixo ou peça diretamente por clientes, orçamentos, produtos, follow-ups ou métricas.';
   return {
     friendly,
-    error_code: isQuota ? 'OPENAI_QUOTA_EXCEEDED' : isAuth ? 'OPENAI_AUTH' : 'OPENAI_ERROR',
+    error_code: isQuota ? 'OPENAI_QUOTA_EXCEEDED' : isAuth ? 'OPENAI_AUTH' : isRate ? 'OPENAI_RATE_LIMIT' : 'OPENAI_ERROR',
     detail: parsed?.error?.message || errText,
   };
 }
+
+
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -346,6 +478,60 @@ Deno.serve(async (req) => {
       role: 'user',
       content: message,
     });
+
+    // ============================================================
+    // HYBRID MODE — try SQL fast path before spending tokens on GPT
+    // ============================================================
+    const classification = classify(message);
+    if (classification.mode === 'sql') {
+      const key = cacheKey(userId, classification.tool, classification.args);
+      const cached = sqlCache.get(key);
+      let result: any;
+      let fromCache = false;
+      if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+        result = cached.payload;
+        fromCache = true;
+      } else {
+        try {
+          const tool = toolRegistry[classification.tool];
+          result = await tool.handler(classification.args, { supabase, userId, companyId, context });
+          sqlCache.set(key, { at: Date.now(), payload: result });
+        } catch (e: any) {
+          result = { error: e.message };
+        }
+      }
+      const answer = humanizeSqlResult(classification.label, classification.tool, result);
+      const elapsed = Date.now() - started;
+      await supabase.from('assistant_messages').insert({
+        conversation_id: convId,
+        role: 'assistant',
+        content: answer,
+        model: fromCache ? 'sql:cache' : 'sql',
+        execution_time_ms: elapsed,
+        tool_name: classification.tool,
+        tool_result: result,
+      });
+      await supabase
+        .from('assistant_conversations')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', convId);
+      if (isNew) {
+        // deterministic title without spending tokens
+        const shortTitle = classification.label + (classification.args?.status ? ` ${classification.args.status}` : '');
+        await supabase.from('assistant_conversations').update({ title: shortTitle.slice(0, 60) }).eq('id', convId);
+      }
+      return new Response(
+        JSON.stringify({
+          conversation_id: convId,
+          answer,
+          tool_used: classification.tool,
+          result,
+          mode: fromCache ? 'sql_cache' : 'sql',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
 
     const contextBlock = `Contexto do usuário (sempre disponível, use quando fizer sentido):
 - Empresa (company_id): ${companyId ?? 'n/d'}

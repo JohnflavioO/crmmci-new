@@ -400,6 +400,25 @@ export default function AssistenteComercial() {
                   <Card className="p-4 border-border/70">
                     <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{m.content}</p>
                     {m.tool_result && <ResultTable result={m.tool_result} />}
+                    {m.content?.startsWith('Assistente temporariamente indisponível') && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {[
+                          'Consultar clientes',
+                          'Consultar orçamentos',
+                          'Consultar produtos',
+                          'Follow-ups atrasados',
+                          'Métricas do mês',
+                        ].map((label) => (
+                          <button
+                            key={label}
+                            onClick={() => { setInput(label); setTimeout(() => inputRef.current?.focus(), 0); }}
+                            className="text-xs px-3 py-1.5 rounded-full border border-border/60 hover:border-foreground/30 hover:bg-accent/40 transition-colors"
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {m.tool_name && (
                       <p className="mt-2 text-[10px] text-muted-foreground">Fonte: {m.tool_name}</p>
                     )}
