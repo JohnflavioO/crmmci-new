@@ -147,8 +147,41 @@ export default function SupportOrderDetail() {
   };
 
   const filteredProducts = productSearch.trim()
-    ? products.filter((p: any) => p.name.toLowerCase().includes(productSearch.toLowerCase())).slice(0, 6)
+    ? (() => {
+        const q = productSearch.toLowerCase().trim();
+        return products
+          .filter((p: any) =>
+            [p.code, p.name, p.brand, p.category, p.manufacturer, p.compatibility, p.notes]
+              .some((f) => String(f || '').toLowerCase().includes(q))
+          )
+          .slice(0, 8);
+      })()
     : [];
+
+  const canExportQuote = ['pronto', 'aguardando_aprovacao'].includes(os?.status);
+
+  const exportQuotePdf = async () => {
+    try {
+      await generateTechnicalQuotePdf(os, parts);
+      toast.success('Orçamento gerado');
+    } catch (e: any) { toast.error(e.message || 'Falha ao gerar PDF'); }
+  };
+
+  const exportReceiptPdf = async () => {
+    try {
+      await generateEquipmentReceiptPdf(os);
+      toast.success('Termo de entrada gerado');
+    } catch (e: any) { toast.error(e.message || 'Falha ao gerar PDF'); }
+  };
+
+  const sendWhatsApp = () => {
+    const phone = String(os?.client_phone || os?.phone || '').replace(/\D/g, '');
+    const text = encodeURIComponent(
+      `Olá ${os.client_name || ''}, acompanhe sua Ordem de Serviço ${os.os_number} pelo link: ${window.location.origin}/rastreamento/os/${os.public_token}`
+    );
+    const base = phone ? `https://wa.me/${phone}` : 'https://wa.me/';
+    window.open(`${base}?text=${text}`, '_blank');
+  };
 
   if (!os) return <p>Carregando...</p>;
 
