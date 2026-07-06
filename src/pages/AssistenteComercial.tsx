@@ -29,6 +29,7 @@ import { format, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns'
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
+import PreviewActionCard from '@/components/assistant/PreviewActionCard';
 
 type Conversation = {
   id: string;
