@@ -170,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         devLog('[Auth] ready', { roles: [...roleSet] });
+        setProfileLoaded(true);
         setLoading(false);
       } catch (e) {
         console.error('[Auth] fetchUserData error:', e);
@@ -177,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setTimeout(() => { if (!cancelled) fetchData(); }, 800);
           return;
         }
-        if (!cancelled) setLoading(false);
+        if (!cancelled) { setProfileLoaded(true); setLoading(false); }
       }
     };
 
