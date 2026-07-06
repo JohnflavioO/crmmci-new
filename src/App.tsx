@@ -119,8 +119,16 @@ function RedirectPreservingSearch({ to }: { to: string }) {
 
 function AppRoutes() {
   const { user, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica, isSupport, forcePasswordChange, profile } = useAuth();
-  
+  const [profileGraceExpired, setProfileGraceExpired] = useState(false);
+
   useFollowUpScanner();
+
+  // Se o perfil demora a chegar, damos no máximo 2s antes de destravar a UI.
+  useEffect(() => {
+    if (!user || profile) { setProfileGraceExpired(false); return; }
+    const t = setTimeout(() => setProfileGraceExpired(true), 2000);
+    return () => clearTimeout(t);
+  }, [user, profile]);
 
   if (loading) return <LoadingScreen />;
 
@@ -145,10 +153,8 @@ function AppRoutes() {
   const hasValidRole = profile?.role && ['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica', 'support_tech', 'support_manager'].includes(profile.role.toLowerCase());
   const hasAnyRoleFlag = isAdmin || isGestor || isFinanceiro || isLogistica || isSupport;
 
-  // Guard: if we're logged in but profile hasn't loaded yet AND we don't have any role/approval signal,
-  // treat as still-loading instead of "pending". This avoids the false "Aguardando aprovação" screen
-  // when the profile fetch was slow or transiently failed.
-  if (user && !profile && !hasAnyRoleFlag && !isApproved) {
+  // Guard: aguarda profile carregar por até 2s antes de decidir "pending".
+  if (user && !profile && !hasAnyRoleFlag && !isApproved && !profileGraceExpired) {
     return <LoadingScreen />;
   }
 
