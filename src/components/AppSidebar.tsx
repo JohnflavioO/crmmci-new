@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake, Plug,
   Clock, ArrowDownCircle, AlertTriangle, FileBarChart, Truck, ClipboardList, TriangleAlert, MapPin, RefreshCw, Warehouse, Target, Sparkles,
-  Wrench, Zap, HelpCircle, Brain
+  Wrench, Zap, HelpCircle, Brain, Compass
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -28,11 +28,13 @@ const analyticItems = [
   { to: '/metrics', icon: BarChart3, label: 'Métricas' },
   { to: '/inteligencia', icon: Brain, label: 'Inteligência Comercial' },
   { to: '/prospect', icon: Target, label: 'Visão Prospect' },
-  { to: '/ecoflow', icon: Calculator, label: 'Calculadora Ecoflow' },
 ];
 
 const toolItems = [
-  { to: '/contracts', icon: FileText, label: 'Gerador de Contrato' },
+  { to: '/contracts', icon: FileText, label: 'Gerador de Contratos', permission: 'contracts.use' as const },
+  { to: '/assistente', icon: Compass, label: 'Assistente Comercial' },
+  { to: '/ecoflow', icon: Calculator, label: 'Calculadora Ecoflow' },
+  { to: '/tasks', icon: ListChecks, label: 'TaskHub' },
 ];
 
 
@@ -287,15 +289,13 @@ export default function AppSidebar({ onNavigate }: Props) {
               <LinkItem key={item.to} {...item} />
             ))}
 
-            {hasPermission('contracts.use') && (
-              <>
-                <SectionDivider />
-                <SectionLabel>Ferramentas</SectionLabel>
-                {toolItems.map(item => (
-                  <LinkItem key={item.to} {...item} />
-                ))}
-              </>
-            )}
+            <SectionDivider />
+            <SectionLabel>Ferramentas</SectionLabel>
+            {toolItems
+              .filter(item => !item.permission || hasPermission(item.permission))
+              .map(item => (
+                <LinkItem key={item.to} to={item.to} icon={item.icon} label={item.label} />
+              ))}
 
             <SectionDivider />
             <SectionLabel>Operacional e Logística</SectionLabel>

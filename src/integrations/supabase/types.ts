@@ -50,6 +50,42 @@ export type Database = {
         }
         Relationships: []
       }
+      assistant_conversations: {
+        Row: {
+          answer: string | null
+          created_at: string
+          id: string
+          is_favorite: boolean
+          question: string
+          result_json: Json | null
+          tool_used: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          id?: string
+          is_favorite?: boolean
+          question: string
+          result_json?: Json | null
+          tool_used?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          id?: string
+          is_favorite?: boolean
+          question?: string
+          result_json?: Json | null
+          tool_used?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bank_slip_history: {
         Row: {
           action: string
