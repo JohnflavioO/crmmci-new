@@ -204,6 +204,15 @@ export default function SupportOrderDetail() {
           <Button size="sm" variant="default" disabled={transferring || !crmClientId || !!os.handoff_quote_id} onClick={transferToCommercial}>
             <ArrowRightCircle className="h-3 w-3 mr-1" />{os.handoff_quote_id ? 'Já transferida' : 'Transferir para Comercial'}
           </Button>
+          <Button size="sm" variant="outline" onClick={exportReceiptPdf}>
+            <FileSignature className="h-3 w-3 mr-1" />Termo de Entrada
+          </Button>
+          <Button size="sm" variant="outline" disabled={!canExportQuote} onClick={exportQuotePdf} title={canExportQuote ? '' : 'Disponível quando a OS estiver Pronta ou aguardando aprovação'}>
+            <FileText className="h-3 w-3 mr-1" />Orçamento PDF
+          </Button>
+          <Button size="sm" variant="outline" onClick={sendWhatsApp}>
+            <MessageCircle className="h-3 w-3 mr-1" />WhatsApp
+          </Button>
           <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(trackingUrl); toast.success('Link copiado'); }}>
             <Copy className="h-3 w-3 mr-1" />Link rastreio
           </Button>
