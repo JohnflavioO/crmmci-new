@@ -203,6 +203,7 @@ function AppRoutes() {
             <Route path="/contracts" element={<SafeRoute><ContractGenerator /></SafeRoute>} />
             <Route path="/assistente" element={<SafeRoute><AssistenteComercial /></SafeRoute>} />
             <Route path="/assistente/auditoria" element={<SafeRoute><AssistantAudit /></SafeRoute>} />
+            <Route path="/assistente/configuracoes" element={<SafeRoute><AssistantSettings /></SafeRoute>} />
 
             <Route path="/ecoflow" element={<SafeRoute><EcoflowCalculator /></SafeRoute>} />
             <Route path="/tasks" element={<SafeRoute><Tasks /></SafeRoute>} />
