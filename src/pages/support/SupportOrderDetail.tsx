@@ -162,7 +162,12 @@ export default function SupportOrderDetail() {
 
   const exportQuotePdf = async () => {
     try {
-      await generateTechnicalQuotePdf(os, parts);
+      const prodMap = new Map(products.map((p: any) => [p.id, p]));
+      const enrichedParts = parts.map((p: any) => ({
+        ...p,
+        product_code: (prodMap.get(p.product_id) as any)?.code || '',
+      }));
+      await generateTechnicalQuotePdf(os, enrichedParts);
       toast.success('Orçamento gerado');
     } catch (e: any) { toast.error(e.message || 'Falha ao gerar PDF'); }
   };
