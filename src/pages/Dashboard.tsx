@@ -253,9 +253,14 @@ export default function Dashboard() {
     const clientLabel = q.clients?.company_name || q.client_name || 'Sem cliente';
     const clientPhone = q.clients?.phone;
     return (
-      <div key={q.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-muted/50 gap-2 hover:bg-muted/80 transition-colors border border-transparent hover:border-primary/10">
+      <button
+        key={q.id}
+        type="button"
+        onClick={() => setQuickViewId(q.id)}
+        className="w-full text-left flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-muted/50 gap-2 hover:bg-muted/80 hover:shadow-sm transition-all border border-transparent hover:border-primary/30 focus:outline-none focus:ring-2 focus:ring-primary/40 group cursor-pointer"
+      >
         <div className="flex-1 min-w-0 pr-4">
-          <p className="font-bold text-sm text-primary mb-0.5">{q.quote_number}</p>
+          <p className="font-bold text-sm text-primary mb-0.5 group-hover:underline">{q.quote_number}</p>
           <div className="flex flex-col gap-0.5">
             <p className="text-sm font-semibold text-foreground truncate max-w-full" title={clientLabel}>
               {clientLabel}
@@ -281,8 +286,9 @@ export default function Dashboard() {
             className={q.status === 'approved' ? 'bg-[hsl(168,80%,45%)] text-white border-[hsl(168,80%,45%)]' : ''}>
             {statusLabels[q.status] || q.status}
           </Badge>
+          <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
-      </div>
+      </button>
     );
   };
 
