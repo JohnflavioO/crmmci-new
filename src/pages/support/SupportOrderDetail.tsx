@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Copy, ExternalLink, Trash2, Plus, ArrowRightCircle, History } from 'lucide-react';
+import { Copy, ExternalLink, Trash2, Plus, ArrowRightCircle, History, FileText, FileSignature, MessageCircle } from 'lucide-react';
 import { STATUS_OPTIONS } from './SupportOrders';
 import { useAuth } from '@/hooks/useAuth';
+import { generateTechnicalQuotePdf, generateEquipmentReceiptPdf } from '@/lib/generateTechnicalPdf';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ClientHistory360 from '@/components/clients/ClientHistory360';
 
