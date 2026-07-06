@@ -6,6 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  profileLoaded: boolean;
   isApproved: boolean;
   isAdmin: boolean;
   isGestor: boolean;
@@ -25,7 +26,7 @@ const devLog = (...args: any[]) => { if (isDev) console.log(...args); };
 const devWarn = (...args: any[]) => { if (isDev) console.warn(...args); };
 
 const AuthContext = createContext<AuthContextType>({
-  user: null, session: null, loading: true,
+  user: null, session: null, loading: true, profileLoaded: false,
   isApproved: false, isAdmin: false, isGestor: false, isFinanceiro: false, isLogistica: false,
   isSupportTech: false, isSupportManager: false, isSupport: false, isSupportOnly: false,
   profile: null, forcePasswordChange: false,
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isSupportManager, setIsSupportManager] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string; avatar_url?: string; force_password_change?: boolean; company_id?: string; can_access_support_manager?: boolean } | null>(null);
   const [forcePasswordChange, setForcePasswordChange] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   // Safety timeout: hard cap on splash — never > 3s.
   useEffect(() => {
@@ -80,8 +82,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsSupportTech(false);
           setIsSupportManager(false);
           setProfile(null);
+          setProfileLoaded(false);
         } else if (newUserId !== currentUserId) {
           currentUserId = newUserId;
+          setProfileLoaded(false);
         }
         // Sessão resolvida — libera o splash imediatamente.
         // Roles/profile carregam em background; App.tsx já lida com profile ausente.
@@ -166,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         devLog('[Auth] ready', { roles: [...roleSet] });
+        setProfileLoaded(true);
         setLoading(false);
       } catch (e) {
         console.error('[Auth] fetchUserData error:', e);
@@ -173,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setTimeout(() => { if (!cancelled) fetchData(); }, 800);
           return;
         }
-        if (!cancelled) setLoading(false);
+        if (!cancelled) { setProfileLoaded(true); setLoading(false); }
       }
     };
 
@@ -194,7 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, session, loading, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica,
+      user, session, loading, profileLoaded, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica,
       isSupportTech, isSupportManager, isSupport: isSupportTech || isSupportManager,
       isSupportOnly: (isSupportTech || isSupportManager) && !isAdmin && !isGestor && !isFinanceiro && !isLogistica,
       profile, forcePasswordChange, signOut
