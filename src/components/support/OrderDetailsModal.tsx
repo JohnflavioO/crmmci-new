@@ -54,8 +54,53 @@ export default function OrderDetailsModal({ orderId, open, onOpenChange, onChang
   const canQuote = ['pronto', 'aguardando_aprovacao'].includes(os?.status);
   const genQuote = async () => {
     if (!canQuote) return toast.error('Disponível quando a OS estiver Pronta ou Aguardando Aprovação');
-    try { await generateTechnicalQuotePdf(os, parts); toast.success('Orçamento gerado'); }
-    catch (e: any) { toast.error(e.message || 'Falha ao gerar PDF'); }
+    try {
+      // 1) Ensure a budget row exists in the Orçamentos sector (create if missing)
+      const { data: existing } = await supabase
+        .from('technical_budgets')
+        .select('id')
+        .eq('technical_order_id', os.id)
+        .maybeSingle();
+
+      const totalServices = Number(os.labor_value || 0);
+      const totalParts = Number(os.parts_value || 0)
+        || parts.reduce((s, p: any) => s + (Number(p.unit_price || 0) * Number(p.quantity || 1)), 0);
+      const totalAmount = Math.max(0, totalServices + totalParts);
+
+      if (!existing) {
+        const { data: userRes } = await supabase.auth.getUser();
+        const { error: insErr } = await supabase.from('technical_budgets').insert({
+          technical_order_id: os.id,
+          client_id: os.client_id || null,
+          total_services: totalServices,
+          total_parts: totalParts,
+          discount: 0,
+          total_amount: totalAmount,
+          status: 'rascunho',
+          notes: os.reported_defect || null,
+          created_by: userRes?.user?.id,
+        } as any);
+        if (insErr) throw insErr;
+      }
+
+      // 2) Move OS to "Aguardando Aprovação" so the flow reflects it went to Orçamentos
+      if (os.status === 'pronto') {
+        await supabase.from('technical_orders' as any)
+          .update({ status: 'aguardando_aprovacao' })
+          .eq('id', os.id);
+        setOs({ ...os, status: 'aguardando_aprovacao' });
+        onChanged?.();
+      }
+
+      // 3) Generate the PDF as before
+      await generateTechnicalQuotePdf(os, parts);
+
+      toast.success(existing ? 'Orçamento atualizado e PDF gerado' : 'Orçamento enviado para o setor de Orçamentos');
+      onOpenChange(false);
+      navigate('/suporte/orcamentos');
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao gerar orçamento');
+    }
   };
 
   const serviceTypeLabel = (t?: string) => {
