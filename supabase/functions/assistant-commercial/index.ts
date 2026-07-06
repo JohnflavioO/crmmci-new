@@ -23,12 +23,24 @@ type ToolCtx = {
 // ============================================================
 // READ TOOLS — executam direto, sem confirmação
 // ============================================================
+// Escopo por papel: mesmo padrão do CRM.
+// - admin/gestor: veem sua carteira (created_by/salesperson_id = userId) POR PADRÃO.
+//   Só ampliam para equipe/global se args.scope='team' (gestor/admin) for enviado explicitamente.
+// - demais papéis: sempre restritos aos próprios registros.
+function scopeOwn(query: any, column: string, userId: string, profile: any, scope?: string) {
+  const role = profile?.role;
+  const isBoss = role === 'admin' || role === 'gestor';
+  if (isBoss && scope === 'team') return query; // consulta ampla (equipe) somente sob demanda
+  return query.eq(column, userId);
+}
+
 const readTools: Record<string, { schema: any; handler: (args: any, ctx: ToolCtx) => Promise<any> }> = {
   get_clients: {
-    schema: { type: 'function', function: { name: 'get_clients', description: 'Buscar clientes (nome, empresa, cidade, UF, inatividade).', parameters: { type: 'object', properties: { search: { type: 'string' }, city: { type: 'string' }, state: { type: 'string' }, days_inactive: { type: 'number' }, limit: { type: 'number' } } } } },
-    handler: async (args, { supabase }) => {
+    schema: { type: 'function', function: { name: 'get_clients', description: 'Buscar clientes da carteira do usuário. Use scope="team" apenas se admin/gestor pedir explicitamente a equipe inteira.', parameters: { type: 'object', properties: { search: { type: 'string' }, city: { type: 'string' }, state: { type: 'string' }, days_inactive: { type: 'number' }, limit: { type: 'number' }, scope: { type: 'string', enum: ['own','team'] } } } } },
+    handler: async (args, { supabase, userId, profile }) => {
       const limit = Math.min(args?.limit || 50, 200);
-      let q = supabase.from('clients').select('id, name, company_name, email, phone, city, state, salesperson_id, created_at, last_interaction_at').limit(limit);
+      let q = supabase.from('clients').select('id, name, company_name, email, phone, city, state, salesperson_id, created_by, created_at, last_interaction_at').limit(limit);
+      q = scopeOwn(q, 'salesperson_id', userId, profile, args?.scope);
       if (args?.search) q = q.or(`name.ilike.%${args.search}%,company_name.ilike.%${args.search}%,email.ilike.%${args.search}%`);
       if (args?.city) q = q.ilike('city', `%${args.city}%`);
       if (args?.state) q = q.ilike('state', `%${args.state}%`);
@@ -38,21 +50,55 @@ const readTools: Record<string, { schema: any; handler: (args: any, ctx: ToolCtx
       }
       const { data, error } = await q.order('company_name');
       if (error) throw error;
-      return { entity: 'clients', columns: ['company_name', 'name', 'city', 'state', 'email', 'phone'], rows: data, count: data?.length || 0 };
+      return { entity: 'clients', scope: args?.scope || 'own', columns: ['company_name', 'name', 'city', 'state', 'email', 'phone'], rows: data, count: data?.length || 0 };
     },
   },
   get_quotes: {
-    schema: { type: 'function', function: { name: 'get_quotes', description: 'Buscar orçamentos (status, valor, cliente, dias).', parameters: { type: 'object', properties: { status: { type: 'string' }, min_amount: { type: 'number' }, client_name: { type: 'string' }, days_back: { type: 'number' }, limit: { type: 'number' } } } } },
-    handler: async (args, { supabase }) => {
+    schema: { type: 'function', function: { name: 'get_quotes', description: 'Buscar orçamentos da carteira do usuário. Suporta ordenação (created_at, total_amount, items_count) e contagem de itens. Use scope="team" apenas se admin/gestor pedir a equipe.', parameters: { type: 'object', properties: { status: { type: 'string' }, min_amount: { type: 'number' }, client_name: { type: 'string' }, days_back: { type: 'number' }, limit: { type: 'number' }, order_by: { type: 'string', enum: ['created_at','total_amount','items_count'] }, order_dir: { type: 'string', enum: ['asc','desc'] }, include_items_count: { type: 'boolean' }, scope: { type: 'string', enum: ['own','team'] } } } } },
+    handler: async (args, { supabase, userId, profile }) => {
       const limit = Math.min(args?.limit || 50, 200);
-      let q = supabase.from('quotes').select('id, quote_number, client_name, total_amount, total, status, created_at, created_by, payment_method, payment_status').limit(limit);
+      const wantItems = args?.include_items_count || args?.order_by === 'items_count';
+      const cols = wantItems
+        ? 'id, quote_number, client_name, total_amount, total, status, created_at, created_by, payment_method, payment_status, quote_items(count)'
+        : 'id, quote_number, client_name, total_amount, total, status, created_at, created_by, payment_method, payment_status';
+      let q = supabase.from('quotes').select(cols);
+      q = scopeOwn(q, 'created_by', userId, profile, args?.scope);
       if (args?.status) q = q.eq('status', args.status);
       if (args?.min_amount) q = q.gte('total_amount', args.min_amount);
       if (args?.client_name) q = q.ilike('client_name', `%${args.client_name}%`);
       if (args?.days_back) q = q.gte('created_at', new Date(Date.now() - args.days_back * 86400000).toISOString());
-      const { data, error } = await q.order('created_at', { ascending: false });
+
+      const orderBy = args?.order_by === 'items_count' ? 'created_at' : (args?.order_by || 'created_at');
+      const ascending = args?.order_dir === 'asc';
+      q = q.order(orderBy, { ascending }).limit(args?.order_by === 'items_count' ? 500 : limit);
+
+      const { data, error } = await q;
       if (error) throw error;
-      return { entity: 'quotes', columns: ['quote_number', 'client_name', 'total_amount', 'status', 'created_at'], rows: data, count: data?.length || 0 };
+      let rows: any[] = (data || []).map((r: any) => ({
+        ...r,
+        items_count: Array.isArray(r.quote_items) ? (r.quote_items[0]?.count ?? 0) : undefined,
+      }));
+      if (args?.order_by === 'items_count') {
+        rows.sort((a, b) => ((b.items_count || 0) - (a.items_count || 0)) * (ascending ? -1 : 1));
+        rows = rows.slice(0, limit);
+      }
+      const columns = wantItems
+        ? ['quote_number','client_name','items_count','total_amount','status','created_at']
+        : ['quote_number','client_name','total_amount','status','created_at'];
+      return { entity: 'quotes', scope: args?.scope || 'own', columns, rows, count: rows.length };
+    },
+  },
+  get_quote_details: {
+    schema: { type: 'function', function: { name: 'get_quote_details', description: 'Detalhes completos de um orçamento (itens, totais). Use quando a pergunta for sobre UM orçamento específico.', parameters: { type: 'object', required: ['quote_id_or_number'], properties: { quote_id_or_number: { type: 'string' } } } } },
+    handler: async (args, { supabase }) => {
+      const key = String(args.quote_id_or_number);
+      const isUuid = /^[0-9a-f-]{36}$/i.test(key);
+      let q = supabase.from('quotes').select('id, quote_number, client_name, total_amount, total, status, created_at, created_by, payment_method, payment_status, quote_items(*)').limit(1);
+      q = isUuid ? q.eq('id', key) : q.eq('quote_number', key);
+      const { data, error } = await q.maybeSingle();
+      if (error) throw error;
+      if (!data) return { entity: 'quote', found: false };
+      return { entity: 'quote', found: true, quote: data, items_count: data.quote_items?.length || 0 };
     },
   },
   get_products: {
@@ -69,11 +115,13 @@ const readTools: Record<string, { schema: any; handler: (args: any, ctx: ToolCtx
     },
   },
   get_metrics: {
-    schema: { type: 'function', function: { name: 'get_metrics', description: 'Métricas: total, aprovados, receita, conversão, ranking.', parameters: { type: 'object', properties: { days_back: { type: 'number' } } } } },
-    handler: async (args, { supabase }) => {
+    schema: { type: 'function', function: { name: 'get_metrics', description: 'Métricas da carteira do usuário: total, aprovados, receita, conversão. scope="team" só para admin/gestor sob demanda.', parameters: { type: 'object', properties: { days_back: { type: 'number' }, scope: { type: 'string', enum: ['own','team'] } } } } },
+    handler: async (args, { supabase, userId, profile }) => {
       const days = args?.days_back || 30;
       const cutoff = new Date(Date.now() - days * 86400000).toISOString();
-      const { data: quotes, error } = await supabase.from('quotes').select('id, total_amount, total, status, created_by').gte('created_at', cutoff);
+      let q = supabase.from('quotes').select('id, total_amount, total, status, created_by').gte('created_at', cutoff);
+      q = scopeOwn(q, 'created_by', userId, profile, args?.scope);
+      const { data: quotes, error } = await q;
       if (error) throw error;
       const total = quotes?.length || 0;
       const approved = quotes?.filter((q: any) => q.status === 'approved') || [];
@@ -85,24 +133,27 @@ const readTools: Record<string, { schema: any; handler: (args: any, ctx: ToolCtx
         bySeller[k].count++;
         if (q.status === 'approved') bySeller[k].revenue += Number(q.total_amount || q.total || 0);
       }
-      return { entity: 'metrics', summary: { period_days: days, total_quotes: total, approved: approved.length, revenue, conversion_pct: total ? Math.round((approved.length / total) * 1000) / 10 : 0 }, by_seller: bySeller };
+      return { entity: 'metrics', scope: args?.scope || 'own', summary: { period_days: days, total_quotes: total, approved: approved.length, revenue, conversion_pct: total ? Math.round((approved.length / total) * 1000) / 10 : 0 }, by_seller: bySeller };
     },
   },
   get_followups: {
-    schema: { type: 'function', function: { name: 'get_followups', description: 'Follow-ups / tarefas atrasadas ou pendentes.', parameters: { type: 'object', properties: { overdue_only: { type: 'boolean' } } } } },
-    handler: async (args, { supabase }) => {
+    schema: { type: 'function', function: { name: 'get_followups', description: 'Follow-ups/tarefas do usuário (atribuídas a ele).', parameters: { type: 'object', properties: { overdue_only: { type: 'boolean' }, scope: { type: 'string', enum: ['own','team'] } } } } },
+    handler: async (args, { supabase, userId, profile }) => {
       const now = new Date().toISOString();
       let q = supabase.from('tasks').select('id, title, due_date, status, assigned_to, client_id').limit(200);
+      q = scopeOwn(q, 'assigned_to', userId, profile, args?.scope);
       if (args?.overdue_only !== false) q = q.lt('due_date', now).neq('status', 'done');
       const { data, error } = await q.order('due_date');
       if (error) return { entity: 'followups', columns: ['title', 'due_date', 'status'], rows: [], count: 0, note: error.message };
-      return { entity: 'followups', columns: ['title', 'due_date', 'status'], rows: data, count: data?.length || 0 };
+      return { entity: 'followups', scope: args?.scope || 'own', columns: ['title', 'due_date', 'status'], rows: data, count: data?.length || 0 };
     },
   },
   get_pipeline: {
-    schema: { type: 'function', function: { name: 'get_pipeline', description: 'Visão do pipeline por estágio.', parameters: { type: 'object', properties: {} } } },
-    handler: async (_a, { supabase }) => {
-      const { data } = await supabase.from('quotes').select('id, quote_number, client_name, total_amount, status, created_at').in('status', ['draft','sent','negotiation','negociacao','pre_sale','contact_made']).limit(300).order('created_at', { ascending: false });
+    schema: { type: 'function', function: { name: 'get_pipeline', description: 'Pipeline por estágio (carteira do usuário).', parameters: { type: 'object', properties: { scope: { type: 'string', enum: ['own','team'] } } } } },
+    handler: async (args, { supabase, userId, profile }) => {
+      let q = supabase.from('quotes').select('id, quote_number, client_name, total_amount, status, created_at, created_by').in('status', ['draft','sent','negotiation','negociacao','pre_sale','contact_made']).limit(300);
+      q = scopeOwn(q, 'created_by', userId, profile, args?.scope);
+      const { data } = await q.order('created_at', { ascending: false });
       const byStage: Record<string, { count: number; value: number }> = {};
       for (const q of data || []) {
         const s = q.status || 'draft';
@@ -110,7 +161,7 @@ const readTools: Record<string, { schema: any; handler: (args: any, ctx: ToolCtx
         byStage[s].count++;
         byStage[s].value += Number(q.total_amount || 0);
       }
-      return { entity: 'pipeline', summary: byStage, columns: ['quote_number','client_name','total_amount','status'], rows: data, count: data?.length || 0 };
+      return { entity: 'pipeline', scope: args?.scope || 'own', summary: byStage, columns: ['quote_number','client_name','total_amount','status'], rows: data, count: data?.length || 0 };
     },
   },
 };
@@ -303,26 +354,41 @@ async function updateAudit(service: any, id: string, patch: any) {
 // ============================================================
 // Classifier (hybrid mode — mantido)
 // ============================================================
-const GPT_KEYWORDS = ['analise','análise','analisar','resumo','resuma','estratégia','previsão','sugira','recomende','cross sell','upsell','compare','escreva','redija','e-mail','email','proposta comercial','por que','porque','explique','interprete','crie','cadastr','edit','aprovar','cancel','mover','duplicar','transferir','agendar','atribuir'];
+// Palavras que forçam raciocínio via GPT (interpretação, superlativos, comparações, agregações não triviais).
+const GPT_KEYWORDS = [
+  'analise','análise','analisar','resumo','resuma','estratégia','previsão','sugira','recomende','recomendação',
+  'cross sell','upsell','compare','comparar','escreva','redija','e-mail','email','proposta comercial',
+  'por que','porque','explique','interprete','crie','cadastr','edit','aprovar','cancel','mover','duplicar','transferir','agendar','atribuir',
+  // superlativos / perguntas analíticas
+  'qual','quais','quem','quanto','quantos','quantas','maior','menor','mais','menos','melhor','pior','top','ranking','media','média',
+  'mediana','soma','total de','com maior','com menor','com mais','com menos','ordem','ordenar','ordenad','classificar',
+];
+// Superlativo detectado explicitamente → sempre GPT (evita cair no fast path).
+const SUPERLATIVE_RE = /\b(qual|quais|quem|top|ranking|mais|menos|maior|menor|melhor|pior|com\s+mais|com\s+menos|com\s+maior|com\s+menor)\b/;
+
 function normalize(s: string) { return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w\s%$]/g,' ').replace(/\s+/g,' ').trim(); }
+
 function classify(raw: string): { mode: 'sql'; tool: string; args: any; label: string } | { mode: 'gpt' } {
   const q = normalize(raw);
+  if (SUPERLATIVE_RE.test(q)) return { mode: 'gpt' };
   for (const kw of GPT_KEYWORDS) if (q.includes(normalize(kw))) return { mode: 'gpt' };
   const daysBack = (q.match(/(\d{1,3})\s+dias?/) || [])[1];
+  // Somente listagens simples caem no fast path.
   if (/\bclientes?\b/.test(q) && /inativ|sem\s+comprar|sem\s+compra/.test(q))
     return { mode: 'sql', tool: 'get_clients', args: { days_inactive: daysBack ? +daysBack : 180, limit: 200 }, label: 'Clientes sem compra recente' };
-  if (/\bclientes?\b/.test(q)) return { mode: 'sql', tool: 'get_clients', args: { limit: 200 }, label: 'Clientes' };
-  if (/\borcament|\bpropost|\bquote/.test(q)) {
+  if (/^(listar|listagem|mostrar|ver)\s+clientes?/.test(q) || /^clientes?$/.test(q))
+    return { mode: 'sql', tool: 'get_clients', args: { limit: 200 }, label: 'Clientes' };
+  if (/^(listar|listagem|mostrar|ver)\s+(orcament|propost|quote)/.test(q)) {
     const args: any = { limit: 200 };
     if (/aprovad/.test(q)) args.status = 'approved';
     else if (/negocia/.test(q)) args.status = 'negotiation';
     if (daysBack) args.days_back = +daysBack;
     return { mode: 'sql', tool: 'get_quotes', args, label: 'Orçamentos' };
   }
-  if (/\bprodutos?\b/.test(q)) return { mode: 'sql', tool: 'get_products', args: { limit: 200 }, label: 'Produtos' };
-  if (/follow[- ]?up|tarefa|atrasad/.test(q)) return { mode: 'sql', tool: 'get_followups', args: {}, label: 'Follow-ups' };
-  if (/\bpipeline\b|funil/.test(q)) return { mode: 'sql', tool: 'get_pipeline', args: {}, label: 'Pipeline' };
-  if (/metric|convers|receita|ranking|ticket|faturament/.test(q)) return { mode: 'sql', tool: 'get_metrics', args: { days_back: daysBack ? +daysBack : 30 }, label: 'Métricas' };
+  if (/^(listar|listagem|mostrar|ver)\s+produtos?/.test(q)) return { mode: 'sql', tool: 'get_products', args: { limit: 200 }, label: 'Produtos' };
+  if (/^follow[- ]?ups?\s+(hoje|atrasad|pendent)/.test(q)) return { mode: 'sql', tool: 'get_followups', args: {}, label: 'Follow-ups' };
+  if (/^pipeline\b/.test(q) || q === 'funil') return { mode: 'sql', tool: 'get_pipeline', args: {}, label: 'Pipeline' };
+  // Qualquer coisa não claramente listagem: GPT interpreta.
   return { mode: 'gpt' };
 }
 
@@ -475,13 +541,30 @@ Deno.serve(async (req) => {
 - Cliente aberto: ${context?.client ? JSON.stringify(context.client) : 'nenhum'}
 - Orçamento aberto: ${context?.quote ? JSON.stringify(context.quote) : 'nenhum'}`;
 
-    const systemPrompt = `Você é o Copiloto Comercial do CRM MCI. Consulte SEMPRE ferramentas para dados reais.
-Regras críticas de execução:
-- Ferramentas de LEITURA (get_*) executam direto.
-- Ferramentas de AÇÃO/ESCRITA (criar_*, editar_*, aprovar_*, cancelar_*, duplicar_*, mover_*, transferir_*, agendar_*, atribuir_*) NÃO executam imediatamente: elas retornam uma prévia. Após a prévia, ENCERRE sua resposta pedindo confirmação — nunca chame a mesma ferramenta de novo no mesmo turno.
-- Nunca invente dados. Se faltar informação essencial (ex.: id do cliente), pergunte.
-- Responda em português, executivo, sem emojis.
-- Data: ${new Date().toISOString().slice(0, 10)}.
+    const systemPrompt = `Você é o Copiloto Comercial do CRM MCI — um consultor executivo de vendas, não um listador de banco de dados.
+
+Fluxo obrigatório em toda resposta:
+1. Interprete a intenção real da pergunta antes de escolher tools.
+2. Escolha a(s) tool(s) certa(s). Para superlativos/agregações (ex.: "orçamento com maior número de produtos", "cliente que mais comprou", "vendedor top") use parâmetros específicos das tools: em get_quotes use order_by='items_count' ou 'total_amount' com include_items_count=true e limit pequeno; para detalhes de UM orçamento use get_quote_details.
+3. Analise o JSON retornado — não devolva a lista bruta. Extraia a resposta exata.
+4. Responda em formato executivo, em português, sem emojis:
+   • Resumo executivo (1 frase respondendo diretamente à pergunta, com nomes, números e valores concretos).
+   • Insight (o que isso significa comercialmente).
+   • Recomendação (próxima ação sugerida).
+   • Opcionalmente, tabela de apoio (máx. 5 linhas relevantes, não o dump inteiro).
+5. Nunca responda apenas "N orçamentos encontrados" — isso é falha grave.
+
+Escopo de dados (SEGURANÇA — obrigatório):
+- Por padrão TODAS as tools já retornam apenas a carteira do usuário atual (created_by / salesperson_id / assigned_to = ele).
+- NÃO passe scope='team' a menos que o usuário seja admin/gestor E tenha pedido explicitamente "equipe", "todos os vendedores", "empresa toda".
+- Nunca cite ou infira dados de outros vendedores se scope='own'.
+
+Ferramentas de AÇÃO (criar_*, editar_*, aprovar_*, cancelar_*, duplicar_*, mover_*, transferir_*, agendar_*, atribuir_*):
+- Retornam PRÉVIA. Após chamar uma, ENCERRE a resposta pedindo confirmação. Nunca repita a mesma tool no mesmo turno.
+
+Regras gerais:
+- Nunca invente dados. Se faltar informação (ex.: id do cliente), pergunte.
+- Data de hoje: ${new Date().toISOString().slice(0, 10)}.
 ${contextBlock}`;
 
     const messages: any[] = [{ role: 'system', content: systemPrompt }];
