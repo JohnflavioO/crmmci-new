@@ -10,7 +10,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import AppVersionBanner from "./components/AppVersionBanner";
 
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
 import RouteFallback from "@/components/RouteFallback";
 
