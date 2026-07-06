@@ -182,7 +182,21 @@ Regras:
       });
       if (!aiRes.ok) {
         const errText = await aiRes.text();
-        return new Response(JSON.stringify({ error: 'OpenAI error', detail: errText }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        let parsed: any = null;
+        try { parsed = JSON.parse(errText); } catch { /* keep raw */ }
+        const type = parsed?.error?.type;
+        const code = parsed?.error?.code;
+        const isQuota = type === 'insufficient_quota' || code === 'insufficient_quota';
+        const isAuth = aiRes.status === 401;
+        const friendly = isQuota
+          ? 'A chave da OpenAI está sem créditos. Recarregue em platform.openai.com/account/billing e tente novamente.'
+          : isAuth
+          ? 'A chave da OpenAI é inválida ou foi revogada. Atualize o secret OPENAI_API_KEY.'
+          : 'Não foi possível consultar o modelo agora. Tente novamente em instantes.';
+        return new Response(
+          JSON.stringify({ answer: friendly, tool_used: null, result: null, error_code: isQuota ? 'OPENAI_QUOTA_EXCEEDED' : isAuth ? 'OPENAI_AUTH' : 'OPENAI_ERROR', detail: parsed?.error?.message || errText }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
       }
       const aiJson = await aiRes.json();
       const msg = aiJson.choices?.[0]?.message;
