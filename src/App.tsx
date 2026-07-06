@@ -161,8 +161,6 @@ function AppRoutes() {
 
   const isPending = !hasAnyRoleFlag && !isApproved && !hasValidRole;
 
-  const isPending = !hasAnyRoleFlag && !isApproved && !hasValidRole;
-
   if (isPending) return <PendingApproval />;
 
   const isLogisticaOnly = isLogistica && !isAdmin && !isGestor && !isFinanceiro;
