@@ -26,15 +26,12 @@ export default function PublicTracking() {
     (async () => {
       const url = import.meta.env.VITE_SUPABASE_URL;
       const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const client = createClient(url, key, {
-        global: { headers: { 'x-quote-token': token } },
-        auth: { persistSession: false },
-      });
-      const { data } = await client.from('technical_orders' as any).select('*').eq('public_token', token).maybeSingle();
-      setOs(data);
+      const client = createClient(url, key, { auth: { persistSession: false } });
+      const { data } = await client.rpc('get_public_technical_tracking' as any, { p_token: token });
       if (data) {
-        const { data: h } = await client.from('technical_status_history' as any).select('*').eq('order_id', (data as any).id).order('created_at');
-        setHistory((h || []) as any[]);
+        const payload = data as any;
+        setOs(payload.order);
+        setHistory(payload.history || []);
       }
       setLoading(false);
     })();
