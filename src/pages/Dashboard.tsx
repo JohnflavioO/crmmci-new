@@ -100,6 +100,7 @@ export default function Dashboard() {
   const [teamRecentQuotes, setTeamRecentQuotes] = useState<any[]>([]);
   const [teamTopClients, setTeamTopClients] = useState<TopClientInfo[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [quickViewId, setQuickViewId] = useState<string | null>(null);
   const [detailsModal, setDetailsModal] = useState<{
     open: boolean;
     title: string;
