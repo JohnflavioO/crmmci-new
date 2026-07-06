@@ -58,6 +58,7 @@ const InteligenciaComercial = lazy(() => import("./pages/InteligenciaComercial")
 const NotificationSettings = lazy(() => import("./pages/NotificationSettings"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const AssistenteComercial = lazy(() => import("./pages/AssistenteComercial"));
+const AssistantAudit = lazy(() => import("./pages/AssistantAudit"));
 
 
 const queryClient = new QueryClient({
@@ -200,6 +201,7 @@ function AppRoutes() {
             <Route path="/products" element={<SafeRoute><Products /></SafeRoute>} />
             <Route path="/contracts" element={<SafeRoute><ContractGenerator /></SafeRoute>} />
             <Route path="/assistente" element={<SafeRoute><AssistenteComercial /></SafeRoute>} />
+            <Route path="/assistente/auditoria" element={<SafeRoute><AssistantAudit /></SafeRoute>} />
 
             <Route path="/ecoflow" element={<SafeRoute><EcoflowCalculator /></SafeRoute>} />
             <Route path="/tasks" element={<SafeRoute><Tasks /></SafeRoute>} />

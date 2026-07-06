@@ -50,6 +50,93 @@ export type Database = {
         }
         Relationships: []
       }
+      assistant_audit_log: {
+        Row: {
+          action_type: string
+          company_id: string | null
+          completion_tokens: number | null
+          confirmation_required: boolean
+          confirmation_result: string | null
+          conversation_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          estimated_cost: number | null
+          execution_status: string
+          execution_time_ms: number | null
+          id: string
+          ip: string | null
+          model: string | null
+          module: string | null
+          prompt: string | null
+          prompt_tokens: number | null
+          provider: string | null
+          tool_input: Json | null
+          tool_name: string
+          tool_output: Json | null
+          total_tokens: number | null
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          company_id?: string | null
+          completion_tokens?: number | null
+          confirmation_required?: boolean
+          confirmation_result?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          estimated_cost?: number | null
+          execution_status?: string
+          execution_time_ms?: number | null
+          id?: string
+          ip?: string | null
+          model?: string | null
+          module?: string | null
+          prompt?: string | null
+          prompt_tokens?: number | null
+          provider?: string | null
+          tool_input?: Json | null
+          tool_name: string
+          tool_output?: Json | null
+          total_tokens?: number | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          company_id?: string | null
+          completion_tokens?: number | null
+          confirmation_required?: boolean
+          confirmation_result?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          estimated_cost?: number | null
+          execution_status?: string
+          execution_time_ms?: number | null
+          id?: string
+          ip?: string | null
+          model?: string | null
+          module?: string | null
+          prompt?: string | null
+          prompt_tokens?: number | null
+          provider?: string | null
+          tool_input?: Json | null
+          tool_name?: string
+          tool_output?: Json | null
+          total_tokens?: number | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       assistant_conversations: {
         Row: {
           answer: string | null

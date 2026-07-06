@@ -316,7 +316,7 @@ export default function AppSidebar({ onNavigate }: Props) {
               <>
                 <SectionDivider />
                 <SectionLabel>Administrativo</SectionLabel>
-                {[{ to: '/approvals', icon: UserCheck, label: 'Aprovações' }].map(item => <LinkItem key={item.to} {...item} />)}
+                {[{ to: '/approvals', icon: UserCheck, label: 'Aprovações' }, { to: '/assistente/auditoria', icon: Compass, label: 'Auditoria do Assistente' }].map(item => <LinkItem key={item.to} {...item} />)}
                 {isAdmin && [{ to: '/integrations', icon: Plug, label: 'Integrações' }].map(item => <LinkItem key={item.to} {...item} />)}
               </>
             )}

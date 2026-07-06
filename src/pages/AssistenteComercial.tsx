@@ -29,6 +29,7 @@ import { format, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns'
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
+import PreviewActionCard from '@/components/assistant/PreviewActionCard';
 
 type Conversation = {
   id: string;
@@ -263,7 +264,11 @@ export default function AssistenteComercial() {
         body: {
           message: text,
           conversation_id: activeId,
-          context: { module: location.pathname },
+          context: {
+            route: location.pathname,
+            module: location.pathname.split('/')[1] || 'assistente',
+            role: profile?.role,
+          },
         },
       });
       if (error) throw error;
@@ -699,7 +704,14 @@ export default function AssistenteComercial() {
                   )}
                 </CardContent>
               </Card>
-              {renderResult(lastAssistant.tool_result)}
+              {lastAssistant.tool_result?.preview ? (
+                <PreviewActionCard
+                  preview={lastAssistant.tool_result}
+                  onResolved={() => activeId && loadMessages(activeId)}
+                />
+              ) : (
+                renderResult(lastAssistant.tool_result)
+              )}
             </div>
           )}
         </div>
