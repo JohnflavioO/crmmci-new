@@ -53,38 +53,106 @@ export type Database = {
       assistant_conversations: {
         Row: {
           answer: string | null
+          archived_at: string | null
+          company_id: string | null
           created_at: string
           id: string
           is_favorite: boolean
-          question: string
+          question: string | null
           result_json: Json | null
+          title: string | null
           tool_used: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           answer?: string | null
+          archived_at?: string | null
+          company_id?: string | null
           created_at?: string
           id?: string
           is_favorite?: boolean
-          question: string
+          question?: string | null
           result_json?: Json | null
+          title?: string | null
           tool_used?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           answer?: string | null
+          archived_at?: string | null
+          company_id?: string | null
           created_at?: string
           id?: string
           is_favorite?: boolean
-          question?: string
+          question?: string | null
           result_json?: Json | null
+          title?: string | null
           tool_used?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: []
+      }
+      assistant_messages: {
+        Row: {
+          completion_tokens: number | null
+          content: string | null
+          conversation_id: string
+          created_at: string
+          error: string | null
+          execution_time_ms: number | null
+          id: string
+          model: string | null
+          prompt_tokens: number | null
+          role: string
+          tool_args: Json | null
+          tool_name: string | null
+          tool_result: Json | null
+          total_tokens: number | null
+        }
+        Insert: {
+          completion_tokens?: number | null
+          content?: string | null
+          conversation_id: string
+          created_at?: string
+          error?: string | null
+          execution_time_ms?: number | null
+          id?: string
+          model?: string | null
+          prompt_tokens?: number | null
+          role: string
+          tool_args?: Json | null
+          tool_name?: string | null
+          tool_result?: Json | null
+          total_tokens?: number | null
+        }
+        Update: {
+          completion_tokens?: number | null
+          content?: string | null
+          conversation_id?: string
+          created_at?: string
+          error?: string | null
+          execution_time_ms?: number | null
+          id?: string
+          model?: string | null
+          prompt_tokens?: number | null
+          role?: string
+          tool_args?: Json | null
+          tool_name?: string | null
+          tool_result?: Json | null
+          total_tokens?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bank_slip_history: {
         Row: {
