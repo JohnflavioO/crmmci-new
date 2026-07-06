@@ -379,17 +379,18 @@ function openAiError(aiRes: Response, errText: string) {
   try { parsed = JSON.parse(errText); } catch {}
   const type = parsed?.error?.type;
   const code = parsed?.error?.code;
-  const isQuota = type === 'insufficient_quota' || code === 'insufficient_quota';
+  const isQuota = type === 'insufficient_quota' || code === 'insufficient_quota' || /billing|quota/i.test(errText);
   const isAuth = aiRes.status === 401;
-  const friendly = isQuota
-    ? 'A chave da OpenAI está sem créditos. Recarregue em platform.openai.com/account/billing e tente novamente.'
-    : isAuth
-    ? 'A chave da OpenAI é inválida ou foi revogada. Atualize o secret OPENAI_API_KEY.'
-    : 'Não foi possível consultar o modelo agora. Tente novamente em instantes.';
+  const isRate = aiRes.status === 429 && !isQuota;
+  const friendly =
+    'Assistente temporariamente indisponível. O serviço de IA está fora do ar no momento, mas as consultas inteligentes do CRM continuam funcionando normalmente. Use os botões abaixo ou peça diretamente por clientes, orçamentos, produtos, follow-ups ou métricas.';
   return {
     friendly,
-    error_code: isQuota ? 'OPENAI_QUOTA_EXCEEDED' : isAuth ? 'OPENAI_AUTH' : 'OPENAI_ERROR',
+    error_code: isQuota ? 'OPENAI_QUOTA_EXCEEDED' : isAuth ? 'OPENAI_AUTH' : isRate ? 'OPENAI_RATE_LIMIT' : 'OPENAI_ERROR',
     detail: parsed?.error?.message || errText,
+  };
+}
+
   };
 }
 
