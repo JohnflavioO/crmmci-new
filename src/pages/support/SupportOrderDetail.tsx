@@ -273,22 +273,39 @@ export default function SupportOrderDetail() {
               {selectedProduct ? (
                 <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-muted/40">
                   <div className="text-sm">
-                    <div className="font-medium">{selectedProduct.name}</div>
-                    <div className="text-xs text-muted-foreground">Estoque: {selectedProduct.quantity}</div>
+                    <div className="font-medium">
+                      {selectedProduct.code && <span className="text-muted-foreground mr-1">[{selectedProduct.code}]</span>}
+                      {selectedProduct.name}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {[selectedProduct.brand, selectedProduct.category].filter(Boolean).join(' · ')}
+                      {(selectedProduct.brand || selectedProduct.category) && ' · '}
+                      Estoque: {selectedProduct.quantity}
+                    </div>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => { setSelectedProduct(null); setUnitPrice(0); }}>Trocar</Button>
                 </div>
               ) : (
                 <>
-                  <Input placeholder="Nome da peça..." value={productSearch} onChange={e => setProductSearch(e.target.value)} />
+                  <Input placeholder="Buscar por código, nome, marca ou categoria..." value={productSearch} onChange={e => setProductSearch(e.target.value)} />
                   {filteredProducts.length > 0 && (
-                    <div className="absolute z-20 left-0 right-0 mt-1 bg-popover border rounded-md shadow-md max-h-56 overflow-auto">
+                    <div className="absolute z-20 left-0 right-0 mt-1 bg-popover border rounded-md shadow-md max-h-64 overflow-auto">
                       {filteredProducts.map((p: any) => (
                         <button key={p.id} type="button"
-                          className="w-full text-left px-3 py-2 hover:bg-muted text-sm flex justify-between"
+                          className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-b-0"
                           onClick={() => { setSelectedProduct(p); setProductSearch(''); setUnitPrice(Number(p.price) || 0); }}>
-                          <span>{p.name}</span>
-                          <span className="text-muted-foreground">Estq: {p.quantity}</span>
+                          <div className="flex justify-between gap-2">
+                            <span className="font-medium truncate">
+                              {p.code && <span className="text-muted-foreground mr-1">[{p.code}]</span>}
+                              {p.name}
+                            </span>
+                            <span className="text-muted-foreground whitespace-nowrap">Estq: {p.quantity}</span>
+                          </div>
+                          {(p.brand || p.category) && (
+                            <div className="text-xs text-muted-foreground truncate">
+                              {[p.brand, p.category].filter(Boolean).join(' · ')}
+                            </div>
+                          )}
                         </button>
                       ))}
                     </div>
