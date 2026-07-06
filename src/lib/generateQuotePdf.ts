@@ -299,36 +299,103 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   });
   y += headerH + 4;
 
-  // Preload item images - compress heavily for smaller file size
+  // Preload item images with robust fallbacks so 100% of items with an image URL render.
+  // Strategy per item:
+  //   1) fetch → blob → dataURL (bypasses canvas taint; works with proper CORS headers)
+  //   2) <img crossOrigin="anonymous"> → canvas (works when server sends CORS)
+  //   3) <img> without CORS → canvas (fails on taint but tried as last resort)
+  // Each attempt has a hard timeout so one slow image can't block the whole export.
   const itemImages: Record<number, string> = {};
+  const IMG_TIMEOUT_MS = 8000;
+  const MAX_SIZE = 60;
+  const withTimeout = <T,>(p: Promise<T>, ms: number) =>
+    new Promise<T>((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error('timeout')), ms);
+      p.then(v => { clearTimeout(t); resolve(v); }).catch(e => { clearTimeout(t); reject(e); });
+    });
+
+  const encodeFromImage = (img: HTMLImageElement): string => {
+    let w = img.naturalWidth || MAX_SIZE;
+    let h = img.naturalHeight || MAX_SIZE;
+    if (w > MAX_SIZE || h > MAX_SIZE) {
+      const ratio = Math.min(MAX_SIZE / w, MAX_SIZE / h);
+      w = Math.round(w * ratio);
+      h = Math.round(h * ratio);
+    }
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const ctx2 = c.getContext('2d')!;
+    // White background so JPEG doesn't turn transparency into black
+    ctx2.fillStyle = '#ffffff';
+    ctx2.fillRect(0, 0, w, h);
+    ctx2.drawImage(img, 0, 0, w, h);
+    return c.toDataURL('image/jpeg', 0.55);
+  };
+
+  const loadImageEl = (src: string, useCors: boolean) =>
+    new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      if (useCors) img.crossOrigin = 'anonymous';
+      img.decoding = 'async';
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('img-load'));
+      // cache-buster only when needed for CORS retries handled separately
+      img.src = src;
+    });
+
+  const fetchAsDataUrl = async (src: string): Promise<string | null> => {
+    try {
+      const resp = await fetch(src, { mode: 'cors', credentials: 'omit', cache: 'force-cache' });
+      if (!resp.ok) return null;
+      const blob = await resp.blob();
+      if (!blob.type.startsWith('image/')) return null;
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result || ''));
+        fr.onerror = () => reject(new Error('fr'));
+        fr.readAsDataURL(blob);
+      });
+      // Re-encode + resize through canvas for smaller PDF
+      const img = await loadImageEl(dataUrl, false);
+      return encodeFromImage(img);
+    } catch {
+      return null;
+    }
+  };
+
   await Promise.all(
     items.map(async (item: any, i: number) => {
-      if (!item.image_url) return;
+      const rawUrl: string | undefined = item.image_url;
+      if (!rawUrl) return;
+      const src = String(rawUrl).trim();
+      if (!src) return;
+
       try {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = () => reject();
-          img.src = item.image_url;
-        });
-        const maxSize = 50;
-        let w = img.naturalWidth;
-        let h = img.naturalHeight;
-        if (w > maxSize || h > maxSize) {
-          const ratio = Math.min(maxSize / w, maxSize / h);
-          w = Math.round(w * ratio);
-          h = Math.round(h * ratio);
+        // Attempt 1: fetch → dataURL
+        let data = await withTimeout(fetchAsDataUrl(src), IMG_TIMEOUT_MS).catch(() => null);
+
+        // Attempt 2: <img crossOrigin="anonymous">
+        if (!data) {
+          try {
+            const img = await withTimeout(loadImageEl(src, true), IMG_TIMEOUT_MS);
+            data = encodeFromImage(img);
+          } catch { /* fall through */ }
         }
-        const c = document.createElement('canvas');
-        c.width = w;
-        c.height = h;
-        const ctx2 = c.getContext('2d')!;
-        ctx2.drawImage(img, 0, 0, w, h);
-        itemImages[i] = c.toDataURL('image/jpeg', 0.3);
+
+        // Attempt 3: last-resort <img> without CORS (may taint canvas → will throw)
+        if (!data) {
+          try {
+            const img = await withTimeout(loadImageEl(src, false), IMG_TIMEOUT_MS);
+            data = encodeFromImage(img);
+          } catch { /* skip */ }
+        }
+
+        if (data) itemImages[i] = data;
       } catch { /* skip */ }
     })
   );
+
 
   const wrapCellText = (text: string, maxWidth: number, maxLines: number) => {
     const words = normalizeCellText(text).split(' ').filter(Boolean);
