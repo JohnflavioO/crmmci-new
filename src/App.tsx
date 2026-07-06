@@ -57,6 +57,7 @@ const About = lazy(() => import("./pages/About"));
 const InteligenciaComercial = lazy(() => import("./pages/InteligenciaComercial"));
 const NotificationSettings = lazy(() => import("./pages/NotificationSettings"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
+const AssistenteComercial = lazy(() => import("./pages/AssistenteComercial"));
 
 
 const queryClient = new QueryClient({
