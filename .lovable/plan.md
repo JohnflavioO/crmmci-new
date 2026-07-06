@@ -1,90 +1,128 @@
-# Plano de Otimização de Performance
 
-Análise feita no projeto (19.706 linhas em `src/pages`, 456K em componentes, 65+ dependências). Identifiquei os gargalos reais e priorizei os que dão o maior ganho sem risco de quebrar funcionalidades.
+# Copiloto Comercial MCI — Fase 1
 
-## Diagnóstico (gargalos reais encontrados)
+Escopo aprovado: consultas de todos os módulos + ações em Clientes, Orçamentos, Pipeline/Tarefas/Follow-ups. Confirmação por card de prévia. Sugestões inteligentes no painel. Auditoria em tabela dedicada `assistant_audit_log`.
 
-### 1. Autenticação faz 8 requisições em série no login (CRÍTICO)
-`useAuth` executa 1 SELECT em `profiles` + **7 RPCs** (`is_approved`, `is_admin`, `is_gestor`, `is_financeiro`, `is_logistica`, `is_support_tech`, `is_support_manager`) a cada login. Cada RPC é um round-trip. Isso trava a tela de "Carregando MCI CRM..." por 1-3 segundos antes de qualquer rota renderizar.
+Nada existente será alterado — apenas evoluímos o módulo Assistente Comercial.
 
-**Impacto:** todo primeiro paint depende disso. É a maior causa da lentidão percebida.
+## 1. Banco de dados
 
-### 2. QueryClient sub-configurado
-`staleTime: 30s` e sem `gcTime`. Em navegação entre páginas o React Query refaz fetch de listas grandes (clientes, quotes) que acabaram de ser buscadas. Nenhum `refetchOnWindowFocus: false` — cada foco na aba dispara refetches em cascata.
+Nova migration criando:
 
-### 3. `Dashboard` importado eager
-`App.tsx` importa `Dashboard` sem lazy, mesmo sendo a página inicial pesada. Isso engorda o bundle inicial em ~30KB e atrasa o TTI de rotas que não são o dashboard (logística, financeiro, suporte).
+**`assistant_audit_log`** — campos exatamente como definidos pelo usuário:
+`id, company_id, user_id, conversation_id, action_type, tool_name, module, entity_type, entity_id, prompt, tool_input(jsonb), tool_output(jsonb), confirmation_required(bool), confirmation_result(text: confirmed|cancelled|expired|null), execution_status(text: preview|waiting_confirmation|executed|cancelled|failed), execution_time_ms(int), model, provider, prompt_tokens, completion_tokens, total_tokens, estimated_cost(numeric), ip, user_agent, created_at`
 
-### 4. Suspense fallback é a tela cheia "Carregando MCI CRM..."
-Toda troca de rota mostra um splash escuro de tela cheia. Piora muito a percepção de fluidez.
+RLS:
+- Usuário lê os próprios registros.
+- Admin/Gestor lê tudo da empresa.
+- INSERT apenas via edge function (service_role).
 
-### 5. Notifications Realtime reinscreve em cada mudança de som
-O `useEffect` da subscription depende de `preferences.sound_enabled`, então trocar o som desconecta e reconecta o canal Supabase.
+GRANTs para authenticated (SELECT) e service_role (ALL). Índices em `(company_id, created_at desc)`, `(user_id, created_at desc)`, `(action_type)`, `(execution_status)`.
 
-### 6. Bundle: chunks pesados não isolados
-`framer-motion`, `xlsx`, `@hello-pangea/dnd`, `date-fns` inteiro, `embla-carousel`, `firebase` estão no chunk principal ou mal separados. `xlsx` sozinho tem ~430KB.
+## 2. Edge function `assistant-commercial` — evolução
 
-### 7. `console.log` em produção
-`main.tsx` e `useAuth` fazem logs em todo boot/login. Custo pequeno mas polui e adiciona overhead em mobile.
+Mantém hybrid mode (SQL fast path + GPT) e histórico. Adiciona:
 
-### 8. Vite config: `modulePreload: false`
-Desativa o preload automático de chunks — cada navegação lazy espera o fetch começar do zero. Bom para HTML antigo, ruim para navegação SPA.
+**Registry de tools** dividido em `read_tools` e `write_tools`. Cada tool declara:
+- `name`, `module`, `entity_type`
+- `requiresConfirmation: boolean`
+- `permissionKey` (mapeado ao usePermissions do CRM)
+- `execute(ctx, input)` que chama Supabase com auth do usuário (RLS)
 
-## Escopo das mudanças
+**Read tools (executam direto):**
+- Clientes: `consultar_clientes`, `buscar_cliente`, `mostrar_historico_cliente`
+- Orçamentos: `consultar_orcamentos`
+- Produtos: `consultar_produtos`, `buscar_produto`, `consultar_estoque`, `consultar_preco`
+- Pipeline: `consultar_pipeline`
+- Financeiro: `consultar_pagamentos`, `consultar_faturamento`, `consultar_recebimentos`
+- Logística: `consultar_pedido`, `consultar_nf`, `consultar_rastreio`
+- BI: `ranking_vendedores`, `clientes_sem_comprar`, `previsao_faturamento`, `clientes_por_estado`, `conversao`, `ticket_medio`
 
-### Frente A — Auth (maior ganho)
-- Substituir as 7 RPCs por **1 SELECT** em `user_roles` (`select role`) paralelo ao `profiles`. Derivar `isAdmin/isGestor/...` no cliente.
-- Reduzir timeout de segurança de 8s para 4s (o fetch novo dura <300ms).
-- Remover retry+backoff agressivo (3 tentativas × 1s cada); manter 1 retry.
-- Remover logs de debug em produção.
+**Write tools (fluxo preview → confirm):**
+- Clientes: `criar_cliente`, `editar_cliente`, `transferir_carteira`
+- Orçamentos: `criar_orcamento`, `duplicar_orcamento`, `editar_orcamento`, `cancelar_orcamento`, `aprovar_orcamento`, `gerar_pdf`, `gerar_contrato`, `enviar_por_email`
+- Pipeline: `mover_pipeline`, `criar_followup`, `agendar_retorno`
+- Tarefas: `criar_tarefa`, `editar_tarefa`, `atribuir_tarefa`
 
-### Frente B — React Query & navegação
-- `staleTime: 5 min`, `gcTime: 30 min`, `refetchOnWindowFocus: false`, `refetchOnReconnect: 'always'`.
-- Trocar Suspense fallback global por um fallback leve (barra fina de progresso no topo em vez de splash cheio). Manter `LoadingScreen` só no boot inicial de auth.
-- Lazy-load do `Dashboard`.
-- Adicionar prefetch on-hover nos links da sidebar (dispara `import()` do chunk da rota quando o mouse passa).
+**Fluxo de write tools:**
+1. Modelo chama a tool → função monta payload e **não grava**.
+2. Retorna `{ preview: true, action_id (uuid), action_type, summary, payload }`.
+3. Grava row em `assistant_audit_log` com `execution_status='waiting_confirmation'`.
+4. UI mostra card de prévia com botões Confirmar/Cancelar.
+5. Nova rota `POST /confirm` com `{ action_id, decision }`:
+   - Recarrega row, valida owner + permissão + expiração (10 min).
+   - Executa a mutação, atualiza row para `executed`/`cancelled`/`failed`, retorna resultado.
 
-### Frente C — Bundle
-- Ligar `modulePreload: { polyfill: false }` (padrão do Vite).
-- Ampliar `manualChunks`: separar `xlsx`, `framer-motion`, `@hello-pangea/dnd`, `embla-carousel-react`, `date-fns` em chunks próprios (só carregados onde usados).
-- Confirmar que `firebase`, `pdf` já isolados continuam OK.
+**Contexto automático** enviado em cada request: `user_id, company_id, role, permissions, current_route, current_client_id, current_quote_id`. Adicionado ao system prompt + disponível para tools.
 
-### Frente D — Correções pontuais de renderização
-- `NotificationsContext`: dividir o effect de realtime — não re-subscrever ao mudar `sound_enabled` (usar `useRef` para ler o valor atual dentro do handler).
-- `main.tsx` / `useAuth`: envolver `console.log` com `if (import.meta.env.DEV)`.
+**Verificação de permissão** por tool usando `permissionKey` (espelho do `usePermissions`). Se negada, tool retorna erro estruturado antes de qualquer gravação.
 
-## Fora de escopo (intencional)
+**Auditoria**: só write tools geram row. Read tools continuam apenas em `assistant_messages`.
 
-- Não vou refatorar as páginas gigantes (`Quotes 2423`, `BankSlips 1793`, `Logistics 1431`, `InteligenciaComercial 1518`). Cada uma precisa de análise dedicada e o risco de regressão é alto. Fica sugerido para uma próxima rodada focada por página.
-- Não vou trocar bibliotecas (ex.: `date-fns` → `dayjs`, `recharts` → `visx`).
-- Não vou mexer no design/CSS/animações — o pedido diz para não alterar design sem necessidade.
-- Não vou alterar Supabase (RLS, índices, queries do backend) — as políticas atuais são sensíveis e já existem migrations recentes.
+## 3. Frontend — `src/pages/AssistenteComercial.tsx`
 
-## Detalhes técnicos
+Mantém shell atual (AppLayout, histórico lateral, hybrid mode). Adiciona:
 
-### Auth novo (esboço)
-```ts
-const [{ data: profile }, { data: roles }] = await Promise.all([
-  supabase.from('profiles').select('...').eq('user_id', user.id).maybeSingle(),
-  supabase.from('user_roles').select('role').eq('user_id', user.id),
-]);
-const roleSet = new Set((roles ?? []).map(r => r.role));
-setIsAdmin(roleSet.has('admin') || profile?.role === 'admin');
-// ...
-```
-Requer `SELECT` policy em `user_roles` para `authenticated` filtrado por `user_id = auth.uid()` — já existe (o `has_role` roda security-definer, mas há também policy padrão para o próprio usuário; se não houver, adiciono migration).
+**Painel de insights automáticos (topo):**
+Cards clicáveis alimentados por queries reais ao Supabase (client-side, um `useEffect` paralelo):
+- Follow-ups vencidos hoje
+- Propostas > R$50k sem update há 10+ dias
+- Clientes 180+ dias sem comprar
+- Demonstrações vencendo em 7 dias
+- Vendedor top do mês
+- Oportunidades sem responsável
 
-### Suspense fallback leve
-Componente `RouteFallback` sem fundo escuro (apenas um `<div className="h-1 bg-emerald-500 animate-pulse fixed top-0"/>`) para evitar flash entre rotas.
+Clique dispara um prompt pré-formatado no assistente.
 
-### Prefetch on-hover
-Wrapper em `NavLink` que faz `onMouseEnter={() => import('./pages/Foo')}`.
+**Ações rápidas** (chips): "Meus orçamentos", "Ranking do mês", "Follow-ups de hoje", "Criar orçamento", "Novo cliente".
 
-## Ordem de execução
+**Renderização de tool results:**
+Novo componente `ToolResultRenderer` que reconhece o `type` do output:
+- `table` → shadcn Table com export CSV
+- `kpi` → grid de StatCards
+- `client_card`, `quote_card`, `product_list`, `timeline`
+- `preview_action` → card destacado com resumo + botões Confirmar (chama `/confirm`) / Cancelar / Editar
 
-1. Frente A (auth) — 1 arquivo
-2. Frente B (query client + fallback + lazy Dashboard + prefetch) — 3-4 arquivos
-3. Frente C (vite.config) — 1 arquivo
-4. Frente D (notifications + logs) — 2 arquivos
+**Contexto** enviado a cada request lido de `useLocation()` + `useAuth()` + IDs da rota atual.
 
-Validação: build automático + verificar console/network logs no preview.
+## 4. Nova página `Auditoria do Assistente` (admin)
+
+Rota `/assistente/auditoria` em `App.tsx`, gated por `isAdmin || isGestor`. Item no sidebar dentro do grupo do assistente.
+
+Conteúdo:
+- KPIs do dia: ações executadas, canceladas, com erro, tokens totais, custo estimado, tempo médio
+- Filtros: período, vendedor, ferramenta, status, módulo
+- Tabela paginada com todos os campos + drawer de detalhes (prompt, input, output, timing)
+- Gráficos leves: ferramentas mais usadas, ações por vendedor, custo por dia (Recharts, já no projeto)
+
+## 5. Segurança
+
+- Todas as tools passam pelo cliente Supabase autenticado com o JWT do usuário → RLS existente aplica-se automaticamente.
+- `permissionKey` bloqueia tools antes mesmo da chamada.
+- Rota `/confirm` re-valida `user_id` do row de auditoria vs `auth.uid()`.
+- IP + user_agent extraídos dos headers da request.
+
+## 6. Arquivos afetados
+
+**Novos:**
+- `supabase/migrations/<timestamp>_assistant_audit_log.sql`
+- `supabase/functions/assistant-commercial/tools/` (read.ts, write.ts, registry.ts)
+- `src/components/assistant/ToolResultRenderer.tsx`
+- `src/components/assistant/InsightsPanel.tsx`
+- `src/components/assistant/PreviewActionCard.tsx`
+- `src/pages/AssistantAudit.tsx`
+
+**Editados:**
+- `supabase/functions/assistant-commercial/index.ts` (registry + confirm endpoint + contexto + auditoria)
+- `src/pages/AssistenteComercial.tsx` (insights, ações rápidas, contexto, renderer)
+- `src/App.tsx` (rota /assistente/auditoria)
+- `src/components/AppSidebar.tsx` (item de auditoria para admin/gestor)
+
+## Fora do escopo (fica para depois)
+
+- Tools de suporte técnico (OS)
+- Envio real de email/PDF por integração externa nova (usa apenas o que já existe)
+- Streaming de tokens no chat (mantém request/response atual)
+- Expiração automática de previews via cron (validamos on-demand)
+
+Aprova para eu implementar?
