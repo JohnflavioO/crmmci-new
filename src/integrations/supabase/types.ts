@@ -2794,6 +2794,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_view_company_profile: {
+        Args: { _target_company_id: string; _target_user_id: string }
+        Returns: boolean
+      }
+      can_view_company_role: {
+        Args: { _target_user_id: string }
+        Returns: boolean
+      }
       current_user_company_id: { Args: never; Returns: string }
       delete_quote_cascade: { Args: { p_quote_id: string }; Returns: undefined }
       generate_quote_number: { Args: never; Returns: string }
