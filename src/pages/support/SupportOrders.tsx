@@ -293,7 +293,7 @@ export default function SupportOrders() {
                         { 
                           label: "Ver Detalhes", 
                           icon: ExternalLink, 
-                          onClick: () => navigate(`/suporte/os/${o.id}`),
+                          onClick: () => setDetailsId(o.id),
                           isPrimary: true
                         },
                         { 
