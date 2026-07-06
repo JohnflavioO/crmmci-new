@@ -56,6 +56,7 @@ const Help = lazy(() => import("./pages/Help"));
 const About = lazy(() => import("./pages/About"));
 const InteligenciaComercial = lazy(() => import("./pages/InteligenciaComercial"));
 const NotificationSettings = lazy(() => import("./pages/NotificationSettings"));
+const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 
 
 const queryClient = new QueryClient({
@@ -128,6 +129,7 @@ function AppRoutes() {
           <Route path="/quote/:token" element={<SafeRoute><PublicQuote /></SafeRoute>} />
           <Route path="/rastreamento/os/:token" element={<SafeRoute><PublicTracking /></SafeRoute>} />
           <Route path="/rastreio/pedido/:token" element={<SafeRoute><LogisticsTracking /></SafeRoute>} />
+          <Route path="/.lovable/oauth/consent" element={<SafeRoute><OAuthConsent /></SafeRoute>} />
           <Route path="*" element={<Auth />} />
         </Routes>
       </Suspense>
@@ -163,6 +165,7 @@ function AppRoutes() {
         <Route path="/ajuda" element={<SafeRoute><Help /></SafeRoute>} />
         <Route path="/sobre" element={<SafeRoute><About /></SafeRoute>} />
         <Route path="/configuracoes/notificacoes" element={<SafeRoute><NotificationSettings /></SafeRoute>} />
+        <Route path="/.lovable/oauth/consent" element={<SafeRoute><OAuthConsent /></SafeRoute>} />
 
 
         {(isSupport || isAdmin || isGestor) && (
