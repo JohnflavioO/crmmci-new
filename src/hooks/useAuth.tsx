@@ -121,35 +121,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const fetchData = async () => {
       attempt += 1;
       try {
-        // 1 SELECT profiles + 1 SELECT user_roles + 1 SELECT user_approvals — all parallel
-        const [profileRes, rolesRes, approvalRes] = await Promise.all([
-          supabase
-            .from('profiles')
-            .select('full_name, phone, role, avatar_url, force_password_change, company_id, can_access_support_manager')
-            .eq('user_id', user.id)
-            .maybeSingle(),
-          supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', user.id),
-          supabase
-            .from('user_approvals')
-            .select('status')
-            .eq('user_id', user.id)
-            .maybeSingle(),
-        ]);
+        // Bootstrap seguro: uma única função interna lê perfil, status e cargos do próprio usuário.
+        const { data, error } = await (supabase as any).rpc('get_current_user_access').maybeSingle();
 
         if (cancelled) return;
 
-        if (profileRes.error) console.error('[Auth] Profile fetch error:', profileRes.error);
-        if (rolesRes.error) console.error('[Auth] Roles fetch error:', rolesRes.error);
+        if (error) {
+          console.error('[Auth] Access bootstrap error:', error);
+          if (attempt < 2) {
+            setTimeout(() => { if (!cancelled) fetchData(); }, 800);
+            return;
+          }
+          setProfile(null);
+          setProfileLoaded(false);
+          setLoading(false);
+          return;
+        }
 
-        const profileData = profileRes.data;
+        const profileData = data ? {
+          full_name: data.full_name ?? '',
+          phone: data.phone ?? '',
+          role: data.role ?? '',
+          avatar_url: data.avatar_url ?? undefined,
+          force_password_change: data.force_password_change === true,
+          company_id: data.company_id ?? undefined,
+          can_access_support_manager: data.can_access_support_manager === true,
+        } : null;
+
         const normalizedRole = profileData?.role?.toLowerCase();
-        const roleSet = new Set<string>((rolesRes.data ?? []).map((r: any) => String(r.role).toLowerCase()));
+        const roleSet = new Set<string>((data?.roles ?? []).map((r: any) => String(r).toLowerCase()));
         if (normalizedRole) roleSet.add(normalizedRole);
 
-        const approvedByStatus = approvalRes.data?.status === 'approved';
+        const approvedByStatus = data?.approval_status === 'approved';
         const approvedByRole = [...roleSet].some(r => APPROVED_ROLES.has(r));
 
         setIsApproved(approvedByStatus || approvedByRole);
