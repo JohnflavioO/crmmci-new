@@ -45,17 +45,13 @@ export default function LogisticsTracking() {
     (async () => {
       const url = import.meta.env.VITE_SUPABASE_URL;
       const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const client = createClient(url, key, {
-        global: { headers: { 'x-quote-token': token } },
-        auth: { persistSession: false },
-      });
-      const { data: rec } = await client.from('logistics_records' as any).select('*').eq('public_token', token).maybeSingle();
-      if (rec) {
-        setRecord(rec);
-        const { data: q } = await client.from('quotes' as any).select('quote_number, client_name, total_amount, total').eq('id', (rec as any).quote_id).maybeSingle();
-        setQuote(q);
-        const { data: h } = await client.from('logistics_action_history' as any).select('*').eq('logistics_record_id', (rec as any).id).order('created_at', { ascending: false });
-        setHistory((h || []) as any[]);
+      const client = createClient(url, key, { auth: { persistSession: false } });
+      const { data } = await client.rpc('get_public_logistics_tracking' as any, { p_token: token });
+      if (data) {
+        const payload = data as any;
+        setRecord(payload.record);
+        setQuote(payload.quote);
+        setHistory(payload.history || []);
       }
       setLoading(false);
     })();

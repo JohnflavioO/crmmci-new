@@ -2820,7 +2820,15 @@ export type Database = {
           roles: string[]
         }[]
       }
+      get_public_logistics_tracking: {
+        Args: { p_token: string }
+        Returns: Json
+      }
       get_public_quote_token: { Args: never; Returns: string }
+      get_public_technical_tracking: {
+        Args: { p_token: string }
+        Returns: Json
+      }
       get_team_dashboard_recent_quotes: {
         Args: { p_limit?: number; p_owner?: string }
         Returns: {
