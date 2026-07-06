@@ -50,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isSupportManager, setIsSupportManager] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string; avatar_url?: string; force_password_change?: boolean; company_id?: string; can_access_support_manager?: boolean } | null>(null);
   const [forcePasswordChange, setForcePasswordChange] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   // Safety timeout: hard cap on splash — never > 3s.
   useEffect(() => {
