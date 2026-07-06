@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Copy, ExternalLink, Trash2, Plus, ArrowRightCircle, History } from 'lucide-react';
+import { Copy, ExternalLink, Trash2, Plus, ArrowRightCircle, History, FileText, FileSignature, MessageCircle } from 'lucide-react';
 import { STATUS_OPTIONS } from './SupportOrders';
 import { useAuth } from '@/hooks/useAuth';
+import { generateTechnicalQuotePdf, generateEquipmentReceiptPdf } from '@/lib/generateTechnicalPdf';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ClientHistory360 from '@/components/clients/ClientHistory360';
 
@@ -104,7 +105,9 @@ export default function SupportOrderDetail() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('technical_products' as any).select('id,name,price,quantity').order('name');
+      const { data } = await supabase.from('technical_products' as any)
+        .select('id,name,code,price,quantity,brand,category,manufacturer,compatibility,notes')
+        .order('name');
       setProducts((data || []) as any[]);
     })();
   }, []);
@@ -144,8 +147,46 @@ export default function SupportOrderDetail() {
   };
 
   const filteredProducts = productSearch.trim()
-    ? products.filter((p: any) => p.name.toLowerCase().includes(productSearch.toLowerCase())).slice(0, 6)
+    ? (() => {
+        const q = productSearch.toLowerCase().trim();
+        return products
+          .filter((p: any) =>
+            [p.code, p.name, p.brand, p.category, p.manufacturer, p.compatibility, p.notes]
+              .some((f) => String(f || '').toLowerCase().includes(q))
+          )
+          .slice(0, 8);
+      })()
     : [];
+
+  const canExportQuote = ['pronto', 'aguardando_aprovacao'].includes(os?.status);
+
+  const exportQuotePdf = async () => {
+    try {
+      const prodMap = new Map(products.map((p: any) => [p.id, p]));
+      const enrichedParts = parts.map((p: any) => ({
+        ...p,
+        product_code: (prodMap.get(p.product_id) as any)?.code || '',
+      }));
+      await generateTechnicalQuotePdf(os, enrichedParts);
+      toast.success('Orçamento gerado');
+    } catch (e: any) { toast.error(e.message || 'Falha ao gerar PDF'); }
+  };
+
+  const exportReceiptPdf = async () => {
+    try {
+      await generateEquipmentReceiptPdf(os);
+      toast.success('Termo de entrada gerado');
+    } catch (e: any) { toast.error(e.message || 'Falha ao gerar PDF'); }
+  };
+
+  const sendWhatsApp = () => {
+    const phone = String(os?.client_phone || os?.phone || '').replace(/\D/g, '');
+    const text = encodeURIComponent(
+      `Olá ${os.client_name || ''}, acompanhe sua Ordem de Serviço ${os.os_number} pelo link: ${window.location.origin}/rastreamento/os/${os.public_token}`
+    );
+    const base = phone ? `https://wa.me/${phone}` : 'https://wa.me/';
+    window.open(`${base}?text=${text}`, '_blank');
+  };
 
   if (!os) return <p>Carregando...</p>;
 
@@ -167,6 +208,15 @@ export default function SupportOrderDetail() {
           )}
           <Button size="sm" variant="default" disabled={transferring || !crmClientId || !!os.handoff_quote_id} onClick={transferToCommercial}>
             <ArrowRightCircle className="h-3 w-3 mr-1" />{os.handoff_quote_id ? 'Já transferida' : 'Transferir para Comercial'}
+          </Button>
+          <Button size="sm" variant="outline" onClick={exportReceiptPdf}>
+            <FileSignature className="h-3 w-3 mr-1" />Termo de Entrada
+          </Button>
+          <Button size="sm" variant="outline" disabled={!canExportQuote} onClick={exportQuotePdf} title={canExportQuote ? '' : 'Disponível quando a OS estiver Pronta ou aguardando aprovação'}>
+            <FileText className="h-3 w-3 mr-1" />Orçamento PDF
+          </Button>
+          <Button size="sm" variant="outline" onClick={sendWhatsApp}>
+            <MessageCircle className="h-3 w-3 mr-1" />WhatsApp
           </Button>
           <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(trackingUrl); toast.success('Link copiado'); }}>
             <Copy className="h-3 w-3 mr-1" />Link rastreio
@@ -228,22 +278,39 @@ export default function SupportOrderDetail() {
               {selectedProduct ? (
                 <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-muted/40">
                   <div className="text-sm">
-                    <div className="font-medium">{selectedProduct.name}</div>
-                    <div className="text-xs text-muted-foreground">Estoque: {selectedProduct.quantity}</div>
+                    <div className="font-medium">
+                      {selectedProduct.code && <span className="text-muted-foreground mr-1">[{selectedProduct.code}]</span>}
+                      {selectedProduct.name}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {[selectedProduct.brand, selectedProduct.category].filter(Boolean).join(' · ')}
+                      {(selectedProduct.brand || selectedProduct.category) && ' · '}
+                      Estoque: {selectedProduct.quantity}
+                    </div>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => { setSelectedProduct(null); setUnitPrice(0); }}>Trocar</Button>
                 </div>
               ) : (
                 <>
-                  <Input placeholder="Nome da peça..." value={productSearch} onChange={e => setProductSearch(e.target.value)} />
+                  <Input placeholder="Buscar por código, nome, marca ou categoria..." value={productSearch} onChange={e => setProductSearch(e.target.value)} />
                   {filteredProducts.length > 0 && (
-                    <div className="absolute z-20 left-0 right-0 mt-1 bg-popover border rounded-md shadow-md max-h-56 overflow-auto">
+                    <div className="absolute z-20 left-0 right-0 mt-1 bg-popover border rounded-md shadow-md max-h-64 overflow-auto">
                       {filteredProducts.map((p: any) => (
                         <button key={p.id} type="button"
-                          className="w-full text-left px-3 py-2 hover:bg-muted text-sm flex justify-between"
+                          className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-b-0"
                           onClick={() => { setSelectedProduct(p); setProductSearch(''); setUnitPrice(Number(p.price) || 0); }}>
-                          <span>{p.name}</span>
-                          <span className="text-muted-foreground">Estq: {p.quantity}</span>
+                          <div className="flex justify-between gap-2">
+                            <span className="font-medium truncate">
+                              {p.code && <span className="text-muted-foreground mr-1">[{p.code}]</span>}
+                              {p.name}
+                            </span>
+                            <span className="text-muted-foreground whitespace-nowrap">Estq: {p.quantity}</span>
+                          </div>
+                          {(p.brand || p.category) && (
+                            <div className="text-xs text-muted-foreground truncate">
+                              {[p.brand, p.category].filter(Boolean).join(' · ')}
+                            </div>
+                          )}
                         </button>
                       ))}
                     </div>
