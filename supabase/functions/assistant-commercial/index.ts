@@ -79,8 +79,7 @@ const readTools: Record<string, { schema: any; handler: (args: any, ctx: ToolCtx
         items_count: Array.isArray(r.quote_items) ? (r.quote_items[0]?.count ?? 0) : undefined,
       }));
       if (args?.order_by === 'items_count') {
-        rows.sort((a, b) => (b.items_count || 0) - (a.items_count || 0) * (ascending ? -1 : 1));
-        if (ascending) rows.reverse();
+        rows.sort((a, b) => ((b.items_count || 0) - (a.items_count || 0)) * (ascending ? -1 : 1));
         rows = rows.slice(0, limit);
       }
       const columns = wantItems
