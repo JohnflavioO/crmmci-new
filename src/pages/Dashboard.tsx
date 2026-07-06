@@ -485,6 +485,7 @@ export default function Dashboard() {
         <div className="mb-4 md:mb-6">
           <FollowUpAlerts />
         </div>
+        <QuoteQuickViewModal quoteId={quickViewId} open={!!quickViewId} onOpenChange={(v) => !v && setQuickViewId(null)} />
       </AppLayout>
     );
   }
