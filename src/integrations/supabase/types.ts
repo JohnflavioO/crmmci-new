@@ -2806,6 +2806,20 @@ export type Database = {
       delete_quote_cascade: { Args: { p_quote_id: string }; Returns: undefined }
       generate_quote_number: { Args: never; Returns: string }
       generate_technical_os_number: { Args: never; Returns: string }
+      get_current_user_access: {
+        Args: never
+        Returns: {
+          approval_status: string
+          avatar_url: string
+          can_access_support_manager: boolean
+          company_id: string
+          force_password_change: boolean
+          full_name: string
+          phone: string
+          role: string
+          roles: string[]
+        }[]
+      }
       get_public_quote_token: { Args: never; Returns: string }
       get_team_dashboard_recent_quotes: {
         Args: { p_limit?: number; p_owner?: string }
