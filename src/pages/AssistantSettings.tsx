@@ -101,7 +101,7 @@ export default function AssistantSettings() {
         const tokens = data.reduce((a: number, r: any) => a + (r.tokens_total || 0), 0);
         const times = data.map((r: any) => r.execution_time_ms).filter(Boolean);
         const avg = times.length ? Math.round(times.reduce((a: number, b: number) => a + b, 0) / times.length) : 0;
-        const err = data.find((r: any) => r.execution_status === 'error')?.error_message || null;
+        const err = (data as any[]).find((r: any) => r.execution_status === 'error')?.error_message || null;
         setDiag({ tokens, avgMs: avg, lastError: err, keyConfigured: true });
       } catch { /* silent */ }
     })();
