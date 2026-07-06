@@ -264,7 +264,11 @@ export default function AssistenteComercial() {
         body: {
           message: text,
           conversation_id: activeId,
-          context: { module: location.pathname },
+          context: {
+            route: location.pathname,
+            module: location.pathname.split('/')[1] || 'assistente',
+            role: profile?.role,
+          },
         },
       });
       if (error) throw error;
