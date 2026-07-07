@@ -62,6 +62,7 @@ const AssistenteComercial = lazy(() => import("./pages/AssistenteComercial"));
 const AssistantAudit = lazy(() => import("./pages/AssistantAudit"));
 const AssistantSettings = lazy(() => import("./pages/AssistantSettings"));
 const LogisticsSyncDiagnostic = lazy(() => import("./pages/LogisticsSyncDiagnostic"));
+const ProductMapping = lazy(() => import("./pages/ProductMapping"));
 
 
 const queryClient = new QueryClient({
@@ -231,6 +232,7 @@ function AppRoutes() {
             {(isAdmin || isGestor) && <Route path="/approvals" element={<SafeRoute><Approvals /></SafeRoute>} />}
             {isAdmin && <Route path="/integrations" element={<SafeRoute><Integrations /></SafeRoute>} />}
             {(isAdmin || isGestor) && <Route path="/diagnostico/logistica" element={<SafeRoute><LogisticsSyncDiagnostic /></SafeRoute>} />}
+            {(isAdmin || isGestor) && <Route path="/mapeamento-produtos" element={<SafeRoute><ProductMapping /></SafeRoute>} />}
           </>
         )}
 

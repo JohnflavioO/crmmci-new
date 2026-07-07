@@ -1212,11 +1212,13 @@ export type Database = {
           loja_integrada_id: string | null
           loja_integrada_sync_source: string | null
           name: string
+          needs_manual_link: boolean
           origem_cep: string | null
           peso_cubado: number | null
           peso_kg: number | null
           price: number | null
           sku: string | null
+          sync_candidates: Json | null
           updated_at: string
           volume_m3: number | null
         }
@@ -1240,11 +1242,13 @@ export type Database = {
           loja_integrada_id?: string | null
           loja_integrada_sync_source?: string | null
           name: string
+          needs_manual_link?: boolean
           origem_cep?: string | null
           peso_cubado?: number | null
           peso_kg?: number | null
           price?: number | null
           sku?: string | null
+          sync_candidates?: Json | null
           updated_at?: string
           volume_m3?: number | null
         }
@@ -1268,11 +1272,13 @@ export type Database = {
           loja_integrada_id?: string | null
           loja_integrada_sync_source?: string | null
           name?: string
+          needs_manual_link?: boolean
           origem_cep?: string | null
           peso_cubado?: number | null
           peso_kg?: number | null
           price?: number | null
           sku?: string | null
+          sync_candidates?: Json | null
           updated_at?: string
           volume_m3?: number | null
         }

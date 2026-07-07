@@ -800,43 +800,135 @@ async function liGET(path: string, apiKey: string, applicationKey: string) {
   try { return await r.json(); } catch { return null; }
 }
 
-async function findLojaIntegradaProduct(
-  apiKey: string, appKey: string,
-  ref: { sku?: string | null; code?: string | null; external_id?: string | null; name?: string | null }
-): Promise<{ raw: any; matched_by: string } | null> {
-  // 1. external id
-  if (ref.external_id) {
-    const detail = await liGET(`/produto/${encodeURIComponent(ref.external_id)}`, apiKey, appKey);
-    if (detail?.id) return { raw: detail, matched_by: 'external_id' };
-  }
-  // 2. SKU
-  if (ref.sku) {
-    const list = await liGET(`/produto?sku=${encodeURIComponent(ref.sku)}&limit=1`, apiKey, appKey);
-    const item = list?.objects?.[0] || list?.[0];
-    if (item?.id) {
-      const detail = await liGET(`/produto/${item.id}`, apiKey, appKey) || item;
-      return { raw: detail, matched_by: 'sku' };
+// ---- Normalization + similarity helpers ----
+function normalizeName(s: string | null | undefined): string {
+  if (!s) return '';
+  return s
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+    .toLowerCase()
+    .replace(/[\-\/\\_\.,;:()\[\]{}!?"'`]/g, ' ')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Dice bigram similarity (0..1), robust for product names
+function similarity(a: string, b: string): number {
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  if (a.length < 2 || b.length < 2) return 0;
+  const bigrams = (s: string) => {
+    const m = new Map<string, number>();
+    for (let i = 0; i < s.length - 1; i++) {
+      const bg = s.slice(i, i + 2);
+      m.set(bg, (m.get(bg) || 0) + 1);
     }
+    return m;
+  };
+  const ba = bigrams(a), bb = bigrams(b);
+  let hits = 0;
+  for (const [k, v] of ba) {
+    const w = bb.get(k);
+    if (w) hits += Math.min(v, w);
   }
-  // 3. Code — many LI stores put internal code in SKU too, try again as SKU
-  if (ref.code && ref.code !== ref.sku) {
-    const list = await liGET(`/produto?sku=${encodeURIComponent(ref.code)}&limit=1`, apiKey, appKey);
-    const item = list?.objects?.[0] || list?.[0];
-    if (item?.id) {
-      const detail = await liGET(`/produto/${item.id}`, apiKey, appKey) || item;
-      return { raw: detail, matched_by: 'code' };
-    }
+  return (2 * hits) / (a.length - 1 + b.length - 1);
+}
+
+// Fetch ALL products from Loja Integrada (paginated). Cached per-invocation.
+async function fetchAllLIProducts(apiKey: string, appKey: string, log?: (m: string) => void) {
+  const all: any[] = [];
+  const limit = 100;
+  let offset = 0;
+  for (let page = 0; page < 200; page++) { // cap 20k
+    const list = await liGET(`/produto?limit=${limit}&offset=${offset}`, apiKey, appKey);
+    const items = list?.objects || [];
+    if (!items.length) break;
+    all.push(...items);
+    if (log) log(`Loja Integrada: página ${page + 1} carregada (${items.length}). Acumulado: ${all.length}.`);
+    if (items.length < limit) break;
+    offset += limit;
   }
-  // 4. Name fallback
-  if (ref.name && ref.name.length > 3) {
-    const list = await liGET(`/produto?nome=${encodeURIComponent(ref.name)}&limit=1`, apiKey, appKey);
-    const item = list?.objects?.[0] || list?.[0];
-    if (item?.id) {
-      const detail = await liGET(`/produto/${item.id}`, apiKey, appKey) || item;
-      return { raw: detail, matched_by: 'name' };
-    }
+  return all;
+}
+
+async function enrichLIDetail(apiKey: string, appKey: string, item: any): Promise<any> {
+  // If item already has weight/dims fields, keep it; otherwise fetch detail.
+  const hasDims = item?.peso || item?.altura || item?.largura || item?.profundidade;
+  if (hasDims) return item;
+  const detail = await liGET(`/produto/${item.id}`, apiKey, appKey);
+  return detail || item;
+}
+
+type LIRef = {
+  id: string;
+  sku: string | null;
+  code: string | null;      // some stores put internal code in "codigo" or "referencia"
+  reference: string | null; // manufacturer ref
+  name: string | null;
+  normName: string;
+};
+
+function indexLI(products: any[]): LIRef[] {
+  return products.map(p => {
+    const name = p.nome || p.name || '';
+    return {
+      id: String(p.id),
+      sku: p.sku ? String(p.sku).trim() : null,
+      code: p.codigo ? String(p.codigo).trim() : null,
+      reference: p.referencia ? String(p.referencia).trim() : null,
+      name,
+      normName: normalizeName(name),
+    };
+  });
+}
+
+function matchCRMProduct(
+  crm: { id: string; name: string; sku: string | null; code: string | null; brand: string | null; loja_integrada_id: string | null },
+  liIndex: LIRef[]
+): { matched: LIRef | null; matched_by: string | null; candidates: LIRef[] } {
+  // 1. loja_integrada_id already saved
+  if (crm.loja_integrada_id) {
+    const hit = liIndex.find(x => x.id === String(crm.loja_integrada_id));
+    if (hit) return { matched: hit, matched_by: 'loja_integrada_id', candidates: [] };
   }
-  return null;
+  // 2. Internal code -> LI code / sku
+  if (crm.code) {
+    const c = crm.code.trim();
+    const hits = liIndex.filter(x => (x.code && x.code === c) || (x.sku && x.sku === c));
+    if (hits.length === 1) return { matched: hits[0], matched_by: 'code', candidates: [] };
+    if (hits.length > 1) return { matched: null, matched_by: null, candidates: hits.slice(0, 5) };
+  }
+  // 3. Reference / manufacturer (we use brand as fallback signal, LI referencia)
+  if (crm.brand) {
+    const b = crm.brand.trim();
+    const hits = liIndex.filter(x => x.reference && x.reference.toLowerCase() === b.toLowerCase());
+    if (hits.length === 1) return { matched: hits[0], matched_by: 'reference', candidates: [] };
+  }
+  // 4. SKU
+  if (crm.sku) {
+    const s = crm.sku.trim();
+    const hits = liIndex.filter(x => (x.sku && x.sku === s) || (x.code && x.code === s));
+    if (hits.length === 1) return { matched: hits[0], matched_by: 'sku', candidates: [] };
+    if (hits.length > 1) return { matched: null, matched_by: null, candidates: hits.slice(0, 5) };
+  }
+  // 5. Normalized name similarity ≥ 0.95
+  const target = normalizeName(crm.name);
+  if (target.length >= 4) {
+    const scored = liIndex
+      .map(x => ({ x, s: similarity(target, x.normName) }))
+      .filter(o => o.s >= 0.95)
+      .sort((a, b) => b.s - a.s);
+    if (scored.length === 1) return { matched: scored[0].x, matched_by: 'name_exact', candidates: [] };
+    if (scored.length > 1) return { matched: null, matched_by: null, candidates: scored.slice(0, 5).map(o => o.x) };
+    // fallback: near matches for manual review (>=0.75)
+    const near = liIndex
+      .map(x => ({ x, s: similarity(target, x.normName) }))
+      .filter(o => o.s >= 0.75)
+      .sort((a, b) => b.s - a.s)
+      .slice(0, 5);
+    if (near.length) return { matched: null, matched_by: null, candidates: near.map(o => o.x) };
+  }
+  return { matched: null, matched_by: null, candidates: [] };
 }
 
 async function syncProductsDimensions(
@@ -847,36 +939,61 @@ async function syncProductsDimensions(
 ) {
   let q = serviceClient
     .from('products')
-    .select('id, name, sku, code, loja_integrada_id, bloquear_atualizacao_logistica')
+    .select('id, name, sku, code, brand, loja_integrada_id, bloquear_atualizacao_logistica')
     .eq('bloquear_atualizacao_logistica', false);
 
   if (opts.product_ids && opts.product_ids.length > 0) {
     q = q.in('id', opts.product_ids);
-  } else if (opts.all) {
-    // no filter
-  } else {
+  } else if (!opts.all) {
     return { ok: false, error: 'Informe product_ids ou all=true' };
   }
 
-  const { data: products, error } = await q.limit(500);
+  const { data: products, error } = await q.limit(2000);
   if (error) return { ok: false, error: error.message };
 
-  let updated = 0, notFound = 0, skipped = 0, errors = 0;
-  const not_found_details: { id: string; name: string; sku: string | null }[] = [];
+  console.log(`[loja-integrada] sync_product_dimensions: ${products?.length || 0} produtos alvo`);
+
+  // Load full LI catalog once
+  const liRaw = await fetchAllLIProducts(apiKey, applicationKey);
+  const liIndex = indexLI(liRaw);
+  console.log(`[loja-integrada] LI catalog loaded: ${liIndex.length} produtos`);
+
+  let updated = 0, notFound = 0, skipped = 0, errors = 0, needsReview = 0;
+  const not_found_details: any[] = [];
+  const needs_review_details: any[] = [];
 
   for (const p of (products || [])) {
     try {
-      const found = await findLojaIntegradaProduct(apiKey, applicationKey, {
-        sku: p.sku, code: p.code, external_id: p.loja_integrada_id, name: p.name,
-      });
-      if (!found) {
-        notFound++;
-        not_found_details.push({ id: p.id, name: p.name, sku: p.sku });
+      const { matched, matched_by, candidates } = matchCRMProduct(p, liIndex);
+      if (!matched) {
+        if (candidates.length > 1) {
+          needsReview++;
+          needs_review_details.push({ id: p.id, name: p.name, sku: p.sku, code: p.code, candidates });
+          await serviceClient.from('products').update({
+            needs_manual_link: true,
+            sync_candidates: candidates.map(c => ({ id: c.id, sku: c.sku, code: c.code, reference: c.reference, name: c.name })),
+          }).eq('id', p.id);
+        } else {
+          notFound++;
+          not_found_details.push({ id: p.id, name: p.name, sku: p.sku, code: p.code });
+          await serviceClient.from('products').update({
+            needs_manual_link: false,
+            sync_candidates: null,
+          }).eq('id', p.id);
+        }
         continue;
       }
-      const dims = extractDims(found.raw);
+      // Enrich with detail (dims) if needed
+      const raw = await enrichLIDetail(apiKey, applicationKey, liRaw.find(r => String(r.id) === matched.id));
+      const dims = extractDims(raw);
       if (!dims) {
         skipped++;
+        await serviceClient.from('products').update({
+          loja_integrada_id: matched.id,
+          loja_integrada_sync_source: matched_by,
+          needs_manual_link: false,
+          sync_candidates: null,
+        }).eq('id', p.id);
         continue;
       }
       const updatePayload: any = {
@@ -886,11 +1003,12 @@ async function syncProductsDimensions(
         comprimento_cm: dims.comprimento_cm,
         volume_m3: dims.volume_m3,
         peso_cubado: dims.peso_cubado,
-        loja_integrada_id: dims.external_id || p.loja_integrada_id,
-        loja_integrada_sync_source: found.matched_by,
+        loja_integrada_id: matched.id,
+        loja_integrada_sync_source: matched_by,
         logistica_atualizada_em: new Date().toISOString(),
+        needs_manual_link: false,
+        sync_candidates: null,
       };
-      // Remove nulls so we don't overwrite existing data with nothing
       for (const k of Object.keys(updatePayload)) {
         if (updatePayload[k] === null || updatePayload[k] === undefined) delete updatePayload[k];
       }
@@ -907,21 +1025,78 @@ async function syncProductsDimensions(
     ok: true,
     updated,
     not_found: notFound,
+    needs_review: needsReview,
     skipped,
     errors,
     total: products?.length || 0,
+    li_catalog_size: liIndex.length,
     not_found_details: not_found_details.slice(0, 20),
+    needs_review_details: needs_review_details.slice(0, 20),
   };
 }
 
+// Search LI catalog for manual mapping page
+async function searchLIProducts(apiKey: string, appKey: string, term: string, limit = 20) {
+  const all = await fetchAllLIProducts(apiKey, appKey);
+  const idx = indexLI(all);
+  const t = normalizeName(term);
+  const scored = idx
+    .map(x => {
+      let score = 0;
+      if (x.sku && x.sku.toLowerCase().includes(term.toLowerCase())) score += 0.6;
+      if (x.code && x.code.toLowerCase().includes(term.toLowerCase())) score += 0.6;
+      if (x.reference && x.reference.toLowerCase().includes(term.toLowerCase())) score += 0.4;
+      score += similarity(t, x.normName);
+      return { x, score };
+    })
+    .filter(o => o.score >= 0.35)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+  return scored.map(o => ({ ...o.x, score: Number(o.score.toFixed(2)) }));
+}
+
+async function linkProductManually(
+  serviceClient: any, apiKey: string, appKey: string,
+  productId: string, liId: string
+) {
+  const detail = await liGET(`/produto/${liId}`, apiKey, appKey);
+  if (!detail?.id) return { ok: false, error: 'Produto não encontrado na Loja Integrada' };
+  const dims = extractDims(detail);
+  const payload: any = {
+    loja_integrada_id: String(detail.id),
+    loja_integrada_sync_source: 'manual',
+    needs_manual_link: false,
+    sync_candidates: null,
+  };
+  if (dims) {
+    Object.assign(payload, {
+      peso_kg: dims.peso_kg,
+      altura_cm: dims.altura_cm,
+      largura_cm: dims.largura_cm,
+      comprimento_cm: dims.comprimento_cm,
+      volume_m3: dims.volume_m3,
+      peso_cubado: dims.peso_cubado,
+      logistica_atualizada_em: new Date().toISOString(),
+    });
+    for (const k of Object.keys(payload)) if (payload[k] === null || payload[k] === undefined) delete payload[k];
+  }
+  const { error } = await serviceClient.from('products').update(payload).eq('id', productId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, dims_synced: !!dims, li_product: { id: String(detail.id), name: detail.nome } };
+}
+
+
 const ActionSchema = z.object({
-  action: z.enum(['test', 'save', 'sync', 'status', 'import', 'auto_sync', 'sync_product_dimensions']),
+  action: z.enum(['test', 'save', 'sync', 'status', 'import', 'auto_sync', 'sync_product_dimensions', 'search_li_products', 'link_product']),
   api_key: z.string().optional(),
   application_key: z.string().optional(),
   page: z.number().optional(),
   full: z.boolean().optional(),
   product_ids: z.array(z.string()).optional(),
   all_products: z.boolean().optional(),
+  search_term: z.string().optional(),
+  product_id: z.string().optional(),
+  li_id: z.string().optional(),
 });
 
 Deno.serve(async (req) => {
@@ -936,7 +1111,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: false, error: 'Requisição inválida', details: parsed.error.flatten().fieldErrors }, 400);
     }
 
-    const { action, api_key, application_key, page, full, product_ids, all_products } = parsed.data;
+    const { action, api_key, application_key, page, full, product_ids, all_products, search_term, product_id, li_id } = parsed.data;
 
     // === AUTO_SYNC (called by cron, uses service role key from Authorization header) ===
     if (action === 'auto_sync') {
@@ -987,6 +1162,37 @@ Deno.serve(async (req) => {
         product_ids, all: all_products,
       });
       return jsonResponse(result);
+    }
+
+    // Search & manual link require authenticated user
+    if (action === 'search_li_products' || action === 'link_product') {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader?.startsWith('Bearer ')) return jsonResponse({ ok: false, error: 'Unauthorized' }, 401);
+      const userClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: { user } } = await userClient.auth.getUser();
+      if (!user) return jsonResponse({ ok: false, error: 'Unauthorized' }, 401);
+
+      const serviceClient = getServiceClient();
+      const creds = await fetchStoredCredentials(serviceClient);
+      if (!creds) return jsonResponse({ ok: false, error: 'Integração Loja Integrada não configurada.' });
+
+      if (action === 'search_li_products') {
+        if (!search_term || search_term.trim().length < 2) {
+          return jsonResponse({ ok: false, error: 'Informe um termo com pelo menos 2 caracteres.' });
+        }
+        const results = await searchLIProducts(creds.apiKey, creds.applicationKey, search_term.trim(), 25);
+        return jsonResponse({ ok: true, results });
+      }
+
+      if (action === 'link_product') {
+        if (!product_id || !li_id) return jsonResponse({ ok: false, error: 'product_id e li_id são obrigatórios.' });
+        const result = await linkProductManually(serviceClient, creds.apiKey, creds.applicationKey, product_id, li_id);
+        return jsonResponse(result);
+      }
     }
 
     // All other actions require authenticated admin
