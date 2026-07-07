@@ -1470,6 +1470,40 @@ Deno.serve(async (req) => {
       return jsonResponse(result);
     }
 
+    // Audit missing dimensions — authenticated user
+    if (action === 'audit_missing_dimensions' || action === 'reprocess_missing_only') {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader?.startsWith('Bearer ')) return jsonResponse({ ok: false, error: 'Unauthorized' }, 401);
+      const userClient = createClient(
+        Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: { user } } = await userClient.auth.getUser();
+      if (!user) return jsonResponse({ ok: false, error: 'Unauthorized' }, 401);
+      const serviceClient = getServiceClient();
+      const creds = await fetchStoredCredentials(serviceClient);
+      if (!creds) return jsonResponse({ ok: false, error: 'Integração Loja Integrada não configurada.' });
+
+      if (action === 'audit_missing_dimensions') {
+        const result = await auditMissingDimensions(serviceClient, creds.apiKey, creds.applicationKey, 800);
+        return jsonResponse(result);
+      }
+      // reprocess_missing_only — pega produtos sem peso ou sem alguma dimensão e chama sync
+      const { data: pend } = await serviceClient
+        .from('products')
+        .select('id')
+        .or('peso_kg.is.null,peso_kg.eq.0,altura_cm.is.null,altura_cm.eq.0,largura_cm.is.null,largura_cm.eq.0,comprimento_cm.is.null,comprimento_cm.eq.0')
+        .not('bloquear_atualizacao_logistica', 'is', true)
+        .limit(2000);
+      const ids = (pend || []).map((r: any) => r.id);
+      if (ids.length === 0) return jsonResponse({ ok: true, total: 0, message: 'Nenhum produto pendente.' });
+      const result = await syncProductsDimensions(serviceClient, creds.apiKey, creds.applicationKey, {
+        product_ids: ids, triggered_by: user.id, triggered_by_name: user.email || null,
+      });
+      return jsonResponse({ ...result, reprocessed: true });
+    }
+
+
     // Search & manual link require authenticated user
     if (action === 'search_li_products' || action === 'link_product' || action === 'unlink_product') {
       const authHeader = req.headers.get('Authorization');
