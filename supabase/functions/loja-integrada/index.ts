@@ -1139,7 +1139,7 @@ async function syncProductsDimensions(
         volume_m3: dims.volume_m3,
         peso_cubado: dims.peso_cubado,
         loja_integrada_id: matched.id,
-        loja_integrada_sync_source: matched_by,
+        loja_integrada_sync_source: 'loja_integrada',
         logistica_atualizada_em: new Date().toISOString(),
         needs_manual_link: false,
         sync_candidates: null,
