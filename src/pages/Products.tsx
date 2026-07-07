@@ -211,6 +211,7 @@ export default function Products() {
         volume_m3: toNum(form.volume_m3),
         origem_cep: (form.origem_cep || '').replace(/\D/g, '').slice(0, 8) || null,
         embalagem_tipo: form.embalagem_tipo || null,
+        bloquear_atualizacao_logistica: !!form.bloquear_atualizacao_logistica,
       };
       if (editing) {
         const { error } = await db.from('products').update(payload).eq('id', editing.id);
