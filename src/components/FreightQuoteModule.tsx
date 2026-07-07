@@ -30,6 +30,7 @@ export default function FreightQuoteModule({
   className = '',
   freightData,
   quoteNumber,
+  onCepOrigemChange,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
