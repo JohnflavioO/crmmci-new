@@ -14,7 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift, Store, CalendarIcon, SplitSquareVertical, ShoppingBag } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift, Store, CalendarIcon, SplitSquareVertical, ShoppingBag, Truck } from 'lucide-react';
+import FreightQuoteDrawer from '@/components/FreightQuoteDrawer';
 import { MessageSquare, MoreHorizontal } from 'lucide-react';
 import QuoteChat from '@/components/QuoteChat';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -1204,6 +1205,14 @@ export default function Quotes() {
           <h1 className="text-xl md:text-2xl font-bold font-display">Orçamentos</h1>
           <p className="text-muted-foreground text-sm">Crie e gerencie seus orçamentos</p>
         </div>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            className="gap-2 w-full sm:w-auto min-h-[44px]"
+            onClick={() => setFreightDrawerOpen(true)}
+          >
+            <Truck className="h-4 w-4" /> Calcular Frete
+          </Button>
         <Dialog open={dialogOpen} onOpenChange={(o) => {
           if (o && !editingQuote) {
             setForm(prev => ({ ...prev, salesperson: prev.salesperson || getDefaultSalesperson() }));
