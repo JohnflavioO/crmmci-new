@@ -108,3 +108,82 @@
     background: hsl(var(--muted-foreground));
   }
 }
+
+@layer utilities {
+  /* Premium animated border for the Stock Lookup input (MCI green + blue) */
+  @property --mci-border-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+
+  .mci-animated-border {
+    position: relative;
+    border-radius: calc(var(--radius) + 1px);
+    padding: 1px;
+    isolation: isolate;
+    transition: padding 220ms ease, filter 300ms ease;
+  }
+
+  .mci-animated-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(
+      from var(--mci-border-angle),
+      hsl(var(--border) / 0.6) 0deg,
+      hsl(160 55% 42% / 0.55) 90deg,
+      hsl(var(--border) / 0.6) 180deg,
+      hsl(220 65% 48% / 0.55) 270deg,
+      hsl(var(--border) / 0.6) 360deg
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0.85;
+    animation: mci-border-spin 7s linear infinite;
+    transition: opacity 300ms ease, animation-duration 300ms ease;
+  }
+
+  .mci-animated-border:hover::before {
+    opacity: 1;
+    animation-duration: 4.5s;
+  }
+
+  .mci-animated-border:focus-within {
+    padding: 1.5px;
+  }
+
+  .mci-animated-border:focus-within::before {
+    opacity: 1;
+    background: conic-gradient(
+      from var(--mci-border-angle),
+      hsl(160 55% 42% / 0.35) 0deg,
+      hsl(160 55% 42% / 0.85) 90deg,
+      hsl(220 65% 48% / 0.35) 180deg,
+      hsl(220 65% 48% / 0.85) 270deg,
+      hsl(160 55% 42% / 0.35) 360deg
+    );
+    animation-duration: 5s;
+  }
+
+  .mci-animated-border > * {
+    border-color: transparent !important;
+    background: #fff;
+    border-radius: var(--radius);
+  }
+
+  @keyframes mci-border-spin {
+    to { --mci-border-angle: 360deg; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mci-animated-border::before { animation: none; }
+  }
+}
+
