@@ -22,7 +22,7 @@ const fmt = (n: number, dig = 2) =>
   n.toLocaleString('pt-BR', { minimumFractionDigits: dig, maximumFractionDigits: dig });
 const fmtCep = (c: string) => (c ? c.replace(/^(\d{5})(\d{3})$/, '$1-$2') : '—');
 
-export default function FreightSummaryCard({ data, quoteNumber }: Props) {
+export default function FreightSummaryCard({ data, quoteNumber, onCepOrigemChange }: Props) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const copy = async (key: string, text: string, label: string) => {
