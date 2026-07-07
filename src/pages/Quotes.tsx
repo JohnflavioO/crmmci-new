@@ -362,6 +362,7 @@ export default function Quotes() {
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [sellerProfiles, setSellerProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [freightDrawerOpen, setFreightDrawerOpen] = useState(false);
   const [saving, setSavingFlag] = useState(false);
   const [editingQuote, setEditingQuote] = useState<any | null>(null);
   const [form, setForm] = useState({ ...defaultForm });
@@ -2054,7 +2055,9 @@ export default function Quotes() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+      <FreightQuoteDrawer open={freightDrawerOpen} onOpenChange={setFreightDrawerOpen} />
 
       <Card className="shadow-card">
         <CardHeader className="pb-3">
