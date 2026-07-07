@@ -489,6 +489,19 @@ export default function Products() {
           <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={runDiagnostic}>
             <Activity className="h-4 w-4" /> Verificar Indexação
           </Button>
+          <Button
+            variant={noLogisticFilter ? 'default' : 'outline'}
+            className="gap-2 min-h-[44px] text-sm"
+            onClick={() => { setPage(0); setNoLogisticFilter(v => !v); }}
+          >
+            <Truck className="h-4 w-4" /> Sem dados logísticos
+          </Button>
+          {(isAdmin || isGestor) && (
+            <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleBulkSyncLI} disabled={bulkSyncingLI}>
+              {bulkSyncingLI ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Atualizar pesos e dimensões da Loja Integrada
+            </Button>
+          )}
           {(isAdmin || isGestor) && (
             <>
             <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleFetchImages} disabled={fetchingImages}>
