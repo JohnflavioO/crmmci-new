@@ -628,6 +628,36 @@ export default function Products() {
                   <p className="text-[11px] text-muted-foreground">
                     Se peso cubado / volume ficarem em branco, o CRM calcula automaticamente a partir das dimensões (fator 300 kg/m³).
                   </p>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                      <Checkbox
+                        checked={form.bloquear_atualizacao_logistica}
+                        onCheckedChange={(v) => setForm(p => ({ ...p, bloquear_atualizacao_logistica: !!v }))}
+                      />
+                      <Lock className="h-3 w-3" />
+                      Bloquear atualização automática (proteger dados manuais)
+                    </label>
+                    {editing && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        onClick={() => handleSyncSingleLI(editing.id)}
+                        disabled={syncingLI || form.bloquear_atualizacao_logistica}
+                      >
+                        {syncingLI ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        Sincronizar dados da Loja Integrada
+                      </Button>
+                    )}
+                  </div>
+                  {editing?.logistica_atualizada_em && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Última sincronização: {new Date(editing.logistica_atualizada_em).toLocaleString('pt-BR')}
+                      {editing.loja_integrada_sync_source && ` · casado por ${editing.loja_integrada_sync_source}`}
+                    </p>
+                  )}
                 </div>
 
 
