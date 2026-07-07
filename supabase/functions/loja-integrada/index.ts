@@ -1304,7 +1304,7 @@ Deno.serve(async (req) => {
     }
 
     // Search & manual link require authenticated user
-    if (action === 'search_li_products' || action === 'link_product') {
+    if (action === 'search_li_products' || action === 'link_product' || action === 'unlink_product') {
       const authHeader = req.headers.get('Authorization');
       if (!authHeader?.startsWith('Bearer ')) return jsonResponse({ ok: false, error: 'Unauthorized' }, 401);
       const userClient = createClient(
@@ -1317,19 +1317,25 @@ Deno.serve(async (req) => {
 
       const serviceClient = getServiceClient();
       const creds = await fetchStoredCredentials(serviceClient);
-      if (!creds) return jsonResponse({ ok: false, error: 'Integração Loja Integrada não configurada.' });
+      if (!creds && action !== 'unlink_product') return jsonResponse({ ok: false, error: 'Integração Loja Integrada não configurada.' });
 
       if (action === 'search_li_products') {
         if (!search_term || search_term.trim().length < 2) {
           return jsonResponse({ ok: false, error: 'Informe um termo com pelo menos 2 caracteres.' });
         }
-        const results = await searchLIProducts(creds.apiKey, creds.applicationKey, search_term.trim(), 25);
+        const results = await searchLIProducts(creds!.apiKey, creds!.applicationKey, search_term.trim(), 25);
         return jsonResponse({ ok: true, results });
       }
 
       if (action === 'link_product') {
         if (!product_id || !li_id) return jsonResponse({ ok: false, error: 'product_id e li_id são obrigatórios.' });
-        const result = await linkProductManually(serviceClient, creds.apiKey, creds.applicationKey, product_id, li_id);
+        const result = await linkProductManually(serviceClient, creds!.apiKey, creds!.applicationKey, product_id, li_id, user.id);
+        return jsonResponse(result);
+      }
+
+      if (action === 'unlink_product') {
+        if (!product_id) return jsonResponse({ ok: false, error: 'product_id é obrigatório.' });
+        const result = await unlinkProduct(serviceClient, product_id, user.id);
         return jsonResponse(result);
       }
     }
