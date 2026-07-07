@@ -444,6 +444,7 @@ export default function Dashboard() {
             <Button onClick={() => navigate('/quotes')} className="gap-2 min-h-[44px] flex-1 sm:flex-initial">
               <Plus className="h-4 w-4" /> Criar Proposta
             </Button>
+            <StockLookup />
           </div>
         </div>
         {renderStatsBlock(myStats, myClientsCount)}
