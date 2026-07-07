@@ -123,17 +123,34 @@ export default function LogisticsSyncDiagnostic() {
   };
 
   const runSmartSync = async () => {
-    setSmartRunning(true); setSmartReport(null);
+    setSmartRunning(true); setSmartReport(null); setLogs([]); setProgress(0); setProcessed(0);
     toast.info('Iniciando Sincronização Inteligente…');
     try {
-      const { data, error } = await supabase.functions.invoke('loja-integrada', {
-        body: { action: 'sync_product_dimensions', all_products: true },
-      });
-      if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error || 'Falha na sincronização inteligente');
-      setSmartReport(data as SmartReport);
-      const pct = data.total ? Math.round((data.linked / data.total) * 100) : 0;
-      toast.success(`Sincronização Inteligente concluída: ${data.linked}/${data.total} vinculados (${pct}%).`);
+      const targets = products.filter(p => !p.bloquear_atualizacao_logistica);
+      const CHUNK = 100;
+      const agg = { total: 0, linked: 0, updated: 0, needs_review: 0, not_found: 0, errors: 0, li_catalog_size: 0 };
+      pushLog('info', `Processando ${targets.length} produtos em lotes de ${CHUNK}…`);
+      for (let i = 0; i < targets.length; i += CHUNK) {
+        const slice = targets.slice(i, i + CHUNK).map(p => p.id);
+        const { data, error } = await supabase.functions.invoke('loja-integrada', {
+          body: { action: 'sync_product_dimensions', product_ids: slice },
+        });
+        if (error) throw error;
+        if (!data?.ok) throw new Error(data?.error || 'Falha na sincronização inteligente');
+        agg.total += data.total || 0;
+        agg.linked += data.linked || 0;
+        agg.updated += data.updated || 0;
+        agg.needs_review += data.needs_review || 0;
+        agg.not_found += data.not_found || 0;
+        agg.errors += data.errors || 0;
+        agg.li_catalog_size = data.li_catalog_size || agg.li_catalog_size;
+        setProcessed(Math.min(i + CHUNK, targets.length));
+        setProgress(Math.round(Math.min(i + CHUNK, targets.length) / Math.max(targets.length, 1) * 100));
+        pushLog('ok', `Lote ${Math.floor(i / CHUNK) + 1}: vinculados ${data.linked}, dims ${data.updated}, revisar ${data.needs_review}, sem match ${data.not_found}`);
+      }
+      setSmartReport(agg as SmartReport);
+      const pct = agg.total ? Math.round((agg.linked / agg.total) * 100) : 0;
+      toast.success(`Sincronização Inteligente concluída: ${agg.linked}/${agg.total} vinculados (${pct}%).`);
       await load();
     } catch (e: any) {
       toast.error('Falha: ' + e.message);
@@ -141,6 +158,7 @@ export default function LogisticsSyncDiagnostic() {
       setSmartRunning(false);
     }
   };
+
 
   const StatCard = ({ label, value, tone, icon: Icon }: any) => (
     <Card>
