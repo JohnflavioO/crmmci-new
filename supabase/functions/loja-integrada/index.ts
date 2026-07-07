@@ -1049,6 +1049,87 @@ async function markLinkStatus(serviceClient: any, product_id: string, sync_statu
   }
 }
 
+// ============ Auditoria detalhada de pendências ============
+async function auditMissingDimensions(
+  serviceClient: any,
+  apiKey: string,
+  applicationKey: string,
+  limit = 500,
+) {
+  // Produtos que estão sem peso OU sem uma das dimensões
+  const { data: prods, error } = await serviceClient
+    .from('products')
+    .select('id, name, sku, code, peso_kg, altura_cm, largura_cm, comprimento_cm, bloquear_atualizacao_logistica')
+    .or('peso_kg.is.null,peso_kg.eq.0,altura_cm.is.null,altura_cm.eq.0,largura_cm.is.null,largura_cm.eq.0,comprimento_cm.is.null,comprimento_cm.eq.0')
+    .limit(limit);
+  if (error) return { ok: false, error: error.message };
+
+  const ids = (prods || []).map((p: any) => p.id);
+  const { data: links } = await serviceClient
+    .from('product_external_links')
+    .select('product_id, external_product_id, external_sku, external_name, sync_status')
+    .eq('provider', PROVIDER)
+    .in('product_id', ids);
+  const linkByProduct = new Map<string, any>();
+  for (const l of (links || [])) linkByProduct.set(l.product_id, l);
+
+  const rows: any[] = [];
+  const CONCURRENCY = 6;
+  const queue = [...(prods || [])];
+
+  async function processOne(p: any) {
+    const link = linkByProduct.get(p.id);
+    const row: any = {
+      product_id: p.id, product_name: p.name, crm_code: p.code, crm_sku: p.sku,
+      li_id: null, li_sku: null, li_name: null, variacao_id: null,
+      peso: null, altura: null, largura: null, profundidade: null,
+      fonte: null, motivo: null, sync_status: link?.sync_status || 'unlinked',
+    };
+    if (p.bloquear_atualizacao_logistica) {
+      row.motivo = 'bloqueado_atualizacao_logistica';
+      rows.push(row); return;
+    }
+    if (!link || String(link.external_product_id || '').startsWith('__unresolved__')) {
+      row.motivo = link?.sync_status === 'needs_validation' ? 'aguardando_validacao' : (link?.sync_status === 'not_found' ? 'sem_correspondencia' : 'sem_vinculo');
+      rows.push(row); return;
+    }
+    row.li_id = link.external_product_id;
+    row.li_sku = link.external_sku;
+    row.li_name = link.external_name;
+    try {
+      const detail = await liGET(`/produto/${link.external_product_id}`, apiKey, applicationKey);
+      if (!detail) { row.motivo = 'erro_api'; rows.push(row); return; }
+      const enriched = await enrichLIDetail(apiKey, applicationKey, detail);
+      const det = extractDimsDetailed(enriched);
+      row.variacao_id = det.variacao_id;
+      row.fonte = det.fonte;
+      const d = det.dims;
+      row.peso = d?.peso_kg ?? null;
+      row.altura = d?.altura_cm ?? null;
+      row.largura = d?.largura_cm ?? null;
+      row.profundidade = d?.comprimento_cm ?? null;
+      if (!row.peso && !row.altura && !row.largura && !row.profundidade) {
+        // ver se algum source retornou zero especificamente
+        const anyZero = Object.values(det.sources).some((s: any) => s && (s.peso === 0 || s.altura === 0 || s.largura === 0 || s.profundidade === 0));
+        row.motivo = anyZero ? 'valor_zero' : 'campo_ausente';
+      } else if (!row.peso || !row.altura || !row.largura || !row.profundidade) {
+        row.motivo = 'valor_parcial';
+      } else {
+        row.motivo = 'dados_completos_nao_persistidos';
+      }
+    } catch (e) {
+      row.motivo = 'erro_api';
+    }
+    rows.push(row);
+  }
+
+  async function worker() { while (queue.length) { const p = queue.shift(); if (p) await processOne(p); } }
+  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+  return { ok: true, total: rows.length, rows };
+}
+
+
+
 async function syncProductsDimensions(
   serviceClient: any,
   apiKey: string,
