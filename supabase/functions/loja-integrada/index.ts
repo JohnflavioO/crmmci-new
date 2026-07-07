@@ -882,51 +882,51 @@ function indexLI(products: any[]): LIRef[] {
   });
 }
 
+type LIRefScored = LIRef & { score?: number };
+
 function matchCRMProduct(
   crm: { id: string; name: string; sku: string | null; code: string | null; brand: string | null; loja_integrada_id: string | null },
   liIndex: LIRef[]
-): { matched: LIRef | null; matched_by: string | null; candidates: LIRef[] } {
-  // 1. loja_integrada_id already saved
+): { matched: LIRef | null; matched_by: string | null; candidates: LIRefScored[] } {
+  // 1. External id already saved
   if (crm.loja_integrada_id) {
     const hit = liIndex.find(x => x.id === String(crm.loja_integrada_id));
-    if (hit) return { matched: hit, matched_by: 'loja_integrada_id', candidates: [] };
+    if (hit) return { matched: hit, matched_by: 'external_id', candidates: [] };
   }
   // 2. Internal code -> LI code / sku
   if (crm.code) {
     const c = crm.code.trim();
     const hits = liIndex.filter(x => (x.code && x.code === c) || (x.sku && x.sku === c));
     if (hits.length === 1) return { matched: hits[0], matched_by: 'code', candidates: [] };
-    if (hits.length > 1) return { matched: null, matched_by: null, candidates: hits.slice(0, 5) };
+    if (hits.length > 1) return { matched: null, matched_by: null, candidates: hits.slice(0, 3).map(x => ({ ...x, score: 1 })) };
   }
-  // 3. Reference / manufacturer (we use brand as fallback signal, LI referencia)
-  if (crm.brand) {
-    const b = crm.brand.trim();
-    const hits = liIndex.filter(x => x.reference && x.reference.toLowerCase() === b.toLowerCase());
-    if (hits.length === 1) return { matched: hits[0], matched_by: 'reference', candidates: [] };
-  }
-  // 4. SKU
+  // 3. SKU
   if (crm.sku) {
     const s = crm.sku.trim();
     const hits = liIndex.filter(x => (x.sku && x.sku === s) || (x.code && x.code === s));
     if (hits.length === 1) return { matched: hits[0], matched_by: 'sku', candidates: [] };
-    if (hits.length > 1) return { matched: null, matched_by: null, candidates: hits.slice(0, 5) };
+    if (hits.length > 1) return { matched: null, matched_by: null, candidates: hits.slice(0, 3).map(x => ({ ...x, score: 1 })) };
   }
-  // 5. Normalized name similarity ≥ 0.95
+  // 4. Reference / MPN (LI referencia)
+  if (crm.brand) {
+    const b = crm.brand.trim().toLowerCase();
+    const hits = liIndex.filter(x => x.reference && x.reference.toLowerCase() === b);
+    if (hits.length === 1) return { matched: hits[0], matched_by: 'reference', candidates: [] };
+  }
+  // 5. Fuzzy name similarity — auto-link at ≥ 0.95 with clear gap over #2
   const target = normalizeName(crm.name);
   if (target.length >= 4) {
     const scored = liIndex
       .map(x => ({ x, s: similarity(target, x.normName) }))
-      .filter(o => o.s >= 0.95)
+      .filter(o => o.s >= 0.5)
       .sort((a, b) => b.s - a.s);
-    if (scored.length === 1) return { matched: scored[0].x, matched_by: 'name_exact', candidates: [] };
-    if (scored.length > 1) return { matched: null, matched_by: null, candidates: scored.slice(0, 5).map(o => o.x) };
-    // fallback: near matches for manual review (>=0.75)
-    const near = liIndex
-      .map(x => ({ x, s: similarity(target, x.normName) }))
-      .filter(o => o.s >= 0.75)
-      .sort((a, b) => b.s - a.s)
-      .slice(0, 5);
-    if (near.length) return { matched: null, matched_by: null, candidates: near.map(o => o.x) };
+    const top = scored[0];
+    const second = scored[1];
+    if (top && top.s >= 0.95 && (!second || top.s - second.s >= 0.05)) {
+      return { matched: top.x, matched_by: 'name_exact', candidates: [] };
+    }
+    const top3 = scored.slice(0, 3).filter(o => o.s >= 0.6).map(o => ({ ...o.x, score: Number(o.s.toFixed(3)) }));
+    if (top3.length) return { matched: null, matched_by: null, candidates: top3 };
   }
   return { matched: null, matched_by: null, candidates: [] };
 }
@@ -1047,7 +1047,7 @@ async function syncProductsDimensions(
           needsReview++;
           needs_review_details.push({ id: p.id, name: p.name, sku: p.sku, code: p.code, candidates });
           await markLinkStatus(serviceClient, p.id, 'needs_validation', {
-            candidates: candidates.map(c => ({ id: c.id, sku: c.sku, code: c.code, reference: c.reference, name: c.name })),
+            candidates: candidates.map((c: any) => ({ id: c.id, sku: c.sku, code: c.code, reference: c.reference, name: c.name, score: c.score ?? null })),
             external_name: p.name,
           });
         } else {

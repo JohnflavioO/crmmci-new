@@ -42,7 +42,7 @@ export default function ProductMapping() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [links, setLinks] = useState<Record<string, Link>>({});
-  const [filter, setFilter] = useState<'unlinked' | 'needs_validation' | 'linked' | 'not_found' | 'all'>('unlinked');
+  const [filter, setFilter] = useState<'unlinked' | 'needs_validation' | 'linked' | 'not_found' | 'all'>('needs_validation');
   const [selected, setSelected] = useState<Product | null>(null);
   const [term, setTerm] = useState('');
   const [searching, setSearching] = useState(false);
@@ -164,7 +164,7 @@ export default function ProductMapping() {
       <div className="p-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Mapeamento de Produtos</h1>
-          <p className="text-sm text-muted-foreground">Vínculos definitivos entre produtos do CRM e integrações externas (Loja Integrada). Uma vez salvo, o vínculo é reutilizado em todas as sincronizações futuras.</p>
+          <p className="text-sm text-muted-foreground">A <strong>Sincronização Inteligente</strong> vincula automaticamente a maioria dos produtos. Esta tela é usada apenas para revisar os casos em que existem múltiplos candidatos ou nenhuma correspondência — os 3 melhores candidatos aparecem ordenados por similaridade.</p>
         </div>
 
         <div className="flex gap-2 flex-wrap">
