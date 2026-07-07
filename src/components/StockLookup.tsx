@@ -19,17 +19,19 @@ export default function StockLookup() {
 
   return (
     <>
-      <div className="relative w-full sm:w-56">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-        <Input
-          type="text"
-          readOnly
-          placeholder="Consultar estoque..."
-          onFocus={handleOpen}
-          onClick={handleOpen}
-          className="pl-9 min-h-[44px] cursor-pointer bg-background"
-          aria-label="Consultar estoque MCI"
-        />
+      <div className="mci-animated-border w-full sm:w-56">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
+          <Input
+            type="text"
+            readOnly
+            placeholder="Consultar estoque..."
+            onFocus={handleOpen}
+            onClick={handleOpen}
+            className="pl-9 min-h-[44px] cursor-pointer bg-white border-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+            aria-label="Consultar estoque MCI"
+          />
+        </div>
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
