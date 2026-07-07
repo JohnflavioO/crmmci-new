@@ -5,23 +5,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCw, Play, AlertTriangle, CheckCircle2, XCircle, Package } from 'lucide-react';
+import { Loader2, RefreshCw, Play, AlertTriangle, CheckCircle2, XCircle, Package, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
+
+const PROVIDER = 'loja_integrada';
 
 type Product = {
-  id: string;
-  name: string;
-  code: string | null;
-  sku: string | null;
-  peso_kg: number | null;
-  altura_cm: number | null;
-  largura_cm: number | null;
-  comprimento_cm: number | null;
-  loja_integrada_id: string | null;
-  loja_integrada_sync_source: string | null;
-  logistica_atualizada_em: string | null;
-  bloquear_atualizacao_logistica: boolean | null;
+  id: string; name: string; code: string | null; sku: string | null;
+  peso_kg: number | null; altura_cm: number | null; largura_cm: number | null; comprimento_cm: number | null;
+  logistica_atualizada_em: string | null; bloquear_atualizacao_logistica: boolean | null;
 };
+
+type ExtLink = { product_id: string; sync_status: string; match_source: string | null; last_sync_at: string | null };
+type ExecLog = { id: string; action: string; targets_count: number; linked_count: number; updated_count: number; needs_validation_count: number; not_found_count: number; errors_count: number; duration_ms: number; created_at: string; triggered_by_name: string | null };
 
 type LogEntry = { ts: string; level: 'info' | 'ok' | 'warn' | 'err'; msg: string };
 
@@ -30,21 +27,26 @@ const BATCH = 25;
 export default function LogisticsSyncDiagnostic() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
+  const [links, setLinks] = useState<Record<string, ExtLink>>({});
+  const [execLogs, setExecLogs] = useState<ExecLog[]>([]);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [processed, setProcessed] = useState(0);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [lastResult, setLastResult] = useState<any>(null);
-  const [notFound, setNotFound] = useState<{ id: string; name: string; sku: string | null }[]>([]);
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('products')
-      .select('id,name,code,sku,peso_kg,altura_cm,largura_cm,comprimento_cm,loja_integrada_id,loja_integrada_sync_source,logistica_atualizada_em,bloquear_atualizacao_logistica')
-      .order('name');
-    if (error) toast.error(error.message);
-    setProducts((data as any[]) || []);
+    const [p, l, e] = await Promise.all([
+      supabase.from('products').select('id,name,code,sku,peso_kg,altura_cm,largura_cm,comprimento_cm,logistica_atualizada_em,bloquear_atualizacao_logistica').order('name'),
+      supabase.from('product_external_links').select('product_id,sync_status,match_source,last_sync_at').eq('provider', PROVIDER),
+      supabase.from('sync_execution_logs').select('*').eq('provider', PROVIDER).order('created_at', { ascending: false }).limit(10),
+    ]);
+    if (p.error) toast.error(p.error.message);
+    setProducts((p.data as any) || []);
+    const map: Record<string, ExtLink> = {};
+    for (const row of (l.data as any[]) || []) map[row.product_id] = row;
+    setLinks(map);
+    setExecLogs((e.data as any) || []);
     setLoading(false);
   };
 
@@ -52,31 +54,38 @@ export default function LogisticsSyncDiagnostic() {
 
   const stats = useMemo(() => {
     const total = products.length;
-    const synced = products.filter(p => !!p.logistica_atualizada_em).length;
-    const withPeso = products.filter(p => p.peso_kg && p.peso_kg > 0).length;
-    const withDims = products.filter(p => p.altura_cm && p.largura_cm && p.comprimento_cm).length;
-    const semSku = products.filter(p => !p.sku || p.sku.trim() === '').length;
-    const semCorrespondencia = products.filter(p => !p.loja_integrada_id && !!p.logistica_atualizada_em === false).length;
-    const bloqueados = products.filter(p => p.bloquear_atualizacao_logistica).length;
-    const pendentes = total - synced;
-    return { total, synced, pendentes, withPeso, withDims, semPeso: total - withPeso, semDims: total - withDims, semSku, semCorrespondencia, bloqueados };
-  }, [products]);
+    let linked = 0, needs = 0, notFound = 0, syncedToday = 0, withPeso = 0, withDims = 0, conflicts = 0;
+    const today = new Date().toISOString().slice(0, 10);
+    for (const p of products) {
+      const l = links[p.id];
+      if (l?.sync_status === 'linked') linked++;
+      if (l?.sync_status === 'needs_validation') needs++;
+      if (l?.sync_status === 'not_found') notFound++;
+      if (l?.sync_status === 'error') conflicts++;
+      if (l?.last_sync_at && l.last_sync_at.slice(0, 10) === today) syncedToday++;
+      if (p.peso_kg && p.peso_kg > 0) withPeso++;
+      if (p.altura_cm && p.largura_cm && p.comprimento_cm) withDims++;
+    }
+    return {
+      total, linked, unlinked: total - linked, needs, notFound, conflicts, syncedToday,
+      semPeso: total - withPeso, semDims: total - withDims,
+    };
+  }, [products, links]);
 
   const pushLog = (level: LogEntry['level'], msg: string) =>
     setLogs(prev => [...prev, { ts: new Date().toLocaleTimeString(), level, msg }].slice(-500));
 
-  const runSync = async (mode: 'all' | 'pending') => {
-    setRunning(true);
-    setLogs([]);
-    setProgress(0);
-    setProcessed(0);
-    setNotFound([]);
-
-    const target = products.filter(p => !p.bloquear_atualizacao_logistica && (mode === 'all' || !p.logistica_atualizada_em));
+  const runSync = async (mode: 'all' | 'unlinked') => {
+    setRunning(true); setLogs([]); setProgress(0); setProcessed(0);
+    const target = products.filter(p => {
+      if (p.bloquear_atualizacao_logistica) return false;
+      if (mode === 'all') return true;
+      const l = links[p.id];
+      return !l || l.sync_status !== 'linked';
+    });
     pushLog('info', `Iniciando sincronização de ${target.length} produtos (modo: ${mode}).`);
 
-    let totalUpdated = 0, totalNotFound = 0, totalSkipped = 0, totalErrors = 0;
-    const allNotFound: any[] = [];
+    let totalUpdated = 0, totalLinked = 0, totalNotFound = 0, totalReview = 0, totalErrors = 0;
 
     for (let i = 0; i < target.length; i += BATCH) {
       const slice = target.slice(i, i + BATCH);
@@ -86,32 +95,23 @@ export default function LogisticsSyncDiagnostic() {
         const { data, error } = await supabase.functions.invoke('loja-integrada', {
           body: { action: 'sync_product_dimensions', product_ids: ids },
         });
-        if (error) {
-          pushLog('err', `Erro no lote: ${error.message}`);
-          totalErrors += ids.length;
-        } else if (!data?.ok) {
-          pushLog('err', `Falha: ${data?.error || 'desconhecida'}`);
-          totalErrors += ids.length;
-        } else {
+        if (error) { pushLog('err', `Erro no lote: ${error.message}`); totalErrors += ids.length; }
+        else if (!data?.ok) { pushLog('err', `Falha: ${data?.error}`); totalErrors += ids.length; }
+        else {
           totalUpdated += data.updated || 0;
+          totalLinked += data.linked || 0;
           totalNotFound += data.not_found || 0;
-          totalSkipped += data.skipped || 0;
+          totalReview += data.needs_review || 0;
           totalErrors += data.errors || 0;
-          if (data.not_found_details?.length) allNotFound.push(...data.not_found_details);
-          pushLog('ok', `Lote OK — atualizados: ${data.updated}, sem match: ${data.not_found}, sem dims: ${data.skipped}, erros: ${data.errors}`);
+          pushLog('ok', `Lote OK — vinculados: ${data.linked}, atualizados: ${data.updated}, validar: ${data.needs_review}, sem match: ${data.not_found}, erros: ${data.errors}`);
         }
-      } catch (e: any) {
-        pushLog('err', `Exceção: ${e.message}`);
-        totalErrors += ids.length;
-      }
+      } catch (e: any) { pushLog('err', `Exceção: ${e.message}`); totalErrors += ids.length; }
       setProcessed(i + slice.length);
       setProgress(Math.round(((i + slice.length) / target.length) * 100));
     }
 
-    setLastResult({ updated: totalUpdated, not_found: totalNotFound, skipped: totalSkipped, errors: totalErrors, total: target.length });
-    setNotFound(allNotFound.slice(0, 20));
-    pushLog('ok', `Concluído. Atualizados: ${totalUpdated}, Sem match: ${totalNotFound}, Sem dimensões: ${totalSkipped}, Erros: ${totalErrors}`);
-    toast.success(`Sincronização finalizada: ${totalUpdated} atualizados`);
+    pushLog('ok', `Concluído. Vinculados: ${totalLinked}, Dimensões atualizadas: ${totalUpdated}, Aguardando validação: ${totalReview}, Sem match: ${totalNotFound}, Erros: ${totalErrors}`);
+    toast.success(`Sincronização finalizada: ${totalLinked} vinculados`);
     setRunning(false);
     await load();
   };
@@ -136,15 +136,14 @@ export default function LogisticsSyncDiagnostic() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-bold">Diagnóstico da Sincronização Logística</h1>
-            <p className="text-sm text-muted-foreground">Audite quais produtos possuem peso e dimensões vindos da Loja Integrada.</p>
+            <p className="text-sm text-muted-foreground">Baseado em <code className="text-xs">product_external_links</code> (provider: Loja Integrada).</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={load} disabled={loading || running}>
-              <RefreshCw className="h-4 w-4 mr-2" /> Recarregar
-            </Button>
-            <Button onClick={() => runSync('pending')} disabled={running || loading} variant="secondary">
+            <Link to="/mapeamento-produtos"><Button variant="outline"><Link2 className="h-4 w-4 mr-2" />Mapeamento</Button></Link>
+            <Button variant="outline" onClick={load} disabled={loading || running}><RefreshCw className="h-4 w-4 mr-2" />Recarregar</Button>
+            <Button onClick={() => runSync('unlinked')} disabled={running || loading} variant="secondary">
               {running ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
-              Sincronizar pendentes
+              Sincronizar sem vínculo
             </Button>
             <Button onClick={() => runSync('all')} disabled={running || loading}>
               {running ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
@@ -153,11 +152,14 @@ export default function LogisticsSyncDiagnostic() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
           <StatCard label="Total de produtos" value={stats.total} icon={Package} />
-          <StatCard label="Sincronizados" value={stats.synced} tone="text-emerald-600" icon={CheckCircle2} />
-          <StatCard label="Pendentes" value={stats.pendentes} tone="text-amber-600" icon={AlertTriangle} />
-          <StatCard label="Sem SKU" value={stats.semSku} tone="text-slate-600" />
+          <StatCard label="Vinculados" value={stats.linked} tone="text-emerald-600" icon={CheckCircle2} />
+          <StatCard label="Sem vínculo" value={stats.unlinked} tone="text-amber-600" icon={AlertTriangle} />
+          <StatCard label="Aguardando validação" value={stats.needs} tone="text-red-600" />
+          <StatCard label="Sem correspondência" value={stats.notFound} tone="text-slate-600" />
+          <StatCard label="Conflitos / erros" value={stats.conflicts} tone="text-red-600" icon={XCircle} />
+          <StatCard label="Sincronizados hoje" value={stats.syncedToday} tone="text-emerald-600" />
           <StatCard label="Sem peso" value={stats.semPeso} tone="text-red-600" />
           <StatCard label="Sem dimensões" value={stats.semDims} tone="text-red-600" />
         </div>
@@ -172,22 +174,9 @@ export default function LogisticsSyncDiagnostic() {
           </Card>
         )}
 
-        {lastResult && (
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Resultado da última execução</CardTitle></CardHeader>
-            <CardContent className="flex gap-2 flex-wrap">
-              <Badge variant="default" className="bg-emerald-600">Atualizados: {lastResult.updated}</Badge>
-              <Badge variant="secondary">Sem match na Loja Integrada: {lastResult.not_found}</Badge>
-              <Badge variant="secondary">Sem dimensões na origem: {lastResult.skipped}</Badge>
-              <Badge variant="destructive">Erros: {lastResult.errors}</Badge>
-              <Badge variant="outline">Total processado: {lastResult.total}</Badge>
-            </CardContent>
-          </Card>
-        )}
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card>
-            <CardHeader><CardTitle className="text-base">Log detalhado</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Log da execução em andamento</CardTitle></CardHeader>
             <CardContent>
               <div className="h-72 overflow-auto bg-slate-950 text-slate-100 rounded-md p-3 font-mono text-xs space-y-1">
                 {logs.length === 0 && <p className="text-slate-500">Aguardando execução...</p>}
@@ -196,70 +185,38 @@ export default function LogisticsSyncDiagnostic() {
                     l.level === 'err' ? 'text-red-400' :
                     l.level === 'warn' ? 'text-amber-300' :
                     l.level === 'ok' ? 'text-emerald-400' : 'text-slate-300'
-                  }>
-                    [{l.ts}] {l.msg}
-                  </div>
+                  }>[{l.ts}] {l.msg}</div>
                 ))}
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Produtos sem correspondência (primeiros 20)</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Histórico de execuções (últimas 10)</CardTitle></CardHeader>
             <CardContent>
-              {notFound.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum registro. Execute a sincronização para identificar produtos não relacionados.</p>
-              ) : (
-                <div className="max-h-72 overflow-auto space-y-2">
-                  {notFound.map(nf => (
-                    <div key={nf.id} className="border rounded-md p-2 text-xs">
-                      <p className="font-medium">{nf.name}</p>
-                      <p className="text-muted-foreground">SKU: {nf.sku || '—'} · ID: {nf.id}</p>
-                      <p className="text-red-600">Motivo: nenhuma correspondência por external_id, SKU, código ou nome.</p>
+              <div className="max-h-72 overflow-auto space-y-2">
+                {execLogs.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma execução registrada ainda.</p>}
+                {execLogs.map(e => (
+                  <div key={e.id} className="border rounded-md p-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{e.action}</span>
+                      <span className="text-muted-foreground">{new Date(e.created_at).toLocaleString('pt-BR')}</span>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div className="flex gap-1 flex-wrap mt-1">
+                      <Badge variant="outline">Alvos: {e.targets_count}</Badge>
+                      <Badge className="bg-emerald-600">Vinculados: {e.linked_count}</Badge>
+                      <Badge variant="secondary">Dims: {e.updated_count}</Badge>
+                      <Badge variant="destructive">Validar: {e.needs_validation_count}</Badge>
+                      <Badge variant="outline">Sem match: {e.not_found_count}</Badge>
+                      <Badge variant="destructive">Erros: {e.errors_count}</Badge>
+                      <Badge variant="outline">{e.duration_ms}ms</Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>
-
-        <Card>
-          <CardHeader><CardTitle className="text-base">Status individual (primeiros 100)</CardTitle></CardHeader>
-          <CardContent>
-            <div className="max-h-96 overflow-auto">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-background">
-                  <tr className="text-left border-b">
-                    <th className="p-2">Produto</th>
-                    <th className="p-2">SKU</th>
-                    <th className="p-2">Código</th>
-                    <th className="p-2">Peso</th>
-                    <th className="p-2">Dim (AxLxC)</th>
-                    <th className="p-2">Match por</th>
-                    <th className="p-2">Sincronizado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.slice(0, 100).map(p => {
-                    const hasDims = p.altura_cm && p.largura_cm && p.comprimento_cm;
-                    return (
-                      <tr key={p.id} className="border-b hover:bg-muted/40">
-                        <td className="p-2">{p.name}</td>
-                        <td className="p-2">{p.sku || <span className="text-red-600">—</span>}</td>
-                        <td className="p-2">{p.code || '—'}</td>
-                        <td className="p-2">{p.peso_kg ? `${p.peso_kg} kg` : <XCircle className="h-3 w-3 text-red-500 inline" />}</td>
-                        <td className="p-2">{hasDims ? `${p.altura_cm}×${p.largura_cm}×${p.comprimento_cm}` : <XCircle className="h-3 w-3 text-red-500 inline" />}</td>
-                        <td className="p-2">{p.loja_integrada_sync_source || '—'}</td>
-                        <td className="p-2">{p.logistica_atualizada_em ? new Date(p.logistica_atualizada_em).toLocaleString('pt-BR') : <span className="text-amber-600">Pendente</span>}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </AppLayout>
   );

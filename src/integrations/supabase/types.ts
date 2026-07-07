@@ -1143,6 +1143,68 @@ export type Database = {
         }
         Relationships: []
       }
+      product_external_links: {
+        Row: {
+          candidates: Json | null
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          external_code: string | null
+          external_name: string | null
+          external_product_id: string
+          external_sku: string | null
+          id: string
+          last_sync_at: string | null
+          match_source: string | null
+          product_id: string
+          provider: string
+          sync_status: string
+          updated_at: string
+        }
+        Insert: {
+          candidates?: Json | null
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          external_code?: string | null
+          external_name?: string | null
+          external_product_id: string
+          external_sku?: string | null
+          id?: string
+          last_sync_at?: string | null
+          match_source?: string | null
+          product_id: string
+          provider: string
+          sync_status?: string
+          updated_at?: string
+        }
+        Update: {
+          candidates?: Json | null
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          external_code?: string | null
+          external_name?: string | null
+          external_product_id?: string
+          external_sku?: string | null
+          id?: string
+          last_sync_at?: string | null
+          match_source?: string | null
+          product_id?: string
+          provider?: string
+          sync_status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_external_links_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_relationships: {
         Row: {
           company_id: string | null
@@ -1852,6 +1914,60 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      sync_execution_logs: {
+        Row: {
+          action: string
+          company_id: string | null
+          created_at: string
+          duration_ms: number | null
+          errors_count: number | null
+          id: string
+          linked_count: number | null
+          needs_validation_count: number | null
+          not_found_count: number | null
+          provider: string
+          summary: Json | null
+          targets_count: number | null
+          triggered_by: string | null
+          triggered_by_name: string | null
+          updated_count: number | null
+        }
+        Insert: {
+          action: string
+          company_id?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          errors_count?: number | null
+          id?: string
+          linked_count?: number | null
+          needs_validation_count?: number | null
+          not_found_count?: number | null
+          provider: string
+          summary?: Json | null
+          targets_count?: number | null
+          triggered_by?: string | null
+          triggered_by_name?: string | null
+          updated_count?: number | null
+        }
+        Update: {
+          action?: string
+          company_id?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          errors_count?: number | null
+          id?: string
+          linked_count?: number | null
+          needs_validation_count?: number | null
+          not_found_count?: number | null
+          provider?: string
+          summary?: Json | null
+          targets_count?: number | null
+          triggered_by?: string | null
+          triggered_by_name?: string | null
+          updated_count?: number | null
+        }
+        Relationships: []
       }
       system_settings: {
         Row: {
