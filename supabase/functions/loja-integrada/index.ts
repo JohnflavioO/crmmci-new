@@ -964,6 +964,31 @@ Deno.serve(async (req) => {
       return jsonResponse(result);
     }
 
+    // sync_product_dimensions is callable by any authenticated user (e.g. vendedor no orçamento)
+    if (action === 'sync_product_dimensions') {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader?.startsWith('Bearer ')) {
+        return jsonResponse({ ok: false, error: 'Unauthorized' }, 401);
+      }
+      const userClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: { user } } = await userClient.auth.getUser();
+      if (!user) return jsonResponse({ ok: false, error: 'Unauthorized' }, 401);
+
+      const serviceClient = getServiceClient();
+      const creds = await fetchStoredCredentials(serviceClient);
+      if (!creds) {
+        return jsonResponse({ ok: false, error: 'Integração Loja Integrada não configurada.' });
+      }
+      const result = await syncProductsDimensions(serviceClient, creds.apiKey, creds.applicationKey, {
+        product_ids, all: all_products,
+      });
+      return jsonResponse(result);
+    }
+
     // All other actions require authenticated admin
     const { supabase, userId } = await getAuthenticatedAdmin(req);
 
