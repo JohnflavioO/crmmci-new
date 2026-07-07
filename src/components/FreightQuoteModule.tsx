@@ -13,6 +13,7 @@ interface Props {
   /** Dados do orçamento — quando presentes, mostra o card resumo acima do iframe */
   freightData?: FreightData;
   quoteNumber?: string;
+  onCepOrigemChange?: (cep: string) => void;
 }
 
 /**
