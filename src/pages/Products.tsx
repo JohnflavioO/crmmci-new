@@ -111,10 +111,11 @@ export default function Products() {
 
     // Sem busca: paginação normal
     if (!isSearching) {
-      const { data, count, error } = await db.from('products')
-        .select('*', { count: 'exact' })
-        .order('name')
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      let q = db.from('products').select('*', { count: 'exact' }).order('name');
+      if (noLogisticFilter) {
+        q = q.or('peso_kg.is.null,altura_cm.is.null,largura_cm.is.null,comprimento_cm.is.null,peso_kg.eq.0,altura_cm.eq.0,largura_cm.eq.0,comprimento_cm.eq.0');
+      }
+      const { data, count, error } = await q.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
       if (error) { toast.error(error.message); return; }
       setProducts(data || []);
       setTotalProducts(count ?? 0);
