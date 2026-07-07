@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake, Plug,
   Clock, ArrowDownCircle, AlertTriangle, FileBarChart, Truck, ClipboardList, TriangleAlert, MapPin, RefreshCw, Warehouse, Target, Sparkles,
-  Wrench, Zap, HelpCircle, Brain, Compass
+  Wrench, Zap, HelpCircle, Brain, Compass, PackageSearch
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -34,6 +34,7 @@ const toolItems = [
   { to: '/contracts', icon: FileText, label: 'Gerador de Contratos', permission: 'contracts.use' as const },
   { to: '/assistente', icon: Compass, label: 'Assistente Comercial' },
   { to: '/ecoflow', icon: Calculator, label: 'Calculadora Ecoflow' },
+  { to: '/frete', icon: Truck, label: 'Cotação de Frete' },
   { to: '/tasks', icon: ListChecks, label: 'TaskHub' },
 ];
 

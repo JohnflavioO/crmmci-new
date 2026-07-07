@@ -26,6 +26,7 @@ const Quotes = lazy(() => import("./pages/Quotes"));
 const Approvals = lazy(() => import("./pages/Approvals"));
 const Products = lazy(() => import("./pages/Products"));
 const EcoflowCalculator = lazy(() => import("./pages/EcoflowCalculator"));
+const FreightQuote = lazy(() => import("./pages/FreightQuote"));
 const Tasks = lazy(() => import("./pages/Tasks"));
 const Metrics = lazy(() => import("./pages/Metrics"));
 const Pipeline = lazy(() => import("./pages/Pipeline"));
@@ -214,6 +215,7 @@ function AppRoutes() {
             <Route path="/assistente/configuracoes" element={<SafeRoute><AssistantSettings /></SafeRoute>} />
 
             <Route path="/ecoflow" element={<SafeRoute><EcoflowCalculator /></SafeRoute>} />
+            <Route path="/frete" element={<SafeRoute><FreightQuote /></SafeRoute>} />
             <Route path="/tasks" element={<SafeRoute><Tasks /></SafeRoute>} />
             <Route path="/metrics" element={<SafeRoute><Metrics /></SafeRoute>} />
             <Route path="/pipeline" element={<SafeRoute><Pipeline /></SafeRoute>} />
