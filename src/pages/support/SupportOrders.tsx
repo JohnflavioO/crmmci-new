@@ -198,14 +198,6 @@ export default function SupportOrders() {
                     <Label className="text-xs">Modelo</Label>
                     <Input placeholder="Ex: LS 600d Pro" value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} />
                   </div>
-                  <div>
-                    <Label className="text-xs">Marca</Label>
-                    <Input placeholder="Aputure / Astera..." value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Modelo</Label>
-                    <Input placeholder="Ex: LS 600d Pro" value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} />
-                  </div>
                   <div className="col-span-2">
                     <Label className="text-xs">Nº Série</Label>
                     <Input value={form.serial} onChange={e => setForm({ ...form, serial: e.target.value })} />
