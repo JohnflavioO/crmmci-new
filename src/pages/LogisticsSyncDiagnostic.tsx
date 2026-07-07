@@ -122,6 +122,26 @@ export default function LogisticsSyncDiagnostic() {
     await load();
   };
 
+  const runSmartSync = async () => {
+    setSmartRunning(true); setSmartReport(null);
+    toast.info('Iniciando Sincronização Inteligente…');
+    try {
+      const { data, error } = await supabase.functions.invoke('loja-integrada', {
+        body: { action: 'sync_product_dimensions', all_products: true },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || 'Falha na sincronização inteligente');
+      setSmartReport(data as SmartReport);
+      const pct = data.total ? Math.round((data.linked / data.total) * 100) : 0;
+      toast.success(`Sincronização Inteligente concluída: ${data.linked}/${data.total} vinculados (${pct}%).`);
+      await load();
+    } catch (e: any) {
+      toast.error('Falha: ' + e.message);
+    } finally {
+      setSmartRunning(false);
+    }
+  };
+
   const StatCard = ({ label, value, tone, icon: Icon }: any) => (
     <Card>
       <CardContent className="p-4">
