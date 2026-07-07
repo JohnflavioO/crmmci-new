@@ -375,6 +375,58 @@ export default function Quotes() {
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
   const [chatQuote, setChatQuote] = useState<{ id: string; number: string } | null>(null);
   const [cepLoading, setCepLoading] = useState(false);
+  const [cepOrigem, setCepOrigem] = useState<string>(() => {
+    try { return localStorage.getItem('mci_cep_origem') || ''; } catch { return ''; }
+  });
+  const [freightContext, setFreightContext] = useState<{ quoteNumber?: string } | undefined>(undefined);
+
+  // Match products à lista de itens pelo code/sku
+  const productByCode = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const p of products) {
+      if (p.code) map.set(String(p.code).trim().toLowerCase(), p);
+      if (p.sku) map.set(String(p.sku).trim().toLowerCase(), p);
+    }
+    return map;
+  }, [products]);
+
+  // Dados consolidados de frete a partir dos itens do orçamento
+  const freightData: FreightData = useMemo(() => {
+    const totalAmountVal = items.reduce((s, i) => s + (Number(i.line_total) || 0), 0);
+    return buildFreightData({
+      items: items.map(it => {
+        const key = String(it.product_code || '').trim().toLowerCase();
+        const prod = key ? productByCode.get(key) : null;
+        return {
+          product_code: it.product_code,
+          model: it.model,
+          description: it.specifications,
+          quantity: it.quantity,
+          unit_price: it.unit_price,
+          product: prod
+            ? {
+                peso_kg: prod.peso_kg,
+                altura_cm: prod.altura_cm,
+                largura_cm: prod.largura_cm,
+                comprimento_cm: prod.comprimento_cm,
+                peso_cubado: prod.peso_cubado,
+                volume_m3: prod.volume_m3,
+                origem_cep: prod.origem_cep,
+                embalagem_tipo: prod.embalagem_tipo,
+              }
+            : null,
+        };
+      }),
+      cep_origem: cepOrigem,
+      cep_destino: form.use_alt_shipping_address ? form.shipping_cep : (clients.find((c: any) => c.id === form.client_id)?.cep || ''),
+      valor_mercadoria: totalAmountVal,
+    });
+  }, [items, productByCode, cepOrigem, form.use_alt_shipping_address, form.shipping_cep, form.client_id, clients]);
+
+  const openFreightDrawer = (quoteNumber?: string) => {
+    setFreightContext({ quoteNumber });
+    setFreightDrawerOpen(true);
+  };
 
   const handleShippingCepChange = async (value: string) => {
     const cleanCep = value.replace(/\D/g, '');
