@@ -111,7 +111,7 @@ export default function LogisticsImportDialog({ open, onOpenChange, onImported }
         .limit(10000);
 
       const byExternal = new Map<string, string>();
-      (links || []).forEach((l: any) => { if (l.external_id) byExternal.set(String(l.external_id), l.product_id); });
+      (links || []).forEach((l: any) => { if (l.external_product_id) byExternal.set(String(l.external_product_id), l.product_id); });
 
       const byLojaIntegradaId = new Map<string, any>();
       const bySku = new Map<string, any>();
