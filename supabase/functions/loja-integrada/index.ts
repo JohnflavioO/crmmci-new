@@ -936,7 +936,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: false, error: 'Requisição inválida', details: parsed.error.flatten().fieldErrors }, 400);
     }
 
-    const { action, api_key, application_key, page, full } = parsed.data;
+    const { action, api_key, application_key, page, full, product_ids, all_products } = parsed.data;
 
     // === AUTO_SYNC (called by cron, uses service role key from Authorization header) ===
     if (action === 'auto_sync') {
