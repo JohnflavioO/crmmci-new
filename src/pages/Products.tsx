@@ -170,7 +170,7 @@ export default function Products() {
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  useEffect(() => { loadProducts(); }, [page]);
+  useEffect(() => { loadProducts(); }, [page, noLogisticFilter]);
 
   const runDiagnostic = async () => {
     setDiag(null);
