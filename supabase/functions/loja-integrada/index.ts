@@ -1298,6 +1298,7 @@ Deno.serve(async (req) => {
       }
       const result = await syncProductsDimensions(serviceClient, creds.apiKey, creds.applicationKey, {
         product_ids, all: all_products,
+        triggered_by: user.id, triggered_by_name: user.email || null,
       });
       return jsonResponse(result);
     }
