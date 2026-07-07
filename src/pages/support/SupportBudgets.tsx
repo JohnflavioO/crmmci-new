@@ -1,270 +1,611 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { FileText, Search, Plus, User, BadgeAlert, BadgeCheck, BadgeX, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ActionMenu } from '@/components/ActionMenu';
-import { Pencil, Trash2, MessageCircle } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import {
+  Printer, Save, Send, Trash2, Search, Loader2, Sparkles, FileText,
+  QrCode, CreditCard, Banknote, ArrowRightLeft, Landmark, Paperclip,
+} from 'lucide-react';
+import { generateTechnicalQuotePdf } from '@/lib/generateTechnicalPdf';
 
-const STATUS_OPTIONS = [
-  { key: 'rascunho', label: 'Rascunho' },
-  { key: 'enviado', label: 'Enviado' },
-  { key: 'aprovado', label: 'Aprovado' },
-  { key: 'recusado', label: 'Recusado' },
+const db = supabase as any;
+
+const PAYMENT_METHODS = [
+  { key: 'pix', label: 'PIX', icon: QrCode, color: 'text-emerald-600' },
+  { key: 'credito', label: 'Cartão de Crédito', icon: CreditCard, color: 'text-blue-600' },
+  { key: 'debito', label: 'Cartão de Débito', icon: CreditCard, color: 'text-indigo-600' },
+  { key: 'dinheiro', label: 'Dinheiro', icon: Banknote, color: 'text-emerald-700' },
+  { key: 'transferencia', label: 'Transferência', icon: ArrowRightLeft, color: 'text-orange-600' },
+  { key: 'boleto', label: 'Boleto', icon: Landmark, color: 'text-slate-700' },
 ];
 
-interface Budget {
+const SHIPPING_METHODS = ['Correios', 'Transportadora', 'Retirada no local', 'Motoboy'];
+
+const PENDING_STATUSES = [
+  'aguardando_aprovacao', 'em_orcamento', 'em_diagnostico', 'diagnostico',
+  'aguardando_diagnostico', 'orcamento_pendente',
+];
+
+interface Order {
   id: string;
-  status: string;
-  total_services: number;
-  total_parts: number;
-  discount: number;
-  total_amount: number;
-  valid_until: string | null;
-  notes: string | null;
+  os_number: string;
   client_id: string | null;
-  technical_order_id: string | null;
-  created_at: string;
-  technical_clients: { name: string; whatsapp?: string | null; phone?: string | null } | null;
-  technical_orders: { os_number: string } | null;
+  client_name: string;
+  equipment: string | null;
+  brand: string | null;
+  model: string | null;
+  status: string;
+  reported_defect: string | null;
+  technical_diagnosis: string | null;
+  technician_notes: string | null;
+  labor_value: number;
+  shipping_value: number;
+  parts_value: number;
+  total_value: number;
+  payment_method: string | null;
+  payment_proof_url: string | null;
+  shipping_method: string | null;
+  discount_percent: number | null;
 }
 
-export default function SupportBudgets() {
-  const { user } = useAuth();
-  const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Budget | null>(null);
-  const emptyForm = { technical_order_id: '', total_services: 0, total_parts: 0, discount: 0, valid_until: '', notes: '', status: 'rascunho' };
-  const [form, setForm] = useState<any>(emptyForm);
+interface Part {
+  id: string;
+  order_id: string;
+  product_id: string | null;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  code?: string | null;
+}
 
-  const fetchBudgets = async () => {
+const fmtBRL = (n: number) =>
+  `R$ ${Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+export default function SupportBudgets() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Order | null>(null);
+  const [parts, setParts] = useState<Part[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
+  const [productResults, setProductResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchOrders = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('technical_budgets')
-      .select('*, technical_clients(name, whatsapp, phone), technical_orders(os_number)')
-      .order('created_at', { ascending: false });
-    if (error) toast.error('Erro ao carregar orçamentos');
-    setBudgets((data || []) as any);
+    const { data } = await db
+      .from('technical_orders')
+      .select('id, os_number, client_id, client_name, equipment, brand, model, status, reported_defect')
+      .not('status', 'in', '(entregue,concluido,cancelado,retirado,Concluído,Entregue)')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    setOrders((data || []) as Order[]);
     setLoading(false);
   };
 
-  const fetchOrders = async () => {
-    const { data } = await supabase.from('technical_orders' as any)
-      .select('id, os_number, client_id, client_name, equipment, parts_value, labor_value')
-      .order('created_at', { ascending: false }).limit(200);
-    setOrders((data || []) as any[]);
+  useEffect(() => { fetchOrders(); }, []);
+
+  const loadOrder = async (id: string) => {
+    const { data: ord } = await db.from('technical_orders').select('*').eq('id', id).maybeSingle();
+    setSelected(ord as Order);
+    const { data: prts } = await db
+      .from('technical_order_parts')
+      .select('*, technical_products(code)')
+      .eq('order_id', id)
+      .order('created_at', { ascending: true });
+    setParts(((prts || []) as any[]).map((p) => ({
+      ...p,
+      code: p.technical_products?.code || null,
+    })) as Part[]);
   };
 
-  useEffect(() => { fetchBudgets(); fetchOrders(); }, []);
+  useEffect(() => {
+    if (selectedId) loadOrder(selectedId);
+    else { setSelected(null); setParts([]); }
+  }, [selectedId]);
 
-  const total = useMemo(() => Math.max(0, Number(form.total_services || 0) + Number(form.total_parts || 0) - Number(form.discount || 0)), [form]);
-
-  const openNew = () => { setEditing(null); setForm(emptyForm); setOpen(true); };
-  const openEdit = async (b: Budget) => {
-    setEditing(b);
-    if (b.technical_order_id && !orders.find(o => o.id === b.technical_order_id)) {
-      const { data } = await supabase.from('technical_orders' as any)
-        .select('id, os_number, client_id, client_name, equipment, parts_value, labor_value')
-        .eq('id', b.technical_order_id).maybeSingle();
-      if (data) setOrders(prev => [data as any, ...prev]);
+  // Product search
+  useEffect(() => {
+    if (!productSearch.trim() || productSearch.trim().length < 2) {
+      setProductResults([]);
+      return;
     }
-    setForm({
-      technical_order_id: b.technical_order_id || '',
-      total_services: Number(b.total_services) || 0,
-      total_parts: Number(b.total_parts) || 0,
-      discount: Number(b.discount) || 0,
-      valid_until: b.valid_until || '',
-      notes: b.notes || '',
-      status: b.status,
-    });
-    setOpen(true);
-  };
+    setSearching(true);
+    const t = setTimeout(async () => {
+      const term = `%${productSearch.trim()}%`;
+      const { data } = await db
+        .from('technical_products')
+        .select('id, code, name, price, unit_price, quantity')
+        .or(`name.ilike.${term},code.ilike.${term}`)
+        .limit(8);
+      setProductResults(data || []);
+      setSearching(false);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [productSearch]);
 
-  const save = async () => {
-    if (!form.technical_order_id) return toast.error('Selecione a OS');
-    const ord = orders.find(o => o.id === form.technical_order_id);
-    const payload: any = {
-      technical_order_id: form.technical_order_id,
-      client_id: ord?.client_id || null,
-      total_services: Number(form.total_services) || 0,
-      total_parts: Number(form.total_parts) || 0,
-      discount: Number(form.discount) || 0,
-      total_amount: total,
-      valid_until: form.valid_until || null,
-      notes: form.notes || null,
-      status: form.status,
-    };
-    let error;
-    if (editing) {
-      ({ error } = await supabase.from('technical_budgets').update(payload).eq('id', editing.id));
-    } else {
-      ({ error } = await supabase.from('technical_budgets').insert({ ...payload, created_by: user?.id }));
-    }
-    if (error) return toast.error(error.message);
-    toast.success(editing ? 'Orçamento atualizado' : 'Orçamento criado');
-    setOpen(false);
-    fetchBudgets();
-  };
-
-  const sendWhatsApp = (b: Budget) => {
-    const phone = b.technical_clients?.whatsapp || b.technical_clients?.phone || '';
-    if (!phone) return toast.error('Cliente sem telefone');
-    const msg = `Olá ${b.technical_clients?.name || ''}! Segue o orçamento da OS ${b.technical_orders?.os_number || ''}:\n\nServiços: R$ ${Number(b.total_services).toFixed(2)}\nPeças: R$ ${Number(b.total_parts).toFixed(2)}\nDesconto: R$ ${Number(b.discount).toFixed(2)}\n*Total: R$ ${Number(b.total_amount).toFixed(2)}*\n\nVálido até: ${b.valid_until ? new Date(b.valid_until).toLocaleDateString('pt-BR') : '—'}`;
-    window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
-  };
-
-  const printBudget = (b: Budget) => {
-    const w = window.open('', '_blank');
-    if (!w) return;
-    w.document.write(`<html><head><title>Orçamento ${b.technical_orders?.os_number || ''}</title>
-      <style>body{font-family:system-ui;padding:40px;max-width:700px;margin:auto}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin-top:20px}td,th{padding:8px;border-bottom:1px solid #ddd;text-align:left}.tot{font-size:20px;font-weight:bold;text-align:right;margin-top:20px}</style></head><body>
-      <h1>Orçamento — OS ${b.technical_orders?.os_number || ''}</h1>
-      <p><strong>Cliente:</strong> ${b.technical_clients?.name || '—'}</p>
-      <p><strong>Validade:</strong> ${b.valid_until ? new Date(b.valid_until).toLocaleDateString('pt-BR') : '—'}</p>
-      <table><tr><th>Descrição</th><th style="text-align:right">Valor</th></tr>
-      <tr><td>Serviços / Mão de obra</td><td style="text-align:right">R$ ${Number(b.total_services).toFixed(2)}</td></tr>
-      <tr><td>Peças</td><td style="text-align:right">R$ ${Number(b.total_parts).toFixed(2)}</td></tr>
-      <tr><td>Desconto</td><td style="text-align:right">- R$ ${Number(b.discount).toFixed(2)}</td></tr></table>
-      <p class="tot">Total: R$ ${Number(b.total_amount).toFixed(2)}</p>
-      ${b.notes ? `<p><strong>Observações:</strong><br>${b.notes.replace(/\n/g, '<br>')}</p>` : ''}
-      </body></html>`);
-    w.document.close();
-    setTimeout(() => w.print(), 300);
-  };
-
-  const remove = async (b: Budget) => {
-    if (!confirm('Excluir orçamento?')) return;
-    const { error } = await supabase.from('technical_budgets').delete().eq('id', b.id);
-    if (error) return toast.error(error.message);
-    toast.success('Excluído');
-    fetchBudgets();
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'enviado': return <Badge variant="outline" className="border-blue-500 text-blue-600 gap-1"><Clock className="h-3 w-3" /> Enviado</Badge>;
-      case 'aprovado': return <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1"><BadgeCheck className="h-3 w-3" /> Aprovado</Badge>;
-      case 'recusado': return <Badge className="bg-rose-500 hover:bg-rose-600 text-white gap-1"><BadgeX className="h-3 w-3" /> Recusado</Badge>;
-      default: return <Badge variant="secondary" className="gap-1"><BadgeAlert className="h-3 w-3" /> Rascunho</Badge>;
-    }
-  };
-
-  const filteredBudgets = budgets.filter(b =>
-    b.technical_clients?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.technical_orders?.os_number.toLowerCase().includes(searchTerm.toLowerCase())
+  const partsTotal = useMemo(
+    () => parts.reduce((s, p) => s + Number(p.total_price || 0), 0),
+    [parts]
   );
 
+  const grandTotal = useMemo(() => {
+    if (!selected) return 0;
+    const discount = (partsTotal * Number(selected.discount_percent || 0)) / 100;
+    return Math.max(0, partsTotal - discount + Number(selected.shipping_value || 0) + Number(selected.labor_value || 0));
+  }, [partsTotal, selected]);
+
+  const addPart = async (product: any) => {
+    if (!selectedId) return;
+    const unit = Number(product.price || product.unit_price || 0);
+    const { error } = await db.from('technical_order_parts').insert({
+      order_id: selectedId,
+      product_id: product.id,
+      product_name: product.name,
+      quantity: 1,
+      unit_price: unit,
+      total_price: unit,
+    });
+    if (error) return toast.error(error.message);
+    setProductSearch('');
+    setProductResults([]);
+    loadOrder(selectedId);
+  };
+
+  const updatePart = async (id: string, patch: Partial<Part>) => {
+    const cur = parts.find((p) => p.id === id);
+    if (!cur) return;
+    const next = { ...cur, ...patch };
+    next.total_price = Number(next.quantity || 0) * Number(next.unit_price || 0);
+    setParts((prev) => prev.map((p) => (p.id === id ? next : p)));
+    await db.from('technical_order_parts').update({
+      quantity: next.quantity,
+      unit_price: next.unit_price,
+      total_price: next.total_price,
+    }).eq('id', id);
+  };
+
+  const removePart = async (id: string) => {
+    await db.from('technical_order_parts').delete().eq('id', id);
+    loadOrder(selectedId!);
+  };
+
+  const clearDuplicates = async () => {
+    if (!selectedId) return;
+    const seen = new Map<string, string>();
+    const toDelete: string[] = [];
+    for (const p of parts) {
+      const key = `${p.product_id || p.product_name}__${p.unit_price}`;
+      if (seen.has(key)) toDelete.push(p.id);
+      else seen.set(key, p.id);
+    }
+    if (!toDelete.length) return toast.info('Nenhuma duplicata encontrada');
+    await db.from('technical_order_parts').delete().in('id', toDelete);
+    toast.success(`${toDelete.length} duplicata(s) removida(s)`);
+    loadOrder(selectedId);
+  };
+
+  const saveOrder = async (extra: Partial<Order> = {}) => {
+    if (!selected) return;
+    setSaving(true);
+    const payload = {
+      technical_diagnosis: selected.technical_diagnosis,
+      technician_notes: selected.technician_notes,
+      labor_value: Number(selected.labor_value || 0),
+      shipping_value: Number(selected.shipping_value || 0),
+      shipping_method: selected.shipping_method,
+      payment_method: selected.payment_method,
+      payment_proof_url: selected.payment_proof_url,
+      discount_percent: Number(selected.discount_percent || 0),
+      ...extra,
+    };
+    const { error } = await db.from('technical_orders').update(payload).eq('id', selected.id);
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success('Orçamento salvo');
+    fetchOrders();
+    if (extra.status) loadOrder(selected.id);
+  };
+
+  const sendForApproval = () => saveOrder({ status: 'aguardando_aprovacao' });
+
+  const uploadProof = async (file: File) => {
+    if (!selected) return;
+    setUploading(true);
+    const path = `${selected.id}/${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage.from('budget-proofs').upload(path, file, {
+      upsert: true, contentType: file.type,
+    });
+    if (error) { setUploading(false); return toast.error(error.message); }
+    const { data: signed } = await supabase.storage.from('budget-proofs').createSignedUrl(path, 60 * 60 * 24 * 365);
+    setSelected((s) => (s ? { ...s, payment_proof_url: signed?.signedUrl || path } : s));
+    await db.from('technical_orders').update({ payment_proof_url: signed?.signedUrl || path }).eq('id', selected.id);
+    setUploading(false);
+    toast.success('Comprovante enviado');
+  };
+
+  const printPdf = async () => {
+    if (!selected) return;
+    await generateTechnicalQuotePdf(selected, parts);
+  };
+
+  const filteredOrders = orders;
+
   return (
-    <div className="space-y-6 pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Orçamentos Técnicos</h1>
-          <p className="text-sm text-muted-foreground">Emissão e acompanhamento de propostas</p>
+    <div className="flex h-[calc(100vh-8rem)] gap-4">
+      {/* Left: pending list */}
+      <aside className="w-80 shrink-0 border rounded-lg bg-card flex flex-col">
+        <div className="p-4 border-b">
+          <h2 className="text-sm font-semibold tracking-tight">Pendentes de Orçamento</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">{filteredOrders.length} ordem(ns)</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-2" onClick={openNew}><Plus className="h-4 w-4" />Novo Orçamento</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{editing ? 'Editar Orçamento' : 'Novo Orçamento'}</DialogTitle></DialogHeader>
-            <div className="space-y-3 pt-2">
+        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="text-center py-10 text-sm text-muted-foreground">
+              Nenhuma ordem pendente.
+            </div>
+          ) : (
+            filteredOrders.map((o) => {
+              const active = o.id === selectedId;
+              return (
+                <button
+                  key={o.id}
+                  onClick={() => setSelectedId(o.id)}
+                  className={`w-full text-left p-3 rounded-md border transition-all ${
+                    active
+                      ? 'border-primary bg-primary/5 shadow-sm'
+                      : 'border-border hover:border-primary/40 hover:bg-muted/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-[10px] font-mono text-muted-foreground">{o.os_number}</span>
+                    <span className="text-[9px] font-semibold text-amber-600 uppercase tracking-wide">
+                      Aguardando aprovação
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold truncate">
+                    {o.equipment || o.model || '—'}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    {o.reported_defect || 'Sem defeito informado'}
+                  </p>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </aside>
+
+      {/* Right: editor */}
+      <section className="flex-1 min-w-0 overflow-y-auto">
+        {!selected ? (
+          <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground">
+            <FileText className="h-12 w-12 mb-3 opacity-40" />
+            <p className="text-sm">Selecione uma ordem pendente à esquerda para editar o orçamento.</p>
+          </div>
+        ) : (
+          <div className="space-y-6 pb-10 max-w-5xl">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-4 border-b">
               <div>
-                <Label className="text-xs">Ordem de Serviço</Label>
-                <Select value={form.technical_order_id} onValueChange={(v) => {
-                  const ord = orders.find(o => o.id === v);
-                  setForm((f: any) => ({ ...f, technical_order_id: v, total_parts: f.total_parts || Number(ord?.parts_value || 0), total_services: f.total_services || Number(ord?.labor_value || 0) }));
-                }}>
-                  <SelectTrigger><SelectValue placeholder="Selecione a OS..." /></SelectTrigger>
-                  <SelectContent>{orders.map(o => <SelectItem key={o.id} value={o.id}>{o.os_number} — {o.client_name}</SelectItem>)}</SelectContent>
-                </Select>
+                <h1 className="text-2xl font-bold tracking-tight">Orçamento #{selected.os_number}</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  <span className="font-medium text-foreground">Cliente:</span> {selected.client_name || '—'}
+                  {selected.model && (
+                    <>
+                      {' • '}
+                      <span className="font-medium text-foreground">Modelo:</span> {selected.model}
+                    </>
+                  )}
+                </p>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div><Label className="text-xs">Serviços</Label><Input type="number" step="0.01" value={form.total_services} onChange={e => setForm({ ...form, total_services: e.target.value })} /></div>
-                <div><Label className="text-xs">Peças</Label><Input type="number" step="0.01" value={form.total_parts} onChange={e => setForm({ ...form, total_parts: e.target.value })} /></div>
-                <div><Label className="text-xs">Desconto</Label><Input type="number" step="0.01" value={form.discount} onChange={e => setForm({ ...form, discount: e.target.value })} /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div><Label className="text-xs">Validade</Label><Input type="date" value={form.valid_until} onChange={e => setForm({ ...form, valid_until: e.target.value })} /></div>
-                <div>
-                  <Label className="text-xs">Status</Label>
-                  <Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{STATUS_OPTIONS.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div><Label className="text-xs">Observações</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
-              <div className="border-t pt-2 text-right">
-                <p className="text-xs text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold">R$ {total.toFixed(2)}</p>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button onClick={save}>{editing ? 'Salvar' : 'Criar'}</Button>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={printPdf} className="gap-2">
+                  <Printer className="h-4 w-4" /> Imprimir
+                </Button>
+                <Button variant="outline" size="sm" onClick={clearDuplicates} className="gap-2">
+                  <Sparkles className="h-4 w-4" /> Limpar Duplicatas
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => saveOrder()} disabled={saving} className="gap-2">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Salvar
+                </Button>
+                <Button size="sm" onClick={sendForApproval} className="gap-2">
+                  <Send className="h-4 w-4" /> Enviar p/ Aprovação
+                </Button>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
 
-      <div className="bg-card p-4 rounded-xl border">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por cliente ou OS..." className="pl-9" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        </div>
-      </div>
+            {/* Relatório Técnico */}
+            <section>
+              <h3 className="text-sm font-semibold mb-2">Relatório Técnico</h3>
+              <Textarea
+                rows={5}
+                placeholder="Descreva a análise técnica realizada..."
+                value={selected.technical_diagnosis || ''}
+                onChange={(e) => setSelected({ ...selected, technical_diagnosis: e.target.value })}
+              />
+            </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading ? (
-          Array(6).fill(0).map((_, i) => <Card key={i} className="animate-pulse"><CardContent className="h-40" /></Card>)
-        ) : filteredBudgets.length > 0 ? (
-          filteredBudgets.map(budget => (
-            <Card key={budget.id} className="hover:border-primary/50 transition-all">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <Badge variant="secondary" className="text-[10px] font-bold">OS: {budget.technical_orders?.os_number || 'N/A'}</Badge>
-                {getStatusBadge(budget.status)}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-muted rounded-full"><User className="h-4 w-4 text-muted-foreground" /></div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate">{budget.technical_clients?.name || '—'}</p>
-                    <p className="text-xs text-muted-foreground">Cliente</p>
-                  </div>
+            {/* Peças e Componentes */}
+            <section>
+              <div className="flex items-center justify-between mb-2 gap-3">
+                <h3 className="text-sm font-semibold">Peças e Componentes</h3>
+                <div className="relative w-full max-w-xs">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nome ou código..."
+                    className="pl-9"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                  />
+                  {(productResults.length > 0 || searching) && (
+                    <div className="absolute z-20 right-0 mt-1 w-full bg-popover border rounded-md shadow-md max-h-64 overflow-auto">
+                      {searching && <div className="p-3 text-xs text-muted-foreground">Buscando…</div>}
+                      {productResults.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted border-b last:border-b-0"
+                          onClick={() => addPart(p)}
+                        >
+                          <div className="flex justify-between gap-2">
+                            <span className="truncate font-medium">{p.name}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{fmtBRL(p.price || p.unit_price || 0)}</span>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {p.code || 'sem código'} · Estoque: {p.quantity ?? 0}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center justify-between pt-4 border-t">
-                  <div className="text-xs text-muted-foreground">Expira: {budget.valid_until ? new Date(budget.valid_until).toLocaleDateString('pt-BR') : '--'}</div>
-                  <div className="text-lg font-bold">R$ {Number(budget.total_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+              </div>
+
+              <div className="border rounded-md overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="text-left px-3 py-2 w-24">Código</th>
+                      <th className="text-left px-3 py-2">Item</th>
+                      <th className="text-center px-3 py-2 w-20">Qtd</th>
+                      <th className="text-right px-3 py-2 w-32">Unitário</th>
+                      <th className="text-right px-3 py-2 w-32">Total</th>
+                      <th className="w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parts.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
+                          Nenhuma peça adicionada. Use a busca acima.
+                        </td>
+                      </tr>
+                    ) : (
+                      parts.map((p) => (
+                        <tr key={p.id} className="border-t">
+                          <td className="px-3 py-2 text-xs font-mono text-muted-foreground">{p.code || '—'}</td>
+                          <td className="px-3 py-2">{p.product_name}</td>
+                          <td className="px-3 py-2">
+                            <Input
+                              type="number"
+                              min={1}
+                              value={p.quantity}
+                              onChange={(e) => updatePart(p.id, { quantity: Number(e.target.value) })}
+                              className="h-8 text-center"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={p.unit_price}
+                              onChange={(e) => updatePart(p.id, { unit_price: Number(e.target.value) })}
+                              className="h-8 text-right"
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-right font-medium">{fmtBRL(p.total_price)}</td>
+                          <td className="px-3 py-2">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => removePart(p.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* Envio + Frete + Mão de Obra */}
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label className="text-xs">Método de Envio</Label>
+                <Select
+                  value={selected.shipping_method || ''}
+                  onValueChange={(v) => setSelected({ ...selected, shipping_method: v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {SHIPPING_METHODS.map((m) => (
+                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Frete (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={selected.shipping_value || 0}
+                  onChange={(e) => setSelected({ ...selected, shipping_value: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Mão de Obra (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={selected.labor_value || 0}
+                  onChange={(e) => setSelected({ ...selected, labor_value: Number(e.target.value) })}
+                />
+              </div>
+            </section>
+
+            {/* Descrição do Serviço */}
+            <section>
+              <h3 className="text-sm font-semibold mb-2">Descrição do Serviço / Mão de Obra</h3>
+              <Textarea
+                rows={4}
+                placeholder="Detalhe o serviço executado / mão de obra..."
+                value={selected.technician_notes || ''}
+                onChange={(e) => setSelected({ ...selected, technician_notes: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Esta descrição aparecerá no orçamento impresso.
+              </p>
+            </section>
+
+            {/* Desconto */}
+            <section className="max-w-xs">
+              <Label className="text-xs">Desconto sobre Peças (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                className="text-right text-destructive font-medium"
+                value={selected.discount_percent || 0}
+                onChange={(e) => setSelected({ ...selected, discount_percent: Number(e.target.value) })}
+              />
+              <p className="text-xs text-muted-foreground mt-1">Percentual aplicado ao valor das peças</p>
+            </section>
+
+            {/* Formas de Pagamento */}
+            <section>
+              <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">
+                Formas de Pagamento
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                {PAYMENT_METHODS.map((m) => {
+                  const Icon = m.icon;
+                  const active = selected.payment_method === m.key;
+                  return (
+                    <button
+                      key={m.key}
+                      type="button"
+                      onClick={() =>
+                        setSelected({
+                          ...selected,
+                          payment_method: active ? null : m.key,
+                        })
+                      }
+                      className={`flex flex-col items-center justify-center gap-2 border rounded-lg p-4 transition-all ${
+                        active
+                          ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                          : 'border-border hover:border-primary/40 hover:bg-muted/40'
+                      }`}
+                    >
+                      <Icon className={`h-6 w-6 ${m.color}`} />
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-center">
+                        {m.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* Comprovante */}
+            <section className="border rounded-lg bg-muted/30 p-4">
+              <h4 className="text-sm font-semibold mb-3">Comprovante de Pagamento</h4>
+              <div className="flex items-center gap-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadProof(f);
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                  }}
+                />
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+                >
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                  Escolher Arquivo
+                </Button>
+                {selected.payment_proof_url ? (
+                  <a
+                    href={selected.payment_proof_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-primary underline truncate max-w-md"
+                  >
+                    Ver comprovante enviado
+                  </a>
+                ) : (
+                  <span className="text-sm text-muted-foreground">Nenhum arquivo enviado</span>
+                )}
+              </div>
+            </section>
+
+            {/* Totals */}
+            <section className="border rounded-lg p-4 bg-card">
+              <div className="space-y-1 text-sm max-w-md ml-auto">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subtotal peças</span>
+                  <span>{fmtBRL(partsTotal)}</span>
                 </div>
-                <div className="flex justify-center pt-2 border-t">
-                  <ActionMenu className="w-full justify-center" actions={[
-                    { label: 'Editar', icon: Pencil, onClick: () => openEdit(budget), isSecondary: true },
-                    { label: 'Imprimir / PDF', icon: FileText, onClick: () => printBudget(budget), isPrimary: true },
-                    { label: 'WhatsApp', icon: MessageCircle, onClick: () => sendWhatsApp(budget), className: 'text-green-600' },
-                    { label: 'Excluir', icon: Trash2, onClick: () => remove(budget), variant: 'destructive' },
-                  ]} />
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    Desconto ({Number(selected.discount_percent || 0)}%)
+                  </span>
+                  <span className="text-destructive">
+                    - {fmtBRL((partsTotal * Number(selected.discount_percent || 0)) / 100)}
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <div className="col-span-full py-20 text-center">
-            <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4"><FileText className="h-8 w-8 text-muted-foreground" /></div>
-            <p className="text-lg font-semibold">Nenhum orçamento encontrado</p>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Mão de obra</span>
+                  <span>{fmtBRL(selected.labor_value)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Frete</span>
+                  <span>{fmtBRL(selected.shipping_value)}</span>
+                </div>
+                <div className="flex justify-between pt-2 mt-2 border-t text-base font-bold">
+                  <span>Total Geral</span>
+                  <span className="text-primary">{fmtBRL(grandTotal)}</span>
+                </div>
+              </div>
+            </section>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }
