@@ -62,6 +62,7 @@ const AssistenteComercial = lazy(() => import("./pages/AssistenteComercial"));
 const AssistantAudit = lazy(() => import("./pages/AssistantAudit"));
 const AssistantSettings = lazy(() => import("./pages/AssistantSettings"));
 const LogisticsSyncDiagnostic = lazy(() => import("./pages/LogisticsSyncDiagnostic"));
+const ProductMapping = lazy(() => import("./pages/ProductMapping"));
 
 
 const queryClient = new QueryClient({
