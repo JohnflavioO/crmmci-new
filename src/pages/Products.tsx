@@ -775,12 +775,18 @@ export default function Products() {
                   <TableHead>Código</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>Marca</TableHead>
-                  <TableHead>Valor</TableHead>
-                  {(isAdmin || isGestor) && <TableHead className="w-20">Ações</TableHead>}
+                  {noLogisticFilter ? (
+                    <TableHead>Status logístico</TableHead>
+                  ) : (
+                    <TableHead>Valor</TableHead>
+                  )}
+                  {(isAdmin || isGestor) && <TableHead className="w-28">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map((p: any) => (
+                {products.map((p: any) => {
+                  const semDados = !p.peso_kg || !p.altura_cm || !p.largura_cm || !p.comprimento_cm;
+                  return (
                   <TableRow key={p.id}>
                     <TableCell>
                       {p.image_url ? (
@@ -795,21 +801,45 @@ export default function Products() {
                     <TableCell className="text-xs">{highlightText(p.code || '-', tokens)}</TableCell>
                     <TableCell className="font-medium max-w-[200px] truncate">{highlightText(p.name, tokens)}</TableCell>
                     <TableCell>{highlightText(p.brand || '-', tokens)}</TableCell>
-                    <TableCell>{formatCurrency(parseFloat(p.price) || 0)}</TableCell>
+                    {noLogisticFilter ? (
+                      <TableCell className="text-xs">
+                        {p.bloquear_atualizacao_logistica ? (
+                          <span className="inline-flex items-center gap-1 text-muted-foreground"><Lock className="h-3 w-3" />Bloqueado</span>
+                        ) : semDados ? (
+                          <span className="text-amber-600 dark:text-amber-400">Sem dados</span>
+                        ) : (
+                          <span className="text-emerald-600 dark:text-emerald-400">OK</span>
+                        )}
+                      </TableCell>
+                    ) : (
+                      <TableCell>{formatCurrency(parseFloat(p.price) || 0)}</TableCell>
+                    )}
                     {(isAdmin || isGestor) && (
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button size="icon" variant="ghost" onClick={() => handleEdit(p)}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Sincronizar Loja Integrada"
+                            onClick={() => handleSyncSingleLI(p.id)}
+                            disabled={syncingLI || p.bloquear_atualizacao_logistica}
+                          >
+                            {syncingLI ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                          </Button>
+                          <Button size="icon" variant="ghost" title="Editar" onClick={() => handleEdit(p)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => handleDelete(p.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          {!noLogisticFilter && (
+                            <Button size="icon" variant="ghost" title="Excluir" onClick={() => handleDelete(p.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     )}
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           )}
