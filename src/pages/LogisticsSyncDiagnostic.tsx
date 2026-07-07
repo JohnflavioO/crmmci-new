@@ -64,28 +64,41 @@ export default function LogisticsSyncDiagnostic() {
   const stats = useMemo(() => {
     const total = products.length;
     let linked = 0, needs = 0, notFound = 0, syncedToday = 0, withPeso = 0, withDims = 0, conflicts = 0;
+    let prontos = 0, vinculadoSemPeso = 0, vinculadoSemDims = 0, vinculadoCompleto = 0;
     let srcApi = 0, srcPlanilha = 0, srcManual = 0, srcNenhum = 0;
     const today = new Date().toISOString().slice(0, 10);
     for (const p of products) {
       const l = links[p.id];
-      if (l?.sync_status === 'linked') linked++;
+      const isLinked = l?.sync_status === 'linked';
+      if (isLinked) linked++;
       if (l?.sync_status === 'needs_validation') needs++;
       if (l?.sync_status === 'not_found') notFound++;
       if (l?.sync_status === 'error') conflicts++;
       if (l?.last_sync_at && l.last_sync_at.slice(0, 10) === today) syncedToday++;
-      if (p.peso_kg && p.peso_kg > 0) withPeso++;
-      if (p.altura_cm && p.largura_cm && p.comprimento_cm) withDims++;
+      const hasPeso = !!(p.peso_kg && p.peso_kg > 0);
+      const hasDims = !!(p.altura_cm && p.largura_cm && p.comprimento_cm);
+      if (hasPeso) withPeso++;
+      if (hasDims) withDims++;
+      if (hasPeso && hasDims) prontos++;
+      if (isLinked) {
+        if (hasPeso && hasDims) vinculadoCompleto++;
+        else {
+          if (!hasPeso) vinculadoSemPeso++;
+          if (!hasDims) vinculadoSemDims++;
+        }
+      }
       const src = p.loja_integrada_sync_source;
-      const hasData = (p.peso_kg && p.peso_kg > 0) || (p.altura_cm && p.altura_cm > 0);
+      const hasData = hasPeso || (p.altura_cm && p.altura_cm > 0);
       if (!hasData) srcNenhum++;
       else if (src === 'loja_integrada') srcApi++;
       else if (src === 'planilha_loja_integrada') srcPlanilha++;
       else if (src === 'manual') srcManual++;
-      else srcApi++; // legado: sem tag mas com dados = considera API
+      else srcApi++;
     }
     return {
       total, linked, unlinked: total - linked, needs, notFound, conflicts, syncedToday,
       semPeso: total - withPeso, semDims: total - withDims,
+      prontos, vinculadoSemPeso, vinculadoSemDims, vinculadoCompleto,
       srcApi, srcPlanilha, srcManual, srcNenhum,
     };
   }, [products, links]);
