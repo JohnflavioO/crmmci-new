@@ -1193,49 +1193,76 @@ export type Database = {
       }
       products: {
         Row: {
+          altura_cm: number | null
           brand: string | null
           category_principal: string | null
           code: string | null
           company_id: string | null
           compatibility: string | null
+          comprimento_cm: number | null
           created_at: string | null
           description: string | null
+          embalagem_tipo: string | null
           id: string
           image_url: string | null
+          largura_cm: number | null
           level: string | null
           name: string
+          origem_cep: string | null
+          peso_cubado: number | null
+          peso_kg: number | null
           price: number | null
           sku: string | null
+          updated_at: string
+          volume_m3: number | null
         }
         Insert: {
+          altura_cm?: number | null
           brand?: string | null
           category_principal?: string | null
           code?: string | null
           company_id?: string | null
           compatibility?: string | null
+          comprimento_cm?: number | null
           created_at?: string | null
           description?: string | null
+          embalagem_tipo?: string | null
           id?: string
           image_url?: string | null
+          largura_cm?: number | null
           level?: string | null
           name: string
+          origem_cep?: string | null
+          peso_cubado?: number | null
+          peso_kg?: number | null
           price?: number | null
           sku?: string | null
+          updated_at?: string
+          volume_m3?: number | null
         }
         Update: {
+          altura_cm?: number | null
           brand?: string | null
           category_principal?: string | null
           code?: string | null
           company_id?: string | null
           compatibility?: string | null
+          comprimento_cm?: number | null
           created_at?: string | null
           description?: string | null
+          embalagem_tipo?: string | null
           id?: string
           image_url?: string | null
+          largura_cm?: number | null
           level?: string | null
           name?: string
+          origem_cep?: string | null
+          peso_cubado?: number | null
+          peso_kg?: number | null
           price?: number | null
           sku?: string | null
+          updated_at?: string
+          volume_m3?: number | null
         }
         Relationships: []
       }
@@ -1292,6 +1319,89 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      quote_freight_quotes: {
+        Row: {
+          altura_cm: number | null
+          carrier: string | null
+          cep_destino: string | null
+          cep_origem: string | null
+          comprimento_cm: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          largura_cm: number | null
+          notes: string | null
+          peso_cubado_kg: number | null
+          peso_total_kg: number | null
+          prazo_dias: number | null
+          quote_id: string
+          raw_payload: Json | null
+          service: string | null
+          source: string
+          updated_at: string
+          valor_frete: number | null
+          valor_mercadoria: number | null
+          volume_m3: number | null
+          volumes_qtd: number | null
+        }
+        Insert: {
+          altura_cm?: number | null
+          carrier?: string | null
+          cep_destino?: string | null
+          cep_origem?: string | null
+          comprimento_cm?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          largura_cm?: number | null
+          notes?: string | null
+          peso_cubado_kg?: number | null
+          peso_total_kg?: number | null
+          prazo_dias?: number | null
+          quote_id: string
+          raw_payload?: Json | null
+          service?: string | null
+          source?: string
+          updated_at?: string
+          valor_frete?: number | null
+          valor_mercadoria?: number | null
+          volume_m3?: number | null
+          volumes_qtd?: number | null
+        }
+        Update: {
+          altura_cm?: number | null
+          carrier?: string | null
+          cep_destino?: string | null
+          cep_origem?: string | null
+          comprimento_cm?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          largura_cm?: number | null
+          notes?: string | null
+          peso_cubado_kg?: number | null
+          peso_total_kg?: number | null
+          prazo_dias?: number | null
+          quote_id?: string
+          raw_payload?: Json | null
+          service?: string | null
+          source?: string
+          updated_at?: string
+          valor_frete?: number | null
+          valor_mercadoria?: number | null
+          volume_m3?: number | null
+          volumes_qtd?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_freight_quotes_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quote_items: {
         Row: {
