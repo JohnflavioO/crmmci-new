@@ -44,7 +44,7 @@ export default function LogisticsSyncDiagnostic() {
   const load = async () => {
     setLoading(true);
     const [p, l, e] = await Promise.all([
-      supabase.from('products').select('id,name,code,sku,peso_kg,altura_cm,largura_cm,comprimento_cm,logistica_atualizada_em,bloquear_atualizacao_logistica').order('name'),
+      supabase.from('products').select('id,name,code,sku,peso_kg,altura_cm,largura_cm,comprimento_cm,logistica_atualizada_em,bloquear_atualizacao_logistica,loja_integrada_sync_source').order('name'),
       supabase.from('product_external_links').select('product_id,sync_status,match_source,last_sync_at').eq('provider', PROVIDER),
       supabase.from('sync_execution_logs').select('*').eq('provider', PROVIDER).order('created_at', { ascending: false }).limit(10),
     ]);
