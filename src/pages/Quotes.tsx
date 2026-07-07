@@ -556,7 +556,7 @@ export default function Quotes() {
 
       const [q, c, s, p] = await Promise.all([
         quotesQuery,
-        db.from('clients').select('id, company_name, name, is_revenda, contrib_icms').eq('created_by', user.id).order('company_name'),
+        db.from('clients').select('id, company_name, name, is_revenda, contrib_icms, cep, address, city, state').eq('created_by', user.id).order('company_name'),
         db.from('salespeople').select('id, name, code, active').eq('active', true).order('name'),
         db.from('products').select('id, name, brand, code, sku, category_principal, price, description, image_url, peso_kg, altura_cm, largura_cm, comprimento_cm, peso_cubado, volume_m3, origem_cep, embalagem_tipo').order('name').limit(1000),
       ]);
