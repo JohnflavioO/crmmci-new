@@ -10,11 +10,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown, Download, Activity, X, Truck, RefreshCw, Lock } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown, Download, Activity, X, Truck, RefreshCw, Lock, FileSpreadsheet } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { parseMoneyBR } from '@/utils/currency';
+import LogisticsImportDialog from '@/components/products/LogisticsImportDialog';
 
 const formatBR = (n: number) => (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -101,6 +102,7 @@ export default function Products() {
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [diagOpen, setDiagOpen] = useState(false);
   const [diag, setDiag] = useState<any | null>(null);
+  const [logisticsImportOpen, setLogisticsImportOpen] = useState(false);
 
   const normQuery = normalize(search);
   const tokens = tokenize(search);
@@ -503,6 +505,11 @@ export default function Products() {
             </Button>
           )}
           {(isAdmin || isGestor) && (
+            <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={() => setLogisticsImportOpen(true)}>
+              <FileSpreadsheet className="h-4 w-4" /> Importar dados logísticos
+            </Button>
+          )}
+          {(isAdmin || isGestor) && (
             <>
             <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleFetchImages} disabled={fetchingImages}>
               <ImageDown className="h-4 w-4" />
@@ -871,6 +878,11 @@ export default function Products() {
           )}
         </DialogContent>
       </Dialog>
+      <LogisticsImportDialog
+        open={logisticsImportOpen}
+        onOpenChange={setLogisticsImportOpen}
+        onImported={loadProducts}
+      />
     </AppLayout>
   );
 }
