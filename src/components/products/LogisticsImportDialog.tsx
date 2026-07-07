@@ -106,7 +106,7 @@ export default function LogisticsImportDialog({ open, onOpenChange, onImported }
 
       // Fetch external links (loja_integrada)
       const { data: links } = await db.from('product_external_links')
-        .select('product_id, external_id, provider')
+        .select('product_id, external_product_id, provider')
         .eq('provider', 'loja_integrada')
         .limit(10000);
 
