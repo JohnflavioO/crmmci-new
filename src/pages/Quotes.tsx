@@ -1883,8 +1883,20 @@ export default function Quotes() {
                     <div className="flex items-start gap-2 flex-1">
                       <span>⚠</span>
                       <span>
-                        Existem <strong>{freightData.itens_sem_dados}</strong> produto(s) sem peso ou dimensões cadastrados.
-                        Complete os dados em <em>Produtos</em> para calcular o frete com maior precisão.
+                        {freightData.itens_vinculados_sem_dados > 0 ? (
+                          <>
+                            <strong>{freightData.itens_vinculados_sem_dados}</strong> produto(s) vinculado(s) à Loja Integrada,
+                            mas sem dados logísticos cadastrados lá (peso ou dimensões).
+                            {freightData.itens_sem_dados - freightData.itens_vinculados_sem_dados > 0 && (
+                              <> Outros <strong>{freightData.itens_sem_dados - freightData.itens_vinculados_sem_dados}</strong> produto(s) sem vínculo.</>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            Existem <strong>{freightData.itens_sem_dados}</strong> produto(s) sem peso ou dimensões cadastrados.
+                            Complete os dados em <em>Produtos</em> para calcular o frete com maior precisão.
+                          </>
+                        )}
                       </span>
                     </div>
                     {productIdsSemDados.length > 0 && (
