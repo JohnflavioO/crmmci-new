@@ -693,7 +693,20 @@ export default function Quotes() {
         specifications: product.description || '',
         unit_price: parseFloat(product.price) || 0,
         image_url: product.image_url || '',
-      });
+        // Snapshot logístico em runtime — usado direto no cálculo do frete,
+        // sem depender de lookup por código/nome. Não é persistido no DB.
+        __product: {
+          id: product.id,
+          peso_kg: product.peso_kg,
+          altura_cm: product.altura_cm,
+          largura_cm: product.largura_cm,
+          comprimento_cm: product.comprimento_cm,
+          peso_cubado: product.peso_cubado,
+          volume_m3: product.volume_m3,
+          origem_cep: product.origem_cep,
+          embalagem_tipo: product.embalagem_tipo,
+        },
+      } as any);
       return updated;
     });
     setProductSearch(prev => ({ ...prev, [idx]: '' }));
