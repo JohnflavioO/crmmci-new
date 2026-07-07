@@ -42,6 +42,11 @@ export default function LogisticsSyncDiagnostic() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [smartReport, setSmartReport] = useState<SmartReport>(null);
   const [smartRunning, setSmartRunning] = useState(false);
+  const [reprocessRunning, setReprocessRunning] = useState(false);
+  const [auditRunning, setAuditRunning] = useState(false);
+  const [auditRows, setAuditRows] = useState<any[] | null>(null);
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [auditFilter, setAuditFilter] = useState('');
 
   const load = async () => {
     setLoading(true);
