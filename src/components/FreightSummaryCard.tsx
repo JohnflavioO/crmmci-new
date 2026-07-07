@@ -59,6 +59,20 @@ export default function FreightSummaryCard({ data, quoteNumber }: Props) {
           </Button>
         </div>
 
+        {(!data.cep_origem || data.cep_origem === '00000000') && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <span>Configure o CEP de origem em Configurações do Sistema.</span>
+          </div>
+        )}
+
+        {!data.cep_destino && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <span>Cliente sem CEP cadastrado. Preencha o CEP para calcular o frete.</span>
+          </div>
+        )}
+
         {data.itens_sem_dados > 0 && (
           <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
