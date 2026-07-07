@@ -1047,7 +1047,7 @@ async function syncProductsDimensions(
           needsReview++;
           needs_review_details.push({ id: p.id, name: p.name, sku: p.sku, code: p.code, candidates });
           await markLinkStatus(serviceClient, p.id, 'needs_validation', {
-            candidates: candidates.map(c => ({ id: c.id, sku: c.sku, code: c.code, reference: c.reference, name: c.name })),
+            candidates: candidates.map((c: any) => ({ id: c.id, sku: c.sku, code: c.code, reference: c.reference, name: c.name, score: c.score ?? null })),
             external_name: p.name,
           });
         } else {
