@@ -438,6 +438,13 @@ export default function Quotes() {
   }, [products, externalLinks]);
 
   const findProductForItem = useCallback((it: any) => {
+    // 1) Snapshot em runtime — preenchido quando o usuário seleciona um produto
+    //    pelo dropdown de busca. Garante que peso/dimensões sejam usados
+    //    mesmo quando o produto não estiver no lookup local ou tiver código vazio.
+    const snap = (it as any).__product;
+    if (snap && (snap.peso_kg || snap.altura_cm)) {
+      return { product: snap, matched_by: 'runtime_snapshot' };
+    }
     const candidates = [it.product_code, it.code, it.model, it.description];
     for (const c of candidates) {
       const k = normalize(c);
@@ -626,7 +633,7 @@ export default function Quotes() {
         quotesQuery,
         db.from('clients').select('id, company_name, name, is_revenda, contrib_icms, cep, address, city, state').eq('created_by', user.id).order('company_name'),
         db.from('salespeople').select('id, name, code, active').eq('active', true).order('name'),
-        db.from('products').select('id, name, brand, code, sku, category_principal, price, description, image_url, peso_kg, altura_cm, largura_cm, comprimento_cm, peso_cubado, volume_m3, origem_cep, embalagem_tipo').order('name').limit(1000),
+        db.from('products').select('id, name, brand, code, sku, category_principal, price, description, image_url, peso_kg, altura_cm, largura_cm, comprimento_cm, peso_cubado, volume_m3, origem_cep, embalagem_tipo').order('name').limit(5000),
         db.from('product_external_links').select('product_id, external_product_id, external_sku, external_code, external_name'),
       ]);
       setQuotes(q.data || []);
@@ -693,7 +700,20 @@ export default function Quotes() {
         specifications: product.description || '',
         unit_price: parseFloat(product.price) || 0,
         image_url: product.image_url || '',
-      });
+        // Snapshot logístico em runtime — usado direto no cálculo do frete,
+        // sem depender de lookup por código/nome. Não é persistido no DB.
+        __product: {
+          id: product.id,
+          peso_kg: product.peso_kg,
+          altura_cm: product.altura_cm,
+          largura_cm: product.largura_cm,
+          comprimento_cm: product.comprimento_cm,
+          peso_cubado: product.peso_cubado,
+          volume_m3: product.volume_m3,
+          origem_cep: product.origem_cep,
+          embalagem_tipo: product.embalagem_tipo,
+        },
+      } as any);
       return updated;
     });
     setProductSearch(prev => ({ ...prev, [idx]: '' }));
@@ -709,7 +729,7 @@ export default function Quotes() {
     }
 
     const sanitize = (s: string) => s.replace(/[%,()]/g, '');
-    const selectCols = 'id, name, brand, code, sku, category_principal, price, description, image_url';
+    const selectCols = 'id, name, brand, code, sku, category_principal, price, description, image_url, peso_kg, altura_cm, largura_cm, comprimento_cm, peso_cubado, volume_m3, origem_cep, embalagem_tipo';
     const normalizedQuery = normalizeProductText(rawSearch);
     const phrase = sanitize(normalizedQuery);
 
