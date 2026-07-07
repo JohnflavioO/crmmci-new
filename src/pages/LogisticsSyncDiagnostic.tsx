@@ -15,6 +15,7 @@ type Product = {
   id: string; name: string; code: string | null; sku: string | null;
   peso_kg: number | null; altura_cm: number | null; largura_cm: number | null; comprimento_cm: number | null;
   logistica_atualizada_em: string | null; bloquear_atualizacao_logistica: boolean | null;
+  loja_integrada_sync_source: string | null;
 };
 
 type ExtLink = { product_id: string; sync_status: string; match_source: string | null; last_sync_at: string | null };
