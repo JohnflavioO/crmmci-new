@@ -722,7 +722,7 @@ export default function Quotes() {
     }
 
     const sanitize = (s: string) => s.replace(/[%,()]/g, '');
-    const selectCols = 'id, name, brand, code, sku, category_principal, price, description, image_url';
+    const selectCols = 'id, name, brand, code, sku, category_principal, price, description, image_url, peso_kg, altura_cm, largura_cm, comprimento_cm, peso_cubado, volume_m3, origem_cep, embalagem_tipo';
     const normalizedQuery = normalizeProductText(rawSearch);
     const phrase = sanitize(normalizedQuery);
 
