@@ -473,12 +473,14 @@ export default function Quotes() {
               ? 'produto encontrado, mas sem peso/dimensões cadastrados'
               : null,
         });
+        const hasDims = !!(prod && prod.peso_kg && prod.altura_cm && prod.largura_cm && prod.comprimento_cm);
         return {
           product_code: it.product_code,
           model: it.model,
           description: it.specifications,
           quantity: it.quantity,
           unit_price: it.unit_price,
+          vinculado_sem_dados: !!prod && !hasDims,
           product: prod
             ? {
                 peso_kg: prod.peso_kg,
