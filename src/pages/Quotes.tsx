@@ -348,6 +348,17 @@ function PaymentMethodFields({ method, date, onDateChange, installments, onInsta
   return null;
 }
 
+function SummaryStat({ label, value, className = '' }: { label: string; value: string; className?: string }) {
+  return (
+    <div className={`rounded-md border bg-background/60 px-2.5 py-1.5 ${className}`}>
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-xs font-semibold tabular-nums truncate">{value}</p>
+    </div>
+  );
+}
+
+
+
 export default function Quotes() {
   const { user, profile, isGestor, isAdmin } = useAuth();
   const isMobile = useIsMobile();
