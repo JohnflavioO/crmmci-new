@@ -1157,6 +1157,11 @@ Deno.serve(async (req) => {
       const creds = await fetchStoredCredentials(serviceClient);
       if (!creds) {
         return jsonResponse({ ok: false, error: 'Integração Loja Integrada não configurada.' });
+      }
+      const result = await syncProductsDimensions(serviceClient, creds.apiKey, creds.applicationKey, {
+        product_ids, all: all_products,
+      });
+      return jsonResponse(result);
     }
 
     // Search & manual link require authenticated user
@@ -1188,11 +1193,6 @@ Deno.serve(async (req) => {
         const result = await linkProductManually(serviceClient, creds.apiKey, creds.applicationKey, product_id, li_id);
         return jsonResponse(result);
       }
-    }
-      const result = await syncProductsDimensions(serviceClient, creds.apiKey, creds.applicationKey, {
-        product_ids, all: all_products,
-      });
-      return jsonResponse(result);
     }
 
     // All other actions require authenticated admin
