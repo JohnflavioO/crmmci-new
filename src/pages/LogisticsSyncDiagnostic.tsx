@@ -21,6 +21,10 @@ type ExtLink = { product_id: string; sync_status: string; match_source: string |
 type ExecLog = { id: string; action: string; targets_count: number; linked_count: number; updated_count: number; needs_validation_count: number; not_found_count: number; errors_count: number; duration_ms: number; created_at: string; triggered_by_name: string | null };
 
 type LogEntry = { ts: string; level: 'info' | 'ok' | 'warn' | 'err'; msg: string };
+type SmartReport = {
+  total: number; linked: number; updated: number; needs_review: number; not_found: number; errors: number; li_catalog_size: number;
+  not_found_details?: any[]; needs_review_details?: any[];
+} | null;
 
 const BATCH = 25;
 
@@ -33,6 +37,8 @@ export default function LogisticsSyncDiagnostic() {
   const [progress, setProgress] = useState(0);
   const [processed, setProcessed] = useState(0);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [smartReport, setSmartReport] = useState<SmartReport>(null);
+  const [smartRunning, setSmartRunning] = useState(false);
 
   const load = async () => {
     setLoading(true);
