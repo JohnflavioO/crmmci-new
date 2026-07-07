@@ -42,7 +42,7 @@ export default function ProductMapping() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [links, setLinks] = useState<Record<string, Link>>({});
-  const [filter, setFilter] = useState<'unlinked' | 'needs_validation' | 'linked' | 'not_found' | 'all'>('unlinked');
+  const [filter, setFilter] = useState<'unlinked' | 'needs_validation' | 'linked' | 'not_found' | 'all'>('needs_validation');
   const [selected, setSelected] = useState<Product | null>(null);
   const [term, setTerm] = useState('');
   const [searching, setSearching] = useState(false);
