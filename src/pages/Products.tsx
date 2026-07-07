@@ -10,11 +10,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown, Download, Activity, X, Truck, RefreshCw, Lock } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown, Download, Activity, X, Truck, RefreshCw, Lock, FileSpreadsheet } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { parseMoneyBR } from '@/utils/currency';
+import LogisticsImportDialog from '@/components/products/LogisticsImportDialog';
 
 const formatBR = (n: number) => (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
