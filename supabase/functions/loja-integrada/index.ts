@@ -770,12 +770,54 @@ function toNumberOrNull(v: any): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/**
+ * Extrai peso e dimensões do produto Loja Integrada.
+ *
+ * Na Loja Integrada, os dados físicos ficam na aba interna
+ * "Qual é o tamanho da embalagem do produto?" e são expostos pela API
+ * tanto no produto raiz quanto — mais comumente — no objeto
+ * `produto_variacao_padrao` (variação padrão) ou na primeira
+ * `produto_variacoes[]`.
+ *
+ * Mapeamento oficial:
+ *   LI.peso           → CRM.peso_kg
+ *   LI.altura         → CRM.altura_cm
+ *   LI.largura        → CRM.largura_cm
+ *   LI.profundidade   → CRM.comprimento_cm   (⚠ profundidade = comprimento)
+ */
+function pickFirst(...vals: any[]) {
+  for (const v of vals) {
+    const n = toNumberOrNull(v);
+    if (n) return n;
+  }
+  return null;
+}
+
 function extractDims(raw: any) {
   if (!raw) return null;
-  const peso = toNumberOrNull(raw.peso ?? raw.peso_real ?? raw.weight);
-  const altura = toNumberOrNull(raw.altura ?? raw.height);
-  const largura = toNumberOrNull(raw.largura ?? raw.width);
-  const comprimento = toNumberOrNull(raw.profundidade ?? raw.comprimento ?? raw.length ?? raw.depth);
+  const variations: any[] = Array.isArray(raw.produto_variacoes) ? raw.produto_variacoes : [];
+  const varPadrao = raw.produto_variacao_padrao || variations[0] || null;
+
+  const peso = pickFirst(
+    raw.peso, raw.peso_real, raw.weight,
+    varPadrao?.peso, varPadrao?.peso_real,
+    variations[0]?.peso,
+  );
+  const altura = pickFirst(
+    raw.altura, raw.height,
+    varPadrao?.altura, variations[0]?.altura,
+  );
+  const largura = pickFirst(
+    raw.largura, raw.width,
+    varPadrao?.largura, variations[0]?.largura,
+  );
+  // ⚠ profundidade da LI = comprimento no CRM
+  const comprimento = pickFirst(
+    raw.profundidade, raw.comprimento, raw.length, raw.depth,
+    varPadrao?.profundidade, varPadrao?.comprimento,
+    variations[0]?.profundidade, variations[0]?.comprimento,
+  );
+
   if (!peso && !altura && !largura && !comprimento) return null;
   const volume_m3 = altura && largura && comprimento
     ? Number(((altura * largura * comprimento) / 1_000_000).toFixed(4))
