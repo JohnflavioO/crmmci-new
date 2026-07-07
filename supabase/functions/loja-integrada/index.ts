@@ -1037,7 +1037,7 @@ async function syncProductsDimensions(
   let q = serviceClient
     .from('products')
     .select('id, name, sku, code, brand, bloquear_atualizacao_logistica, company_id')
-    .eq('bloquear_atualizacao_logistica', false);
+    .not('bloquear_atualizacao_logistica', 'is', true);
 
   if (opts.product_ids && opts.product_ids.length > 0) {
     q = q.in('id', opts.product_ids);
