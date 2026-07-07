@@ -905,15 +905,37 @@ async function enrichLIDetail(apiKey: string, appKey: string, item: any): Promis
     const detail = await liGET(`/produto/${item.id}`, apiKey, appKey);
     if (detail) base = detail;
   }
-  // Se o produto raiz não tem dims, tentamos a variação padrão / variações do produto.
-  if (!hasAnyDim(base) && !base?.produto_variacao_padrao && !Array.isArray(base?.produto_variacoes)) {
+  // Sempre buscamos variações se ainda não há dims completas — os campos de embalagem
+  // costumam viver no objeto de variação (mesmo em produtos sem grade).
+  const dimsRoot = extractDims(base);
+  const missing = !dimsRoot || !dimsRoot.peso_kg || !dimsRoot.altura_cm || !dimsRoot.largura_cm || !dimsRoot.comprimento_cm;
+  if (missing) {
     const vars = await liGET(`/produto_variacao/?produto=${item.id}&limit=5`, apiKey, appKey);
     const objs = vars?.objects || [];
     if (objs.length) {
-      base = { ...base, produto_variacoes: objs, produto_variacao_padrao: objs[0] };
+      base = { ...base, produto_variacoes: objs, produto_variacao_padrao: base?.produto_variacao_padrao || objs[0] };
     }
   }
   return base;
+}
+
+// Retorna qual fonte trouxe cada valor de dimensão — usado pela auditoria.
+function extractDimsDetailed(raw: any) {
+  const variations: any[] = Array.isArray(raw?.produto_variacoes) ? raw.produto_variacoes : [];
+  const varPadrao = raw?.produto_variacao_padrao || variations[0] || null;
+  const varFirst = variations[0] || null;
+  const sources: Record<string, any> = {
+    produto: { peso: toNumberOrNull(raw?.peso), altura: toNumberOrNull(raw?.altura), largura: toNumberOrNull(raw?.largura), profundidade: toNumberOrNull(raw?.profundidade ?? raw?.comprimento) },
+    produto_variacao_padrao: varPadrao ? { peso: toNumberOrNull(varPadrao?.peso), altura: toNumberOrNull(varPadrao?.altura), largura: toNumberOrNull(varPadrao?.largura), profundidade: toNumberOrNull(varPadrao?.profundidade ?? varPadrao?.comprimento) } : null,
+    'produto_variacoes[0]': varFirst && varFirst !== varPadrao ? { peso: toNumberOrNull(varFirst?.peso), altura: toNumberOrNull(varFirst?.altura), largura: toNumberOrNull(varFirst?.largura), profundidade: toNumberOrNull(varFirst?.profundidade ?? varFirst?.comprimento) } : null,
+  };
+  const dims = extractDims(raw);
+  let fonte: string | null = null;
+  for (const k of Object.keys(sources)) {
+    const s = sources[k];
+    if (s && (s.peso || s.altura || s.largura || s.profundidade)) { fonte = k; break; }
+  }
+  return { dims, fonte, sources, variacao_id: varPadrao?.id ? String(varPadrao.id) : (varFirst?.id ? String(varFirst.id) : null) };
 }
 
 type LIRef = {
