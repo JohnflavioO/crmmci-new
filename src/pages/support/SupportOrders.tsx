@@ -190,10 +190,6 @@ export default function SupportOrders() {
               <section>
                 <h3 className="text-sm font-semibold mb-2">☐ Equipamento</h3>
                 <div className="border-t pt-3 grid grid-cols-2 gap-3">
-                  <div className="col-span-2">
-                    <Label className="text-xs">Equipamento</Label>
-                    <Input placeholder="Ex: Refletor LED, Light Storm..." value={form.equipment} onChange={e => setForm({ ...form, equipment: e.target.value })} />
-                  </div>
                   <div>
                     <Label className="text-xs">Marca</Label>
                     <Input placeholder="Aputure / Astera..." value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} />
