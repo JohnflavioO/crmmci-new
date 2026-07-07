@@ -381,6 +381,7 @@ export default function Quotes() {
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
   const [salespeople, setSalespeople] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [externalLinks, setExternalLinks] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState<Record<number, string>>({});
   const [productSearchResults, setProductSearchResults] = useState<Record<number, any[]>>({});
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
@@ -410,23 +411,61 @@ export default function Quotes() {
   }, []);
   const [freightContext, setFreightContext] = useState<{ quoteNumber?: string } | undefined>(undefined);
 
-  // Match products à lista de itens pelo code/sku
-  const productByCode = useMemo(() => {
+  // Multi-key lookup: por code, sku, external_product_id, external_sku, external_code, nome normalizado
+  const normalize = (v: any) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const productLookup = useMemo(() => {
     const map = new Map<string, any>();
+    const add = (key: any, prod: any) => {
+      const k = normalize(key);
+      if (k && !map.has(k)) map.set(k, prod);
+    };
+    const byId = new Map<string, any>();
     for (const p of products) {
-      if (p.code) map.set(String(p.code).trim().toLowerCase(), p);
-      if (p.sku) map.set(String(p.sku).trim().toLowerCase(), p);
+      byId.set(p.id, p);
+      add(p.code, p);
+      add(p.sku, p);
+      add(p.name, p);
+    }
+    for (const link of externalLinks) {
+      const prod = byId.get(link.product_id);
+      if (!prod) continue;
+      add(link.external_product_id, prod);
+      add(link.external_sku, prod);
+      add(link.external_code, prod);
+      add(link.external_name, prod);
     }
     return map;
-  }, [products]);
+  }, [products, externalLinks]);
+
+  const findProductForItem = useCallback((it: any) => {
+    const candidates = [it.product_code, it.code, it.model, it.description];
+    for (const c of candidates) {
+      const k = normalize(c);
+      if (!k) continue;
+      const p = productLookup.get(k);
+      if (p) return { product: p, matched_by: c };
+    }
+    return { product: null, matched_by: null };
+  }, [productLookup]);
 
   // Dados consolidados de frete a partir dos itens do orçamento
   const freightData: FreightData = useMemo(() => {
     const totalAmountVal = items.reduce((s, i) => s + (Number(i.line_total) || 0), 0);
-    return buildFreightData({
+    const diag: any[] = [];
+    const built = buildFreightData({
       items: items.map(it => {
-        const key = String(it.product_code || '').trim().toLowerCase();
-        const prod = key ? productByCode.get(key) : null;
+        const { product: prod, matched_by } = findProductForItem(it);
+        diag.push({
+          item_code: it.product_code, model: it.model, matched_by,
+          product_id: prod?.id, product_name: prod?.name,
+          peso_kg: prod?.peso_kg, altura_cm: prod?.altura_cm,
+          largura_cm: prod?.largura_cm, comprimento_cm: prod?.comprimento_cm,
+          motivo_sem_dados: !prod
+            ? 'produto não localizado no catálogo (verifique vínculo em Mapeamento de Produtos)'
+            : (!prod.peso_kg || !prod.altura_cm || !prod.largura_cm || !prod.comprimento_cm)
+              ? 'produto encontrado, mas sem peso/dimensões cadastrados'
+              : null,
+        });
         return {
           product_code: it.product_code,
           model: it.model,
@@ -451,20 +490,30 @@ export default function Quotes() {
       cep_destino: form.use_alt_shipping_address ? form.shipping_cep : (clients.find((c: any) => c.id === form.client_id)?.cep || ''),
       valor_mercadoria: totalAmountVal,
     });
-  }, [items, productByCode, cepOrigem, form.use_alt_shipping_address, form.shipping_cep, form.client_id, clients]);
+    if (items.some(i => i.product_code || i.model)) {
+      // eslint-disable-next-line no-console
+      console.log('[Frete] Diagnóstico por item:', diag, '→ totais:', {
+        peso_total_kg: built.peso_total_kg,
+        volume_total_m3: built.volume_total_m3,
+        volumes_qtd: built.volumes_qtd,
+        cep_origem: built.cep_origem,
+        cep_destino: built.cep_destino,
+      });
+    }
+    return built;
+  }, [items, findProductForItem, cepOrigem, form.use_alt_shipping_address, form.shipping_cep, form.client_id, clients]);
 
   // IDs dos produtos do orçamento sem dados logísticos completos
   const productIdsSemDados = useMemo(() => {
     const ids: string[] = [];
     for (const it of items) {
-      const key = String(it.product_code || '').trim().toLowerCase();
-      const prod = key ? productByCode.get(key) : null;
+      const { product: prod } = findProductForItem(it);
       if (prod && (!prod.peso_kg || !prod.altura_cm || !prod.largura_cm || !prod.comprimento_cm)) {
         if (!ids.includes(prod.id)) ids.push(prod.id);
       }
     }
     return ids;
-  }, [items, productByCode]);
+  }, [items, findProductForItem]);
 
   const [syncingFreightLI, setSyncingFreightLI] = useState(false);
   const handleFetchFreightFromLI = async () => {
@@ -573,16 +622,18 @@ export default function Quotes() {
         quotesQuery = quotesQuery.eq('status', 'rejected');
       }
 
-      const [q, c, s, p] = await Promise.all([
+      const [q, c, s, p, pel] = await Promise.all([
         quotesQuery,
         db.from('clients').select('id, company_name, name, is_revenda, contrib_icms, cep, address, city, state').eq('created_by', user.id).order('company_name'),
         db.from('salespeople').select('id, name, code, active').eq('active', true).order('name'),
         db.from('products').select('id, name, brand, code, sku, category_principal, price, description, image_url, peso_kg, altura_cm, largura_cm, comprimento_cm, peso_cubado, volume_m3, origem_cep, embalagem_tipo').order('name').limit(1000),
+        db.from('product_external_links').select('product_id, external_product_id, external_sku, external_code, external_name'),
       ]);
       setQuotes(q.data || []);
       setClients(c.data || []);
       setSalespeople(s.data || []);
       setProducts(p.data || []);
+      setExternalLinks(pel.data || []);
 
       if (canViewTeamQuotes) {
         // Obter perfis comerciais ativos para o filtro
