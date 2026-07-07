@@ -1194,6 +1194,7 @@ export type Database = {
       products: {
         Row: {
           altura_cm: number | null
+          bloquear_atualizacao_logistica: boolean
           brand: string | null
           category_principal: string | null
           code: string | null
@@ -1207,6 +1208,9 @@ export type Database = {
           image_url: string | null
           largura_cm: number | null
           level: string | null
+          logistica_atualizada_em: string | null
+          loja_integrada_id: string | null
+          loja_integrada_sync_source: string | null
           name: string
           origem_cep: string | null
           peso_cubado: number | null
@@ -1218,6 +1222,7 @@ export type Database = {
         }
         Insert: {
           altura_cm?: number | null
+          bloquear_atualizacao_logistica?: boolean
           brand?: string | null
           category_principal?: string | null
           code?: string | null
@@ -1231,6 +1236,9 @@ export type Database = {
           image_url?: string | null
           largura_cm?: number | null
           level?: string | null
+          logistica_atualizada_em?: string | null
+          loja_integrada_id?: string | null
+          loja_integrada_sync_source?: string | null
           name: string
           origem_cep?: string | null
           peso_cubado?: number | null
@@ -1242,6 +1250,7 @@ export type Database = {
         }
         Update: {
           altura_cm?: number | null
+          bloquear_atualizacao_logistica?: boolean
           brand?: string | null
           category_principal?: string | null
           code?: string | null
@@ -1255,6 +1264,9 @@ export type Database = {
           image_url?: string | null
           largura_cm?: number | null
           level?: string | null
+          logistica_atualizada_em?: string | null
+          loja_integrada_id?: string | null
+          loja_integrada_sync_source?: string | null
           name?: string
           origem_cep?: string | null
           peso_cubado?: number | null
