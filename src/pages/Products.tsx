@@ -505,6 +505,11 @@ export default function Products() {
             </Button>
           )}
           {(isAdmin || isGestor) && (
+            <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={() => setLogisticsImportOpen(true)}>
+              <FileSpreadsheet className="h-4 w-4" /> Importar dados logísticos
+            </Button>
+          )}
+          {(isAdmin || isGestor) && (
             <>
             <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleFetchImages} disabled={fetchingImages}>
               <ImageDown className="h-4 w-4" />
