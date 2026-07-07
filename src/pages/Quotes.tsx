@@ -441,8 +441,9 @@ export default function Quotes() {
     // 1) Snapshot em runtime — preenchido quando o usuário seleciona um produto
     //    pelo dropdown de busca. Garante que peso/dimensões sejam usados
     //    mesmo quando o produto não estiver no lookup local ou tiver código vazio.
-    if (it.__product && (it.__product.peso_kg || it.__product.altura_cm)) {
-      return { product: it.__product, matched_by: 'runtime_snapshot' };
+    const snap = (it as any).__product;
+    if (snap && (snap.peso_kg || snap.altura_cm)) {
+      return { product: snap, matched_by: 'runtime_snapshot' };
     }
     const candidates = [it.product_code, it.code, it.model, it.description];
     for (const c of candidates) {
