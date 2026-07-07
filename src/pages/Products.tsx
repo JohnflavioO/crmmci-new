@@ -407,6 +407,71 @@ export default function Products() {
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
+  const runLojaIntegradaSync = async (product_ids?: string[], all_products = false) => {
+    const { data, error } = await supabase.functions.invoke('loja-integrada', {
+      body: { action: 'sync_product_dimensions', product_ids, all_products },
+    });
+    if (error) throw new Error(error.message || 'Falha ao sincronizar');
+    if (data?.ok === false) throw new Error(data?.error || 'Falha ao sincronizar');
+    return data as { updated: number; not_found: number; skipped: number; errors: number; total: number };
+  };
+
+  const handleSyncSingleLI = async (productId: string) => {
+    setSyncingLI(true);
+    try {
+      const res = await runLojaIntegradaSync([productId]);
+      if (res.updated > 0) {
+        toast.success('Dados logísticos atualizados da Loja Integrada.');
+        // Refresh product in form if it's the currently edited one
+        const { data: fresh } = await db.from('products').select('*').eq('id', productId).maybeSingle();
+        if (fresh && editing?.id === productId) handleEdit(fresh);
+        loadProducts();
+      } else if (res.not_found > 0) {
+        toast.warning('Produto não encontrado na Loja Integrada. Verifique o SKU ou código.');
+      } else if (res.skipped > 0) {
+        toast.info('Produto encontrado, mas sem dados logísticos preenchidos na Loja Integrada.');
+      } else {
+        toast.info('Nada a atualizar.');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao sincronizar');
+    } finally {
+      setSyncingLI(false);
+    }
+  };
+
+  const handleBulkSyncLI = async () => {
+    const scopeMsg = noLogisticFilter
+      ? 'Sincronizar dados logísticos de TODOS os produtos sem peso/dimensões?'
+      : 'Sincronizar peso e dimensões de TODOS os produtos da Loja Integrada? Isso pode levar alguns minutos.';
+    if (!confirm(scopeMsg)) return;
+    setBulkSyncingLI(true);
+    try {
+      let ids: string[] | undefined;
+      let all = true;
+      if (noLogisticFilter) {
+        const { data } = await db.from('products')
+          .select('id')
+          .or('peso_kg.is.null,altura_cm.is.null,largura_cm.is.null,comprimento_cm.is.null,peso_kg.eq.0,altura_cm.eq.0,largura_cm.eq.0,comprimento_cm.eq.0')
+          .limit(500);
+        ids = (data || []).map((p: any) => p.id);
+        all = false;
+        if (ids.length === 0) {
+          toast.info('Nenhum produto sem dados logísticos.');
+          return;
+        }
+      }
+      const res = await runLojaIntegradaSync(ids, all);
+      toast.success(`Sincronização concluída: ${res.updated} atualizados, ${res.not_found} não encontrados, ${res.skipped} sem dados, ${res.errors} erros.`);
+      loadProducts();
+    } catch (e: any) {
+      toast.error(e.message || 'Erro na sincronização em massa');
+    } finally {
+      setBulkSyncingLI(false);
+    }
+  };
+
+
   const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE));
 
   return (
