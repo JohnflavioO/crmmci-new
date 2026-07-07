@@ -1014,27 +1014,27 @@ async function syncProductsDimensions(
   const not_found_details: any[] = [];
   const needs_review_details: any[] = [];
 
-  for (const p of (products || [])) {
+  const CONCURRENCY = 10;
+  const queue = [...(products || [])];
+
+  async function processOne(p: any) {
     try {
       const existing = linkByProduct.get(p.id);
       let matched: LIRef | null = null;
       let matched_by: string | null = null;
       let candidates: LIRef[] = [];
 
-      // 1+2. Vínculo já existe → SEMPRE reutilizar
       if (existing?.external_product_id && !String(existing.external_product_id).startsWith('__unresolved__')) {
         const hit = liIndex.find(x => x.id === String(existing.external_product_id));
         if (hit) {
           matched = hit;
           matched_by = existing.match_source || 'external_id';
         } else {
-          // link stale (produto removido da LI). Manter como error para revisão.
           await markLinkStatus(serviceClient, p.id, 'error', { external_name: p.name });
           errors++;
-          continue;
+          return;
         }
       } else {
-        // 3-6. Matcher em cadeia
         const r = matchCRMProduct(
           { id: p.id, name: p.name, sku: p.sku, code: p.code, brand: p.brand, loja_integrada_id: null },
           liIndex
@@ -1053,14 +1053,11 @@ async function syncProductsDimensions(
         } else {
           notFound++;
           not_found_details.push({ id: p.id, name: p.name, sku: p.sku, code: p.code });
-          await markLinkStatus(serviceClient, p.id, 'not_found', {
-            external_name: p.name, candidates: null,
-          });
+          await markLinkStatus(serviceClient, p.id, 'not_found', { external_name: p.name, candidates: null });
         }
-        continue;
+        return;
       }
 
-      // Vínculo definitivo (upsert link)
       await upsertLink(serviceClient, {
         product_id: p.id,
         external_product_id: matched.id,
@@ -1073,10 +1070,9 @@ async function syncProductsDimensions(
       });
       linked++;
 
-      // Enrich w/ detail + sync dimensions on products
       const raw = await enrichLIDetail(apiKey, applicationKey, liById.get(matched.id));
       const dims = extractDims(raw);
-      if (!dims) { skipped++; continue; }
+      if (!dims) { skipped++; return; }
 
       const updatePayload: any = {
         peso_kg: dims.peso_kg,
@@ -1085,7 +1081,7 @@ async function syncProductsDimensions(
         comprimento_cm: dims.comprimento_cm,
         volume_m3: dims.volume_m3,
         peso_cubado: dims.peso_cubado,
-        loja_integrada_id: matched.id, // legacy compat
+        loja_integrada_id: matched.id,
         loja_integrada_sync_source: matched_by,
         logistica_atualizada_em: new Date().toISOString(),
         needs_manual_link: false,
@@ -1095,13 +1091,24 @@ async function syncProductsDimensions(
         if (updatePayload[k] === null || updatePayload[k] === undefined) delete updatePayload[k];
       }
       const { error: upErr } = await serviceClient.from('products').update(updatePayload).eq('id', p.id);
-      if (upErr) { errors++; continue; }
+      if (upErr) { errors++; return; }
       updated++;
     } catch (e) {
       console.error('[loja-integrada] sync error:', e);
       errors++;
     }
   }
+
+  async function worker() {
+    while (queue.length) {
+      const p = queue.shift();
+      if (!p) break;
+      await processOne(p);
+    }
+  }
+
+  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+
 
   const summary = {
     ok: true,
