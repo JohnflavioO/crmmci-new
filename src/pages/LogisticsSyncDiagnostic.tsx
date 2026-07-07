@@ -164,19 +164,74 @@ export default function LogisticsSyncDiagnostic() {
             <h1 className="text-2xl font-bold">Diagnóstico da Sincronização Logística</h1>
             <p className="text-sm text-muted-foreground">Baseado em <code className="text-xs">product_external_links</code> (provider: Loja Integrada).</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Link to="/mapeamento-produtos"><Button variant="outline"><Link2 className="h-4 w-4 mr-2" />Mapeamento</Button></Link>
-            <Button variant="outline" onClick={load} disabled={loading || running}><RefreshCw className="h-4 w-4 mr-2" />Recarregar</Button>
-            <Button onClick={() => runSync('unlinked')} disabled={running || loading} variant="secondary">
+            <Button variant="outline" onClick={load} disabled={loading || running || smartRunning}><RefreshCw className="h-4 w-4 mr-2" />Recarregar</Button>
+            <Button onClick={() => runSync('unlinked')} disabled={running || loading || smartRunning} variant="secondary">
               {running ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
               Sincronizar sem vínculo
             </Button>
-            <Button onClick={() => runSync('all')} disabled={running || loading}>
-              {running ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
-              Executar sincronização agora
+            <Button
+              onClick={runSmartSync}
+              disabled={smartRunning || running || loading}
+              className="bg-gradient-to-r from-primary to-purple-600 hover:opacity-90"
+            >
+              {smartRunning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+              Sincronização Inteligente
             </Button>
           </div>
         </div>
+
+        {(smartRunning || smartReport) && (
+          <Card className="border-primary/40">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Relatório da Sincronização Inteligente
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {smartRunning && !smartReport && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Buscando catálogo da Loja Integrada, aplicando matching (SKU → Código → MPN → Nome → Fuzzy) e atualizando peso/dimensões…
+                </div>
+              )}
+              {smartReport && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="rounded-md border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 p-3">
+                      <p className="text-xs text-muted-foreground">✔ Vinculados automaticamente</p>
+                      <p className="text-2xl font-bold text-emerald-600">{smartReport.linked}</p>
+                      <p className="text-xs text-muted-foreground">{smartReport.updated} com dimensões atualizadas</p>
+                    </div>
+                    <div className="rounded-md border border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 p-3">
+                      <p className="text-xs text-muted-foreground">⚠ Precisam de revisão</p>
+                      <p className="text-2xl font-bold text-amber-600">{smartReport.needs_review}</p>
+                      <Link to="/mapeamento-produtos" className="text-xs text-primary hover:underline">Revisar candidatos →</Link>
+                    </div>
+                    <div className="rounded-md border border-slate-500/30 bg-slate-50 dark:bg-slate-950/20 p-3">
+                      <p className="text-xs text-muted-foreground">❌ Sem correspondência</p>
+                      <p className="text-2xl font-bold text-slate-600">{smartReport.not_found}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-xs text-muted-foreground">Total processado</p>
+                      <p className="text-2xl font-bold">{smartReport.total}</p>
+                      <p className="text-xs text-muted-foreground">Catálogo LI: {smartReport.li_catalog_size}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Taxa de vinculação automática:{' '}
+                    <span className="font-semibold text-foreground">
+                      {smartReport.total ? Math.round((smartReport.linked / smartReport.total) * 100) : 0}%
+                    </span>
+                    {smartReport.errors > 0 && <> · <span className="text-red-600">{smartReport.errors} erros</span></>}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
           <StatCard label="Total de produtos" value={stats.total} icon={Package} />
