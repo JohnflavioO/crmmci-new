@@ -3085,6 +3085,7 @@ export type Database = {
           roles: string[]
         }[]
       }
+      get_default_origin_cep: { Args: never; Returns: string }
       get_public_logistics_tracking: {
         Args: { p_token: string }
         Returns: Json
@@ -3145,6 +3146,7 @@ export type Database = {
         Returns: number
       }
       process_smart_opportunities_diagnostics: { Args: never; Returns: Json }
+      set_default_origin_cep: { Args: { _cep: string }; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
