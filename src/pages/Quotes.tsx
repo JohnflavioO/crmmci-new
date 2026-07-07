@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift, Store, CalendarIcon, SplitSquareVertical, ShoppingBag, Truck } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift, Store, CalendarIcon, SplitSquareVertical, ShoppingBag, Truck, RefreshCw } from 'lucide-react';
 import FreightQuoteDrawer from '@/components/FreightQuoteDrawer';
 import { buildFreightData, type FreightData } from '@/lib/freight';
 import { MessageSquare, MoreHorizontal } from 'lucide-react';
@@ -433,6 +433,52 @@ export default function Quotes() {
       valor_mercadoria: totalAmountVal,
     });
   }, [items, productByCode, cepOrigem, form.use_alt_shipping_address, form.shipping_cep, form.client_id, clients]);
+
+  // IDs dos produtos do orçamento sem dados logísticos completos
+  const productIdsSemDados = useMemo(() => {
+    const ids: string[] = [];
+    for (const it of items) {
+      const key = String(it.product_code || '').trim().toLowerCase();
+      const prod = key ? productByCode.get(key) : null;
+      if (prod && (!prod.peso_kg || !prod.altura_cm || !prod.largura_cm || !prod.comprimento_cm)) {
+        if (!ids.includes(prod.id)) ids.push(prod.id);
+      }
+    }
+    return ids;
+  }, [items, productByCode]);
+
+  const [syncingFreightLI, setSyncingFreightLI] = useState(false);
+  const handleFetchFreightFromLI = async () => {
+    if (productIdsSemDados.length === 0) return;
+    setSyncingFreightLI(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('loja-integrada', {
+        body: { action: 'sync_product_dimensions', product_ids: productIdsSemDados },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.ok === false) throw new Error(data?.error || 'Falha');
+      // Reload just those products' logistics fields
+      const { data: fresh } = await db.from('products')
+        .select('id, name, brand, code, sku, category_principal, price, description, image_url, peso_kg, altura_cm, largura_cm, comprimento_cm, peso_cubado, volume_m3, origem_cep, embalagem_tipo')
+        .in('id', productIdsSemDados);
+      if (fresh) {
+        setProducts(prev => prev.map(p => fresh.find((f: any) => f.id === p.id) || p));
+      }
+      const updated = data?.updated ?? 0;
+      const notFound = data?.not_found ?? 0;
+      if (updated > 0) {
+        toast.success(`${updated} produto(s) atualizado(s). Dados de frete recalculados.`);
+      } else if (notFound > 0) {
+        toast.warning(`Nenhum produto encontrado na Loja Integrada (${notFound} não localizados).`);
+      } else {
+        toast.info('Nenhum dado logístico disponível na Loja Integrada para estes produtos.');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao buscar dados na Loja Integrada');
+    } finally {
+      setSyncingFreightLI(false);
+    }
+  };
 
   const openFreightDrawer = (quoteNumber?: string) => {
     setFreightContext({ quoteNumber });
@@ -1735,12 +1781,27 @@ export default function Quotes() {
                 </div>
 
                 {freightData.itens_sem_dados > 0 && (
-                  <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
-                    <span>⚠</span>
-                    <span>
-                      Existem <strong>{freightData.itens_sem_dados}</strong> produto(s) sem peso ou dimensões cadastrados.
-                      Complete os dados em <em>Produtos</em> para calcular o frete com maior precisão.
-                    </span>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                    <div className="flex items-start gap-2 flex-1">
+                      <span>⚠</span>
+                      <span>
+                        Existem <strong>{freightData.itens_sem_dados}</strong> produto(s) sem peso ou dimensões cadastrados.
+                        Complete os dados em <em>Produtos</em> para calcular o frete com maior precisão.
+                      </span>
+                    </div>
+                    {productIdsSemDados.length > 0 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 shrink-0"
+                        onClick={handleFetchFreightFromLI}
+                        disabled={syncingFreightLI}
+                      >
+                        {syncingFreightLI ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        Buscar dados na Loja Integrada
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>

@@ -10,7 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown, Download, Activity, X } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Package, Link, Loader2, Image, ImageDown, Download, Activity, X, Truck, RefreshCw, Lock } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { parseMoneyBR } from '@/utils/currency';
@@ -83,7 +84,11 @@ export default function Products() {
     name: '', sku: '', code: '', brand: '', description: '', price: '' as string, image_url: '',
     peso_kg: '' as string, altura_cm: '' as string, largura_cm: '' as string, comprimento_cm: '' as string,
     peso_cubado: '' as string, volume_m3: '' as string, origem_cep: '', embalagem_tipo: '',
+    bloquear_atualizacao_logistica: false,
   });
+  const [syncingLI, setSyncingLI] = useState(false);
+  const [bulkSyncingLI, setBulkSyncingLI] = useState(false);
+  const [noLogisticFilter, setNoLogisticFilter] = useState(false);
   const [scrapeUrl, setScrapeUrl] = useState('');
   const [scraping, setScraping] = useState(false);
   const [page, setPage] = useState(0);
@@ -106,10 +111,11 @@ export default function Products() {
 
     // Sem busca: paginação normal
     if (!isSearching) {
-      const { data, count, error } = await db.from('products')
-        .select('*', { count: 'exact' })
-        .order('name')
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      let q = db.from('products').select('*', { count: 'exact' }).order('name');
+      if (noLogisticFilter) {
+        q = q.or('peso_kg.is.null,altura_cm.is.null,largura_cm.is.null,comprimento_cm.is.null,peso_kg.eq.0,altura_cm.eq.0,largura_cm.eq.0,comprimento_cm.eq.0');
+      }
+      const { data, count, error } = await q.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
       if (error) { toast.error(error.message); return; }
       setProducts(data || []);
       setTotalProducts(count ?? 0);
@@ -164,7 +170,7 @@ export default function Products() {
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  useEffect(() => { loadProducts(); }, [page]);
+  useEffect(() => { loadProducts(); }, [page, noLogisticFilter]);
 
   const runDiagnostic = async () => {
     setDiag(null);
@@ -206,6 +212,7 @@ export default function Products() {
         volume_m3: toNum(form.volume_m3),
         origem_cep: (form.origem_cep || '').replace(/\D/g, '').slice(0, 8) || null,
         embalagem_tipo: form.embalagem_tipo || null,
+        bloquear_atualizacao_logistica: !!form.bloquear_atualizacao_logistica,
       };
       if (editing) {
         const { error } = await db.from('products').update(payload).eq('id', editing.id);
@@ -239,6 +246,7 @@ export default function Products() {
       volume_m3: s(product.volume_m3),
       origem_cep: product.origem_cep || '',
       embalagem_tipo: product.embalagem_tipo || '',
+      bloquear_atualizacao_logistica: !!product.bloquear_atualizacao_logistica,
     });
     setDialogOpen(true);
   };
@@ -256,6 +264,7 @@ export default function Products() {
       name: '', sku: '', code: '', brand: '', description: '', price: '', image_url: '',
       peso_kg: '', altura_cm: '', largura_cm: '', comprimento_cm: '',
       peso_cubado: '', volume_m3: '', origem_cep: '', embalagem_tipo: '',
+      bloquear_atualizacao_logistica: false,
     });
     setScrapeUrl('');
   };
@@ -398,6 +407,71 @@ export default function Products() {
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
+  const runLojaIntegradaSync = async (product_ids?: string[], all_products = false) => {
+    const { data, error } = await supabase.functions.invoke('loja-integrada', {
+      body: { action: 'sync_product_dimensions', product_ids, all_products },
+    });
+    if (error) throw new Error(error.message || 'Falha ao sincronizar');
+    if (data?.ok === false) throw new Error(data?.error || 'Falha ao sincronizar');
+    return data as { updated: number; not_found: number; skipped: number; errors: number; total: number };
+  };
+
+  const handleSyncSingleLI = async (productId: string) => {
+    setSyncingLI(true);
+    try {
+      const res = await runLojaIntegradaSync([productId]);
+      if (res.updated > 0) {
+        toast.success('Dados logísticos atualizados da Loja Integrada.');
+        // Refresh product in form if it's the currently edited one
+        const { data: fresh } = await db.from('products').select('*').eq('id', productId).maybeSingle();
+        if (fresh && editing?.id === productId) handleEdit(fresh);
+        loadProducts();
+      } else if (res.not_found > 0) {
+        toast.warning('Produto não encontrado na Loja Integrada. Verifique o SKU ou código.');
+      } else if (res.skipped > 0) {
+        toast.info('Produto encontrado, mas sem dados logísticos preenchidos na Loja Integrada.');
+      } else {
+        toast.info('Nada a atualizar.');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao sincronizar');
+    } finally {
+      setSyncingLI(false);
+    }
+  };
+
+  const handleBulkSyncLI = async () => {
+    const scopeMsg = noLogisticFilter
+      ? 'Sincronizar dados logísticos de TODOS os produtos sem peso/dimensões?'
+      : 'Sincronizar peso e dimensões de TODOS os produtos da Loja Integrada? Isso pode levar alguns minutos.';
+    if (!confirm(scopeMsg)) return;
+    setBulkSyncingLI(true);
+    try {
+      let ids: string[] | undefined;
+      let all = true;
+      if (noLogisticFilter) {
+        const { data } = await db.from('products')
+          .select('id')
+          .or('peso_kg.is.null,altura_cm.is.null,largura_cm.is.null,comprimento_cm.is.null,peso_kg.eq.0,altura_cm.eq.0,largura_cm.eq.0,comprimento_cm.eq.0')
+          .limit(500);
+        ids = (data || []).map((p: any) => p.id);
+        all = false;
+        if (ids.length === 0) {
+          toast.info('Nenhum produto sem dados logísticos.');
+          return;
+        }
+      }
+      const res = await runLojaIntegradaSync(ids, all);
+      toast.success(`Sincronização concluída: ${res.updated} atualizados, ${res.not_found} não encontrados, ${res.skipped} sem dados, ${res.errors} erros.`);
+      loadProducts();
+    } catch (e: any) {
+      toast.error(e.message || 'Erro na sincronização em massa');
+    } finally {
+      setBulkSyncingLI(false);
+    }
+  };
+
+
   const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE));
 
   return (
@@ -415,6 +489,19 @@ export default function Products() {
           <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={runDiagnostic}>
             <Activity className="h-4 w-4" /> Verificar Indexação
           </Button>
+          <Button
+            variant={noLogisticFilter ? 'default' : 'outline'}
+            className="gap-2 min-h-[44px] text-sm"
+            onClick={() => { setPage(0); setNoLogisticFilter(v => !v); }}
+          >
+            <Truck className="h-4 w-4" /> Sem dados logísticos
+          </Button>
+          {(isAdmin || isGestor) && (
+            <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleBulkSyncLI} disabled={bulkSyncingLI}>
+              {bulkSyncingLI ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Atualizar pesos e dimensões da Loja Integrada
+            </Button>
+          )}
           {(isAdmin || isGestor) && (
             <>
             <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleFetchImages} disabled={fetchingImages}>
@@ -541,6 +628,36 @@ export default function Products() {
                   <p className="text-[11px] text-muted-foreground">
                     Se peso cubado / volume ficarem em branco, o CRM calcula automaticamente a partir das dimensões (fator 300 kg/m³).
                   </p>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                      <Checkbox
+                        checked={form.bloquear_atualizacao_logistica}
+                        onCheckedChange={(v) => setForm(p => ({ ...p, bloquear_atualizacao_logistica: !!v }))}
+                      />
+                      <Lock className="h-3 w-3" />
+                      Bloquear atualização automática (proteger dados manuais)
+                    </label>
+                    {editing && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        onClick={() => handleSyncSingleLI(editing.id)}
+                        disabled={syncingLI || form.bloquear_atualizacao_logistica}
+                      >
+                        {syncingLI ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        Sincronizar dados da Loja Integrada
+                      </Button>
+                    )}
+                  </div>
+                  {editing?.logistica_atualizada_em && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Última sincronização: {new Date(editing.logistica_atualizada_em).toLocaleString('pt-BR')}
+                      {editing.loja_integrada_sync_source && ` · casado por ${editing.loja_integrada_sync_source}`}
+                    </p>
+                  )}
                 </div>
 
 
@@ -658,12 +775,18 @@ export default function Products() {
                   <TableHead>Código</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>Marca</TableHead>
-                  <TableHead>Valor</TableHead>
-                  {(isAdmin || isGestor) && <TableHead className="w-20">Ações</TableHead>}
+                  {noLogisticFilter ? (
+                    <TableHead>Status logístico</TableHead>
+                  ) : (
+                    <TableHead>Valor</TableHead>
+                  )}
+                  {(isAdmin || isGestor) && <TableHead className="w-28">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map((p: any) => (
+                {products.map((p: any) => {
+                  const semDados = !p.peso_kg || !p.altura_cm || !p.largura_cm || !p.comprimento_cm;
+                  return (
                   <TableRow key={p.id}>
                     <TableCell>
                       {p.image_url ? (
@@ -678,21 +801,45 @@ export default function Products() {
                     <TableCell className="text-xs">{highlightText(p.code || '-', tokens)}</TableCell>
                     <TableCell className="font-medium max-w-[200px] truncate">{highlightText(p.name, tokens)}</TableCell>
                     <TableCell>{highlightText(p.brand || '-', tokens)}</TableCell>
-                    <TableCell>{formatCurrency(parseFloat(p.price) || 0)}</TableCell>
+                    {noLogisticFilter ? (
+                      <TableCell className="text-xs">
+                        {p.bloquear_atualizacao_logistica ? (
+                          <span className="inline-flex items-center gap-1 text-muted-foreground"><Lock className="h-3 w-3" />Bloqueado</span>
+                        ) : semDados ? (
+                          <span className="text-amber-600 dark:text-amber-400">Sem dados</span>
+                        ) : (
+                          <span className="text-emerald-600 dark:text-emerald-400">OK</span>
+                        )}
+                      </TableCell>
+                    ) : (
+                      <TableCell>{formatCurrency(parseFloat(p.price) || 0)}</TableCell>
+                    )}
                     {(isAdmin || isGestor) && (
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button size="icon" variant="ghost" onClick={() => handleEdit(p)}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Sincronizar Loja Integrada"
+                            onClick={() => handleSyncSingleLI(p.id)}
+                            disabled={syncingLI || p.bloquear_atualizacao_logistica}
+                          >
+                            {syncingLI ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                          </Button>
+                          <Button size="icon" variant="ghost" title="Editar" onClick={() => handleEdit(p)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => handleDelete(p.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          {!noLogisticFilter && (
+                            <Button size="icon" variant="ghost" title="Excluir" onClick={() => handleDelete(p.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     )}
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           )}
