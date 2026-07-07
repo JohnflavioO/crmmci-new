@@ -905,15 +905,37 @@ async function enrichLIDetail(apiKey: string, appKey: string, item: any): Promis
     const detail = await liGET(`/produto/${item.id}`, apiKey, appKey);
     if (detail) base = detail;
   }
-  // Se o produto raiz não tem dims, tentamos a variação padrão / variações do produto.
-  if (!hasAnyDim(base) && !base?.produto_variacao_padrao && !Array.isArray(base?.produto_variacoes)) {
+  // Sempre buscamos variações se ainda não há dims completas — os campos de embalagem
+  // costumam viver no objeto de variação (mesmo em produtos sem grade).
+  const dimsRoot = extractDims(base);
+  const missing = !dimsRoot || !dimsRoot.peso_kg || !dimsRoot.altura_cm || !dimsRoot.largura_cm || !dimsRoot.comprimento_cm;
+  if (missing) {
     const vars = await liGET(`/produto_variacao/?produto=${item.id}&limit=5`, apiKey, appKey);
     const objs = vars?.objects || [];
     if (objs.length) {
-      base = { ...base, produto_variacoes: objs, produto_variacao_padrao: objs[0] };
+      base = { ...base, produto_variacoes: objs, produto_variacao_padrao: base?.produto_variacao_padrao || objs[0] };
     }
   }
   return base;
+}
+
+// Retorna qual fonte trouxe cada valor de dimensão — usado pela auditoria.
+function extractDimsDetailed(raw: any) {
+  const variations: any[] = Array.isArray(raw?.produto_variacoes) ? raw.produto_variacoes : [];
+  const varPadrao = raw?.produto_variacao_padrao || variations[0] || null;
+  const varFirst = variations[0] || null;
+  const sources: Record<string, any> = {
+    produto: { peso: toNumberOrNull(raw?.peso), altura: toNumberOrNull(raw?.altura), largura: toNumberOrNull(raw?.largura), profundidade: toNumberOrNull(raw?.profundidade ?? raw?.comprimento) },
+    produto_variacao_padrao: varPadrao ? { peso: toNumberOrNull(varPadrao?.peso), altura: toNumberOrNull(varPadrao?.altura), largura: toNumberOrNull(varPadrao?.largura), profundidade: toNumberOrNull(varPadrao?.profundidade ?? varPadrao?.comprimento) } : null,
+    'produto_variacoes[0]': varFirst && varFirst !== varPadrao ? { peso: toNumberOrNull(varFirst?.peso), altura: toNumberOrNull(varFirst?.altura), largura: toNumberOrNull(varFirst?.largura), profundidade: toNumberOrNull(varFirst?.profundidade ?? varFirst?.comprimento) } : null,
+  };
+  const dims = extractDims(raw);
+  let fonte: string | null = null;
+  for (const k of Object.keys(sources)) {
+    const s = sources[k];
+    if (s && (s.peso || s.altura || s.largura || s.profundidade)) { fonte = k; break; }
+  }
+  return { dims, fonte, sources, variacao_id: varPadrao?.id ? String(varPadrao.id) : (varFirst?.id ? String(varFirst.id) : null) };
 }
 
 type LIRef = {
@@ -1026,6 +1048,87 @@ async function markLinkStatus(serviceClient: any, product_id: string, sync_statu
     await serviceClient.from('product_external_links').upsert(payload, { onConflict: 'product_id,provider' });
   }
 }
+
+// ============ Auditoria detalhada de pendências ============
+async function auditMissingDimensions(
+  serviceClient: any,
+  apiKey: string,
+  applicationKey: string,
+  limit = 500,
+) {
+  // Produtos que estão sem peso OU sem uma das dimensões
+  const { data: prods, error } = await serviceClient
+    .from('products')
+    .select('id, name, sku, code, peso_kg, altura_cm, largura_cm, comprimento_cm, bloquear_atualizacao_logistica')
+    .or('peso_kg.is.null,peso_kg.eq.0,altura_cm.is.null,altura_cm.eq.0,largura_cm.is.null,largura_cm.eq.0,comprimento_cm.is.null,comprimento_cm.eq.0')
+    .limit(limit);
+  if (error) return { ok: false, error: error.message };
+
+  const ids = (prods || []).map((p: any) => p.id);
+  const { data: links } = await serviceClient
+    .from('product_external_links')
+    .select('product_id, external_product_id, external_sku, external_name, sync_status')
+    .eq('provider', PROVIDER)
+    .in('product_id', ids);
+  const linkByProduct = new Map<string, any>();
+  for (const l of (links || [])) linkByProduct.set(l.product_id, l);
+
+  const rows: any[] = [];
+  const CONCURRENCY = 6;
+  const queue = [...(prods || [])];
+
+  async function processOne(p: any) {
+    const link = linkByProduct.get(p.id);
+    const row: any = {
+      product_id: p.id, product_name: p.name, crm_code: p.code, crm_sku: p.sku,
+      li_id: null, li_sku: null, li_name: null, variacao_id: null,
+      peso: null, altura: null, largura: null, profundidade: null,
+      fonte: null, motivo: null, sync_status: link?.sync_status || 'unlinked',
+    };
+    if (p.bloquear_atualizacao_logistica) {
+      row.motivo = 'bloqueado_atualizacao_logistica';
+      rows.push(row); return;
+    }
+    if (!link || String(link.external_product_id || '').startsWith('__unresolved__')) {
+      row.motivo = link?.sync_status === 'needs_validation' ? 'aguardando_validacao' : (link?.sync_status === 'not_found' ? 'sem_correspondencia' : 'sem_vinculo');
+      rows.push(row); return;
+    }
+    row.li_id = link.external_product_id;
+    row.li_sku = link.external_sku;
+    row.li_name = link.external_name;
+    try {
+      const detail = await liGET(`/produto/${link.external_product_id}`, apiKey, applicationKey);
+      if (!detail) { row.motivo = 'erro_api'; rows.push(row); return; }
+      const enriched = await enrichLIDetail(apiKey, applicationKey, detail);
+      const det = extractDimsDetailed(enriched);
+      row.variacao_id = det.variacao_id;
+      row.fonte = det.fonte;
+      const d = det.dims;
+      row.peso = d?.peso_kg ?? null;
+      row.altura = d?.altura_cm ?? null;
+      row.largura = d?.largura_cm ?? null;
+      row.profundidade = d?.comprimento_cm ?? null;
+      if (!row.peso && !row.altura && !row.largura && !row.profundidade) {
+        // ver se algum source retornou zero especificamente
+        const anyZero = Object.values(det.sources).some((s: any) => s && (s.peso === 0 || s.altura === 0 || s.largura === 0 || s.profundidade === 0));
+        row.motivo = anyZero ? 'valor_zero' : 'campo_ausente';
+      } else if (!row.peso || !row.altura || !row.largura || !row.profundidade) {
+        row.motivo = 'valor_parcial';
+      } else {
+        row.motivo = 'dados_completos_nao_persistidos';
+      }
+    } catch (e) {
+      row.motivo = 'erro_api';
+    }
+    rows.push(row);
+  }
+
+  async function worker() { while (queue.length) { const p = queue.shift(); if (p) await processOne(p); } }
+  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+  return { ok: true, total: rows.length, rows };
+}
+
+
 
 async function syncProductsDimensions(
   serviceClient: any,
@@ -1289,7 +1392,7 @@ async function unlinkProduct(serviceClient: any, productId: string, userId?: str
 
 
 const ActionSchema = z.object({
-  action: z.enum(['test', 'save', 'sync', 'status', 'import', 'auto_sync', 'sync_product_dimensions', 'search_li_products', 'link_product', 'unlink_product']),
+  action: z.enum(['test', 'save', 'sync', 'status', 'import', 'auto_sync', 'sync_product_dimensions', 'search_li_products', 'link_product', 'unlink_product', 'audit_missing_dimensions', 'reprocess_missing_only']),
   api_key: z.string().optional(),
   application_key: z.string().optional(),
   page: z.number().optional(),
@@ -1366,6 +1469,40 @@ Deno.serve(async (req) => {
       });
       return jsonResponse(result);
     }
+
+    // Audit missing dimensions — authenticated user
+    if (action === 'audit_missing_dimensions' || action === 'reprocess_missing_only') {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader?.startsWith('Bearer ')) return jsonResponse({ ok: false, error: 'Unauthorized' }, 401);
+      const userClient = createClient(
+        Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: { user } } = await userClient.auth.getUser();
+      if (!user) return jsonResponse({ ok: false, error: 'Unauthorized' }, 401);
+      const serviceClient = getServiceClient();
+      const creds = await fetchStoredCredentials(serviceClient);
+      if (!creds) return jsonResponse({ ok: false, error: 'Integração Loja Integrada não configurada.' });
+
+      if (action === 'audit_missing_dimensions') {
+        const result = await auditMissingDimensions(serviceClient, creds.apiKey, creds.applicationKey, 800);
+        return jsonResponse(result);
+      }
+      // reprocess_missing_only — pega produtos sem peso ou sem alguma dimensão e chama sync
+      const { data: pend } = await serviceClient
+        .from('products')
+        .select('id')
+        .or('peso_kg.is.null,peso_kg.eq.0,altura_cm.is.null,altura_cm.eq.0,largura_cm.is.null,largura_cm.eq.0,comprimento_cm.is.null,comprimento_cm.eq.0')
+        .not('bloquear_atualizacao_logistica', 'is', true)
+        .limit(2000);
+      const ids = (pend || []).map((r: any) => r.id);
+      if (ids.length === 0) return jsonResponse({ ok: true, total: 0, message: 'Nenhum produto pendente.' });
+      const result = await syncProductsDimensions(serviceClient, creds.apiKey, creds.applicationKey, {
+        product_ids: ids, triggered_by: user.id, triggered_by_name: user.email || null,
+      });
+      return jsonResponse({ ...result, reprocessed: true });
+    }
+
 
     // Search & manual link require authenticated user
     if (action === 'search_li_products' || action === 'link_product' || action === 'unlink_product') {

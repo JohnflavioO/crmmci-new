@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCw, Play, AlertTriangle, CheckCircle2, XCircle, Package, Link2, Sparkles } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Loader2, RefreshCw, Play, AlertTriangle, CheckCircle2, XCircle, Package, Link2, Sparkles, Search, Download, Truck as TruckIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 
@@ -40,6 +42,11 @@ export default function LogisticsSyncDiagnostic() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [smartReport, setSmartReport] = useState<SmartReport>(null);
   const [smartRunning, setSmartRunning] = useState(false);
+  const [reprocessRunning, setReprocessRunning] = useState(false);
+  const [auditRunning, setAuditRunning] = useState(false);
+  const [auditRows, setAuditRows] = useState<any[] | null>(null);
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [auditFilter, setAuditFilter] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -62,28 +69,41 @@ export default function LogisticsSyncDiagnostic() {
   const stats = useMemo(() => {
     const total = products.length;
     let linked = 0, needs = 0, notFound = 0, syncedToday = 0, withPeso = 0, withDims = 0, conflicts = 0;
+    let prontos = 0, vinculadoSemPeso = 0, vinculadoSemDims = 0, vinculadoCompleto = 0;
     let srcApi = 0, srcPlanilha = 0, srcManual = 0, srcNenhum = 0;
     const today = new Date().toISOString().slice(0, 10);
     for (const p of products) {
       const l = links[p.id];
-      if (l?.sync_status === 'linked') linked++;
+      const isLinked = l?.sync_status === 'linked';
+      if (isLinked) linked++;
       if (l?.sync_status === 'needs_validation') needs++;
       if (l?.sync_status === 'not_found') notFound++;
       if (l?.sync_status === 'error') conflicts++;
       if (l?.last_sync_at && l.last_sync_at.slice(0, 10) === today) syncedToday++;
-      if (p.peso_kg && p.peso_kg > 0) withPeso++;
-      if (p.altura_cm && p.largura_cm && p.comprimento_cm) withDims++;
+      const hasPeso = !!(p.peso_kg && p.peso_kg > 0);
+      const hasDims = !!(p.altura_cm && p.largura_cm && p.comprimento_cm);
+      if (hasPeso) withPeso++;
+      if (hasDims) withDims++;
+      if (hasPeso && hasDims) prontos++;
+      if (isLinked) {
+        if (hasPeso && hasDims) vinculadoCompleto++;
+        else {
+          if (!hasPeso) vinculadoSemPeso++;
+          if (!hasDims) vinculadoSemDims++;
+        }
+      }
       const src = p.loja_integrada_sync_source;
-      const hasData = (p.peso_kg && p.peso_kg > 0) || (p.altura_cm && p.altura_cm > 0);
+      const hasData = hasPeso || (p.altura_cm && p.altura_cm > 0);
       if (!hasData) srcNenhum++;
       else if (src === 'loja_integrada') srcApi++;
       else if (src === 'planilha_loja_integrada') srcPlanilha++;
       else if (src === 'manual') srcManual++;
-      else srcApi++; // legado: sem tag mas com dados = considera API
+      else srcApi++;
     }
     return {
       total, linked, unlinked: total - linked, needs, notFound, conflicts, syncedToday,
       semPeso: total - withPeso, semDims: total - withDims,
+      prontos, vinculadoSemPeso, vinculadoSemDims, vinculadoCompleto,
       srcApi, srcPlanilha, srcManual, srcNenhum,
     };
   }, [products, links]);
@@ -169,6 +189,82 @@ export default function LogisticsSyncDiagnostic() {
     }
   };
 
+  const runReprocessMissing = async () => {
+    setReprocessRunning(true);
+    toast.info('Reprocessando produtos sem peso/dimensões…');
+    try {
+      const { data, error } = await supabase.functions.invoke('loja-integrada', {
+        body: { action: 'reprocess_missing_only' },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || 'Falha ao reprocessar');
+      toast.success(`Reprocessamento concluído: ${data.updated || 0} atualizados, ${data.linked || 0} vinculados de ${data.total || 0}.`);
+      await load();
+    } catch (e: any) {
+      toast.error('Falha: ' + e.message);
+    } finally { setReprocessRunning(false); }
+  };
+
+  const runAudit = async () => {
+    setAuditRunning(true); setAuditRows(null);
+    toast.info('Auditando produtos sem peso/dimensões (consulta API Loja Integrada por produto)…');
+    try {
+      const { data, error } = await supabase.functions.invoke('loja-integrada', {
+        body: { action: 'audit_missing_dimensions' },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || 'Falha na auditoria');
+      setAuditRows(data.rows || []);
+      setAuditOpen(true);
+      toast.success(`Auditoria concluída: ${data.total} produto(s) analisados.`);
+    } catch (e: any) {
+      toast.error('Falha: ' + e.message);
+    } finally { setAuditRunning(false); }
+  };
+
+  const exportPendenciasCSV = () => {
+    const source = auditRows && auditRows.length ? auditRows : products
+      .filter(p => !p.peso_kg || !p.altura_cm || !p.largura_cm || !p.comprimento_cm)
+      .map(p => {
+        const l = links[p.id];
+        return {
+          product_id: p.id, product_name: p.name, crm_code: p.code, crm_sku: p.sku,
+          li_id: l?.match_source ? '' : '', li_sku: '', li_name: '',
+          variacao_id: '', peso: p.peso_kg, altura: p.altura_cm, largura: p.largura_cm, profundidade: p.comprimento_cm,
+          fonte: p.loja_integrada_sync_source || '',
+          motivo: l?.sync_status || 'sem_vinculo',
+          sync_status: l?.sync_status || 'unlinked',
+        };
+      });
+    if (!source.length) { toast.info('Nada a exportar.'); return; }
+    const headers = ['product_name','crm_code','crm_sku','li_id','li_sku','li_name','variacao_id','peso','altura','largura','profundidade','fonte','motivo','sync_status'];
+    const escape = (v: any) => {
+      const s = v == null ? '' : String(v);
+      return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [headers.join(';'), ...source.map((r: any) => headers.map(h => escape(r[h])).join(';'))].join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `pendencias-logistica-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    toast.success(`CSV exportado (${source.length} linhas).`);
+  };
+
+  const filteredAudit = useMemo(() => {
+    if (!auditRows) return [];
+    const q = auditFilter.trim().toLowerCase();
+    if (!q) return auditRows;
+    return auditRows.filter(r =>
+      (r.product_name || '').toLowerCase().includes(q) ||
+      (r.crm_code || '').toLowerCase().includes(q) ||
+      (r.crm_sku || '').toLowerCase().includes(q) ||
+      (r.motivo || '').toLowerCase().includes(q)
+    );
+  }, [auditRows, auditFilter]);
+
+
+
 
   const StatCard = ({ label, value, tone, icon: Icon }: any) => (
     <Card>
@@ -195,6 +291,15 @@ export default function LogisticsSyncDiagnostic() {
           <div className="flex gap-2 flex-wrap">
             <Link to="/mapeamento-produtos"><Button variant="outline"><Link2 className="h-4 w-4 mr-2" />Mapeamento</Button></Link>
             <Button variant="outline" onClick={load} disabled={loading || running || smartRunning}><RefreshCw className="h-4 w-4 mr-2" />Recarregar</Button>
+            <Button variant="outline" onClick={exportPendenciasCSV}><Download className="h-4 w-4 mr-2" />Exportar CSV</Button>
+            <Button variant="outline" onClick={runAudit} disabled={auditRunning || smartRunning || running}>
+              {auditRunning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
+              Auditar pendências
+            </Button>
+            <Button variant="secondary" onClick={runReprocessMissing} disabled={reprocessRunning || smartRunning || running}>
+              {reprocessRunning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
+              Reprocessar sem peso/dimensões
+            </Button>
             <Button onClick={() => runSync('unlinked')} disabled={running || loading || smartRunning} variant="secondary">
               {running ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
               Sincronizar sem vínculo
@@ -263,11 +368,14 @@ export default function LogisticsSyncDiagnostic() {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
           <StatCard label="Total de produtos" value={stats.total} icon={Package} />
-          <StatCard label="Vinculados" value={stats.linked} tone="text-emerald-600" icon={CheckCircle2} />
-          <StatCard label="Sem vínculo" value={stats.unlinked} tone="text-amber-600" icon={AlertTriangle} />
+          <StatCard label="Prontos para cálculo de frete" value={stats.prontos} tone="text-emerald-600" icon={TruckIcon} />
+          <StatCard label="Vinculados completos" value={stats.vinculadoCompleto} tone="text-emerald-600" icon={CheckCircle2} />
+          <StatCard label="Vinculados sem peso" value={stats.vinculadoSemPeso} tone="text-amber-600" icon={AlertTriangle} />
+          <StatCard label="Vinculados sem dimensões" value={stats.vinculadoSemDims} tone="text-amber-600" icon={AlertTriangle} />
+          <StatCard label="Sem vínculo" value={stats.unlinked} tone="text-amber-600" />
           <StatCard label="Aguardando validação" value={stats.needs} tone="text-red-600" />
           <StatCard label="Sem correspondência" value={stats.notFound} tone="text-slate-600" />
-          <StatCard label="Conflitos / erros" value={stats.conflicts} tone="text-red-600" icon={XCircle} />
+          <StatCard label="Erros de API" value={stats.conflicts} tone="text-red-600" icon={XCircle} />
           <StatCard label="Sincronizados hoje" value={stats.syncedToday} tone="text-emerald-600" />
           <StatCard label="Sem peso" value={stats.semPeso} tone="text-red-600" />
           <StatCard label="Sem dimensões" value={stats.semDims} tone="text-red-600" />
@@ -352,6 +460,77 @@ export default function LogisticsSyncDiagnostic() {
             </CardContent>
           </Card>
         </div>
+
+        <Dialog open={auditOpen} onOpenChange={setAuditOpen}>
+          <DialogContent className="max-w-6xl max-h-[85vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5" />
+                Auditoria de pendências ({auditRows?.length || 0} produtos analisados)
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Filtrar por nome, código, SKU ou motivo…"
+                value={auditFilter}
+                onChange={(e) => setAuditFilter(e.target.value)}
+                className="flex-1"
+              />
+              <Button variant="outline" size="sm" onClick={exportPendenciasCSV}>
+                <Download className="h-4 w-4 mr-2" />CSV
+              </Button>
+            </div>
+            <div className="flex-1 overflow-auto border rounded-md">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-muted">
+                  <tr className="text-left">
+                    <th className="p-2">Produto CRM</th>
+                    <th className="p-2">Cód/SKU</th>
+                    <th className="p-2">LI ID</th>
+                    <th className="p-2">LI SKU/Nome</th>
+                    <th className="p-2">Variação</th>
+                    <th className="p-2">Peso</th>
+                    <th className="p-2">Alt</th>
+                    <th className="p-2">Larg</th>
+                    <th className="p-2">Prof</th>
+                    <th className="p-2">Fonte</th>
+                    <th className="p-2">Motivo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAudit.map((r: any) => (
+                    <tr key={r.product_id} className="border-t hover:bg-muted/50">
+                      <td className="p-2 max-w-[200px] truncate" title={r.product_name}>{r.product_name}</td>
+                      <td className="p-2 text-muted-foreground">{r.crm_code || r.crm_sku || '—'}</td>
+                      <td className="p-2">{r.li_id || '—'}</td>
+                      <td className="p-2 max-w-[180px] truncate" title={r.li_name}>{r.li_sku || r.li_name || '—'}</td>
+                      <td className="p-2">{r.variacao_id || '—'}</td>
+                      <td className={`p-2 tabular-nums ${!r.peso ? 'text-red-600' : ''}`}>{r.peso ?? '—'}</td>
+                      <td className={`p-2 tabular-nums ${!r.altura ? 'text-red-600' : ''}`}>{r.altura ?? '—'}</td>
+                      <td className={`p-2 tabular-nums ${!r.largura ? 'text-red-600' : ''}`}>{r.largura ?? '—'}</td>
+                      <td className={`p-2 tabular-nums ${!r.profundidade ? 'text-red-600' : ''}`}>{r.profundidade ?? '—'}</td>
+                      <td className="p-2 text-muted-foreground">{r.fonte || '—'}</td>
+                      <td className="p-2">
+                        <Badge variant={
+                          r.motivo === 'campo_ausente' || r.motivo === 'valor_zero' || r.motivo === 'valor_parcial' ? 'destructive' :
+                          r.motivo === 'sem_vinculo' || r.motivo === 'sem_correspondencia' ? 'outline' :
+                          r.motivo === 'erro_api' ? 'destructive' :
+                          r.motivo === 'aguardando_validacao' ? 'secondary' : 'outline'
+                        }>{r.motivo}</Badge>
+                      </td>
+                    </tr>
+                  ))}
+                  {!filteredAudit.length && (
+                    <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">Nenhum resultado.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Motivos: <code>campo_ausente</code> = LI não retornou o campo · <code>valor_zero</code> = campo zerado no cadastro · <code>valor_parcial</code> = falta um dos 4 valores · <code>sem_vinculo</code> = precisa vincular em Mapeamento · <code>sem_correspondencia</code> = nome não bate com nenhum produto LI · <code>aguardando_validacao</code> = candidatos ambíguos · <code>erro_api</code> = falha na consulta · <code>bloqueado_atualizacao_logistica</code> = flag manual bloqueando.
+            </p>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );

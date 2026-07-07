@@ -34,6 +34,8 @@ export interface FreightItemInput {
   override?: Partial<FreightItemProduct>;
   // dados do produto vindos do cadastro
   product?: FreightItemProduct | null;
+  // indica se o item está vinculado à Loja Integrada mas sem dados logísticos
+  vinculado_sem_dados?: boolean;
 }
 
 export interface FreightItemComputed {
@@ -64,6 +66,8 @@ export interface FreightData {
   comprimento_cm: number;
   items: FreightItemComputed[];
   itens_sem_dados: number;
+  itens_vinculados_sem_dados: number;
+  itens_prontos_para_frete: number;
 }
 
 const num = (v: unknown, fallback = 0): number => {
@@ -143,9 +147,8 @@ export function buildFreightData({
   cep_destino = '',
   valor_mercadoria = 0,
 }: BuildFreightArgs): FreightData {
-  const computed = items
-    .filter(i => (i.model || i.description || i.product_code) && num(i.quantity, 0) > 0)
-    .map(computeItem);
+  const filtered = items.filter(i => (i.model || i.description || i.product_code) && num(i.quantity, 0) > 0);
+  const computed = filtered.map(computeItem);
 
   const peso_total_kg = computed.reduce((s, i) => s + i.peso_total_kg, 0);
   const peso_cubado_total_kg = computed.reduce((s, i) => s + i.peso_cubado_total_kg, 0);
@@ -156,6 +159,8 @@ export function buildFreightData({
   const largura_cm = computed.reduce((m, i) => Math.max(m, i.largura_cm), 0);
   const comprimento_cm = computed.reduce((m, i) => Math.max(m, i.comprimento_cm), 0);
   const itens_sem_dados = computed.filter(i => i.falta_dados).length;
+  const itens_vinculados_sem_dados = computed.filter((i, idx) => i.falta_dados && filtered[idx]?.vinculado_sem_dados).length;
+  const itens_prontos_para_frete = computed.filter(i => !i.falta_dados).length;
 
   return {
     cep_origem: (cep_origem || '').replace(/\D/g, '').slice(0, 8),
@@ -170,6 +175,8 @@ export function buildFreightData({
     comprimento_cm,
     items: computed,
     itens_sem_dados,
+    itens_vinculados_sem_dados,
+    itens_prontos_para_frete,
   };
 }
 
