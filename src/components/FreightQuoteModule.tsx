@@ -93,7 +93,7 @@ export default function FreightQuoteModule({
         )}
       </div>
 
-      {freightData && <FreightSummaryCard data={freightData} quoteNumber={quoteNumber} />}
+      {freightData && <FreightSummaryCard data={freightData} quoteNumber={quoteNumber} onCepOrigemChange={onCepOrigemChange} />}
 
       <div className="flex-1 relative bg-muted/10 min-h-[300px]">
         {failed ? (
