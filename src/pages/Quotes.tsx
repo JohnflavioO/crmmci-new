@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift, Store, CalendarIcon, SplitSquareVertical, ShoppingBag, Truck } from 'lucide-react';
 import FreightQuoteDrawer from '@/components/FreightQuoteDrawer';
+import { buildFreightData, type FreightData } from '@/lib/freight';
 import { MessageSquare, MoreHorizontal } from 'lucide-react';
 import QuoteChat from '@/components/QuoteChat';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -448,7 +449,7 @@ export default function Quotes() {
         quotesQuery,
         db.from('clients').select('id, company_name, name, is_revenda, contrib_icms').eq('created_by', user.id).order('company_name'),
         db.from('salespeople').select('id, name, code, active').eq('active', true).order('name'),
-        db.from('products').select('id, name, brand, code, sku, category_principal, price, description, image_url').order('name').limit(1000),
+        db.from('products').select('id, name, brand, code, sku, category_principal, price, description, image_url, peso_kg, altura_cm, largura_cm, comprimento_cm, peso_cubado, volume_m3, origem_cep, embalagem_tipo').order('name').limit(1000),
       ]);
       setQuotes(q.data || []);
       setClients(c.data || []);
