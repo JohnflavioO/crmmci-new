@@ -1323,15 +1323,21 @@ export type Database = {
       quote_freight_quotes: {
         Row: {
           altura_cm: number | null
+          api_provider: string | null
           carrier: string | null
           cep_destino: string | null
           cep_origem: string | null
+          company_id: string | null
           comprimento_cm: number | null
           created_at: string
           created_by: string | null
           id: string
+          is_selected: boolean
           largura_cm: number | null
+          modalidade: string | null
           notes: string | null
+          payload_request: Json | null
+          payload_response: Json | null
           peso_cubado_kg: number | null
           peso_total_kg: number | null
           prazo_dias: number | null
@@ -1347,15 +1353,21 @@ export type Database = {
         }
         Insert: {
           altura_cm?: number | null
+          api_provider?: string | null
           carrier?: string | null
           cep_destino?: string | null
           cep_origem?: string | null
+          company_id?: string | null
           comprimento_cm?: number | null
           created_at?: string
           created_by?: string | null
           id?: string
+          is_selected?: boolean
           largura_cm?: number | null
+          modalidade?: string | null
           notes?: string | null
+          payload_request?: Json | null
+          payload_response?: Json | null
           peso_cubado_kg?: number | null
           peso_total_kg?: number | null
           prazo_dias?: number | null
@@ -1371,15 +1383,21 @@ export type Database = {
         }
         Update: {
           altura_cm?: number | null
+          api_provider?: string | null
           carrier?: string | null
           cep_destino?: string | null
           cep_origem?: string | null
+          company_id?: string | null
           comprimento_cm?: number | null
           created_at?: string
           created_by?: string | null
           id?: string
+          is_selected?: boolean
           largura_cm?: number | null
+          modalidade?: string | null
           notes?: string | null
+          payload_request?: Json | null
+          payload_response?: Json | null
           peso_cubado_kg?: number | null
           peso_total_kg?: number | null
           prazo_dias?: number | null
