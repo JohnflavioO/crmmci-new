@@ -893,12 +893,27 @@ async function fetchAllLIProducts(apiKey: string, appKey: string, log?: (m: stri
   return all;
 }
 
+function hasAnyDim(o: any): boolean {
+  return !!(o && (toNumberOrNull(o.peso) || toNumberOrNull(o.altura) || toNumberOrNull(o.largura) || toNumberOrNull(o.profundidade)));
+}
+
 async function enrichLIDetail(apiKey: string, appKey: string, item: any): Promise<any> {
-  // If item already has weight/dims fields, keep it; otherwise fetch detail.
-  const hasDims = item?.peso || item?.altura || item?.largura || item?.profundidade;
-  if (hasDims) return item;
-  const detail = await liGET(`/produto/${item.id}`, apiKey, appKey);
-  return detail || item;
+  // Sempre garantimos que os campos internos "Tamanho da embalagem" sejam consultados,
+  // pois no listing (/produto) a LI omite peso/altura/largura/profundidade.
+  let base = item;
+  if (!hasAnyDim(base)) {
+    const detail = await liGET(`/produto/${item.id}`, apiKey, appKey);
+    if (detail) base = detail;
+  }
+  // Se o produto raiz não tem dims, tentamos a variação padrão / variações do produto.
+  if (!hasAnyDim(base) && !base?.produto_variacao_padrao && !Array.isArray(base?.produto_variacoes)) {
+    const vars = await liGET(`/produto_variacao/?produto=${item.id}&limit=5`, apiKey, appKey);
+    const objs = vars?.objects || [];
+    if (objs.length) {
+      base = { ...base, produto_variacoes: objs, produto_variacao_padrao: objs[0] };
+    }
+  }
+  return base;
 }
 
 type LIRef = {
