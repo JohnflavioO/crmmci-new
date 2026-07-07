@@ -1225,7 +1225,7 @@ async function unlinkProduct(serviceClient: any, productId: string, userId?: str
 
 
 const ActionSchema = z.object({
-  action: z.enum(['test', 'save', 'sync', 'status', 'import', 'auto_sync', 'sync_product_dimensions', 'search_li_products', 'link_product']),
+  action: z.enum(['test', 'save', 'sync', 'status', 'import', 'auto_sync', 'sync_product_dimensions', 'search_li_products', 'link_product', 'unlink_product']),
   api_key: z.string().optional(),
   application_key: z.string().optional(),
   page: z.number().optional(),
