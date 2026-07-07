@@ -273,6 +273,32 @@ export default function LogisticsSyncDiagnostic() {
           <StatCard label="Sem dimensões" value={stats.semDims} tone="text-red-600" />
         </div>
 
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Fonte dos dados logísticos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">API Loja Integrada</p>
+                <p className="text-2xl font-bold text-emerald-600">{stats.srcApi}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Planilha</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.srcPlanilha}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Manual</p>
+                <p className="text-2xl font-bold text-slate-600">{stats.srcManual}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Sem dados</p>
+                <p className="text-2xl font-bold text-red-600">{stats.srcNenhum}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {running && (
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">Progresso</CardTitle></CardHeader>
