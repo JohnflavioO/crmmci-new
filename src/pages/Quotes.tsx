@@ -2312,6 +2312,10 @@ export default function Quotes() {
         onOpenChange={(o) => { setFreightDrawerOpen(o); if (!o) setFreightContext(undefined); }}
         freightData={freightContext ? freightData : undefined}
         quoteContext={freightContext ? { quoteNumber: freightContext.quoteNumber } : undefined}
+        onCepOrigemChange={(cep) => {
+          setCepOrigem(cep);
+          try { localStorage.setItem('mci_cep_origem', cep); } catch { /* noop */ }
+        }}
       />
 
       <Card className="shadow-card">
