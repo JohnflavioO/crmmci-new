@@ -262,6 +262,7 @@ export default function Products() {
       name: '', sku: '', code: '', brand: '', description: '', price: '', image_url: '',
       peso_kg: '', altura_cm: '', largura_cm: '', comprimento_cm: '',
       peso_cubado: '', volume_m3: '', origem_cep: '', embalagem_tipo: '',
+      bloquear_atualizacao_logistica: false,
     });
     setScrapeUrl('');
   };
