@@ -461,6 +461,7 @@ export type Database = {
       contract_templates: {
         Row: {
           active: boolean | null
+          company_id: string | null
           content: string | null
           created_at: string
           id: string
@@ -470,6 +471,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean | null
+          company_id?: string | null
           content?: string | null
           created_at?: string
           id?: string
@@ -479,6 +481,7 @@ export type Database = {
         }
         Update: {
           active?: boolean | null
+          company_id?: string | null
           content?: string | null
           created_at?: string
           id?: string
