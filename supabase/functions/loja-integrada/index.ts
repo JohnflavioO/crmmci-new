@@ -1087,13 +1087,16 @@ async function linkProductManually(
 
 
 const ActionSchema = z.object({
-  action: z.enum(['test', 'save', 'sync', 'status', 'import', 'auto_sync', 'sync_product_dimensions']),
+  action: z.enum(['test', 'save', 'sync', 'status', 'import', 'auto_sync', 'sync_product_dimensions', 'search_li_products', 'link_product']),
   api_key: z.string().optional(),
   application_key: z.string().optional(),
   page: z.number().optional(),
   full: z.boolean().optional(),
   product_ids: z.array(z.string()).optional(),
   all_products: z.boolean().optional(),
+  search_term: z.string().optional(),
+  product_id: z.string().optional(),
+  li_id: z.string().optional(),
 });
 
 Deno.serve(async (req) => {
