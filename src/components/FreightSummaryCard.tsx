@@ -1,13 +1,21 @@
 import { useState } from 'react';
 import { Copy, Check, AlertTriangle, Package, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import type { FreightData } from '@/lib/freight';
 import { freightToClipboardText } from '@/lib/freight';
 
+export const CEP_ORIGEM_PRESETS = [
+  { cep: '05305003', label: '05305-003 · SP' },
+  { cep: '88310180', label: '88310-180 · SC' },
+  { cep: '60025001', label: '60025-001 · CE' },
+];
+
 interface Props {
   data: FreightData;
   quoteNumber?: string;
+  onCepOrigemChange?: (cep: string) => void;
 }
 
 const fmt = (n: number, dig = 2) =>
