@@ -291,6 +291,15 @@ export default function LogisticsSyncDiagnostic() {
           <div className="flex gap-2 flex-wrap">
             <Link to="/mapeamento-produtos"><Button variant="outline"><Link2 className="h-4 w-4 mr-2" />Mapeamento</Button></Link>
             <Button variant="outline" onClick={load} disabled={loading || running || smartRunning}><RefreshCw className="h-4 w-4 mr-2" />Recarregar</Button>
+            <Button variant="outline" onClick={exportPendenciasCSV}><Download className="h-4 w-4 mr-2" />Exportar CSV</Button>
+            <Button variant="outline" onClick={runAudit} disabled={auditRunning || smartRunning || running}>
+              {auditRunning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
+              Auditar pendências
+            </Button>
+            <Button variant="secondary" onClick={runReprocessMissing} disabled={reprocessRunning || smartRunning || running}>
+              {reprocessRunning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
+              Reprocessar sem peso/dimensões
+            </Button>
             <Button onClick={() => runSync('unlinked')} disabled={running || loading || smartRunning} variant="secondary">
               {running ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
               Sincronizar sem vínculo
