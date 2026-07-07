@@ -15,6 +15,7 @@ type Product = {
   id: string; name: string; code: string | null; sku: string | null;
   peso_kg: number | null; altura_cm: number | null; largura_cm: number | null; comprimento_cm: number | null;
   logistica_atualizada_em: string | null; bloquear_atualizacao_logistica: boolean | null;
+  loja_integrada_sync_source: string | null;
 };
 
 type ExtLink = { product_id: string; sync_status: string; match_source: string | null; last_sync_at: string | null };
@@ -43,7 +44,7 @@ export default function LogisticsSyncDiagnostic() {
   const load = async () => {
     setLoading(true);
     const [p, l, e] = await Promise.all([
-      supabase.from('products').select('id,name,code,sku,peso_kg,altura_cm,largura_cm,comprimento_cm,logistica_atualizada_em,bloquear_atualizacao_logistica').order('name'),
+      supabase.from('products').select('id,name,code,sku,peso_kg,altura_cm,largura_cm,comprimento_cm,logistica_atualizada_em,bloquear_atualizacao_logistica,loja_integrada_sync_source').order('name'),
       supabase.from('product_external_links').select('product_id,sync_status,match_source,last_sync_at').eq('provider', PROVIDER),
       supabase.from('sync_execution_logs').select('*').eq('provider', PROVIDER).order('created_at', { ascending: false }).limit(10),
     ]);
@@ -61,6 +62,7 @@ export default function LogisticsSyncDiagnostic() {
   const stats = useMemo(() => {
     const total = products.length;
     let linked = 0, needs = 0, notFound = 0, syncedToday = 0, withPeso = 0, withDims = 0, conflicts = 0;
+    let srcApi = 0, srcPlanilha = 0, srcManual = 0, srcNenhum = 0;
     const today = new Date().toISOString().slice(0, 10);
     for (const p of products) {
       const l = links[p.id];
@@ -71,10 +73,18 @@ export default function LogisticsSyncDiagnostic() {
       if (l?.last_sync_at && l.last_sync_at.slice(0, 10) === today) syncedToday++;
       if (p.peso_kg && p.peso_kg > 0) withPeso++;
       if (p.altura_cm && p.largura_cm && p.comprimento_cm) withDims++;
+      const src = p.loja_integrada_sync_source;
+      const hasData = (p.peso_kg && p.peso_kg > 0) || (p.altura_cm && p.altura_cm > 0);
+      if (!hasData) srcNenhum++;
+      else if (src === 'loja_integrada') srcApi++;
+      else if (src === 'planilha_loja_integrada') srcPlanilha++;
+      else if (src === 'manual') srcManual++;
+      else srcApi++; // legado: sem tag mas com dados = considera API
     }
     return {
       total, linked, unlinked: total - linked, needs, notFound, conflicts, syncedToday,
       semPeso: total - withPeso, semDims: total - withDims,
+      srcApi, srcPlanilha, srcManual, srcNenhum,
     };
   }, [products, links]);
 
@@ -262,6 +272,32 @@ export default function LogisticsSyncDiagnostic() {
           <StatCard label="Sem peso" value={stats.semPeso} tone="text-red-600" />
           <StatCard label="Sem dimensões" value={stats.semDims} tone="text-red-600" />
         </div>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Fonte dos dados logísticos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">API Loja Integrada</p>
+                <p className="text-2xl font-bold text-emerald-600">{stats.srcApi}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Planilha</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.srcPlanilha}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Manual</p>
+                <p className="text-2xl font-bold text-slate-600">{stats.srcManual}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Sem dados</p>
+                <p className="text-2xl font-bold text-red-600">{stats.srcNenhum}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {running && (
           <Card>

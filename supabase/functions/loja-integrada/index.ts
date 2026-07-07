@@ -770,12 +770,54 @@ function toNumberOrNull(v: any): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/**
+ * Extrai peso e dimensões do produto Loja Integrada.
+ *
+ * Na Loja Integrada, os dados físicos ficam na aba interna
+ * "Qual é o tamanho da embalagem do produto?" e são expostos pela API
+ * tanto no produto raiz quanto — mais comumente — no objeto
+ * `produto_variacao_padrao` (variação padrão) ou na primeira
+ * `produto_variacoes[]`.
+ *
+ * Mapeamento oficial:
+ *   LI.peso           → CRM.peso_kg
+ *   LI.altura         → CRM.altura_cm
+ *   LI.largura        → CRM.largura_cm
+ *   LI.profundidade   → CRM.comprimento_cm   (⚠ profundidade = comprimento)
+ */
+function pickFirst(...vals: any[]) {
+  for (const v of vals) {
+    const n = toNumberOrNull(v);
+    if (n) return n;
+  }
+  return null;
+}
+
 function extractDims(raw: any) {
   if (!raw) return null;
-  const peso = toNumberOrNull(raw.peso ?? raw.peso_real ?? raw.weight);
-  const altura = toNumberOrNull(raw.altura ?? raw.height);
-  const largura = toNumberOrNull(raw.largura ?? raw.width);
-  const comprimento = toNumberOrNull(raw.profundidade ?? raw.comprimento ?? raw.length ?? raw.depth);
+  const variations: any[] = Array.isArray(raw.produto_variacoes) ? raw.produto_variacoes : [];
+  const varPadrao = raw.produto_variacao_padrao || variations[0] || null;
+
+  const peso = pickFirst(
+    raw.peso, raw.peso_real, raw.weight,
+    varPadrao?.peso, varPadrao?.peso_real,
+    variations[0]?.peso,
+  );
+  const altura = pickFirst(
+    raw.altura, raw.height,
+    varPadrao?.altura, variations[0]?.altura,
+  );
+  const largura = pickFirst(
+    raw.largura, raw.width,
+    varPadrao?.largura, variations[0]?.largura,
+  );
+  // ⚠ profundidade da LI = comprimento no CRM
+  const comprimento = pickFirst(
+    raw.profundidade, raw.comprimento, raw.length, raw.depth,
+    varPadrao?.profundidade, varPadrao?.comprimento,
+    variations[0]?.profundidade, variations[0]?.comprimento,
+  );
+
   if (!peso && !altura && !largura && !comprimento) return null;
   const volume_m3 = altura && largura && comprimento
     ? Number(((altura * largura * comprimento) / 1_000_000).toFixed(4))
@@ -851,12 +893,27 @@ async function fetchAllLIProducts(apiKey: string, appKey: string, log?: (m: stri
   return all;
 }
 
+function hasAnyDim(o: any): boolean {
+  return !!(o && (toNumberOrNull(o.peso) || toNumberOrNull(o.altura) || toNumberOrNull(o.largura) || toNumberOrNull(o.profundidade)));
+}
+
 async function enrichLIDetail(apiKey: string, appKey: string, item: any): Promise<any> {
-  // If item already has weight/dims fields, keep it; otherwise fetch detail.
-  const hasDims = item?.peso || item?.altura || item?.largura || item?.profundidade;
-  if (hasDims) return item;
-  const detail = await liGET(`/produto/${item.id}`, apiKey, appKey);
-  return detail || item;
+  // Sempre garantimos que os campos internos "Tamanho da embalagem" sejam consultados,
+  // pois no listing (/produto) a LI omite peso/altura/largura/profundidade.
+  let base = item;
+  if (!hasAnyDim(base)) {
+    const detail = await liGET(`/produto/${item.id}`, apiKey, appKey);
+    if (detail) base = detail;
+  }
+  // Se o produto raiz não tem dims, tentamos a variação padrão / variações do produto.
+  if (!hasAnyDim(base) && !base?.produto_variacao_padrao && !Array.isArray(base?.produto_variacoes)) {
+    const vars = await liGET(`/produto_variacao/?produto=${item.id}&limit=5`, apiKey, appKey);
+    const objs = vars?.objects || [];
+    if (objs.length) {
+      base = { ...base, produto_variacoes: objs, produto_variacao_padrao: objs[0] };
+    }
+  }
+  return base;
 }
 
 type LIRef = {
@@ -980,7 +1037,7 @@ async function syncProductsDimensions(
   let q = serviceClient
     .from('products')
     .select('id, name, sku, code, brand, bloquear_atualizacao_logistica, company_id')
-    .eq('bloquear_atualizacao_logistica', false);
+    .not('bloquear_atualizacao_logistica', 'is', true);
 
   if (opts.product_ids && opts.product_ids.length > 0) {
     q = q.in('id', opts.product_ids);
@@ -1082,7 +1139,7 @@ async function syncProductsDimensions(
         volume_m3: dims.volume_m3,
         peso_cubado: dims.peso_cubado,
         loja_integrada_id: matched.id,
-        loja_integrada_sync_source: matched_by,
+        loja_integrada_sync_source: 'loja_integrada',
         logistica_atualizada_em: new Date().toISOString(),
         needs_manual_link: false,
         sync_candidates: null,
