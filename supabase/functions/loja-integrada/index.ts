@@ -1157,7 +1157,38 @@ Deno.serve(async (req) => {
       const creds = await fetchStoredCredentials(serviceClient);
       if (!creds) {
         return jsonResponse({ ok: false, error: 'Integração Loja Integrada não configurada.' });
+    }
+
+    // Search & manual link require authenticated user
+    if (action === 'search_li_products' || action === 'link_product') {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader?.startsWith('Bearer ')) return jsonResponse({ ok: false, error: 'Unauthorized' }, 401);
+      const userClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: { user } } = await userClient.auth.getUser();
+      if (!user) return jsonResponse({ ok: false, error: 'Unauthorized' }, 401);
+
+      const serviceClient = getServiceClient();
+      const creds = await fetchStoredCredentials(serviceClient);
+      if (!creds) return jsonResponse({ ok: false, error: 'Integração Loja Integrada não configurada.' });
+
+      if (action === 'search_li_products') {
+        if (!search_term || search_term.trim().length < 2) {
+          return jsonResponse({ ok: false, error: 'Informe um termo com pelo menos 2 caracteres.' });
+        }
+        const results = await searchLIProducts(creds.apiKey, creds.applicationKey, search_term.trim(), 25);
+        return jsonResponse({ ok: true, results });
       }
+
+      if (action === 'link_product') {
+        if (!product_id || !li_id) return jsonResponse({ ok: false, error: 'product_id e li_id são obrigatórios.' });
+        const result = await linkProductManually(serviceClient, creds.apiKey, creds.applicationKey, product_id, li_id);
+        return jsonResponse(result);
+      }
+    }
       const result = await syncProductsDimensions(serviceClient, creds.apiKey, creds.applicationKey, {
         product_ids, all: all_products,
       });
