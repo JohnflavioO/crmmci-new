@@ -102,6 +102,7 @@ export default function Products() {
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [diagOpen, setDiagOpen] = useState(false);
   const [diag, setDiag] = useState<any | null>(null);
+  const [logisticsImportOpen, setLogisticsImportOpen] = useState(false);
 
   const normQuery = normalize(search);
   const tokens = tokenize(search);
