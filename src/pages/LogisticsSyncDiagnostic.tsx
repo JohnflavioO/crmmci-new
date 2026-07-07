@@ -189,6 +189,82 @@ export default function LogisticsSyncDiagnostic() {
     }
   };
 
+  const runReprocessMissing = async () => {
+    setReprocessRunning(true);
+    toast.info('Reprocessando produtos sem peso/dimensões…');
+    try {
+      const { data, error } = await supabase.functions.invoke('loja-integrada', {
+        body: { action: 'reprocess_missing_only' },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || 'Falha ao reprocessar');
+      toast.success(`Reprocessamento concluído: ${data.updated || 0} atualizados, ${data.linked || 0} vinculados de ${data.total || 0}.`);
+      await load();
+    } catch (e: any) {
+      toast.error('Falha: ' + e.message);
+    } finally { setReprocessRunning(false); }
+  };
+
+  const runAudit = async () => {
+    setAuditRunning(true); setAuditRows(null);
+    toast.info('Auditando produtos sem peso/dimensões (consulta API Loja Integrada por produto)…');
+    try {
+      const { data, error } = await supabase.functions.invoke('loja-integrada', {
+        body: { action: 'audit_missing_dimensions' },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || 'Falha na auditoria');
+      setAuditRows(data.rows || []);
+      setAuditOpen(true);
+      toast.success(`Auditoria concluída: ${data.total} produto(s) analisados.`);
+    } catch (e: any) {
+      toast.error('Falha: ' + e.message);
+    } finally { setAuditRunning(false); }
+  };
+
+  const exportPendenciasCSV = () => {
+    const source = auditRows && auditRows.length ? auditRows : products
+      .filter(p => !p.peso_kg || !p.altura_cm || !p.largura_cm || !p.comprimento_cm)
+      .map(p => {
+        const l = links[p.id];
+        return {
+          product_id: p.id, product_name: p.name, crm_code: p.code, crm_sku: p.sku,
+          li_id: l?.match_source ? '' : '', li_sku: '', li_name: '',
+          variacao_id: '', peso: p.peso_kg, altura: p.altura_cm, largura: p.largura_cm, profundidade: p.comprimento_cm,
+          fonte: p.loja_integrada_sync_source || '',
+          motivo: l?.sync_status || 'sem_vinculo',
+          sync_status: l?.sync_status || 'unlinked',
+        };
+      });
+    if (!source.length) { toast.info('Nada a exportar.'); return; }
+    const headers = ['product_name','crm_code','crm_sku','li_id','li_sku','li_name','variacao_id','peso','altura','largura','profundidade','fonte','motivo','sync_status'];
+    const escape = (v: any) => {
+      const s = v == null ? '' : String(v);
+      return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [headers.join(';'), ...source.map((r: any) => headers.map(h => escape(r[h])).join(';'))].join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `pendencias-logistica-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    toast.success(`CSV exportado (${source.length} linhas).`);
+  };
+
+  const filteredAudit = useMemo(() => {
+    if (!auditRows) return [];
+    const q = auditFilter.trim().toLowerCase();
+    if (!q) return auditRows;
+    return auditRows.filter(r =>
+      (r.product_name || '').toLowerCase().includes(q) ||
+      (r.crm_code || '').toLowerCase().includes(q) ||
+      (r.crm_sku || '').toLowerCase().includes(q) ||
+      (r.motivo || '').toLowerCase().includes(q)
+    );
+  }, [auditRows, auditFilter]);
+
+
+
 
   const StatCard = ({ label, value, tone, icon: Icon }: any) => (
     <Card>
