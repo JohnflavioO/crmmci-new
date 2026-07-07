@@ -62,10 +62,19 @@ export default function FreightSummaryCard({ data, quoteNumber }: Props) {
         {data.itens_sem_dados > 0 && (
           <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-            <span>
-              <strong>{data.itens_sem_dados}</strong> item(ns) sem peso ou dimensões cadastrados.
-              Complete o cadastro em <em>Produtos</em> para maior precisão.
-            </span>
+            <div className="flex-1 flex flex-wrap items-center justify-between gap-2">
+              <span>
+                <strong>{data.itens_sem_dados}</strong> item(ns) sem peso ou dimensões cadastrados.
+              </span>
+              <a
+                href="/produtos"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] font-medium underline hover:no-underline"
+              >
+                Importar dados logísticos →
+              </a>
+            </div>
           </div>
         )}
 
