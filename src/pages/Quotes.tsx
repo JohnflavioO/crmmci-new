@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift, Store, CalendarIcon, SplitSquareVertical, ShoppingBag, Truck } from 'lucide-react';
 import FreightQuoteDrawer from '@/components/FreightQuoteDrawer';
+import { buildFreightData, type FreightData } from '@/lib/freight';
 import { MessageSquare, MoreHorizontal } from 'lucide-react';
 import QuoteChat from '@/components/QuoteChat';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -347,6 +348,17 @@ function PaymentMethodFields({ method, date, onDateChange, installments, onInsta
   return null;
 }
 
+function SummaryStat({ label, value, className = '' }: { label: string; value: string; className?: string }) {
+  return (
+    <div className={`rounded-md border bg-background/60 px-2.5 py-1.5 ${className}`}>
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-xs font-semibold tabular-nums truncate">{value}</p>
+    </div>
+  );
+}
+
+
+
 export default function Quotes() {
   const { user, profile, isGestor, isAdmin } = useAuth();
   const isMobile = useIsMobile();
@@ -374,6 +386,58 @@ export default function Quotes() {
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
   const [chatQuote, setChatQuote] = useState<{ id: string; number: string } | null>(null);
   const [cepLoading, setCepLoading] = useState(false);
+  const [cepOrigem, setCepOrigem] = useState<string>(() => {
+    try { return localStorage.getItem('mci_cep_origem') || ''; } catch { return ''; }
+  });
+  const [freightContext, setFreightContext] = useState<{ quoteNumber?: string } | undefined>(undefined);
+
+  // Match products à lista de itens pelo code/sku
+  const productByCode = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const p of products) {
+      if (p.code) map.set(String(p.code).trim().toLowerCase(), p);
+      if (p.sku) map.set(String(p.sku).trim().toLowerCase(), p);
+    }
+    return map;
+  }, [products]);
+
+  // Dados consolidados de frete a partir dos itens do orçamento
+  const freightData: FreightData = useMemo(() => {
+    const totalAmountVal = items.reduce((s, i) => s + (Number(i.line_total) || 0), 0);
+    return buildFreightData({
+      items: items.map(it => {
+        const key = String(it.product_code || '').trim().toLowerCase();
+        const prod = key ? productByCode.get(key) : null;
+        return {
+          product_code: it.product_code,
+          model: it.model,
+          description: it.specifications,
+          quantity: it.quantity,
+          unit_price: it.unit_price,
+          product: prod
+            ? {
+                peso_kg: prod.peso_kg,
+                altura_cm: prod.altura_cm,
+                largura_cm: prod.largura_cm,
+                comprimento_cm: prod.comprimento_cm,
+                peso_cubado: prod.peso_cubado,
+                volume_m3: prod.volume_m3,
+                origem_cep: prod.origem_cep,
+                embalagem_tipo: prod.embalagem_tipo,
+              }
+            : null,
+        };
+      }),
+      cep_origem: cepOrigem,
+      cep_destino: form.use_alt_shipping_address ? form.shipping_cep : (clients.find((c: any) => c.id === form.client_id)?.cep || ''),
+      valor_mercadoria: totalAmountVal,
+    });
+  }, [items, productByCode, cepOrigem, form.use_alt_shipping_address, form.shipping_cep, form.client_id, clients]);
+
+  const openFreightDrawer = (quoteNumber?: string) => {
+    setFreightContext({ quoteNumber });
+    setFreightDrawerOpen(true);
+  };
 
   const handleShippingCepChange = async (value: string) => {
     const cleanCep = value.replace(/\D/g, '');
@@ -448,7 +512,7 @@ export default function Quotes() {
         quotesQuery,
         db.from('clients').select('id, company_name, name, is_revenda, contrib_icms').eq('created_by', user.id).order('company_name'),
         db.from('salespeople').select('id, name, code, active').eq('active', true).order('name'),
-        db.from('products').select('id, name, brand, code, sku, category_principal, price, description, image_url').order('name').limit(1000),
+        db.from('products').select('id, name, brand, code, sku, category_principal, price, description, image_url, peso_kg, altura_cm, largura_cm, comprimento_cm, peso_cubado, volume_m3, origem_cep, embalagem_tipo').order('name').limit(1000),
       ]);
       setQuotes(q.data || []);
       setClients(c.data || []);
@@ -1626,6 +1690,61 @@ export default function Quotes() {
                 )}
               </div>
 
+              {/* Dados para Frete — consolidado a partir dos itens */}
+              <div className="p-4 rounded-lg border bg-gradient-to-br from-primary/[0.04] to-transparent space-y-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div>
+                    <Label className="text-sm font-semibold">Dados para Frete</Label>
+                    <p className="text-xs text-muted-foreground">Peso e dimensões consolidados dos itens do orçamento.</p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="default"
+                    className="gap-1.5"
+                    onClick={() => openFreightDrawer(editingQuote?.quote_number)}
+                  >
+                    <Truck className="h-3.5 w-3.5" /> Calcular Frete
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">CEP Origem</Label>
+                    <Input
+                      value={cepOrigem}
+                      maxLength={9}
+                      placeholder="00000-000"
+                      onChange={e => {
+                        const v = e.target.value;
+                        setCepOrigem(v);
+                        try { localStorage.setItem('mci_cep_origem', v); } catch { /* noop */ }
+                      }}
+                    />
+                  </div>
+                  <SummaryStat label="Peso total" value={`${freightData.peso_total_kg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`} />
+                  <SummaryStat label="Peso cubado" value={`${freightData.peso_cubado_total_kg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`} />
+                  <SummaryStat label="Volumes" value={String(freightData.volumes_qtd || 0)} />
+                  <SummaryStat label="Volume" value={`${freightData.volume_total_m3.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} m³`} />
+                  <SummaryStat
+                    label="Maiores dims (A×L×C)"
+                    value={`${freightData.altura_cm}×${freightData.largura_cm}×${freightData.comprimento_cm} cm`}
+                    className="col-span-2"
+                  />
+                  <SummaryStat label="CEP Destino" value={freightData.cep_destino ? freightData.cep_destino.replace(/^(\d{5})(\d{3})$/, '$1-$2') : '—'} />
+                </div>
+
+                {freightData.itens_sem_dados > 0 && (
+                  <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                    <span>⚠</span>
+                    <span>
+                      Existem <strong>{freightData.itens_sem_dados}</strong> produto(s) sem peso ou dimensões cadastrados.
+                      Complete os dados em <em>Produtos</em> para calcular o frete com maior precisão.
+                    </span>
+                  </div>
+                )}
+              </div>
+
               {/* Shipping */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg border bg-muted/20">
                 <div className="space-y-2">
@@ -2057,7 +2176,12 @@ export default function Quotes() {
         </Dialog>
         </div>
       </div>
-      <FreightQuoteDrawer open={freightDrawerOpen} onOpenChange={setFreightDrawerOpen} />
+      <FreightQuoteDrawer
+        open={freightDrawerOpen}
+        onOpenChange={(o) => { setFreightDrawerOpen(o); if (!o) setFreightContext(undefined); }}
+        freightData={freightContext ? freightData : undefined}
+        quoteContext={freightContext ? { quoteNumber: freightContext.quoteNumber } : undefined}
+      />
 
       <Card className="shadow-card">
         <CardHeader className="pb-3">

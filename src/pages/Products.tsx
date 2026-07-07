@@ -79,7 +79,11 @@ export default function Products() {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
-  const [form, setForm] = useState({ name: '', sku: '', code: '', brand: '', description: '', price: '' as string, image_url: '' });
+  const [form, setForm] = useState({
+    name: '', sku: '', code: '', brand: '', description: '', price: '' as string, image_url: '',
+    peso_kg: '' as string, altura_cm: '' as string, largura_cm: '' as string, comprimento_cm: '' as string,
+    peso_cubado: '' as string, volume_m3: '' as string, origem_cep: '', embalagem_tipo: '',
+  });
   const [scrapeUrl, setScrapeUrl] = useState('');
   const [scraping, setScraping] = useState(false);
   const [page, setPage] = useState(0);
@@ -182,10 +186,27 @@ export default function Products() {
   };
 
 
+  const toNum = (s: string): number | null => {
+    if (!s || !String(s).trim()) return null;
+    const n = parseFloat(String(s).replace(',', '.'));
+    return Number.isFinite(n) ? n : null;
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Nome é obrigatório'); return; }
     try {
-      const payload = { name: form.name, sku: form.sku, code: form.code, brand: form.brand, description: form.description, price: parseMoneyBR(form.price), image_url: form.image_url };
+      const payload: any = {
+        name: form.name, sku: form.sku, code: form.code, brand: form.brand,
+        description: form.description, price: parseMoneyBR(form.price), image_url: form.image_url,
+        peso_kg: toNum(form.peso_kg),
+        altura_cm: toNum(form.altura_cm),
+        largura_cm: toNum(form.largura_cm),
+        comprimento_cm: toNum(form.comprimento_cm),
+        peso_cubado: toNum(form.peso_cubado),
+        volume_m3: toNum(form.volume_m3),
+        origem_cep: (form.origem_cep || '').replace(/\D/g, '').slice(0, 8) || null,
+        embalagem_tipo: form.embalagem_tipo || null,
+      };
       if (editing) {
         const { error } = await db.from('products').update(payload).eq('id', editing.id);
         if (error) throw error;
@@ -205,10 +226,19 @@ export default function Products() {
 
   const handleEdit = (product: any) => {
     setEditing(product);
+    const s = (v: any) => (v === null || v === undefined || v === '' ? '' : String(v).replace('.', ','));
     setForm({
       name: product.name || '', sku: product.sku || '', code: product.code || '',
       brand: product.brand || '', description: product.description || '',
       price: product.price != null && product.price !== '' ? formatBR(parseFloat(product.price) || 0) : '', image_url: product.image_url || '',
+      peso_kg: s(product.peso_kg),
+      altura_cm: s(product.altura_cm),
+      largura_cm: s(product.largura_cm),
+      comprimento_cm: s(product.comprimento_cm),
+      peso_cubado: s(product.peso_cubado),
+      volume_m3: s(product.volume_m3),
+      origem_cep: product.origem_cep || '',
+      embalagem_tipo: product.embalagem_tipo || '',
     });
     setDialogOpen(true);
   };
@@ -222,7 +252,11 @@ export default function Products() {
 
   const resetForm = () => {
     setEditing(null);
-    setForm({ name: '', sku: '', code: '', brand: '', description: '', price: '', image_url: '' });
+    setForm({
+      name: '', sku: '', code: '', brand: '', description: '', price: '', image_url: '',
+      peso_kg: '', altura_cm: '', largura_cm: '', comprimento_cm: '',
+      peso_cubado: '', volume_m3: '', origem_cep: '', embalagem_tipo: '',
+    });
     setScrapeUrl('');
   };
 
@@ -456,6 +490,59 @@ export default function Products() {
                     <img src={form.image_url} alt="Preview" className="max-h-32 object-contain rounded" onError={(e) => (e.currentTarget.style.display = 'none')} />
                   </div>
                 )}
+
+                {/* Peso e Dimensões para cálculo de frete */}
+                <div className="p-3 rounded-lg border bg-muted/20 space-y-3">
+                  <Label className="text-sm font-medium">Peso & Dimensões (para cálculo de frete)</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Peso (kg)</Label>
+                      <Input inputMode="decimal" placeholder="0,00" value={form.peso_kg}
+                        onChange={e => setForm(p => ({ ...p, peso_kg: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Altura (cm)</Label>
+                      <Input inputMode="decimal" placeholder="0" value={form.altura_cm}
+                        onChange={e => setForm(p => ({ ...p, altura_cm: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Largura (cm)</Label>
+                      <Input inputMode="decimal" placeholder="0" value={form.largura_cm}
+                        onChange={e => setForm(p => ({ ...p, largura_cm: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Comprimento (cm)</Label>
+                      <Input inputMode="decimal" placeholder="0" value={form.comprimento_cm}
+                        onChange={e => setForm(p => ({ ...p, comprimento_cm: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Peso cubado (kg)</Label>
+                      <Input inputMode="decimal" placeholder="auto" value={form.peso_cubado}
+                        onChange={e => setForm(p => ({ ...p, peso_cubado: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Volume (m³)</Label>
+                      <Input inputMode="decimal" placeholder="auto" value={form.volume_m3}
+                        onChange={e => setForm(p => ({ ...p, volume_m3: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">CEP de origem</Label>
+                      <Input maxLength={9} placeholder="00000-000" value={form.origem_cep}
+                        onChange={e => setForm(p => ({ ...p, origem_cep: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Embalagem</Label>
+                      <Input placeholder="Ex: Caixa, Palete..." value={form.embalagem_tipo}
+                        onChange={e => setForm(p => ({ ...p, embalagem_tipo: e.target.value }))} />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Se peso cubado / volume ficarem em branco, o CRM calcula automaticamente a partir das dimensões (fator 300 kg/m³).
+                  </p>
+                </div>
+
 
                 <div className="flex justify-end gap-2 pt-2">
                   <Button variant="outline" onClick={() => setDialogOpen(false)} className="min-h-[44px]">Cancelar</Button>
