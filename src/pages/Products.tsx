@@ -491,6 +491,59 @@ export default function Products() {
                   </div>
                 )}
 
+                {/* Peso e Dimensões para cálculo de frete */}
+                <div className="p-3 rounded-lg border bg-muted/20 space-y-3">
+                  <Label className="text-sm font-medium">Peso & Dimensões (para cálculo de frete)</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Peso (kg)</Label>
+                      <Input inputMode="decimal" placeholder="0,00" value={form.peso_kg}
+                        onChange={e => setForm(p => ({ ...p, peso_kg: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Altura (cm)</Label>
+                      <Input inputMode="decimal" placeholder="0" value={form.altura_cm}
+                        onChange={e => setForm(p => ({ ...p, altura_cm: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Largura (cm)</Label>
+                      <Input inputMode="decimal" placeholder="0" value={form.largura_cm}
+                        onChange={e => setForm(p => ({ ...p, largura_cm: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Comprimento (cm)</Label>
+                      <Input inputMode="decimal" placeholder="0" value={form.comprimento_cm}
+                        onChange={e => setForm(p => ({ ...p, comprimento_cm: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Peso cubado (kg)</Label>
+                      <Input inputMode="decimal" placeholder="auto" value={form.peso_cubado}
+                        onChange={e => setForm(p => ({ ...p, peso_cubado: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Volume (m³)</Label>
+                      <Input inputMode="decimal" placeholder="auto" value={form.volume_m3}
+                        onChange={e => setForm(p => ({ ...p, volume_m3: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">CEP de origem</Label>
+                      <Input maxLength={9} placeholder="00000-000" value={form.origem_cep}
+                        onChange={e => setForm(p => ({ ...p, origem_cep: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Embalagem</Label>
+                      <Input placeholder="Ex: Caixa, Palete..." value={form.embalagem_tipo}
+                        onChange={e => setForm(p => ({ ...p, embalagem_tipo: e.target.value }))} />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Se peso cubado / volume ficarem em branco, o CRM calcula automaticamente a partir das dimensões (fator 300 kg/m³).
+                  </p>
+                </div>
+
+
                 <div className="flex justify-end gap-2 pt-2">
                   <Button variant="outline" onClick={() => setDialogOpen(false)} className="min-h-[44px]">Cancelar</Button>
                   <Button onClick={handleSave} className="min-h-[44px]">Salvar Produto</Button>
