@@ -62,6 +62,7 @@ export default function LogisticsSyncDiagnostic() {
   const stats = useMemo(() => {
     const total = products.length;
     let linked = 0, needs = 0, notFound = 0, syncedToday = 0, withPeso = 0, withDims = 0, conflicts = 0;
+    let srcApi = 0, srcPlanilha = 0, srcManual = 0, srcNenhum = 0;
     const today = new Date().toISOString().slice(0, 10);
     for (const p of products) {
       const l = links[p.id];
@@ -72,10 +73,18 @@ export default function LogisticsSyncDiagnostic() {
       if (l?.last_sync_at && l.last_sync_at.slice(0, 10) === today) syncedToday++;
       if (p.peso_kg && p.peso_kg > 0) withPeso++;
       if (p.altura_cm && p.largura_cm && p.comprimento_cm) withDims++;
+      const src = p.loja_integrada_sync_source;
+      const hasData = (p.peso_kg && p.peso_kg > 0) || (p.altura_cm && p.altura_cm > 0);
+      if (!hasData) srcNenhum++;
+      else if (src === 'loja_integrada') srcApi++;
+      else if (src === 'planilha_loja_integrada') srcPlanilha++;
+      else if (src === 'manual') srcManual++;
+      else srcApi++; // legado: sem tag mas com dados = considera API
     }
     return {
       total, linked, unlinked: total - linked, needs, notFound, conflicts, syncedToday,
       semPeso: total - withPeso, semDims: total - withDims,
+      srcApi, srcPlanilha, srcManual, srcNenhum,
     };
   }, [products, links]);
 
