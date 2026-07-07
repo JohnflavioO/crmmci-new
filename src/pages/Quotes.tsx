@@ -1847,16 +1847,22 @@ export default function Quotes() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs">CEP Origem</Label>
-                    <Input
-                      value={cepOrigem}
-                      maxLength={9}
-                      placeholder="00000-000"
-                      onChange={e => {
-                        const v = e.target.value;
+                    <Select
+                      value={(cepOrigem || '').replace(/\D/g, '')}
+                      onValueChange={(v) => {
                         setCepOrigem(v);
                         try { localStorage.setItem('mci_cep_origem', v); } catch { /* noop */ }
                       }}
-                    />
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Selecionar origem…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="05305003">05305-003 · SP</SelectItem>
+                        <SelectItem value="88310180">88310-180 · SC</SelectItem>
+                        <SelectItem value="60025001">60025-001 · CE</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <SummaryStat label="Peso total" value={`${freightData.peso_total_kg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`} />
                   <SummaryStat label="Peso cubado" value={`${freightData.peso_cubado_total_kg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`} />
