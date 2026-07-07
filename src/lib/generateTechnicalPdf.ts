@@ -13,9 +13,9 @@ const formatDate = (d?: string | Date) => {
 const COMPANY = {
   name: 'MCI Assistência Técnica',
   legal: 'MCI Câmera e Iluminação',
-  cnpj: '05.502.390/0001-11',
-  address: 'Rua Senador Pompeu, 1547 - Centro - Fortaleza/CE - CEP 60.025-001',
-  phone: '+55 (85) 3254-4700',
+  cnpj: '05.502.390/0003-83',
+  address: 'Av. Imperatriz Leopoldina, 1718 - 2º andar - Vila Leopoldina - São Paulo/SP - CEP 05305-003',
+  phone: '+55 (11) 3641-9013',
   email: 'suporte@mci.com.br',
 };
 
