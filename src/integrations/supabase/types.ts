@@ -2557,6 +2557,7 @@ export type Database = {
           company_id: string | null
           created_at: string
           created_by: string | null
+          discount_percent: number
           entry_date: string | null
           equipment: string | null
           estimated_date: string | null
@@ -2568,12 +2569,15 @@ export type Database = {
           os_number: string
           os_type: string | null
           parts_value: number
+          payment_method: string | null
+          payment_proof_url: string | null
           photos: Json | null
           physical_condition: string | null
           public_token: string | null
           reported_defect: string | null
           serial: string | null
           services_value: number | null
+          shipping_method: string | null
           shipping_value: number
           status: string
           technical_diagnosis: string | null
@@ -2593,6 +2597,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           created_by?: string | null
+          discount_percent?: number
           entry_date?: string | null
           equipment?: string | null
           estimated_date?: string | null
@@ -2604,12 +2609,15 @@ export type Database = {
           os_number?: string
           os_type?: string | null
           parts_value?: number
+          payment_method?: string | null
+          payment_proof_url?: string | null
           photos?: Json | null
           physical_condition?: string | null
           public_token?: string | null
           reported_defect?: string | null
           serial?: string | null
           services_value?: number | null
+          shipping_method?: string | null
           shipping_value?: number
           status?: string
           technical_diagnosis?: string | null
@@ -2629,6 +2637,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           created_by?: string | null
+          discount_percent?: number
           entry_date?: string | null
           equipment?: string | null
           estimated_date?: string | null
@@ -2640,12 +2649,15 @@ export type Database = {
           os_number?: string
           os_type?: string | null
           parts_value?: number
+          payment_method?: string | null
+          payment_proof_url?: string | null
           photos?: Json | null
           physical_condition?: string | null
           public_token?: string | null
           reported_defect?: string | null
           serial?: string | null
           services_value?: number | null
+          shipping_method?: string | null
           shipping_value?: number
           status?: string
           technical_diagnosis?: string | null
