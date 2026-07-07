@@ -1085,18 +1085,6 @@ Deno.serve(async (req) => {
       return jsonResponse(result);
     }
 
-    // === SYNC PRODUCT DIMENSIONS ===
-    if (action === 'sync_product_dimensions') {
-      const serviceClient = getServiceClient();
-      const creds = await fetchStoredCredentials(serviceClient);
-      if (!creds) {
-        return jsonResponse({ ok: false, error: 'Integração não configurada. Salve suas credenciais primeiro.' });
-      }
-      const result = await syncProductsDimensions(serviceClient, creds.apiKey, creds.applicationKey, {
-        product_ids, all: all_products,
-      });
-      return jsonResponse(result);
-    }
 
     return jsonResponse({ ok: false, error: 'Ação desconhecida' });
   } catch (error) {
