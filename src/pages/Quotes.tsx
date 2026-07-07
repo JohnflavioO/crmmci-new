@@ -381,6 +381,7 @@ export default function Quotes() {
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
   const [salespeople, setSalespeople] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [externalLinks, setExternalLinks] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState<Record<number, string>>({});
   const [productSearchResults, setProductSearchResults] = useState<Record<number, any[]>>({});
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
