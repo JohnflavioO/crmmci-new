@@ -878,6 +878,11 @@ export default function Products() {
           )}
         </DialogContent>
       </Dialog>
+      <LogisticsImportDialog
+        open={logisticsImportOpen}
+        onOpenChange={setLogisticsImportOpen}
+        onImported={loadProducts}
+      />
     </AppLayout>
   );
 }
