@@ -66,6 +66,8 @@ export interface FreightData {
   comprimento_cm: number;
   items: FreightItemComputed[];
   itens_sem_dados: number;
+  itens_vinculados_sem_dados: number;
+  itens_prontos_para_frete: number;
 }
 
 const num = (v: unknown, fallback = 0): number => {
