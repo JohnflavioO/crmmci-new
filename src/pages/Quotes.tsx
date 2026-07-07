@@ -434,6 +434,52 @@ export default function Quotes() {
     });
   }, [items, productByCode, cepOrigem, form.use_alt_shipping_address, form.shipping_cep, form.client_id, clients]);
 
+  // IDs dos produtos do orçamento sem dados logísticos completos
+  const productIdsSemDados = useMemo(() => {
+    const ids: string[] = [];
+    for (const it of items) {
+      const key = String(it.product_code || '').trim().toLowerCase();
+      const prod = key ? productByCode.get(key) : null;
+      if (prod && (!prod.peso_kg || !prod.altura_cm || !prod.largura_cm || !prod.comprimento_cm)) {
+        if (!ids.includes(prod.id)) ids.push(prod.id);
+      }
+    }
+    return ids;
+  }, [items, productByCode]);
+
+  const [syncingFreightLI, setSyncingFreightLI] = useState(false);
+  const handleFetchFreightFromLI = async () => {
+    if (productIdsSemDados.length === 0) return;
+    setSyncingFreightLI(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('loja-integrada', {
+        body: { action: 'sync_product_dimensions', product_ids: productIdsSemDados },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.ok === false) throw new Error(data?.error || 'Falha');
+      // Reload just those products' logistics fields
+      const { data: fresh } = await db.from('products')
+        .select('id, name, brand, code, sku, category_principal, price, description, image_url, peso_kg, altura_cm, largura_cm, comprimento_cm, peso_cubado, volume_m3, origem_cep, embalagem_tipo')
+        .in('id', productIdsSemDados);
+      if (fresh) {
+        setProducts(prev => prev.map(p => fresh.find((f: any) => f.id === p.id) || p));
+      }
+      const updated = data?.updated ?? 0;
+      const notFound = data?.not_found ?? 0;
+      if (updated > 0) {
+        toast.success(`${updated} produto(s) atualizado(s). Dados de frete recalculados.`);
+      } else if (notFound > 0) {
+        toast.warning(`Nenhum produto encontrado na Loja Integrada (${notFound} não localizados).`);
+      } else {
+        toast.info('Nenhum dado logístico disponível na Loja Integrada para estes produtos.');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao buscar dados na Loja Integrada');
+    } finally {
+      setSyncingFreightLI(false);
+    }
+  };
+
   const openFreightDrawer = (quoteNumber?: string) => {
     setFreightContext({ quoteNumber });
     setFreightDrawerOpen(true);
