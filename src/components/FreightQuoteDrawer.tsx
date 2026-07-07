@@ -10,9 +10,10 @@ interface Props {
     quoteId?: string;
     quoteNumber?: string;
   };
+  onCepOrigemChange?: (cep: string) => void;
 }
 
-export default function FreightQuoteDrawer({ open, onOpenChange, freightData, quoteContext }: Props) {
+export default function FreightQuoteDrawer({ open, onOpenChange, freightData, quoteContext, onCepOrigemChange }: Props) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -34,6 +35,7 @@ export default function FreightQuoteDrawer({ open, onOpenChange, freightData, qu
           <FreightQuoteModule
             freightData={freightData}
             quoteNumber={quoteContext?.quoteNumber}
+            onCepOrigemChange={onCepOrigemChange}
           />
         </div>
       </SheetContent>

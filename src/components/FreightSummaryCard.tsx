@@ -1,20 +1,28 @@
 import { useState } from 'react';
 import { Copy, Check, AlertTriangle, Package, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import type { FreightData } from '@/lib/freight';
 import { freightToClipboardText } from '@/lib/freight';
 
+export const CEP_ORIGEM_PRESETS = [
+  { cep: '05305003', label: '05305-003 · SP' },
+  { cep: '88310180', label: '88310-180 · SC' },
+  { cep: '60025001', label: '60025-001 · CE' },
+];
+
 interface Props {
   data: FreightData;
   quoteNumber?: string;
+  onCepOrigemChange?: (cep: string) => void;
 }
 
 const fmt = (n: number, dig = 2) =>
   n.toLocaleString('pt-BR', { minimumFractionDigits: dig, maximumFractionDigits: dig });
 const fmtCep = (c: string) => (c ? c.replace(/^(\d{5})(\d{3})$/, '$1-$2') : '—');
 
-export default function FreightSummaryCard({ data, quoteNumber }: Props) {
+export default function FreightSummaryCard({ data, quoteNumber, onCepOrigemChange }: Props) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const copy = async (key: string, text: string, label: string) => {
@@ -93,7 +101,29 @@ export default function FreightSummaryCard({ data, quoteNumber }: Props) {
         )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-          <Field label="CEP origem" value={fmtCep(data.cep_origem)} icon={<MapPin className="h-3 w-3" />} />
+          {onCepOrigemChange ? (
+            <div className="rounded-md border bg-background/60 px-2.5 py-1.5">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                CEP origem
+              </p>
+              <Select
+                value={CEP_ORIGEM_PRESETS.some(p => p.cep === data.cep_origem) ? data.cep_origem : ''}
+                onValueChange={(v) => onCepOrigemChange(v)}
+              >
+                <SelectTrigger className="h-7 mt-0.5 text-xs px-1 border-0 bg-transparent shadow-none focus:ring-0 font-semibold tabular-nums">
+                  <SelectValue placeholder={fmtCep(data.cep_origem) !== '—' ? fmtCep(data.cep_origem) : 'Selecionar…'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {CEP_ORIGEM_PRESETS.map(p => (
+                    <SelectItem key={p.cep} value={p.cep} className="text-xs">{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <Field label="CEP origem" value={fmtCep(data.cep_origem)} icon={<MapPin className="h-3 w-3" />} />
+          )}
           <Field
             label="CEP destino"
             value={fmtCep(data.cep_destino)}

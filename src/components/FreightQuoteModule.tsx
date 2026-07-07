@@ -13,6 +13,7 @@ interface Props {
   /** Dados do orçamento — quando presentes, mostra o card resumo acima do iframe */
   freightData?: FreightData;
   quoteNumber?: string;
+  onCepOrigemChange?: (cep: string) => void;
 }
 
 /**
@@ -29,6 +30,7 @@ export default function FreightQuoteModule({
   className = '',
   freightData,
   quoteNumber,
+  onCepOrigemChange,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -91,7 +93,7 @@ export default function FreightQuoteModule({
         )}
       </div>
 
-      {freightData && <FreightSummaryCard data={freightData} quoteNumber={quoteNumber} />}
+      {freightData && <FreightSummaryCard data={freightData} quoteNumber={quoteNumber} onCepOrigemChange={onCepOrigemChange} />}
 
       <div className="flex-1 relative bg-muted/10 min-h-[300px]">
         {failed ? (
