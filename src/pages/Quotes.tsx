@@ -1781,12 +1781,27 @@ export default function Quotes() {
                 </div>
 
                 {freightData.itens_sem_dados > 0 && (
-                  <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
-                    <span>⚠</span>
-                    <span>
-                      Existem <strong>{freightData.itens_sem_dados}</strong> produto(s) sem peso ou dimensões cadastrados.
-                      Complete os dados em <em>Produtos</em> para calcular o frete com maior precisão.
-                    </span>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                    <div className="flex items-start gap-2 flex-1">
+                      <span>⚠</span>
+                      <span>
+                        Existem <strong>{freightData.itens_sem_dados}</strong> produto(s) sem peso ou dimensões cadastrados.
+                        Complete os dados em <em>Produtos</em> para calcular o frete com maior precisão.
+                      </span>
+                    </div>
+                    {productIdsSemDados.length > 0 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 shrink-0"
+                        onClick={handleFetchFreightFromLI}
+                        disabled={syncingFreightLI}
+                      >
+                        {syncingFreightLI ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        Buscar dados na Loja Integrada
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
