@@ -79,7 +79,11 @@ export default function Products() {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
-  const [form, setForm] = useState({ name: '', sku: '', code: '', brand: '', description: '', price: '' as string, image_url: '' });
+  const [form, setForm] = useState({
+    name: '', sku: '', code: '', brand: '', description: '', price: '' as string, image_url: '',
+    peso_kg: '' as string, altura_cm: '' as string, largura_cm: '' as string, comprimento_cm: '' as string,
+    peso_cubado: '' as string, volume_m3: '' as string, origem_cep: '', embalagem_tipo: '',
+  });
   const [scrapeUrl, setScrapeUrl] = useState('');
   const [scraping, setScraping] = useState(false);
   const [page, setPage] = useState(0);
@@ -182,10 +186,27 @@ export default function Products() {
   };
 
 
+  const toNum = (s: string): number | null => {
+    if (!s || !String(s).trim()) return null;
+    const n = parseFloat(String(s).replace(',', '.'));
+    return Number.isFinite(n) ? n : null;
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Nome é obrigatório'); return; }
     try {
-      const payload = { name: form.name, sku: form.sku, code: form.code, brand: form.brand, description: form.description, price: parseMoneyBR(form.price), image_url: form.image_url };
+      const payload: any = {
+        name: form.name, sku: form.sku, code: form.code, brand: form.brand,
+        description: form.description, price: parseMoneyBR(form.price), image_url: form.image_url,
+        peso_kg: toNum(form.peso_kg),
+        altura_cm: toNum(form.altura_cm),
+        largura_cm: toNum(form.largura_cm),
+        comprimento_cm: toNum(form.comprimento_cm),
+        peso_cubado: toNum(form.peso_cubado),
+        volume_m3: toNum(form.volume_m3),
+        origem_cep: (form.origem_cep || '').replace(/\D/g, '').slice(0, 8) || null,
+        embalagem_tipo: form.embalagem_tipo || null,
+      };
       if (editing) {
         const { error } = await db.from('products').update(payload).eq('id', editing.id);
         if (error) throw error;
@@ -205,10 +226,19 @@ export default function Products() {
 
   const handleEdit = (product: any) => {
     setEditing(product);
+    const s = (v: any) => (v === null || v === undefined || v === '' ? '' : String(v).replace('.', ','));
     setForm({
       name: product.name || '', sku: product.sku || '', code: product.code || '',
       brand: product.brand || '', description: product.description || '',
       price: product.price != null && product.price !== '' ? formatBR(parseFloat(product.price) || 0) : '', image_url: product.image_url || '',
+      peso_kg: s(product.peso_kg),
+      altura_cm: s(product.altura_cm),
+      largura_cm: s(product.largura_cm),
+      comprimento_cm: s(product.comprimento_cm),
+      peso_cubado: s(product.peso_cubado),
+      volume_m3: s(product.volume_m3),
+      origem_cep: product.origem_cep || '',
+      embalagem_tipo: product.embalagem_tipo || '',
     });
     setDialogOpen(true);
   };
@@ -222,7 +252,11 @@ export default function Products() {
 
   const resetForm = () => {
     setEditing(null);
-    setForm({ name: '', sku: '', code: '', brand: '', description: '', price: '', image_url: '' });
+    setForm({
+      name: '', sku: '', code: '', brand: '', description: '', price: '', image_url: '',
+      peso_kg: '', altura_cm: '', largura_cm: '', comprimento_cm: '',
+      peso_cubado: '', volume_m3: '', origem_cep: '', embalagem_tipo: '',
+    });
     setScrapeUrl('');
   };
 
