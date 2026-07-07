@@ -244,6 +244,7 @@ export default function Products() {
       volume_m3: s(product.volume_m3),
       origem_cep: product.origem_cep || '',
       embalagem_tipo: product.embalagem_tipo || '',
+      bloquear_atualizacao_logistica: !!product.bloquear_atualizacao_logistica,
     });
     setDialogOpen(true);
   };
