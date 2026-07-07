@@ -762,12 +762,166 @@ async function syncOrders(serviceClient: any, apiKey: string, applicationKey: st
   };
 }
 
+// ============= Product dimensions sync =============
+
+function toNumberOrNull(v: any): number | null {
+  if (v === null || v === undefined || v === '') return null;
+  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function extractDims(raw: any) {
+  if (!raw) return null;
+  const peso = toNumberOrNull(raw.peso ?? raw.peso_real ?? raw.weight);
+  const altura = toNumberOrNull(raw.altura ?? raw.height);
+  const largura = toNumberOrNull(raw.largura ?? raw.width);
+  const comprimento = toNumberOrNull(raw.profundidade ?? raw.comprimento ?? raw.length ?? raw.depth);
+  if (!peso && !altura && !largura && !comprimento) return null;
+  const volume_m3 = altura && largura && comprimento
+    ? Number(((altura * largura * comprimento) / 1_000_000).toFixed(4))
+    : null;
+  const peso_cubado = volume_m3 ? Number((volume_m3 * 300).toFixed(3)) : null;
+  return {
+    peso_kg: peso, altura_cm: altura, largura_cm: largura, comprimento_cm: comprimento,
+    volume_m3, peso_cubado,
+    external_id: raw.id ? String(raw.id) : null,
+  };
+}
+
+async function liGET(path: string, apiKey: string, applicationKey: string) {
+  const url = `${LOJA_INTEGRADA_API}${path}`;
+  const r = await fetch(url, {
+    headers: {
+      'Authorization': `chave_api ${apiKey} aplicacao ${applicationKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!r.ok) return null;
+  try { return await r.json(); } catch { return null; }
+}
+
+async function findLojaIntegradaProduct(
+  apiKey: string, appKey: string,
+  ref: { sku?: string | null; code?: string | null; external_id?: string | null; name?: string | null }
+): Promise<{ raw: any; matched_by: string } | null> {
+  // 1. external id
+  if (ref.external_id) {
+    const detail = await liGET(`/produto/${encodeURIComponent(ref.external_id)}`, apiKey, appKey);
+    if (detail?.id) return { raw: detail, matched_by: 'external_id' };
+  }
+  // 2. SKU
+  if (ref.sku) {
+    const list = await liGET(`/produto?sku=${encodeURIComponent(ref.sku)}&limit=1`, apiKey, appKey);
+    const item = list?.objects?.[0] || list?.[0];
+    if (item?.id) {
+      const detail = await liGET(`/produto/${item.id}`, apiKey, appKey) || item;
+      return { raw: detail, matched_by: 'sku' };
+    }
+  }
+  // 3. Code — many LI stores put internal code in SKU too, try again as SKU
+  if (ref.code && ref.code !== ref.sku) {
+    const list = await liGET(`/produto?sku=${encodeURIComponent(ref.code)}&limit=1`, apiKey, appKey);
+    const item = list?.objects?.[0] || list?.[0];
+    if (item?.id) {
+      const detail = await liGET(`/produto/${item.id}`, apiKey, appKey) || item;
+      return { raw: detail, matched_by: 'code' };
+    }
+  }
+  // 4. Name fallback
+  if (ref.name && ref.name.length > 3) {
+    const list = await liGET(`/produto?nome=${encodeURIComponent(ref.name)}&limit=1`, apiKey, appKey);
+    const item = list?.objects?.[0] || list?.[0];
+    if (item?.id) {
+      const detail = await liGET(`/produto/${item.id}`, apiKey, appKey) || item;
+      return { raw: detail, matched_by: 'name' };
+    }
+  }
+  return null;
+}
+
+async function syncProductsDimensions(
+  serviceClient: any,
+  apiKey: string,
+  applicationKey: string,
+  opts: { product_ids?: string[]; all?: boolean }
+) {
+  let q = serviceClient
+    .from('products')
+    .select('id, name, sku, code, loja_integrada_id, bloquear_atualizacao_logistica')
+    .eq('bloquear_atualizacao_logistica', false);
+
+  if (opts.product_ids && opts.product_ids.length > 0) {
+    q = q.in('id', opts.product_ids);
+  } else if (opts.all) {
+    // no filter
+  } else {
+    return { ok: false, error: 'Informe product_ids ou all=true' };
+  }
+
+  const { data: products, error } = await q.limit(500);
+  if (error) return { ok: false, error: error.message };
+
+  let updated = 0, notFound = 0, skipped = 0, errors = 0;
+  const not_found_details: { id: string; name: string; sku: string | null }[] = [];
+
+  for (const p of (products || [])) {
+    try {
+      const found = await findLojaIntegradaProduct(apiKey, applicationKey, {
+        sku: p.sku, code: p.code, external_id: p.loja_integrada_id, name: p.name,
+      });
+      if (!found) {
+        notFound++;
+        not_found_details.push({ id: p.id, name: p.name, sku: p.sku });
+        continue;
+      }
+      const dims = extractDims(found.raw);
+      if (!dims) {
+        skipped++;
+        continue;
+      }
+      const updatePayload: any = {
+        peso_kg: dims.peso_kg,
+        altura_cm: dims.altura_cm,
+        largura_cm: dims.largura_cm,
+        comprimento_cm: dims.comprimento_cm,
+        volume_m3: dims.volume_m3,
+        peso_cubado: dims.peso_cubado,
+        loja_integrada_id: dims.external_id || p.loja_integrada_id,
+        loja_integrada_sync_source: found.matched_by,
+        logistica_atualizada_em: new Date().toISOString(),
+      };
+      // Remove nulls so we don't overwrite existing data with nothing
+      for (const k of Object.keys(updatePayload)) {
+        if (updatePayload[k] === null || updatePayload[k] === undefined) delete updatePayload[k];
+      }
+      const { error: upErr } = await serviceClient.from('products').update(updatePayload).eq('id', p.id);
+      if (upErr) { errors++; continue; }
+      updated++;
+    } catch (e) {
+      console.error('[loja-integrada] sync_product_dimensions error:', e);
+      errors++;
+    }
+  }
+
+  return {
+    ok: true,
+    updated,
+    not_found: notFound,
+    skipped,
+    errors,
+    total: products?.length || 0,
+    not_found_details: not_found_details.slice(0, 20),
+  };
+}
+
 const ActionSchema = z.object({
-  action: z.enum(['test', 'save', 'sync', 'status', 'import', 'auto_sync']),
+  action: z.enum(['test', 'save', 'sync', 'status', 'import', 'auto_sync', 'sync_product_dimensions']),
   api_key: z.string().optional(),
   application_key: z.string().optional(),
   page: z.number().optional(),
   full: z.boolean().optional(),
+  product_ids: z.array(z.string()).optional(),
+  all_products: z.boolean().optional(),
 });
 
 Deno.serve(async (req) => {
