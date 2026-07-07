@@ -84,7 +84,11 @@ export default function Products() {
     name: '', sku: '', code: '', brand: '', description: '', price: '' as string, image_url: '',
     peso_kg: '' as string, altura_cm: '' as string, largura_cm: '' as string, comprimento_cm: '' as string,
     peso_cubado: '' as string, volume_m3: '' as string, origem_cep: '', embalagem_tipo: '',
+    bloquear_atualizacao_logistica: false,
   });
+  const [syncingLI, setSyncingLI] = useState(false);
+  const [bulkSyncingLI, setBulkSyncingLI] = useState(false);
+  const [noLogisticFilter, setNoLogisticFilter] = useState(false);
   const [scrapeUrl, setScrapeUrl] = useState('');
   const [scraping, setScraping] = useState(false);
   const [page, setPage] = useState(0);
