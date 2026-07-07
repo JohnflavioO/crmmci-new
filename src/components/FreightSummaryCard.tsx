@@ -101,7 +101,29 @@ export default function FreightSummaryCard({ data, quoteNumber, onCepOrigemChang
         )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-          <Field label="CEP origem" value={fmtCep(data.cep_origem)} icon={<MapPin className="h-3 w-3" />} />
+          {onCepOrigemChange ? (
+            <div className="rounded-md border bg-background/60 px-2.5 py-1.5">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                CEP origem
+              </p>
+              <Select
+                value={CEP_ORIGEM_PRESETS.some(p => p.cep === data.cep_origem) ? data.cep_origem : ''}
+                onValueChange={(v) => onCepOrigemChange(v)}
+              >
+                <SelectTrigger className="h-7 mt-0.5 text-xs px-1 border-0 bg-transparent shadow-none focus:ring-0 font-semibold tabular-nums">
+                  <SelectValue placeholder={fmtCep(data.cep_origem) !== '—' ? fmtCep(data.cep_origem) : 'Selecionar…'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {CEP_ORIGEM_PRESETS.map(p => (
+                    <SelectItem key={p.cep} value={p.cep} className="text-xs">{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <Field label="CEP origem" value={fmtCep(data.cep_origem)} icon={<MapPin className="h-3 w-3" />} />
+          )}
           <Field
             label="CEP destino"
             value={fmtCep(data.cep_destino)}
