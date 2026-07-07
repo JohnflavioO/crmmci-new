@@ -214,9 +214,12 @@ export default function LogisticsImportDialog({ open, onOpenChange, onImported }
         await db.from('product_external_links').upsert({
           product_id: r.match!.id,
           provider: 'loja_integrada',
-          external_id: s.external_id,
+          external_product_id: s.external_id,
+          external_sku: s.sku || null,
+          external_name: s.name || null,
           match_source: r.match!.source,
-          last_synced_at: now,
+          sync_status: 'linked',
+          last_sync_at: now,
         }, { onConflict: 'product_id,provider' }).then(() => {}, () => {});
       }
 
