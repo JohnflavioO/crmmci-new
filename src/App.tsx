@@ -230,6 +230,7 @@ function AppRoutes() {
             {(isGestor || isFinanceiro) && <Route path="/bank-slips" element={<SafeRoute><BankSlips /></SafeRoute>} />}
             {(isAdmin || isGestor) && <Route path="/approvals" element={<SafeRoute><Approvals /></SafeRoute>} />}
             {isAdmin && <Route path="/integrations" element={<SafeRoute><Integrations /></SafeRoute>} />}
+            {(isAdmin || isGestor) && <Route path="/diagnostico/logistica" element={<SafeRoute><LogisticsSyncDiagnostic /></SafeRoute>} />}
           </>
         )}
 
