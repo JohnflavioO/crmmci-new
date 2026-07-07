@@ -460,6 +460,77 @@ export default function LogisticsSyncDiagnostic() {
             </CardContent>
           </Card>
         </div>
+
+        <Dialog open={auditOpen} onOpenChange={setAuditOpen}>
+          <DialogContent className="max-w-6xl max-h-[85vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5" />
+                Auditoria de pendências ({auditRows?.length || 0} produtos analisados)
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Filtrar por nome, código, SKU ou motivo…"
+                value={auditFilter}
+                onChange={(e) => setAuditFilter(e.target.value)}
+                className="flex-1"
+              />
+              <Button variant="outline" size="sm" onClick={exportPendenciasCSV}>
+                <Download className="h-4 w-4 mr-2" />CSV
+              </Button>
+            </div>
+            <div className="flex-1 overflow-auto border rounded-md">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-muted">
+                  <tr className="text-left">
+                    <th className="p-2">Produto CRM</th>
+                    <th className="p-2">Cód/SKU</th>
+                    <th className="p-2">LI ID</th>
+                    <th className="p-2">LI SKU/Nome</th>
+                    <th className="p-2">Variação</th>
+                    <th className="p-2">Peso</th>
+                    <th className="p-2">Alt</th>
+                    <th className="p-2">Larg</th>
+                    <th className="p-2">Prof</th>
+                    <th className="p-2">Fonte</th>
+                    <th className="p-2">Motivo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAudit.map((r: any) => (
+                    <tr key={r.product_id} className="border-t hover:bg-muted/50">
+                      <td className="p-2 max-w-[200px] truncate" title={r.product_name}>{r.product_name}</td>
+                      <td className="p-2 text-muted-foreground">{r.crm_code || r.crm_sku || '—'}</td>
+                      <td className="p-2">{r.li_id || '—'}</td>
+                      <td className="p-2 max-w-[180px] truncate" title={r.li_name}>{r.li_sku || r.li_name || '—'}</td>
+                      <td className="p-2">{r.variacao_id || '—'}</td>
+                      <td className={`p-2 tabular-nums ${!r.peso ? 'text-red-600' : ''}`}>{r.peso ?? '—'}</td>
+                      <td className={`p-2 tabular-nums ${!r.altura ? 'text-red-600' : ''}`}>{r.altura ?? '—'}</td>
+                      <td className={`p-2 tabular-nums ${!r.largura ? 'text-red-600' : ''}`}>{r.largura ?? '—'}</td>
+                      <td className={`p-2 tabular-nums ${!r.profundidade ? 'text-red-600' : ''}`}>{r.profundidade ?? '—'}</td>
+                      <td className="p-2 text-muted-foreground">{r.fonte || '—'}</td>
+                      <td className="p-2">
+                        <Badge variant={
+                          r.motivo === 'campo_ausente' || r.motivo === 'valor_zero' || r.motivo === 'valor_parcial' ? 'destructive' :
+                          r.motivo === 'sem_vinculo' || r.motivo === 'sem_correspondencia' ? 'outline' :
+                          r.motivo === 'erro_api' ? 'destructive' :
+                          r.motivo === 'aguardando_validacao' ? 'secondary' : 'outline'
+                        }>{r.motivo}</Badge>
+                      </td>
+                    </tr>
+                  ))}
+                  {!filteredAudit.length && (
+                    <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">Nenhum resultado.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Motivos: <code>campo_ausente</code> = LI não retornou o campo · <code>valor_zero</code> = campo zerado no cadastro · <code>valor_parcial</code> = falta um dos 4 valores · <code>sem_vinculo</code> = precisa vincular em Mapeamento · <code>sem_correspondencia</code> = nome não bate com nenhum produto LI · <code>aguardando_validacao</code> = candidatos ambíguos · <code>erro_api</code> = falha na consulta · <code>bloqueado_atualizacao_logistica</code> = flag manual bloqueando.
+            </p>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
