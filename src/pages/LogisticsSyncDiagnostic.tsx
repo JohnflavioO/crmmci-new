@@ -7,7 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Loader2, RefreshCw, Play, AlertTriangle, CheckCircle2, XCircle, Package, Link2, Sparkles, Search, Download, TruckIcon } from 'lucide-react';
+import { Loader2, RefreshCw, Play, AlertTriangle, CheckCircle2, XCircle, Package, Link2, Sparkles, Search, Download, Truck as TruckIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 
