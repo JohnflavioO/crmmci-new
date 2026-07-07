@@ -368,11 +368,14 @@ export default function LogisticsSyncDiagnostic() {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
           <StatCard label="Total de produtos" value={stats.total} icon={Package} />
-          <StatCard label="Vinculados" value={stats.linked} tone="text-emerald-600" icon={CheckCircle2} />
-          <StatCard label="Sem vínculo" value={stats.unlinked} tone="text-amber-600" icon={AlertTriangle} />
+          <StatCard label="Prontos para cálculo de frete" value={stats.prontos} tone="text-emerald-600" icon={TruckIcon} />
+          <StatCard label="Vinculados completos" value={stats.vinculadoCompleto} tone="text-emerald-600" icon={CheckCircle2} />
+          <StatCard label="Vinculados sem peso" value={stats.vinculadoSemPeso} tone="text-amber-600" icon={AlertTriangle} />
+          <StatCard label="Vinculados sem dimensões" value={stats.vinculadoSemDims} tone="text-amber-600" icon={AlertTriangle} />
+          <StatCard label="Sem vínculo" value={stats.unlinked} tone="text-amber-600" />
           <StatCard label="Aguardando validação" value={stats.needs} tone="text-red-600" />
           <StatCard label="Sem correspondência" value={stats.notFound} tone="text-slate-600" />
-          <StatCard label="Conflitos / erros" value={stats.conflicts} tone="text-red-600" icon={XCircle} />
+          <StatCard label="Erros de API" value={stats.conflicts} tone="text-red-600" icon={XCircle} />
           <StatCard label="Sincronizados hoje" value={stats.syncedToday} tone="text-emerald-600" />
           <StatCard label="Sem peso" value={stats.semPeso} tone="text-red-600" />
           <StatCard label="Sem dimensões" value={stats.semDims} tone="text-red-600" />
