@@ -34,6 +34,8 @@ export interface FreightItemInput {
   override?: Partial<FreightItemProduct>;
   // dados do produto vindos do cadastro
   product?: FreightItemProduct | null;
+  // indica se o item está vinculado à Loja Integrada mas sem dados logísticos
+  vinculado_sem_dados?: boolean;
 }
 
 export interface FreightItemComputed {
