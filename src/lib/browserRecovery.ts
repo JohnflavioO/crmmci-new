@@ -1,4 +1,5 @@
 const CACHE_VERSION = "v2026-07-01-stable-preview-entry";
+const PREVIEW_CHUNK_RECOVERY_KEY = "__mci_preview_chunk_recovery_done";
 
 const isLovablePreviewRuntime = () => {
   if (typeof window === "undefined") return false;
@@ -114,11 +115,9 @@ export const reloadWithCacheBust = () => {
   if (isLovablePreviewRuntime()) {
     void clearBrowserCachesAndWorkers();
     try {
-      const url = new URL(window.location.href);
-      url.searchParams.set("__mci_preview_recovered", CACHE_VERSION);
-      window.history.replaceState(window.history.state, "", url.toString());
+      window.sessionStorage.setItem(PREVIEW_CHUNK_RECOVERY_KEY, CACHE_VERSION);
     } catch {
-      // Evita location.reload/replace no preview: isso pode invalidar a URL autorizada do editor.
+      // Evita location.reload/replace/history URL changes no preview: isso pode invalidar a URL autorizada do editor.
     }
     return;
   }
@@ -163,6 +162,14 @@ export const clearLocalAppStateAndReload = async () => {
 };
 
 export const shouldRetryChunkLoad = () => {
+  if (isLovablePreviewRuntime()) {
+    try {
+      return window.sessionStorage.getItem(PREVIEW_CHUNK_RECOVERY_KEY) !== CACHE_VERSION;
+    } catch {
+      return false;
+    }
+  }
+
   try {
     const url = new URL(window.location.href);
     if (url.searchParams.get("__mci_chunk_retry") === "1") return false;

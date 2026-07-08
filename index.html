@@ -80,6 +80,7 @@
         var isPreview = window.self !== window.top
           || host.indexOf('id-preview--') === 0
           || host.indexOf('preview--') !== -1
+          || host.indexOf('-preview--') !== -1
           || /\.lovableproject(?:-dev)?\.com$/.test(host)
           || /\.beta\.lovable\.dev$/.test(host);
 
@@ -87,6 +88,17 @@
 
         var paramNames = ['__lovable_sha', '__lovable_token', '__lovable_load_id'];
         var storageKey = '__mci_lovable_preview_params';
+
+        function stripAppRecoveryParams(url) {
+          var changed = false;
+          Array.from(url.searchParams.keys()).forEach(function (name) {
+            if (name.indexOf('__mci_') === 0) {
+              url.searchParams.delete(name);
+              changed = true;
+            }
+          });
+          return changed;
+        }
 
         function readStored() {
           try { return JSON.parse(window.sessionStorage.getItem(storageKey) || '{}') || {}; }
@@ -111,13 +123,15 @@
         var preserved = Object.assign(readStored(), readFromSearch(window.location.search));
         writeStored(preserved);
 
-        function mergePreviewParams(rawUrl) {
-          if (!rawUrl || !Object.keys(preserved).length) return rawUrl;
+        function mergePreviewParams(rawUrl, stripRecoveryParams) {
+          if (!rawUrl) return rawUrl;
           try {
             var original = String(rawUrl);
             if (/^(mailto:|tel:|javascript:|data:)/i.test(original)) return rawUrl;
             var url = new URL(original, window.location.href);
             if (url.origin !== window.location.origin) return rawUrl;
+
+            if (stripRecoveryParams) stripAppRecoveryParams(url);
 
             Object.keys(preserved).forEach(function (name) {
               if (!url.searchParams.has(name) && preserved[name]) {
@@ -132,7 +146,7 @@
         }
 
         if (Object.keys(preserved).length) {
-          var repairedUrl = mergePreviewParams(window.location.href);
+          var repairedUrl = mergePreviewParams(window.location.href, true);
           if (repairedUrl && repairedUrl !== window.location.pathname + window.location.search + window.location.hash) {
             try { window.history.replaceState(window.history.state, '', repairedUrl); } catch (_) {}
           }
@@ -162,7 +176,6 @@
           || host.indexOf('id-preview--') === 0
           || host.indexOf('preview--') !== -1
           || host.indexOf('-preview--') !== -1
-          || host.indexOf('lovable.app') !== -1
           || /\.lovableproject(?:-dev)?\.com$/.test(host)
           || /\.beta\.lovable\.dev$/.test(host);
 
@@ -227,6 +240,33 @@
         cleanup();
         window.addEventListener('load', cleanup, { once: true });
       })();
+
+      /* Preview hard-lock: o editor não pode ficar sob controle de Service Worker.
+         Mesmo um registro acidental futuro pode prender bundle antigo neste navegador.
+         No preview, bloqueamos novos registros antes do React/Firebase iniciarem. */
+      (function () {
+        var host = window.location.hostname;
+        var isPreview = window.self !== window.top
+          || host.indexOf('id-preview--') === 0
+          || host.indexOf('preview--') !== -1
+          || host.indexOf('-preview--') !== -1
+          || /\.lovableproject(?:-dev)?\.com$/.test(host)
+          || /\.beta\.lovable\.dev$/.test(host);
+
+        if (!isPreview || !('serviceWorker' in navigator) || !navigator.serviceWorker.register) return;
+
+        try {
+          var originalRegister = navigator.serviceWorker.register.bind(navigator.serviceWorker);
+          Object.defineProperty(navigator.serviceWorker, 'register', {
+            configurable: true,
+            value: function (scriptURL, options) {
+              try { console.warn('[Preview] Service Worker bloqueado no editor:', scriptURL); } catch (_) {}
+              return Promise.reject(new DOMException('Service Worker desativado no preview do editor.', 'SecurityError'));
+            }
+          });
+          navigator.serviceWorker.__mciOriginalRegister = originalRegister;
+        } catch (_) {}
+      })();
     </script>
     <link rel="icon" type="image/png" href="/favicon.png">
     <!-- TODO: Set the document title to the name of your application -->
@@ -286,7 +326,7 @@
           var isPreview = window.self !== window.top
             || host.indexOf('id-preview--') === 0
             || host.indexOf('preview--') !== -1
-            || host.indexOf('lovable.app') !== -1
+            || host.indexOf('-preview--') !== -1
             || /\.lovableproject(?:-dev)?\.com$/.test(host)
             || /\.beta\.lovable\.dev$/.test(host);
           if (!isPreview) return;
