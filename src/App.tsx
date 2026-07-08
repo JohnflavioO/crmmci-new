@@ -92,24 +92,9 @@ function SafeRoute({ children }: { children: ReactNode }) {
 
 function getAppSafeSearch(search: string) {
   const params = new URLSearchParams(search);
-
-  const host = typeof window !== 'undefined' ? window.location.hostname : '';
-  const isLovablePreview = typeof window !== 'undefined' && (
-    window.self !== window.top
-    || host.startsWith('id-preview--')
-    || host.startsWith('preview--')
-    || host.includes('-preview--')
-    || host.includes('lovable.app')
-    || host.endsWith('.lovableproject.com')
-    || host.endsWith('.lovableproject-dev.com')
-    || host.endsWith('.beta.lovable.dev')
-  );
-
-  if (!isLovablePreview) {
-    params.delete('__lovable_sha');
-    params.delete('__lovable_token');
-    params.delete('__lovable_load_id');
-  }
+  params.delete('__lovable_sha');
+  params.delete('__lovable_token');
+  params.delete('__lovable_load_id');
 
   const safeSearch = params.toString();
   return safeSearch ? `?${safeSearch}` : '';
