@@ -33,7 +33,6 @@ const isLovablePreviewRuntime = () => {
     || host.startsWith("id-preview--")
     || host.startsWith("preview--")
     || host.includes("-preview--")
-    || host.includes("lovable.app")
     || host.endsWith(".lovableproject.com")
     || host.endsWith(".lovableproject-dev.com")
     || host.endsWith(".beta.lovable.dev");
