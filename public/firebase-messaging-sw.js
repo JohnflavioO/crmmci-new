@@ -20,7 +20,7 @@ self.addEventListener('install', () => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(Promise.resolve());
 });
 
 self.addEventListener('message', (event) => {
