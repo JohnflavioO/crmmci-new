@@ -310,8 +310,9 @@
     </div>
     <script>
       /* Apenas registra erros pré-bootstrap no console. NÃO substitui o #root —
-         isso causava tela branca/erro a cada promessa rejeitada de terceiros
-         (telemetria, Firebase, extensões) antes do React montar. */
+         a reescrita agressiva destruía a montagem do React em conexões lentas do
+         preview do editor, causando tela branca mesmo quando o bundle ainda estava
+         baixando. Recovery real é feito pelo ErrorBoundary após o React montar. */
       (function () {
         window.addEventListener('error', function (e) {
           try { console.warn('[Startup error]', e.message || e); } catch (_) {}
@@ -319,77 +320,6 @@
         window.addEventListener('unhandledrejection', function (e) {
           try { console.warn('[Startup rejection]', (e && e.reason) || e); } catch (_) {}
         });
-
-        window.setTimeout(function () {
-          if (window.__mciReactMounted) return;
-          var host = window.location.hostname;
-          var isPreview = window.self !== window.top
-            || host.indexOf('id-preview--') === 0
-            || host.indexOf('preview--') !== -1
-            || host.indexOf('-preview--') !== -1
-            || /\.lovableproject(?:-dev)?\.com$/.test(host)
-            || /\.beta\.lovable\.dev$/.test(host);
-          if (!isPreview) return;
-
-          var root = document.getElementById('root');
-          if (!root) return;
-
-          var recover = function () {
-            Promise.resolve()
-              .then(function () {
-                if (!('serviceWorker' in navigator)) return null;
-                return navigator.serviceWorker.getRegistrations().then(function (registrations) {
-                  return Promise.allSettled(registrations.filter(function (registration) {
-                    var worker = registration.active || registration.waiting || registration.installing;
-                    if (!worker || !worker.scriptURL) return false;
-                    try {
-                      var workerUrl = new URL(worker.scriptURL);
-                      return workerUrl.origin === window.location.origin;
-                    } catch (_) {
-                      return false;
-                    }
-                  }).map(function (registration) { return registration.unregister(); }));
-                });
-              })
-              .then(function () {
-                if (!('caches' in window)) return null;
-                return caches.keys().then(function (names) {
-                  return Promise.allSettled(names.map(function (name) { return caches.delete(name); }));
-                });
-              })
-              .then(function () {
-                if (!isPreview || window.__mciReactMounted) return null;
-                return import('/src/main.tsx?__mci_preview_reimport=' + Date.now()).catch(function (error) {
-                  try { console.warn('[Startup recovery] reimport falhou:', error); } catch (_) {}
-                  return null;
-                });
-              })
-              .finally(function () {
-                if (isPreview) {
-                  window.setTimeout(function () {
-                    if (window.__mciReactMounted) return;
-                    root.innerHTML = '<main style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f2b26;color:white;font-family:system-ui,-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;padding:24px"><section style="max-width:520px;text-align:center;display:grid;gap:14px"><h1 style="font-size:22px;margin:0">MCI CRM limpou o preview</h1><p style="margin:0;color:rgba(255,255,255,.72);font-size:14px;line-height:1.5">O cache local foi removido sem recarregar a URL protegida do editor.</p><button id="mci-auto-recover" style="border:0;border-radius:10px;padding:12px 14px;background:#059669;color:white;font-weight:700;cursor:pointer">Tentar iniciar novamente</button></section></main>';
-                    document.getElementById('mci-auto-recover')?.addEventListener('click', recover);
-                  }, 600);
-                  return;
-                }
-                var url = new URL(window.location.href);
-                url.searchParams.set('__mci_preview_recover', '1');
-                url.searchParams.set('__mci_reload', String(Date.now()));
-                window.location.replace(url.toString());
-              });
-          };
-
-          var alreadyRecovered = new URL(window.location.href).searchParams.get('__mci_preview_recover') === '1';
-          if (!alreadyRecovered) {
-            root.innerHTML = '<main style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f2b26;color:white;font-family:system-ui,-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;padding:24px"><section style="max-width:520px;text-align:center;display:grid;gap:14px"><h1 style="font-size:22px;margin:0">MCI CRM está corrigindo o preview</h1><p style="margin:0;color:rgba(255,255,255,.72);font-size:14px;line-height:1.5">Limpando cache antigo do navegador/editor sem recarregar a URL protegida.</p></section></main>';
-            recover();
-            return;
-          }
-
-          root.innerHTML = '<main style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f2b26;color:white;font-family:system-ui,-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;padding:24px"><section style="max-width:520px;text-align:center;display:grid;gap:14px"><h1 style="font-size:22px;margin:0">MCI CRM não iniciou no preview</h1><p style="margin:0;color:rgba(255,255,255,.72);font-size:14px;line-height:1.5">A limpeza automática já rodou. Clique para tentar novamente sem manter cache antigo.</p><button id="mci-auto-recover" style="border:0;border-radius:10px;padding:12px 14px;background:#059669;color:white;font-weight:700;cursor:pointer">Tentar novamente</button></section></main>';
-          document.getElementById('mci-auto-recover')?.addEventListener('click', recover);
-        }, 8000);
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
