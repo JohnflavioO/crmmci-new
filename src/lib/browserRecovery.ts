@@ -6,6 +6,7 @@ const isLovablePreviewRuntime = () => {
   return window.self !== window.top
     || host.startsWith("id-preview--")
     || host.includes("-preview--")
+    || host.includes("lovable.app")
     || host.endsWith(".lovableproject.com")
     || host.endsWith(".lovableproject-dev.com")
     || host.endsWith(".beta.lovable.dev");
@@ -110,6 +111,18 @@ export const clearBrowserCachesAndWorkers = async () => {
 };
 
 export const reloadWithCacheBust = () => {
+  if (isLovablePreviewRuntime()) {
+    void clearBrowserCachesAndWorkers();
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("__mci_preview_recovered", CACHE_VERSION);
+      window.history.replaceState(window.history.state, "", url.toString());
+    } catch {
+      // Evita location.reload/replace no preview: isso pode invalidar a URL autorizada do editor.
+    }
+    return;
+  }
+
   const url = new URL(window.location.href);
 
   url.searchParams.set("__mci_cache", CACHE_VERSION);
@@ -138,7 +151,10 @@ export const runOneTimeCacheRefresh = () => {
 };
 
 export const clearLocalAppStateAndReload = async () => {
-  if (isLovablePreviewRuntime()) return;
+  if (isLovablePreviewRuntime()) {
+    await clearBrowserCachesAndWorkers();
+    return;
+  }
 
   safeStorage("localStorage", (storage) => storage.clear());
   safeStorage("sessionStorage", (storage) => storage.clear());

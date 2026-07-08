@@ -6,6 +6,21 @@ function isOldAppShellCache(name) {
   return /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name);
 }
 
+function isLovablePreviewUrl(rawUrl) {
+  try {
+    const host = new URL(rawUrl).hostname;
+    return host.startsWith("id-preview--")
+      || host.startsWith("preview--")
+      || host.includes("-preview--")
+      || host.includes("lovable.app")
+      || host.endsWith(".lovableproject.com")
+      || host.endsWith(".lovableproject-dev.com")
+      || host.endsWith(".beta.lovable.dev");
+  } catch (_) {
+    return false;
+  }
+}
+
 self.addEventListener("install", () => self.skipWaiting());
 
 self.addEventListener("activate", (event) => {
@@ -20,6 +35,7 @@ self.addEventListener("activate", (event) => {
         const windowClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
         await Promise.allSettled(windowClients.map((client) => {
           try {
+            if (isLovablePreviewUrl(client.url)) return undefined;
             const url = new URL(client.url);
             if (url.searchParams.get("__mci_sw_evicted") === "1") return undefined;
             url.searchParams.set("__mci_sw_evicted", "1");
