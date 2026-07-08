@@ -59,19 +59,30 @@ export default function QuoteChat({ quoteId, quoteNumber, open, onOpenChange }: 
 
     fetchMessages();
 
-    const channel = supabase
-      .channel(`quote-chat-${quoteId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'quote_messages', filter: `quote_id=eq.${quoteId}` },
-        (payload: any) => {
-          setMessages(prev => [...prev, payload.new as ChatMessage]);
-          scrollToBottom();
-        }
-      )
-      .subscribe();
+    let closed = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    return () => { supabase.removeChannel(channel); };
+    try {
+      channel = supabase.channel(`quote-chat-${quoteId}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      channel
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'quote_messages', filter: `quote_id=eq.${quoteId}` },
+          (payload: any) => {
+            if (closed) return;
+            setMessages(prev => [...prev, payload.new as ChatMessage]);
+            scrollToBottom();
+          }
+        )
+        .subscribe();
+    } catch (error) {
+      console.warn('[QuoteChat] realtime não iniciado', error);
+    }
+
+    return () => {
+      closed = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
   }, [open, quoteId]);
 
   const handleSend = async () => {
