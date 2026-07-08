@@ -111,89 +111,104 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   // Realtime — inscreve UMA vez por usuário; leitura das prefs via ref
   useEffect(() => {
     if (!user) return;
-    const channel = supabase
-      .channel(`notifications-user-${user.id}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${user.id}`,
-      }, (payload) => {
-        if (!notificationsEnabledRef.current) return;
-        if (payload.eventType === 'INSERT') {
-          const n = payload.new as AppNotification;
-          setNotifications(prev => {
-            if (prev.some(p => p.id === n.id)) return prev;
-            return [n, ...prev].slice(0, 100);
-          });
-          stampNow(NOTIF_TIMESTAMP_KEYS.lastInternal);
-          if (soundEnabledRef.current && !n.is_read && typeof Audio !== 'undefined') {
-            try { const a = new Audio(SOUND_SRC); a.volume = 0.4; a.play().catch(() => {}); } catch { /* no-op */ }
-          }
-          // Toast interno com ações rápidas (Abrir / Marcar como lida / Adiar)
-          try {
-            const target = n.related_url
-              || (n.related_quote_id ? `/quotes?id=${n.related_quote_id}` : null)
-              || (n.related_client_id ? `/clients?id=${n.related_client_id}` : null);
-            const showToast = (isSnoozed = false) => {
-              const t = toast.custom((id) => (
-                <div className="w-[360px] max-w-[92vw] rounded-lg border border-border bg-background shadow-lg p-3 space-y-2">
-                  <div>
-                    <p className="text-sm font-semibold">
-                      {isSnoozed ? '⏰ Lembrete: ' : ''}{n.title || 'Nova notificação'}
-                    </p>
-                    {n.message && <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {target && (
+
+    let closed = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    const channelTopic = `notifications-user-${user.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    try {
+      channel = supabase.channel(channelTopic);
+      channel.on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        }, (payload) => {
+          if (closed || !notificationsEnabledRef.current) return;
+          if (payload.eventType === 'INSERT') {
+            const n = payload.new as AppNotification;
+            setNotifications(prev => {
+              if (prev.some(p => p.id === n.id)) return prev;
+              return [n, ...prev].slice(0, 100);
+            });
+            stampNow(NOTIF_TIMESTAMP_KEYS.lastInternal);
+            if (soundEnabledRef.current && !n.is_read && typeof Audio !== 'undefined') {
+              try { const a = new Audio(SOUND_SRC); a.volume = 0.4; a.play().catch(() => {}); } catch { /* no-op */ }
+            }
+            // Toast interno com ações rápidas (Abrir / Marcar como lida / Adiar)
+            try {
+              const target = n.related_url
+                || (n.related_quote_id ? `/quotes?id=${n.related_quote_id}` : null)
+                || (n.related_client_id ? `/clients?id=${n.related_client_id}` : null);
+              const showToast = (isSnoozed = false) => {
+                const t = toast.custom((id) => (
+                  <div className="w-[360px] max-w-[92vw] rounded-lg border border-border bg-background shadow-lg p-3 space-y-2">
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {isSnoozed ? '⏰ Lembrete: ' : ''}{n.title || 'Nova notificação'}
+                      </p>
+                      {n.message && <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {target && (
+                        <button
+                          onClick={() => {
+                            db.from('notifications').update({ is_read: true }).eq('id', n.id);
+                            toast.dismiss(id);
+                            navigate(target);
+                          }}
+                          className="text-xs px-2.5 py-1 rounded-md bg-primary text-primary-foreground hover:opacity-90"
+                        >Abrir</button>
+                      )}
                       <button
                         onClick={() => {
                           db.from('notifications').update({ is_read: true }).eq('id', n.id);
                           toast.dismiss(id);
-                          navigate(target);
                         }}
-                        className="text-xs px-2.5 py-1 rounded-md bg-primary text-primary-foreground hover:opacity-90"
-                      >Abrir</button>
-                    )}
-                    <button
-                      onClick={() => {
-                        db.from('notifications').update({ is_read: true }).eq('id', n.id);
-                        toast.dismiss(id);
-                      }}
-                      className="text-xs px-2.5 py-1 rounded-md border border-border hover:bg-muted"
-                    >Marcar como lida</button>
-                    <button
-                      onClick={() => {
-                        toast.dismiss(id);
-                        const timer = setTimeout(() => {
-                          snoozeTimersRef.current.delete(n.id);
-                          showToast(true);
-                        }, 15 * 60 * 1000);
-                        const prev = snoozeTimersRef.current.get(n.id);
-                        if (prev) clearTimeout(prev);
-                        snoozeTimersRef.current.set(n.id, timer);
-                      }}
-                      className="text-xs px-2.5 py-1 rounded-md border border-border hover:bg-muted"
-                    >Adiar 15 min</button>
+                        className="text-xs px-2.5 py-1 rounded-md border border-border hover:bg-muted"
+                      >Marcar como lida</button>
+                      <button
+                        onClick={() => {
+                          toast.dismiss(id);
+                          const timer = setTimeout(() => {
+                            snoozeTimersRef.current.delete(n.id);
+                            showToast(true);
+                          }, 15 * 60 * 1000);
+                          const prev = snoozeTimersRef.current.get(n.id);
+                          if (prev) clearTimeout(prev);
+                          snoozeTimersRef.current.set(n.id, timer);
+                        }}
+                        className="text-xs px-2.5 py-1 rounded-md border border-border hover:bg-muted"
+                      >Adiar 15 min</button>
+                    </div>
                   </div>
-                </div>
-              ), { duration: 10000 });
-              stampNow(NOTIF_TIMESTAMP_KEYS.lastToast);
-              return t;
-            };
-            showToast();
-          } catch (e) { logger.warn('[toast] falhou', e); }
-        } else if (payload.eventType === 'UPDATE') {
-          const n = payload.new as AppNotification;
-          setNotifications(prev => prev.map(p => p.id === n.id ? { ...p, ...n } : p));
-        } else if (payload.eventType === 'DELETE') {
-          const oldId = (payload.old as any)?.id;
-          if (oldId) setNotifications(prev => prev.filter(p => p.id !== oldId));
-        }
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user, navigate]);
+                ), { duration: 10000 });
+                stampNow(NOTIF_TIMESTAMP_KEYS.lastToast);
+                return t;
+              };
+              showToast();
+            } catch (e) { logger.warn('[toast] falhou', e); }
+          } else if (payload.eventType === 'UPDATE') {
+            const n = payload.new as AppNotification;
+            setNotifications(prev => prev.map(p => p.id === n.id ? { ...p, ...n } : p));
+          } else if (payload.eventType === 'DELETE') {
+            const oldId = (payload.old as any)?.id;
+            if (oldId) setNotifications(prev => prev.filter(p => p.id !== oldId));
+          }
+        })
+        .subscribe((status, error) => {
+          if (error) logger.warn('[notifications] realtime indisponível', error);
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') void fetchNotifications();
+        });
+    } catch (error) {
+      logger.warn('[notifications] realtime não iniciado', error);
+    }
+
+    return () => {
+      closed = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [user?.id, navigate, fetchNotifications]);
 
   // Cleanup snooze timers ao desmontar
   useEffect(() => {
