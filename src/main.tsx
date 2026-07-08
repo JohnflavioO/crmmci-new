@@ -31,6 +31,10 @@ const safeReload = () => {
 
 const recoverChunkStartupError = (error: unknown) => {
   if (!isLikelyChunkLoadError(error) || !shouldRetryChunkLoad()) return false;
+  if (isPreviewRuntime()) {
+    void clearBrowserCachesAndWorkers();
+    return false;
+  }
   void clearBrowserCachesAndWorkers().finally(() => reloadWithCacheBust());
   return true;
 };

@@ -71,10 +71,11 @@
         };
       })();
 
-      /* Lovable preview URL guard: never revive old editor tokens from storage.
-         A stale __lovable_token kept in this browser was enough to make the preview
-         fail before React/index.html could run. We only reuse params from the CURRENT
-         document URL and we silently remove old app recovery params. */
+      /* Lovable preview URL guard: editor tokens are one-shot boot params.
+         Keeping __lovable_token in the visible SPA URL makes this browser reopen an
+         expired protected URL later, before React can recover, causing the white
+         "temporarily unavailable" page. After the initial HTML is loaded, strip all
+         Lovable/editor and MCI recovery params from client-side history. */
       (function () {
         var host = window.location.hostname;
         var isPreview = window.self !== window.top
@@ -86,13 +87,12 @@
 
         if (!isPreview) return;
 
-        var paramNames = ['__lovable_sha', '__lovable_token', '__lovable_load_id'];
         try { window.sessionStorage.removeItem('__mci_lovable_preview_params'); } catch (_) {}
 
-        function stripAppRecoveryParams(url) {
+        function stripPreviewOnlyParams(url) {
           var changed = false;
           Array.from(url.searchParams.keys()).forEach(function (name) {
-            if (name.indexOf('__mci_') === 0) {
+            if (name.indexOf('__mci_') === 0 || name.indexOf('__lovable_') === 0) {
               url.searchParams.delete(name);
               changed = true;
             }
@@ -100,19 +100,7 @@
           return changed;
         }
 
-        function readFromSearch(search) {
-          var params = new URLSearchParams(search || '');
-          var values = {};
-          paramNames.forEach(function (name) {
-            var value = params.get(name);
-            if (value) values[name] = value;
-          });
-          return values;
-        }
-
-        var preserved = readFromSearch(window.location.search);
-
-        function mergePreviewParams(rawUrl, stripRecoveryParams) {
+        function sanitizePreviewUrl(rawUrl) {
           if (!rawUrl) return rawUrl;
           try {
             var original = String(rawUrl);
@@ -120,15 +108,7 @@
             var url = new URL(original, window.location.href);
             if (url.origin !== window.location.origin) return rawUrl;
 
-            if (stripRecoveryParams) stripAppRecoveryParams(url);
-
-            if (Object.keys(preserved).length) {
-              Object.keys(preserved).forEach(function (name) {
-                if (!url.searchParams.has(name) && preserved[name]) {
-                  url.searchParams.set(name, preserved[name]);
-                }
-              });
-            }
+            stripPreviewOnlyParams(url);
 
             return url.pathname + url.search + url.hash;
           } catch (_) {
@@ -137,17 +117,17 @@
         }
 
         var currentUrl = new URL(window.location.href);
-        if (stripAppRecoveryParams(currentUrl)) {
+        if (stripPreviewOnlyParams(currentUrl)) {
           try { window.history.replaceState(window.history.state, '', currentUrl.pathname + currentUrl.search + currentUrl.hash); } catch (_) {}
         }
 
         var originalPushState = window.history.pushState;
         var originalReplaceState = window.history.replaceState;
         window.history.pushState = function (state, title, url) {
-          return originalPushState.call(this, state, title, url == null ? url : mergePreviewParams(url));
+          return originalPushState.call(this, state, title, url == null ? url : sanitizePreviewUrl(url));
         };
         window.history.replaceState = function (state, title, url) {
-          return originalReplaceState.call(this, state, title, url == null ? url : mergePreviewParams(url));
+          return originalReplaceState.call(this, state, title, url == null ? url : sanitizePreviewUrl(url));
         };
       })();
 
@@ -158,7 +138,7 @@
       (function () {
         if (!('serviceWorker' in navigator)) return;
 
-        var appShellWorkerPaths = ['/sw.js', '/service-worker.js'];
+        var appShellWorkerPaths = ['/sw.js', '/service-worker.js', '/firebase-messaging-sw.js'];
         var reloadFlag = '__mci_app_shell_sw_reloaded_v3';
         var host = window.location.hostname;
         var isPreview = window.self !== window.top
