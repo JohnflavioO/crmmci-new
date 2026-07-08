@@ -125,7 +125,7 @@
         writeStored(preserved);
 
         function mergePreviewParams(rawUrl, stripRecoveryParams) {
-          if (!rawUrl || !Object.keys(preserved).length) return rawUrl;
+          if (!rawUrl) return rawUrl;
           try {
             var original = String(rawUrl);
             if (/^(mailto:|tel:|javascript:|data:)/i.test(original)) return rawUrl;
