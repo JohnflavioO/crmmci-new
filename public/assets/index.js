@@ -65,10 +65,23 @@ const boot = async () => {
       // In production these dev-only endpoints do not exist; continue normally.
     }
   }
-  const entry = (isViteDev || isPreview) ? "/src/main.tsx" : await getCurrentEntryFromHtml();
-  const url = new URL(entry, window.location.origin);
-  url.searchParams.set("__mci_entry_reload", String(Date.now()));
-  await import(url.toString());
+
+  const importEntry = async (entry) => {
+    const url = new URL(entry, window.location.origin);
+    url.searchParams.set("__mci_entry_reload", String(Date.now()));
+    await import(url.toString());
+  };
+
+  if (isViteDev || isPreview) {
+    try {
+      await importEntry("/src/main.tsx");
+      return;
+    } catch (devEntryError) {
+      console.warn("[MCI shim] Entrada dev /src/main.tsx indisponível; tentando entrada atual do HTML.", devEntryError);
+    }
+  }
+
+  await importEntry(await getCurrentEntryFromHtml());
 };
 
 boot().catch(showRecoveryError);
