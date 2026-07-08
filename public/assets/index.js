@@ -11,17 +11,32 @@ const showRecoveryError = (error) => {
     <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f2b26;color:white;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px">
       <section style="max-width:520px;text-align:center;display:grid;gap:14px">
         <h1 style="font-size:22px;margin:0">MCI CRM não iniciou no preview</h1>
-        <p style="margin:0;color:rgba(255,255,255,.72);font-size:14px;line-height:1.5">Removi uma referência antiga do cache. Clique para recarregar sem cache.</p>
+        <p style="margin:0;color:rgba(255,255,255,.72);font-size:14px;line-height:1.5">Removi uma referência antiga do cache. Clique para tentar iniciar novamente sem recarregar a URL protegida.</p>
         <pre style="white-space:pre-wrap;word-break:break-word;text-align:left;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:12px;font-size:11px;color:#fecaca;max-height:120px;overflow:auto">${message.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]))}</pre>
-        <button id="mci-shim-reload" style="border:0;border-radius:10px;padding:12px 14px;background:#059669;color:white;font-weight:700;cursor:pointer">Recarregar preview</button>
+        <button id="mci-shim-reload" style="border:0;border-radius:10px;padding:12px 14px;background:#059669;color:white;font-weight:700;cursor:pointer">Tentar iniciar</button>
       </section>
     </main>
   `;
   document.getElementById("mci-shim-reload")?.addEventListener("click", () => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("__mci_reload", String(Date.now()));
-    window.location.replace(url.toString());
+    root.innerHTML = `
+      <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f2b26;color:white;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px">
+        <p style="margin:0;font-weight:700">Iniciando MCI CRM...</p>
+      </main>
+    `;
+    boot().catch(showRecoveryError);
   });
+};
+
+const isLovablePreviewRuntime = () => {
+  const host = window.location.hostname;
+  return window.self !== window.top
+    || host.startsWith("id-preview--")
+    || host.startsWith("preview--")
+    || host.includes("-preview--")
+    || host.includes("lovable.app")
+    || host.endsWith(".lovableproject.com")
+    || host.endsWith(".lovableproject-dev.com")
+    || host.endsWith(".beta.lovable.dev");
 };
 
 const getCurrentEntryFromHtml = async () => {
@@ -39,7 +54,8 @@ const getCurrentEntryFromHtml = async () => {
 const boot = async () => {
   const host = window.location.hostname;
   const isViteDev = host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
-  if (isViteDev) {
+  const isPreview = isLovablePreviewRuntime();
+  if (isViteDev || isPreview) {
     try {
       const RefreshRuntime = await import("/@react-refresh");
       RefreshRuntime.injectIntoGlobalHook(window);
@@ -50,7 +66,7 @@ const boot = async () => {
       // In production these dev-only endpoints do not exist; continue normally.
     }
   }
-  const entry = isViteDev ? "/src/main.tsx" : await getCurrentEntryFromHtml();
+  const entry = (isViteDev || isPreview) ? "/src/main.tsx" : await getCurrentEntryFromHtml();
   const url = new URL(entry, window.location.origin);
   url.searchParams.set("__mci_entry_reload", String(Date.now()));
   await import(url.toString());

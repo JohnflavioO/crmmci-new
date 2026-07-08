@@ -80,6 +80,8 @@
         var isPreview = window.self !== window.top
           || host.indexOf('id-preview--') === 0
           || host.indexOf('preview--') !== -1
+          || host.indexOf('-preview--') !== -1
+          || host.indexOf('lovable.app') !== -1
           || /\.lovableproject(?:-dev)?\.com$/.test(host)
           || /\.beta\.lovable\.dev$/.test(host);
 
@@ -87,6 +89,17 @@
 
         var paramNames = ['__lovable_sha', '__lovable_token', '__lovable_load_id'];
         var storageKey = '__mci_lovable_preview_params';
+
+        function stripAppRecoveryParams(url) {
+          var changed = false;
+          Array.from(url.searchParams.keys()).forEach(function (name) {
+            if (name.indexOf('__mci_') === 0) {
+              url.searchParams.delete(name);
+              changed = true;
+            }
+          });
+          return changed;
+        }
 
         function readStored() {
           try { return JSON.parse(window.sessionStorage.getItem(storageKey) || '{}') || {}; }
@@ -111,13 +124,15 @@
         var preserved = Object.assign(readStored(), readFromSearch(window.location.search));
         writeStored(preserved);
 
-        function mergePreviewParams(rawUrl) {
+        function mergePreviewParams(rawUrl, stripRecoveryParams) {
           if (!rawUrl || !Object.keys(preserved).length) return rawUrl;
           try {
             var original = String(rawUrl);
             if (/^(mailto:|tel:|javascript:|data:)/i.test(original)) return rawUrl;
             var url = new URL(original, window.location.href);
             if (url.origin !== window.location.origin) return rawUrl;
+
+            if (stripRecoveryParams) stripAppRecoveryParams(url);
 
             Object.keys(preserved).forEach(function (name) {
               if (!url.searchParams.has(name) && preserved[name]) {
@@ -132,7 +147,7 @@
         }
 
         if (Object.keys(preserved).length) {
-          var repairedUrl = mergePreviewParams(window.location.href);
+          var repairedUrl = mergePreviewParams(window.location.href, true);
           if (repairedUrl && repairedUrl !== window.location.pathname + window.location.search + window.location.hash) {
             try { window.history.replaceState(window.history.state, '', repairedUrl); } catch (_) {}
           }
