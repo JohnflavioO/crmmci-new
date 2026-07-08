@@ -22,6 +22,18 @@ const LAST_TOKEN_ATTEMPT_KEY = "mci_fcm_last_token_attempt";
 let app: FirebaseApp | null = null;
 let _messaging: Messaging | null = null;
 
+function isLovablePreviewRuntime(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return window.self !== window.top
+    || host.startsWith("id-preview--")
+    || host.startsWith("preview--")
+    || host.includes("-preview--")
+    || host.endsWith(".lovableproject.com")
+    || host.endsWith(".lovableproject-dev.com")
+    || host.endsWith(".beta.lovable.dev");
+}
+
 export class FcmError extends Error {
   code: string;
   details?: unknown;
@@ -221,6 +233,13 @@ async function getMessagingOrThrow(): Promise<Messaging> {
 }
 
 async function registerSW(): Promise<ServiceWorkerRegistration> {
+  if (isLovablePreviewRuntime()) {
+    throw new FcmError(
+      "preview_sw_disabled",
+      "Notificações push ficam desativadas no preview para não instalar Service Worker no navegador do editor."
+    );
+  }
+
   if (!("serviceWorker" in navigator))
     throw new FcmError(
       "no_sw_api",
@@ -314,6 +333,7 @@ export interface FcmDiagnostics {
 
 export async function getFcmDiagnostics(): Promise<FcmDiagnostics> {
   const errors: string[] = [];
+  const isPreview = isLovablePreviewRuntime();
   const windowAvailable = typeof window !== "undefined";
   const isSecureContext = windowAvailable ? !!window.isSecureContext : false;
   const notificationApi = windowAvailable && "Notification" in window;
@@ -330,7 +350,9 @@ export async function getFcmDiagnostics(): Promise<FcmDiagnostics> {
   let serviceWorkerFileReachable = false;
   let serviceWorkerRegisterError: string | null = null;
 
-  if (serviceWorkerApi) {
+  if (isPreview) {
+    errors.push("Service Worker desativado no preview do editor para evitar tela branca por cache/controle antigo.");
+  } else if (serviceWorkerApi) {
     // 1) Confere que o arquivo é servido na raiz do domínio
     try {
       const resp = await fetch("/firebase-messaging-sw.js", { cache: "no-store" });
@@ -466,6 +488,13 @@ export function markFcmTestPerformed() {
 export async function requestNotificationPermission(): Promise<string> {
   if (typeof window === "undefined")
     throw new FcmError("no_window", "Ambiente sem window.");
+
+  if (isLovablePreviewRuntime()) {
+    throw new FcmError(
+      "preview_sw_disabled",
+      "Notificações push ficam desativadas no preview para não instalar Service Worker no navegador do editor."
+    );
+  }
 
   if (!("Notification" in window))
     throw new FcmError(
