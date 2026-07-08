@@ -138,7 +138,7 @@
       (function () {
         if (!('serviceWorker' in navigator)) return;
 
-        var appShellWorkerPaths = ['/sw.js', '/service-worker.js'];
+        var appShellWorkerPaths = ['/sw.js', '/service-worker.js', '/firebase-messaging-sw.js'];
         var reloadFlag = '__mci_app_shell_sw_reloaded_v3';
         var host = window.location.hostname;
         var isPreview = window.self !== window.top
