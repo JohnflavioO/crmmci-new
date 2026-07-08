@@ -176,7 +176,6 @@
           || host.indexOf('id-preview--') === 0
           || host.indexOf('preview--') !== -1
           || host.indexOf('-preview--') !== -1
-          || host.indexOf('lovable.app') !== -1
           || /\.lovableproject(?:-dev)?\.com$/.test(host)
           || /\.beta\.lovable\.dev$/.test(host);
 
@@ -327,7 +326,7 @@
           var isPreview = window.self !== window.top
             || host.indexOf('id-preview--') === 0
             || host.indexOf('preview--') !== -1
-            || host.indexOf('lovable.app') !== -1
+            || host.indexOf('-preview--') !== -1
             || /\.lovableproject(?:-dev)?\.com$/.test(host)
             || /\.beta\.lovable\.dev$/.test(host);
           if (!isPreview) return;
