@@ -71,10 +71,10 @@
         };
       })();
 
-      /* Lovable preview token guard: keep the editor authorization params on every
-         same-origin SPA navigation. Without this, leaving/returning to the editor can
-         reload a preview URL that the platform no longer authorizes, causing the
-         browser-level "page unavailable" white screen before React can mount. */
+      /* Lovable preview URL guard: never revive old editor tokens from storage.
+         A stale __lovable_token kept in this browser was enough to make the preview
+         fail before React/index.html could run. We only reuse params from the CURRENT
+         document URL and we silently remove old app recovery params. */
       (function () {
         var host = window.location.hostname;
         var isPreview = window.self !== window.top
@@ -87,7 +87,7 @@
         if (!isPreview) return;
 
         var paramNames = ['__lovable_sha', '__lovable_token', '__lovable_load_id'];
-        var storageKey = '__mci_lovable_preview_params';
+        try { window.sessionStorage.removeItem('__mci_lovable_preview_params'); } catch (_) {}
 
         function stripAppRecoveryParams(url) {
           var changed = false;
@@ -100,16 +100,6 @@
           return changed;
         }
 
-        function readStored() {
-          try { return JSON.parse(window.sessionStorage.getItem(storageKey) || '{}') || {}; }
-          catch (_) { return {}; }
-        }
-
-        function writeStored(values) {
-          try { window.sessionStorage.setItem(storageKey, JSON.stringify(values)); }
-          catch (_) {}
-        }
-
         function readFromSearch(search) {
           var params = new URLSearchParams(search || '');
           var values = {};
@@ -120,8 +110,7 @@
           return values;
         }
 
-        var preserved = Object.assign(readStored(), readFromSearch(window.location.search));
-        writeStored(preserved);
+        var preserved = readFromSearch(window.location.search);
 
         function mergePreviewParams(rawUrl, stripRecoveryParams) {
           if (!rawUrl) return rawUrl;
@@ -133,11 +122,13 @@
 
             if (stripRecoveryParams) stripAppRecoveryParams(url);
 
-            Object.keys(preserved).forEach(function (name) {
-              if (!url.searchParams.has(name) && preserved[name]) {
-                url.searchParams.set(name, preserved[name]);
-              }
-            });
+            if (Object.keys(preserved).length) {
+              Object.keys(preserved).forEach(function (name) {
+                if (!url.searchParams.has(name) && preserved[name]) {
+                  url.searchParams.set(name, preserved[name]);
+                }
+              });
+            }
 
             return url.pathname + url.search + url.hash;
           } catch (_) {
@@ -145,11 +136,9 @@
           }
         }
 
-        if (Object.keys(preserved).length) {
-          var repairedUrl = mergePreviewParams(window.location.href, true);
-          if (repairedUrl && repairedUrl !== window.location.pathname + window.location.search + window.location.hash) {
-            try { window.history.replaceState(window.history.state, '', repairedUrl); } catch (_) {}
-          }
+        var currentUrl = new URL(window.location.href);
+        if (stripAppRecoveryParams(currentUrl)) {
+          try { window.history.replaceState(window.history.state, '', currentUrl.pathname + currentUrl.search + currentUrl.hash); } catch (_) {}
         }
 
         var originalPushState = window.history.pushState;
