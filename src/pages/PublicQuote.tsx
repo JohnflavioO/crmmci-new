@@ -49,12 +49,16 @@ export default function PublicQuote() {
   const handleAction = async (action: 'approved' | 'rejected') => {
     if (!quote) return;
     setActing(true);
-    const updates: any = { 
-      status: action,
-      ...(action === 'approved' ? { approved_at: new Date().toISOString() } : { rejected_at: new Date().toISOString() }),
-    };
-    const { error } = await anonClient.from('quotes').update(updates).eq('public_token', token);
+    const { error } = await anonClient.rpc('public_quote_action', {
+      p_token: token,
+      p_action: action,
+    });
     if (error) { toast.error('Erro ao processar. Tente novamente.'); setActing(false); return; }
+    const nowIso = new Date().toISOString();
+    const updates: any = {
+      status: action,
+      ...(action === 'approved' ? { approved_at: nowIso } : { rejected_at: nowIso }),
+    };
     setQuote((prev: any) => ({ ...prev, ...updates }));
     toast.success(action === 'approved' ? 'Orçamento aprovado com sucesso!' : 'Orçamento rejeitado.');
     setActing(false);
