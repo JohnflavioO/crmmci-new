@@ -1695,6 +1695,7 @@ export type Database = {
           payment_terms: string | null
           proposal_validity: string | null
           public_token: string | null
+          public_token_expires_at: string | null
           quote_date: string | null
           quote_number: string
           rejected_at: string | null
@@ -1753,6 +1754,7 @@ export type Database = {
           payment_terms?: string | null
           proposal_validity?: string | null
           public_token?: string | null
+          public_token_expires_at?: string | null
           quote_date?: string | null
           quote_number?: string
           rejected_at?: string | null
@@ -1811,6 +1813,7 @@ export type Database = {
           payment_terms?: string | null
           proposal_validity?: string | null
           public_token?: string | null
+          public_token_expires_at?: string | null
           quote_date?: string | null
           quote_number?: string
           rejected_at?: string | null
