@@ -366,6 +366,9 @@ export default function Quotes() {
   const canViewTeamQuotes = isGestor;
   const [quotes, setQuotes] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
+  const [viewClientOpen, setViewClientOpen] = useState(false);
+  const [viewClient, setViewClient] = useState<any>(null);
+  const [viewClientLoading, setViewClientLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'commercial' | 'demonstration'>('all');
@@ -1518,25 +1521,46 @@ export default function Quotes() {
                   <Label className="text-sm font-semibold mb-1 block">
                     Cliente <span className="text-red-500">*</span>
                   </Label>
-                  <Select value={form.client_id} onValueChange={v => {
-                    const selectedClient = clients.find((c: any) => c.id === v);
-                    setForm(p => ({
-                      ...p,
-                      client_id: v,
-                      is_reseller: selectedClient?.is_revenda || false,
-                    }));
-                  }}>
-                    <SelectTrigger className="h-11 text-sm border-2 focus:ring-primary/20 transition-all bg-white shadow-sm px-4">
-                      <SelectValue placeholder="Selecione um cliente..." />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
-                      {clients.map((c: any) => (
-                        <SelectItem key={c.id} value={c.id} className="py-2.5">
-                          <span className="font-medium text-sm whitespace-normal text-left">{c.company_name || c.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <Select value={form.client_id} onValueChange={v => {
+                      const selectedClient = clients.find((c: any) => c.id === v);
+                      setForm(p => ({
+                        ...p,
+                        client_id: v,
+                        is_reseller: selectedClient?.is_revenda || false,
+                      }));
+                    }}>
+                      <SelectTrigger className="h-11 text-sm border-2 focus:ring-primary/20 transition-all bg-white shadow-sm px-4 flex-1">
+                        <SelectValue placeholder="Selecione um cliente..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
+                        {clients.map((c: any) => (
+                          <SelectItem key={c.id} value={c.id} className="py-2.5">
+                            <span className="font-medium text-sm whitespace-normal text-left">{c.company_name || c.name}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-11 w-11 shrink-0"
+                      disabled={!form.client_id}
+                      title="Visualizar dados do cliente"
+                      onClick={async () => {
+                        if (!form.client_id) return;
+                        setViewClientOpen(true);
+                        setViewClientLoading(true);
+                        setViewClient(null);
+                        const { data } = await db.from('clients').select('*').eq('id', form.client_id).maybeSingle();
+                        setViewClient(data);
+                        setViewClientLoading(false);
+                      }}
+                    >
+                      <Search className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-2 md:col-span-12 lg:col-span-4">
                   <Label className="text-sm font-semibold">Vendedor</Label>
@@ -2877,6 +2901,48 @@ export default function Quotes() {
                   {(isAdmin || isGestor) ? 'Reciclar' : 'Enviar solicitação'}
                 </Button>
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* View client details dialog */}
+      <Dialog open={viewClientOpen} onOpenChange={setViewClientOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Dados do Cliente</DialogTitle>
+          </DialogHeader>
+          {viewClientLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : !viewClient ? (
+            <p className="text-sm text-muted-foreground py-4">Não foi possível carregar os dados.</p>
+          ) : (
+            <div className="space-y-3 text-sm max-h-[65vh] overflow-y-auto">
+              {[
+                ['Razão Social / Empresa', viewClient.company_name],
+                ['Nome / Responsável', viewClient.name],
+                ['CNPJ / CPF', viewClient.cpf_cnpj],
+                ['Inscrição Estadual', viewClient.contrib_icms],
+                ['E-mail', viewClient.email],
+                ['Telefone', viewClient.phone],
+                ['Contato', viewClient.contact_name],
+                ['Telefone do Contato', viewClient.contact_phone],
+                ['CEP', viewClient.cep],
+                ['Endereço', viewClient.address],
+                ['Número', viewClient.address_number],
+                ['Complemento', viewClient.address_complement],
+                ['Bairro', viewClient.neighborhood],
+                ['Cidade', viewClient.city],
+                ['Estado', viewClient.state],
+                ['Observações', viewClient.notes],
+              ].filter(([, v]) => v).map(([label, value]) => (
+                <div key={label as string} className="flex flex-col sm:flex-row sm:justify-between gap-1 border-b pb-2 last:border-0">
+                  <span className="text-muted-foreground font-medium">{label}</span>
+                  <span className="font-medium text-right break-words">{String(value)}</span>
+                </div>
+              ))}
             </div>
           )}
         </DialogContent>
