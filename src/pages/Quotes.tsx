@@ -1523,25 +1523,71 @@ export default function Quotes() {
                     Cliente <span className="text-red-500">*</span>
                   </Label>
                   <div className="flex gap-2">
-                    <Select value={form.client_id} onValueChange={v => {
-                      const selectedClient = clients.find((c: any) => c.id === v);
-                      setForm(p => ({
-                        ...p,
-                        client_id: v,
-                        is_reseller: selectedClient?.is_revenda || false,
-                      }));
-                    }}>
-                      <SelectTrigger className="h-11 text-sm border-2 focus:ring-primary/20 transition-all bg-white shadow-sm px-4 flex-1">
-                        <SelectValue placeholder="Selecione um cliente..." />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
-                        {clients.map((c: any) => (
-                          <SelectItem key={c.id} value={c.id} className="py-2.5">
-                            <span className="font-medium text-sm whitespace-normal text-left">{c.company_name || c.name}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          role="combobox"
+                          className="h-11 text-sm border-2 focus:ring-primary/20 transition-all bg-white shadow-sm px-4 flex-1 justify-between font-normal"
+                        >
+                          <span className="truncate text-left">
+                            {form.client_id
+                              ? (() => {
+                                  const c: any = clients.find((c: any) => c.id === form.client_id);
+                                  if (!c) return 'Selecione um cliente...';
+                                  const label = c.company_name || c.name;
+                                  return c.cpf_cnpj ? `${label} — ${c.cpf_cnpj}` : label;
+                                })()
+                              : <span className="text-muted-foreground">Selecione um cliente...</span>}
+                          </span>
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start">
+                        <Command
+                          filter={(value, search) => {
+                            if (!search) return 1;
+                            const s = search.toLowerCase().replace(/[^a-z0-9]/gi, '');
+                            const v = value.toLowerCase().replace(/[^a-z0-9]/gi, '');
+                            return v.includes(s) ? 1 : 0;
+                          }}
+                        >
+                          <CommandInput placeholder="Buscar por nome, CNPJ ou CPF..." className="h-10" />
+                          <CommandList className="max-h-[320px]">
+                            <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                            <CommandGroup>
+                              {clients.map((c: any) => {
+                                const label = c.company_name || c.name || '';
+                                const doc = c.cpf_cnpj || '';
+                                const email = c.email || '';
+                                return (
+                                  <CommandItem
+                                    key={c.id}
+                                    value={`${label} ${doc} ${email}`}
+                                    onSelect={() => {
+                                      setForm(p => ({
+                                        ...p,
+                                        client_id: c.id,
+                                        is_reseller: c.is_revenda || false,
+                                      }));
+                                      (document.activeElement as HTMLElement)?.blur();
+                                    }}
+                                    className="py-2.5"
+                                  >
+                                    <Check className={cn('mr-2 h-4 w-4', form.client_id === c.id ? 'opacity-100' : 'opacity-0')} />
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="font-medium text-sm truncate">{label}</span>
+                                      {doc && <span className="text-xs text-muted-foreground">{doc}</span>}
+                                    </div>
+                                  </CommandItem>
+                                );
+                              })}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <Button
                       type="button"
                       variant="outline"
