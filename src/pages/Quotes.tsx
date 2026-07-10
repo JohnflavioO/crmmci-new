@@ -2776,6 +2776,63 @@ export default function Quotes() {
         open={!!chatQuote}
         onOpenChange={(o) => { if (!o) setChatQuote(null); }}
       />
+
+      <Dialog open={!!recycleQuote} onOpenChange={(o) => { if (!o) setRecycleQuote(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-purple-600" />
+              Reciclar orçamento para novo ciclo
+            </DialogTitle>
+          </DialogHeader>
+          {recycleQuote && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/40 border text-sm space-y-1">
+                <div><span className="text-muted-foreground">Nº:</span> <strong>{recycleQuote.quote_number}</strong></div>
+                <div><span className="text-muted-foreground">Cliente:</span> {recycleQuote.client_name || '-'}</div>
+                <div><span className="text-muted-foreground">Data atual:</span> {safeFormatDate(recycleQuote.quote_date)}</div>
+              </div>
+              <div className="space-y-2">
+                <Label>Nova data do ciclo</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start font-normal">
+                      <CalendarIcon className="h-4 w-4 mr-2" />
+                      {recycleDate ? format(recycleDate, 'dd/MM/yyyy', { locale: ptBR }) : 'Escolher data'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={recycleDate} onSelect={setRecycleDate} initialFocus locale={ptBR} className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-2">
+                <Label>Status alvo</Label>
+                <Select value={recycleTargetStatus} onValueChange={setRecycleTargetStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pre_venda">Pré-venda</SelectItem>
+                    <SelectItem value="contato_feito">Contato Feito</SelectItem>
+                    <SelectItem value="sent">Proposta Enviada</SelectItem>
+                    <SelectItem value="negociacao">Negociação</SelectItem>
+                    <SelectItem value="approved">Aprovado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Move este orçamento importado (pago, não faturado) para o ciclo escolhido, mantendo pagamento e itens.
+              </p>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setRecycleQuote(null)} disabled={recycling}>Cancelar</Button>
+                <Button onClick={handleConfirmRecycle} disabled={recycling || !recycleDate}>
+                  {recycling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                  Reciclar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
