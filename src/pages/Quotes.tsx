@@ -390,6 +390,7 @@ export default function Quotes() {
   const [recycleDate, setRecycleDate] = useState<Date | undefined>(undefined);
   const [recycleTargetStatus, setRecycleTargetStatus] = useState<string>('pre_venda');
   const [recycling, setRecycling] = useState(false);
+  const [recycleReason, setRecycleReason] = useState('');
   const [cepLoading, setCepLoading] = useState(false);
   const [cepOrigem, setCepOrigem] = useState<string>(() => {
     try { return localStorage.getItem('mci_cep_origem') || ''; } catch { return ''; }
@@ -1198,14 +1199,21 @@ export default function Quotes() {
     }
   };
 
-  const canRecycle = (q: any) => {
-    if (!isAdmin) return false;
+  const isQuoteEligibleForRecycle = (q: any) => {
     if (q?.source !== 'loja_integrada') return false;
     const paid = q?.payment_status === 'liquidado' || q?.payment_status === 'pago';
     if (!paid) return false;
     const st = String(q?.status || '').toLowerCase();
     if (st === 'faturado' || st === 'entregue') return false;
     return true;
+  };
+
+  const canRecycle = (q: any) => (isAdmin || isGestor) && isQuoteEligibleForRecycle(q);
+
+  const canRequestRecycle = (q: any) => {
+    if (isAdmin || isGestor) return false;
+    if (!isQuoteEligibleForRecycle(q)) return false;
+    return q?.created_by === user?.id || q?.salesperson_id === user?.id;
   };
 
   const openRecycleDialog = (q: any) => {
@@ -1215,25 +1223,40 @@ export default function Quotes() {
   };
 
   const handleConfirmRecycle = async () => {
-    if (!recycleQuote || !recycleDate) return;
+    if (!recycleQuote || !recycleDate || !user?.id) return;
+    const isApprover = isAdmin || isGestor;
     try {
       setRecycling(true);
       const iso = format(recycleDate, 'yyyy-MM-dd');
-      const { error } = await supabase.from('quotes').update({
-        quote_date: iso,
-        status: recycleTargetStatus,
-        updated_at: new Date().toISOString(),
-      }).eq('id', recycleQuote.id);
-      if (error) throw error;
-      toast.success(`Orçamento ${recycleQuote.quote_number} reciclado para ${format(recycleDate, 'dd/MM/yyyy')}`);
+      if (isApprover) {
+        const { error } = await supabase.from('quotes').update({
+          quote_date: iso,
+          status: recycleTargetStatus,
+          updated_at: new Date().toISOString(),
+        }).eq('id', recycleQuote.id);
+        if (error) throw error;
+        toast.success(`Orçamento ${recycleQuote.quote_number} reciclado para ${format(recycleDate, 'dd/MM/yyyy')}`);
+      } else {
+        const { error } = await supabase.from('quote_recycle_requests').insert({
+          quote_id: recycleQuote.id,
+          requested_by: user.id,
+          target_date: iso,
+          target_status: recycleTargetStatus,
+          reason: recycleReason || null,
+        });
+        if (error) throw error;
+        toast.success('Solicitação enviada. Aguarde aprovação do admin/gestor.');
+      }
       setRecycleQuote(null);
+      setRecycleReason('');
       loadData();
     } catch (err: any) {
-      toast.error('Erro ao reciclar: ' + (err.message || 'desconhecido'));
+      toast.error('Erro: ' + (err.message || 'desconhecido'));
     } finally {
       setRecycling(false);
     }
   };
+
 
   const handleCopyPublicLink = (quote: any) => {
     const baseUrl = window.location.origin;
@@ -2709,6 +2732,11 @@ export default function Quotes() {
                             icon: RefreshCw,
                             onClick: () => openRecycleDialog(q),
                             className: "text-purple-600"
+                          }] : canRequestRecycle(q) ? [{
+                            label: "Solicitar reciclagem",
+                            icon: RefreshCw,
+                            onClick: () => openRecycleDialog(q),
+                            className: "text-purple-600"
                           }] : []),
                           { 
                             label: "Excluir", 
@@ -2782,7 +2810,7 @@ export default function Quotes() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <RefreshCw className="h-4 w-4 text-purple-600" />
-              Reciclar orçamento para novo ciclo
+              {(isAdmin || isGestor) ? 'Reciclar orçamento para novo ciclo' : 'Solicitar reciclagem'}
             </DialogTitle>
           </DialogHeader>
           {recycleQuote && (
@@ -2819,14 +2847,22 @@ export default function Quotes() {
                   </SelectContent>
                 </Select>
               </div>
+              {!(isAdmin || isGestor) && (
+                <div className="space-y-2">
+                  <Label>Justificativa (opcional)</Label>
+                  <Textarea value={recycleReason} onChange={(e) => setRecycleReason(e.target.value)} placeholder="Explique brevemente o motivo" rows={3} />
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
-                Move este orçamento importado (pago, não faturado) para o ciclo escolhido, mantendo pagamento e itens.
+                {(isAdmin || isGestor)
+                  ? 'Move este orçamento importado (pago, não faturado) para o ciclo escolhido, mantendo pagamento e itens.'
+                  : 'Sua solicitação será enviada aos administradores/gestores para aprovação.'}
               </p>
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" onClick={() => setRecycleQuote(null)} disabled={recycling}>Cancelar</Button>
                 <Button onClick={handleConfirmRecycle} disabled={recycling || !recycleDate}>
                   {recycling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                  Reciclar
+                  {(isAdmin || isGestor) ? 'Reciclar' : 'Enviar solicitação'}
                 </Button>
               </div>
             </div>
