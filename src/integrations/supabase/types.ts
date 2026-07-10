@@ -3211,6 +3211,10 @@ export type Database = {
         Returns: number
       }
       process_smart_opportunities_diagnostics: { Args: never; Returns: Json }
+      public_quote_action: {
+        Args: { p_action: string; p_token: string }
+        Returns: Json
+      }
       set_default_origin_cep: { Args: { _cep: string }; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
