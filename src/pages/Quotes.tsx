@@ -366,6 +366,9 @@ export default function Quotes() {
   const canViewTeamQuotes = isGestor;
   const [quotes, setQuotes] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
+  const [viewClientOpen, setViewClientOpen] = useState(false);
+  const [viewClient, setViewClient] = useState<any>(null);
+  const [viewClientLoading, setViewClientLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'commercial' | 'demonstration'>('all');
