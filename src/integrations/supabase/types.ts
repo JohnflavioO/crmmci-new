@@ -1616,6 +1616,59 @@ export type Database = {
           },
         ]
       }
+      quote_recycle_requests: {
+        Row: {
+          created_at: string
+          id: string
+          quote_id: string
+          reason: string | null
+          requested_by: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          target_date: string
+          target_status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          quote_id: string
+          reason?: string | null
+          requested_by: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          target_date: string
+          target_status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          quote_id?: string
+          reason?: string | null
+          requested_by?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          target_date?: string
+          target_status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_recycle_requests_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotes: {
         Row: {
           approved_at: string | null
