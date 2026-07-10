@@ -386,6 +386,10 @@ export default function Quotes() {
   const [productSearchResults, setProductSearchResults] = useState<Record<number, any[]>>({});
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
   const [chatQuote, setChatQuote] = useState<{ id: string; number: string } | null>(null);
+  const [recycleQuote, setRecycleQuote] = useState<any | null>(null);
+  const [recycleDate, setRecycleDate] = useState<Date | undefined>(undefined);
+  const [recycleTargetStatus, setRecycleTargetStatus] = useState<string>('pre_venda');
+  const [recycling, setRecycling] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [cepOrigem, setCepOrigem] = useState<string>(() => {
     try { return localStorage.getItem('mci_cep_origem') || ''; } catch { return ''; }
