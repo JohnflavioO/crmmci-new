@@ -2732,6 +2732,11 @@ export default function Quotes() {
                             icon: RefreshCw,
                             onClick: () => openRecycleDialog(q),
                             className: "text-purple-600"
+                          }] : canRequestRecycle(q) ? [{
+                            label: "Solicitar reciclagem",
+                            icon: RefreshCw,
+                            onClick: () => openRecycleDialog(q),
+                            className: "text-purple-600"
                           }] : []),
                           { 
                             label: "Excluir", 
