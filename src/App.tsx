@@ -216,6 +216,7 @@ function AppRoutes() {
             {(isGestor || isFinanceiro) && <Route path="/financial" element={<SafeRoute><Financial /></SafeRoute>} />}
             {(isGestor || isFinanceiro) && <Route path="/bank-slips" element={<SafeRoute><BankSlips /></SafeRoute>} />}
             {(isAdmin || isGestor) && <Route path="/approvals" element={<SafeRoute><Approvals /></SafeRoute>} />}
+            {(isAdmin || isGestor) && <Route path="/aprovacoes/reciclagem" element={<SafeRoute><RecycleApprovals /></SafeRoute>} />}
             {isAdmin && <Route path="/integrations" element={<SafeRoute><Integrations /></SafeRoute>} />}
             {(isAdmin || isGestor) && <Route path="/diagnostico/logistica" element={<SafeRoute><LogisticsSyncDiagnostic /></SafeRoute>} />}
             {(isAdmin || isGestor) && <Route path="/mapeamento-produtos" element={<SafeRoute><ProductMapping /></SafeRoute>} />}
