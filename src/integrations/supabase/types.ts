@@ -970,6 +970,7 @@ export type Database = {
       logistics_records: {
         Row: {
           codigo_rastreio: string | null
+          company_id: string | null
           created_at: string
           data_entrega: string | null
           data_envio: string | null
@@ -994,6 +995,7 @@ export type Database = {
         }
         Insert: {
           codigo_rastreio?: string | null
+          company_id?: string | null
           created_at?: string
           data_entrega?: string | null
           data_envio?: string | null
@@ -1018,6 +1020,7 @@ export type Database = {
         }
         Update: {
           codigo_rastreio?: string | null
+          company_id?: string | null
           created_at?: string
           data_entrega?: string | null
           data_envio?: string | null
@@ -2332,6 +2335,7 @@ export type Database = {
       technical_budgets: {
         Row: {
           client_id: string | null
+          company_id: string | null
           created_at: string | null
           created_by: string | null
           discount: number | null
@@ -2347,6 +2351,7 @@ export type Database = {
         }
         Insert: {
           client_id?: string | null
+          company_id?: string | null
           created_at?: string | null
           created_by?: string | null
           discount?: number | null
@@ -2362,6 +2367,7 @@ export type Database = {
         }
         Update: {
           client_id?: string | null
+          company_id?: string | null
           created_at?: string | null
           created_by?: string | null
           discount?: number | null
@@ -2466,6 +2472,7 @@ export type Database = {
       technical_cloud_files: {
         Row: {
           category: string | null
+          company_id: string | null
           created_at: string | null
           description: string | null
           file_type: string | null
@@ -2477,6 +2484,7 @@ export type Database = {
         }
         Insert: {
           category?: string | null
+          company_id?: string | null
           created_at?: string | null
           description?: string | null
           file_type?: string | null
@@ -2488,6 +2496,7 @@ export type Database = {
         }
         Update: {
           category?: string | null
+          company_id?: string | null
           created_at?: string | null
           description?: string | null
           file_type?: string | null
@@ -2850,6 +2859,7 @@ export type Database = {
       }
       technical_purchase_orders: {
         Row: {
+          company_id: string | null
           created_at: string | null
           created_by: string | null
           expected_delivery: string | null
@@ -2864,6 +2874,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          company_id?: string | null
           created_at?: string | null
           created_by?: string | null
           expected_delivery?: string | null
@@ -2878,6 +2889,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          company_id?: string | null
           created_at?: string | null
           created_by?: string | null
           expected_delivery?: string | null
@@ -2905,6 +2917,7 @@ export type Database = {
         Row: {
           base_price: number | null
           category: string | null
+          company_id: string | null
           created_at: string | null
           description: string | null
           estimated_time: string | null
@@ -2915,6 +2928,7 @@ export type Database = {
         Insert: {
           base_price?: number | null
           category?: string | null
+          company_id?: string | null
           created_at?: string | null
           description?: string | null
           estimated_time?: string | null
@@ -2925,6 +2939,7 @@ export type Database = {
         Update: {
           base_price?: number | null
           category?: string | null
+          company_id?: string | null
           created_at?: string | null
           description?: string | null
           estimated_time?: string | null
@@ -2979,6 +2994,7 @@ export type Database = {
         Row: {
           address: string | null
           cnpj: string | null
+          company_id: string | null
           contact_name: string | null
           created_at: string | null
           email: string | null
@@ -2990,6 +3006,7 @@ export type Database = {
         Insert: {
           address?: string | null
           cnpj?: string | null
+          company_id?: string | null
           contact_name?: string | null
           created_at?: string | null
           email?: string | null
@@ -3001,6 +3018,7 @@ export type Database = {
         Update: {
           address?: string | null
           cnpj?: string | null
+          company_id?: string | null
           contact_name?: string | null
           created_at?: string | null
           email?: string | null
