@@ -1518,25 +1518,46 @@ export default function Quotes() {
                   <Label className="text-sm font-semibold mb-1 block">
                     Cliente <span className="text-red-500">*</span>
                   </Label>
-                  <Select value={form.client_id} onValueChange={v => {
-                    const selectedClient = clients.find((c: any) => c.id === v);
-                    setForm(p => ({
-                      ...p,
-                      client_id: v,
-                      is_reseller: selectedClient?.is_revenda || false,
-                    }));
-                  }}>
-                    <SelectTrigger className="h-11 text-sm border-2 focus:ring-primary/20 transition-all bg-white shadow-sm px-4">
-                      <SelectValue placeholder="Selecione um cliente..." />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
-                      {clients.map((c: any) => (
-                        <SelectItem key={c.id} value={c.id} className="py-2.5">
-                          <span className="font-medium text-sm whitespace-normal text-left">{c.company_name || c.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <Select value={form.client_id} onValueChange={v => {
+                      const selectedClient = clients.find((c: any) => c.id === v);
+                      setForm(p => ({
+                        ...p,
+                        client_id: v,
+                        is_reseller: selectedClient?.is_revenda || false,
+                      }));
+                    }}>
+                      <SelectTrigger className="h-11 text-sm border-2 focus:ring-primary/20 transition-all bg-white shadow-sm px-4 flex-1">
+                        <SelectValue placeholder="Selecione um cliente..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
+                        {clients.map((c: any) => (
+                          <SelectItem key={c.id} value={c.id} className="py-2.5">
+                            <span className="font-medium text-sm whitespace-normal text-left">{c.company_name || c.name}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-11 w-11 shrink-0"
+                      disabled={!form.client_id}
+                      title="Visualizar dados do cliente"
+                      onClick={async () => {
+                        if (!form.client_id) return;
+                        setViewClientOpen(true);
+                        setViewClientLoading(true);
+                        setViewClient(null);
+                        const { data } = await db.from('clients').select('*').eq('id', form.client_id).maybeSingle();
+                        setViewClient(data);
+                        setViewClientLoading(false);
+                      }}
+                    >
+                      <Search className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-2 md:col-span-12 lg:col-span-4">
                   <Label className="text-sm font-semibold">Vendedor</Label>
