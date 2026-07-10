@@ -2905,6 +2905,48 @@ export default function Quotes() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* View client details dialog */}
+      <Dialog open={viewClientOpen} onOpenChange={setViewClientOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Dados do Cliente</DialogTitle>
+          </DialogHeader>
+          {viewClientLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : !viewClient ? (
+            <p className="text-sm text-muted-foreground py-4">Não foi possível carregar os dados.</p>
+          ) : (
+            <div className="space-y-3 text-sm max-h-[65vh] overflow-y-auto">
+              {[
+                ['Razão Social / Empresa', viewClient.company_name],
+                ['Nome / Responsável', viewClient.name],
+                ['CNPJ / CPF', viewClient.cpf_cnpj],
+                ['Inscrição Estadual', viewClient.contrib_icms],
+                ['E-mail', viewClient.email],
+                ['Telefone', viewClient.phone],
+                ['Contato', viewClient.contact_name],
+                ['Telefone do Contato', viewClient.contact_phone],
+                ['CEP', viewClient.cep],
+                ['Endereço', viewClient.address],
+                ['Número', viewClient.address_number],
+                ['Complemento', viewClient.address_complement],
+                ['Bairro', viewClient.neighborhood],
+                ['Cidade', viewClient.city],
+                ['Estado', viewClient.state],
+                ['Observações', viewClient.notes],
+              ].filter(([, v]) => v).map(([label, value]) => (
+                <div key={label as string} className="flex flex-col sm:flex-row sm:justify-between gap-1 border-b pb-2 last:border-0">
+                  <span className="text-muted-foreground font-medium">{label}</span>
+                  <span className="font-medium text-right break-words">{String(value)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
