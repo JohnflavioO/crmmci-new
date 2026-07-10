@@ -2704,6 +2704,12 @@ export default function Quotes() {
                             onClick: () => handleEdit(q),
                             isSecondary: true
                           },
+                          ...(canRecycle(q) ? [{
+                            label: "Reciclar p/ ciclo",
+                            icon: RefreshCw,
+                            onClick: () => openRecycleDialog(q),
+                            className: "text-purple-600"
+                          }] : []),
                           { 
                             label: "Excluir", 
                             icon: Trash2, 
