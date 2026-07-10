@@ -1235,6 +1235,18 @@ export default function Quotes() {
           updated_at: new Date().toISOString(),
         }).eq('id', recycleQuote.id);
         if (error) throw error;
+        // Registrar no histórico de aprovações como já aprovada
+        await supabase.from('quote_recycle_requests').insert({
+          quote_id: recycleQuote.id,
+          requested_by: user.id,
+          target_date: iso,
+          target_status: recycleTargetStatus,
+          reason: recycleReason || 'Reciclagem direta por admin/gestor',
+          status: 'aprovada',
+          reviewed_by: user.id,
+          reviewed_at: new Date().toISOString(),
+          review_notes: 'Aprovação automática (admin/gestor reciclou diretamente)',
+        });
         toast.success(`Orçamento ${recycleQuote.quote_number} reciclado para ${format(recycleDate, 'dd/MM/yyyy')}`);
       } else {
         const { error } = await supabase.from('quote_recycle_requests').insert({
