@@ -2339,15 +2339,8 @@ export default function Quotes() {
                 <Button type="button" onClick={addItem} className="mt-3 w-full gap-2 bg-green-600 hover:bg-green-700 text-white">
                   <Plus className="h-4 w-4" /> Adicionar Novo Item
                 </Button>
-
-                <div className="flex justify-end mt-4 p-3 bg-primary/5 rounded-lg">
-                  <div className="text-right space-y-1">
-                    <p className="text-sm text-muted-foreground">Subtotal: {formatCurrency(totalAmount)}</p>
-                    {Number(form.shipping_cost) > 0 && <p className="text-sm text-muted-foreground">Frete: {formatCurrency(Number(form.shipping_cost))}</p>}
-                    <p className="text-2xl font-bold font-display text-primary">Total: {formatCurrency(grandTotal)}</p>
-                  </div>
-                </div>
               </div>
+
 
               {/* Dados para Frete — consolidado a partir dos itens */}
               <div className="p-4 rounded-lg border bg-gradient-to-br from-primary/[0.04] to-transparent space-y-3">
