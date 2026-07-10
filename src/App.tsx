@@ -24,6 +24,7 @@ const OperationalCenter = lazy(() => import("./pages/OperationalCenter"));
 const Clients = lazy(() => import("./pages/Clients"));
 const Quotes = lazy(() => import("./pages/Quotes"));
 const Approvals = lazy(() => import("./pages/Approvals"));
+const RecycleApprovals = lazy(() => import("./pages/RecycleApprovals"));
 const Products = lazy(() => import("./pages/Products"));
 const EcoflowCalculator = lazy(() => import("./pages/EcoflowCalculator"));
 const FreightQuote = lazy(() => import("./pages/FreightQuote"));
