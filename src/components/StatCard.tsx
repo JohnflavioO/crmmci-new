@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -13,7 +14,7 @@ interface StatCardProps {
   isCurrency?: boolean;
 }
 
-export default function StatCard({ title, value, icon: Icon, trend, className, onClick, isCurrency = false }: StatCardProps) {
+function StatCard({ title, value, icon: Icon, trend, className, onClick, isCurrency = false }: StatCardProps) {
   const { maskValue } = usePrivacy();
   
   // Decide if we should format/mask the value
@@ -59,3 +60,5 @@ export default function StatCard({ title, value, icon: Icon, trend, className, o
     </Card>
   );
 }
+
+export default memo(StatCard);
