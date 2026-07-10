@@ -390,6 +390,7 @@ export default function Quotes() {
   const [recycleDate, setRecycleDate] = useState<Date | undefined>(undefined);
   const [recycleTargetStatus, setRecycleTargetStatus] = useState<string>('pre_venda');
   const [recycling, setRecycling] = useState(false);
+  const [recycleReason, setRecycleReason] = useState('');
   const [cepLoading, setCepLoading] = useState(false);
   const [cepOrigem, setCepOrigem] = useState<string>(() => {
     try { return localStorage.getItem('mci_cep_origem') || ''; } catch { return ''; }
