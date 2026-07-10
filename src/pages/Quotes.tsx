@@ -2430,6 +2430,15 @@ export default function Quotes() {
                 )}
               </div>
 
+              <div className="flex justify-end p-3 bg-primary/5 rounded-lg">
+                <div className="text-right space-y-1">
+                  <p className="text-sm text-muted-foreground">Subtotal: {formatCurrency(totalAmount)}</p>
+                  {Number(form.shipping_cost) > 0 && <p className="text-sm text-muted-foreground">Frete: {formatCurrency(Number(form.shipping_cost))}</p>}
+                  <p className="text-2xl font-bold font-display text-primary">Total: {formatCurrency(grandTotal)}</p>
+                </div>
+              </div>
+
+
 
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>Cancelar</Button>
