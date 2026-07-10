@@ -2810,7 +2810,7 @@ export default function Quotes() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <RefreshCw className="h-4 w-4 text-purple-600" />
-              Reciclar orçamento para novo ciclo
+              {(isAdmin || isGestor) ? 'Reciclar orçamento para novo ciclo' : 'Solicitar reciclagem'}
             </DialogTitle>
           </DialogHeader>
           {recycleQuote && (
@@ -2847,14 +2847,22 @@ export default function Quotes() {
                   </SelectContent>
                 </Select>
               </div>
+              {!(isAdmin || isGestor) && (
+                <div className="space-y-2">
+                  <Label>Justificativa (opcional)</Label>
+                  <Textarea value={recycleReason} onChange={(e) => setRecycleReason(e.target.value)} placeholder="Explique brevemente o motivo" rows={3} />
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
-                Move este orçamento importado (pago, não faturado) para o ciclo escolhido, mantendo pagamento e itens.
+                {(isAdmin || isGestor)
+                  ? 'Move este orçamento importado (pago, não faturado) para o ciclo escolhido, mantendo pagamento e itens.'
+                  : 'Sua solicitação será enviada aos administradores/gestores para aprovação.'}
               </p>
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" onClick={() => setRecycleQuote(null)} disabled={recycling}>Cancelar</Button>
                 <Button onClick={handleConfirmRecycle} disabled={recycling || !recycleDate}>
                   {recycling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                  Reciclar
+                  {(isAdmin || isGestor) ? 'Reciclar' : 'Enviar solicitação'}
                 </Button>
               </div>
             </div>
