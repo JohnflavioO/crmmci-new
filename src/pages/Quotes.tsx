@@ -1198,14 +1198,21 @@ export default function Quotes() {
     }
   };
 
-  const canRecycle = (q: any) => {
-    if (!isAdmin) return false;
+  const isQuoteEligibleForRecycle = (q: any) => {
     if (q?.source !== 'loja_integrada') return false;
     const paid = q?.payment_status === 'liquidado' || q?.payment_status === 'pago';
     if (!paid) return false;
     const st = String(q?.status || '').toLowerCase();
     if (st === 'faturado' || st === 'entregue') return false;
     return true;
+  };
+
+  const canRecycle = (q: any) => (isAdmin || isGestor) && isQuoteEligibleForRecycle(q);
+
+  const canRequestRecycle = (q: any) => {
+    if (isAdmin || isGestor) return false;
+    if (!isQuoteEligibleForRecycle(q)) return false;
+    return q?.created_by === user?.id || q?.salesperson_id === user?.id;
   };
 
   const openRecycleDialog = (q: any) => {
@@ -1215,25 +1222,40 @@ export default function Quotes() {
   };
 
   const handleConfirmRecycle = async () => {
-    if (!recycleQuote || !recycleDate) return;
+    if (!recycleQuote || !recycleDate || !user?.id) return;
+    const isApprover = isAdmin || isGestor;
     try {
       setRecycling(true);
       const iso = format(recycleDate, 'yyyy-MM-dd');
-      const { error } = await supabase.from('quotes').update({
-        quote_date: iso,
-        status: recycleTargetStatus,
-        updated_at: new Date().toISOString(),
-      }).eq('id', recycleQuote.id);
-      if (error) throw error;
-      toast.success(`Orçamento ${recycleQuote.quote_number} reciclado para ${format(recycleDate, 'dd/MM/yyyy')}`);
+      if (isApprover) {
+        const { error } = await supabase.from('quotes').update({
+          quote_date: iso,
+          status: recycleTargetStatus,
+          updated_at: new Date().toISOString(),
+        }).eq('id', recycleQuote.id);
+        if (error) throw error;
+        toast.success(`Orçamento ${recycleQuote.quote_number} reciclado para ${format(recycleDate, 'dd/MM/yyyy')}`);
+      } else {
+        const { error } = await supabase.from('quote_recycle_requests').insert({
+          quote_id: recycleQuote.id,
+          requested_by: user.id,
+          target_date: iso,
+          target_status: recycleTargetStatus,
+          reason: recycleReason || null,
+        });
+        if (error) throw error;
+        toast.success('Solicitação enviada. Aguarde aprovação do admin/gestor.');
+      }
       setRecycleQuote(null);
+      setRecycleReason('');
       loadData();
     } catch (err: any) {
-      toast.error('Erro ao reciclar: ' + (err.message || 'desconhecido'));
+      toast.error('Erro: ' + (err.message || 'desconhecido'));
     } finally {
       setRecycling(false);
     }
   };
+
 
   const handleCopyPublicLink = (quote: any) => {
     const baseUrl = window.location.origin;
