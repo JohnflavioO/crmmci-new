@@ -1,5 +1,6 @@
 const CACHE_VERSION = "v2026-07-13-definitive-preview-production-recovery";
 const PREVIEW_CHUNK_RECOVERY_KEY = "__mci_preview_chunk_recovery_done";
+const PREVIEW_IN_PLACE_RECOVERY_KEY = "__mci_preview_in_place_recovery_done";
 
 const isLovablePreviewRuntime = () => {
   if (typeof window === "undefined") return false;
@@ -120,20 +121,36 @@ export const clearBrowserCachesAndWorkers = async () => {
   return { clearedCaches, unregisteredWorkers };
 };
 
+const recoverPreviewInPlace = () => {
+  // O preview da Lovable usa URLs temporárias com token. Recarregar ou trocar a
+  // URL do iframe pode invalidar a sessão do editor e deixar o navegador na tela
+  // nativa de "página temporariamente indisponível". Portanto, no preview a
+  // recuperação é sempre dentro da página atual: limpar caches/workers e importar
+  // o rescue loader, sem location.reload/replace.
+  try {
+    if (window.sessionStorage.getItem(PREVIEW_IN_PLACE_RECOVERY_KEY) === CACHE_VERSION) {
+      return;
+    }
+    window.sessionStorage.setItem(PREVIEW_IN_PLACE_RECOVERY_KEY, CACHE_VERSION);
+  } catch {
+    // Se storage estiver bloqueado, seguimos mesmo assim com a recuperação em memória.
+  }
+
+  void clearBrowserCachesAndWorkers().finally(() => {
+    try {
+      if (window.__mciReactBootstrapping === true && window.__mciReactMounted !== true) {
+        window.__mciReactBootstrapping = false;
+      }
+    } catch {
+      // best-effort
+    }
+    void import(/* @vite-ignore */ `/assets/recover-stale-entry.js?mci_preview_recover=${CACHE_VERSION}&t=${Date.now()}`);
+  });
+};
+
 export const reloadWithCacheBust = () => {
   if (isLovablePreviewRuntime()) {
-    try {
-      if (window.sessionStorage.getItem(PREVIEW_CHUNK_RECOVERY_KEY) === CACHE_VERSION) {
-        void import(`/assets/recover-stale-entry.js?mci_final_recover=${Date.now()}`);
-        return;
-      }
-      window.sessionStorage.setItem(PREVIEW_CHUNK_RECOVERY_KEY, CACHE_VERSION);
-    } catch {
-      // Se storage estiver bloqueado, ainda tentamos recarregar a mesma URL do iframe.
-    }
-    void clearBrowserCachesAndWorkers().finally(() => {
-      window.setTimeout(() => window.location.reload(), 80);
-    });
+    recoverPreviewInPlace();
     return;
   }
 
