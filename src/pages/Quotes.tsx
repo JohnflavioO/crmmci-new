@@ -615,7 +615,7 @@ export default function Quotes() {
       }
 
       let quotesQuery = db.from('quotes')
-        .select('*, clients(company_name, name, phone), quote_items(transfer_status, quantity, is_presale)')
+        .select('*, clients(company_name, name, phone, is_revenda), quote_items(transfer_status, quantity, is_presale)')
         .order('created_at', { ascending: false })
         .limit(1000);
       
@@ -1100,7 +1100,7 @@ export default function Quotes() {
         proposal_validity: quote.proposal_validity || '15 dias',
         payment_method: quote.payment_method || '', 
         payment_status: quote.payment_status || 'pendente',
-        is_reseller: quote.is_reseller || false,
+        is_reseller: quote.is_reseller || quote.clients?.is_revenda || clients.find((c: any) => c.id === quote.client_id)?.is_revenda || false,
         payment_date: quote.payment_date || '',
         installments: quote.installments || 1,
         is_split_payment: quote.is_split_payment || false,
@@ -1287,7 +1287,8 @@ export default function Quotes() {
         db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number'),
         db.from('clients').select('*').eq('id', quote.client_id).maybeSingle(),
       ]);
-      await generateQuotePdf(quote, qItems || [], clientData);
+      const mergedQuote = { ...quote, is_reseller: quote.is_reseller || clientData?.is_revenda || false };
+      await generateQuotePdf(mergedQuote, qItems || [], clientData);
       toast.success('PDF gerado!');
     } catch (err: any) {
       toast.error('Erro ao gerar PDF: ' + err.message);
@@ -2670,7 +2671,7 @@ export default function Quotes() {
                           <ShoppingBag className="h-3 w-3" /> Loja Integrada
                         </span>
                       )}
-                      {q.is_reseller && (
+                      {(q.is_reseller || q.clients?.is_revenda) && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
                           <Store className="h-3 w-3" /> Revenda
                         </span>
@@ -2739,7 +2740,7 @@ export default function Quotes() {
                             <ShoppingBag className="h-2.5 w-2.5" /> Importado
                           </span>
                         )}
-                        {q.is_reseller && (
+                        {(q.is_reseller || q.clients?.is_revenda) && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-orange-100 text-orange-800 border border-orange-200">
                             <Store className="h-2.5 w-2.5" /> Revenda
                           </span>
