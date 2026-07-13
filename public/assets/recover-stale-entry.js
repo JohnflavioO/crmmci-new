@@ -1,7 +1,17 @@
 // Rescue loader for stale Lovable/Vite preview HTML shells.
 // Older preview documents in the browser can still request removed entry files
-// such as /assets/index.js or /assets/index-*.js. This module never contains the
-// app bundle; it discovers the current HTML entry and imports that fresh file.
+// such as /assets/index.js or specific /assets/index-*.js placeholders. This
+// module never contains the app bundle; it discovers the current HTML entry and
+// imports that fresh file.
+
+const KNOWN_STALE_ENTRY_PATHS = new Set([
+  "/assets/index.js",
+  "/assets/index-BDZyRuiO.js",
+  "/assets/index-ByViZgp1.js",
+  "/assets/index-CUdgdO8O.js",
+]);
+
+const RECOVERY_VERSION = "v2026-07-13-preview-entry-recovery";
 
 const showRecoveryError = (error) => {
   const root = document.getElementById("root") || document.body;
@@ -39,13 +49,23 @@ const getCurrentEntryFromHtml = async () => {
   const scripts = [...html.matchAll(/<script\b[^>]*type=["']module["'][^>]*src=["']([^"']+)["'][^>]*>/gi)]
     .map((match) => match[1])
     .filter(Boolean)
-    .filter((src) => !/\/assets\/(?:recover-stale-entry|index(?:-[A-Za-z0-9_]+)?)\.js(?:$|[?#])/i.test(src));
+    .filter((src) => {
+      try {
+        const url = new URL(src, window.location.origin);
+        if (/\/assets\/recover-stale-entry\.js$/i.test(url.pathname)) return false;
+        return !KNOWN_STALE_ENTRY_PATHS.has(url.pathname);
+      } catch (_) {
+        return false;
+      }
+    });
   const entry = scripts[0];
   if (!entry) throw new Error("HTML atual não contém entrada JavaScript nova do app.");
   return new URL(entry, window.location.origin).toString();
 };
 
 const boot = async () => {
+  if (window.__mciReactMounted === true) return;
+
   const host = window.location.hostname;
   const isViteDev = host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
 
@@ -57,7 +77,8 @@ const boot = async () => {
 
   const entry = await getCurrentEntryFromHtml();
   const url = new URL(entry);
-  url.searchParams.set("__mci_stale_recover", String(Date.now()));
+  url.searchParams.set("__mci_stale_recover", RECOVERY_VERSION);
+  url.searchParams.set("__mci_t", String(Date.now()));
   await import(url.toString());
 };
 
