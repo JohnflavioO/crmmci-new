@@ -30,7 +30,10 @@ const installDevRuntime = async () => {
 };
 
 const getCurrentEntryFromHtml = async () => {
-  const response = await fetch(`/?__mci_entry_probe=${Date.now()}`, { cache: "reload" });
+  const probeUrl = new URL(window.location.href);
+  probeUrl.pathname = "/";
+  probeUrl.searchParams.set("__mci_entry_probe", String(Date.now()));
+  const response = await fetch(probeUrl.toString(), { cache: "reload" });
   if (!response.ok) throw new Error(`Falha ao buscar HTML atual: HTTP ${response.status}`);
   const html = await response.text();
   const scripts = [...html.matchAll(/<script\b[^>]*type=["']module["'][^>]*src=["']([^"']+)["'][^>]*>/gi)]
