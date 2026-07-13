@@ -1,4 +1,4 @@
-const CACHE_VERSION = "v2026-07-01-stable-preview-entry";
+const CACHE_VERSION = "v2026-07-13-definitive-preview-production-recovery";
 const PREVIEW_CHUNK_RECOVERY_KEY = "__mci_preview_chunk_recovery_done";
 
 const isLovablePreviewRuntime = () => {
@@ -71,7 +71,7 @@ const safeStorage = (name: "localStorage" | "sessionStorage", action: (storage: 
 
 export const isLikelyChunkLoadError = (error: unknown) => {
   const message = error instanceof Error ? `${error.name} ${error.message} ${error.stack ?? ""}` : String(error);
-  return /ChunkLoadError|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk/i.test(message);
+  return /ChunkLoadError|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk|Failed to load module script|Expected a JavaScript module script|dynamically imported module/i.test(message);
 };
 
 export const clearBrowserCachesAndWorkers = async () => {
@@ -83,8 +83,9 @@ export const clearBrowserCachesAndWorkers = async () => {
     if ("caches" in window) {
       const names = await caches.keys();
       const removableNames = names.filter((name) => {
-        const isAppShellCache = /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name)
-          && (name.includes(window.location.origin) || name.includes(window.location.host));
+        const isAppShellCache = /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-|workbox|vite|mci|supabase|firebase/i.test(name)
+          || name.includes(window.location.origin)
+          || name.includes(window.location.host);
         return isPreview ? isAppShellCache : true;
       });
       await Promise.all(removableNames.map((name) => caches.delete(name)));
@@ -121,12 +122,18 @@ export const clearBrowserCachesAndWorkers = async () => {
 
 export const reloadWithCacheBust = () => {
   if (isLovablePreviewRuntime()) {
-    void clearBrowserCachesAndWorkers();
     try {
+      if (window.sessionStorage.getItem(PREVIEW_CHUNK_RECOVERY_KEY) === CACHE_VERSION) {
+        void import(`/assets/recover-stale-entry.js?mci_final_recover=${Date.now()}`);
+        return;
+      }
       window.sessionStorage.setItem(PREVIEW_CHUNK_RECOVERY_KEY, CACHE_VERSION);
     } catch {
-      // Evita location.reload/replace/history URL changes no preview: isso pode invalidar a URL autorizada do editor.
+      // Se storage estiver bloqueado, ainda tentamos recarregar a mesma URL do iframe.
     }
+    void clearBrowserCachesAndWorkers().finally(() => {
+      window.setTimeout(() => window.location.reload(), 80);
+    });
     return;
   }
 

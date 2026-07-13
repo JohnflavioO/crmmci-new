@@ -31,10 +31,6 @@ const safeReload = () => {
 
 const recoverChunkStartupError = (error: unknown) => {
   if (!isLikelyChunkLoadError(error) || !shouldRetryChunkLoad()) return false;
-  if (isPreviewRuntime()) {
-    void clearBrowserCachesAndWorkers();
-    return false;
-  }
   void clearBrowserCachesAndWorkers().finally(() => reloadWithCacheBust());
   return true;
 };
@@ -94,6 +90,7 @@ async function startApp() {
   }
 
   window.__mciReactBootstrapping = true;
+  window.__mciReactBootstrapStartedAt = Date.now();
 
   const rootElement = document.getElementById("root");
   if (!rootElement) {
@@ -105,6 +102,17 @@ async function startApp() {
   try {
     if (import.meta.env.DEV) console.log('[Main] Elemento root encontrado');
     const { default: App } = await import("./App.tsx");
+
+    if (window.__mciReactRoot && window.__mciReactMounted === false) {
+      try {
+        window.__mciReactRoot.unmount();
+      } catch {
+        // Se o React root antigo estiver corrompido por cache/shell antigo, recriamos abaixo.
+      }
+      window.__mciReactRoot = undefined;
+      rootElement.innerHTML = '';
+    }
+
     const root = window.__mciReactRoot ?? createRoot(rootElement);
     window.__mciReactRoot = root;
     root.render(<App />);
@@ -119,6 +127,7 @@ declare global {
   interface Window {
     __mciReactMounted?: boolean;
     __mciReactBootstrapping?: boolean;
+    __mciReactBootstrapStartedAt?: number;
     __mciReactRoot?: Root;
   }
 }

@@ -9,6 +9,7 @@ const KNOWN_STALE_ENTRY_PATHS = new Set([
   "/assets/index-BDZyRuiO.js",
   "/assets/index-ByViZgp1.js",
   "/assets/index-CUdgdO8O.js",
+  "/assets/index-vUjRf6EA.js",
 ]);
 
 const RECOVERY_VERSION = "v2026-07-13-preview-entry-recovery";
@@ -39,6 +40,26 @@ const installDevRuntime = async () => {
   }
 };
 
+const cleanupLegacyWorkersAndCaches = async () => {
+  try {
+    if ("caches" in window) {
+      const names = await caches.keys();
+      await Promise.allSettled(names.map((name) => caches.delete(name)));
+    }
+  } catch (_) {
+    // Recovery best-effort only.
+  }
+
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.allSettled(registrations.map((registration) => registration.unregister()));
+    }
+  } catch (_) {
+    // Recovery best-effort only.
+  }
+};
+
 const getCurrentEntryFromHtml = async () => {
   const probeUrl = new URL(window.location.href);
   probeUrl.pathname = "/";
@@ -65,6 +86,13 @@ const getCurrentEntryFromHtml = async () => {
 
 const boot = async () => {
   if (window.__mciReactMounted === true) return;
+  if (window.__mciReactBootstrapping === true) {
+    const startedAt = Number(window.__mciReactBootstrapStartedAt || 0);
+    if (startedAt && Date.now() - startedAt < 10_000) return;
+    window.__mciReactBootstrapping = false;
+  }
+
+  await cleanupLegacyWorkersAndCaches();
 
   const host = window.location.hostname;
   const isViteDev = host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
