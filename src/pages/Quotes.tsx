@@ -1100,7 +1100,7 @@ export default function Quotes() {
         proposal_validity: quote.proposal_validity || '15 dias',
         payment_method: quote.payment_method || '', 
         payment_status: quote.payment_status || 'pendente',
-        is_reseller: quote.is_reseller || false,
+        is_reseller: quote.is_reseller || quote.clients?.is_revenda || clients.find((c: any) => c.id === quote.client_id)?.is_revenda || false,
         payment_date: quote.payment_date || '',
         installments: quote.installments || 1,
         is_split_payment: quote.is_split_payment || false,
