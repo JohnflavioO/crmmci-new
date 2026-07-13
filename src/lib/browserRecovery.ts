@@ -132,6 +132,7 @@ const recoverPreviewInPlace = () => {
       return;
     }
     window.sessionStorage.setItem(PREVIEW_IN_PLACE_RECOVERY_KEY, CACHE_VERSION);
+    window.sessionStorage.setItem(PREVIEW_CHUNK_RECOVERY_KEY, CACHE_VERSION);
   } catch {
     // Se storage estiver bloqueado, seguimos mesmo assim com a recuperação em memória.
   }
@@ -196,7 +197,7 @@ export const clearLocalAppStateAndReload = async () => {
 export const shouldRetryChunkLoad = () => {
   if (isLovablePreviewRuntime()) {
     try {
-      return window.sessionStorage.getItem(PREVIEW_CHUNK_RECOVERY_KEY) !== CACHE_VERSION;
+      return window.sessionStorage.getItem(PREVIEW_IN_PLACE_RECOVERY_KEY) !== CACHE_VERSION;
     } catch {
       return false;
     }
