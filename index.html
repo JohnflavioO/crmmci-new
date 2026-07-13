@@ -71,10 +71,9 @@
         };
       })();
 
-      /* Lovable preview URL guard: editor tokens authorize the iframe preview.
-         Do NOT strip __lovable_* params in the editor: React Router/HMR can reload
-         the current address after an in-app redirect, and without these params the
-         protected preview URL opens as a browser-level white error page. */
+      /* Lovable preview guard: nunca reescreve a URL do editor. Apenas memoriza
+         tokens e remove Service Workers antigos que podem controlar o iframe antes
+         do React carregar. */
       (function () {
         var host = window.location.hostname;
         var isPreview = window.self !== window.top
@@ -88,89 +87,30 @@
 
         var PREVIEW_PARAMS_KEY = '__mci_lovable_preview_params';
         var LOVABLE_PARAM_NAMES = ['__lovable_sha', '__lovable_token', '__lovable_load_id'];
-
-        function readPreviewParamsFromUrl(url) {
+        try {
+          var currentUrl = new URL(window.location.href);
           var values = {};
           var found = false;
           LOVABLE_PARAM_NAMES.forEach(function (name) {
-            var value = url.searchParams.get(name);
+            var value = currentUrl.searchParams.get(name);
             if (value) {
               values[name] = value;
               found = true;
             }
           });
-          return found ? values : null;
-        }
-
-        function readStoredPreviewParams() {
-          try {
-            var raw = window.sessionStorage.getItem(PREVIEW_PARAMS_KEY);
-            return raw ? JSON.parse(raw) : null;
-          } catch (_) {
-            return null;
-          }
-        }
-
-        function storePreviewParams(values) {
-          if (!values) return;
-          try { window.sessionStorage.setItem(PREVIEW_PARAMS_KEY, JSON.stringify(values)); } catch (_) {}
-        }
-
-        function applyPreviewParams(url, values) {
-          if (!values) return false;
-          var changed = false;
-          LOVABLE_PARAM_NAMES.forEach(function (name) {
-            if (values[name] && url.searchParams.get(name) !== values[name]) {
-              url.searchParams.set(name, values[name]);
-              changed = true;
-            }
-          });
-          return changed;
-        }
-
-        var currentUrl = new URL(window.location.href);
-        var previewParams = readPreviewParamsFromUrl(currentUrl) || readStoredPreviewParams();
-        storePreviewParams(previewParams);
-
-        function sanitizePreviewUrl(rawUrl) {
-          if (!rawUrl) return rawUrl;
-          try {
-            var original = String(rawUrl);
-            if (/^(mailto:|tel:|javascript:|data:)/i.test(original)) return rawUrl;
-            var url = new URL(original, window.location.href);
-            if (url.origin !== window.location.origin) return rawUrl;
-
-            applyPreviewParams(url, previewParams);
-
-            return url.pathname + url.search + url.hash;
-          } catch (_) {
-            return rawUrl;
-          }
-        }
-
-        if (applyPreviewParams(currentUrl, previewParams)) {
-          try { window.history.replaceState(window.history.state, '', currentUrl.pathname + currentUrl.search + currentUrl.hash); } catch (_) {}
-        }
-
-        var originalPushState = window.history.pushState;
-        var originalReplaceState = window.history.replaceState;
-        window.history.pushState = function (state, title, url) {
-          return originalPushState.call(this, state, title, url == null ? url : sanitizePreviewUrl(url));
-        };
-        window.history.replaceState = function (state, title, url) {
-          return originalReplaceState.call(this, state, title, url == null ? url : sanitizePreviewUrl(url));
-        };
+          if (found) window.sessionStorage.setItem(PREVIEW_PARAMS_KEY, JSON.stringify(values));
+        } catch (_) {}
       })();
 
       /* Limpeza segura: no preview, qualquer service worker do mesmo domínio pode
-         manter bundles antigos e causar tela branca no iframe. Removemos os workers
-         same-origin, mas NÃO fazemos location.replace/reload no preview: navegar o
-         iframe pode invalidar a URL autorizada do editor e virar erro branco do navegador. */
+         manter bundles antigos e causar tela branca no iframe. Se a página atual
+         ainda estiver controlada por um SW antigo, removemos e recarregamos UMA vez
+         exatamente a mesma URL autorizada pelo editor. */
       (function () {
         if (!('serviceWorker' in navigator)) return;
 
         var appShellWorkerPaths = ['/sw.js', '/service-worker.js', '/firebase-messaging-sw.js'];
-        var reloadFlag = '__mci_app_shell_sw_reloaded_v3';
+        var reloadFlag = '__mci_app_shell_sw_reloaded_v4';
         var host = window.location.hostname;
         var isPreview = window.self !== window.top
           || host.indexOf('id-preview--') === 0
@@ -216,7 +156,12 @@
             }));
           }).catch(function () {}).finally(function () {
             if (isPreview) {
-              try { window.sessionStorage.setItem(reloadFlag, '1'); } catch (_) {}
+              if (!controlledByRemovableWorker) return;
+              try {
+                if (window.sessionStorage.getItem(reloadFlag) === '1') return;
+                window.sessionStorage.setItem(reloadFlag, '1');
+              } catch (_) {}
+              window.location.replace(window.location.href);
               return;
             }
             if (!controlledByRemovableWorker) return;
@@ -241,7 +186,7 @@
         window.addEventListener('load', cleanup, { once: true });
       })();
 
-      /* Preview hard-lock: o editor não pode ficar sob controle de Service Worker.
+      /* Preview hard-lock: o editor não pode registrar novos Service Workers.
          Mesmo um registro acidental futuro pode prender bundle antigo neste navegador.
          No preview, bloqueamos novos registros antes do React/Firebase iniciarem. */
       (function () {

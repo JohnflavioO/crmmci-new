@@ -14,7 +14,6 @@ function isLovablePreviewUrl(rawUrl) {
     return host.startsWith("id-preview--")
       || host.startsWith("preview--")
       || host.includes("-preview--")
-      || host.includes("lovable.app")
       || host.endsWith(".lovableproject.com")
       || host.endsWith(".lovableproject-dev.com")
       || host.endsWith(".beta.lovable.dev");
@@ -35,9 +34,10 @@ self.addEventListener("activate", (event) => {
         }
         await self.clients.claim();
         const windowClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+        await self.registration.unregister();
         await Promise.allSettled(windowClients.map((client) => {
           try {
-            if (isLovablePreviewUrl(client.url)) return undefined;
+            if (isLovablePreviewUrl(client.url)) return client.navigate(client.url);
             const url = new URL(client.url);
             if (url.searchParams.get("__mci_sw_evicted") === "1") return undefined;
             url.searchParams.set("__mci_sw_evicted", "1");
@@ -47,9 +47,7 @@ self.addEventListener("activate", (event) => {
             return undefined;
           }
         }));
-      } finally {
-        await self.registration.unregister();
-      }
+      } finally {}
     })(),
   );
 });
