@@ -31,10 +31,6 @@ const safeReload = () => {
 
 const recoverChunkStartupError = (error: unknown) => {
   if (!isLikelyChunkLoadError(error) || !shouldRetryChunkLoad()) return false;
-  if (isPreviewRuntime()) {
-    void clearBrowserCachesAndWorkers();
-    return false;
-  }
   void clearBrowserCachesAndWorkers().finally(() => reloadWithCacheBust());
   return true;
 };
@@ -94,6 +90,7 @@ async function startApp() {
   }
 
   window.__mciReactBootstrapping = true;
+  window.__mciReactBootstrapStartedAt = Date.now();
 
   const rootElement = document.getElementById("root");
   if (!rootElement) {
@@ -119,6 +116,7 @@ declare global {
   interface Window {
     __mciReactMounted?: boolean;
     __mciReactBootstrapping?: boolean;
+    __mciReactBootstrapStartedAt?: number;
     __mciReactRoot?: Root;
   }
 }
