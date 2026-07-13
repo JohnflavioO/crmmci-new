@@ -93,9 +93,6 @@ function SafeRoute({ children }: { children: ReactNode }) {
 
 function getAppSafeSearch(search: string) {
   const params = new URLSearchParams(search);
-  params.delete('__lovable_sha');
-  params.delete('__lovable_token');
-  params.delete('__lovable_load_id');
 
   const safeSearch = params.toString();
   return safeSearch ? `?${safeSearch}` : '';

@@ -71,11 +71,10 @@
         };
       })();
 
-      /* Lovable preview URL guard: editor tokens are one-shot boot params.
-         Keeping __lovable_token in the visible SPA URL makes this browser reopen an
-         expired protected URL later, before React can recover, causing the white
-         "temporarily unavailable" page. After the initial HTML is loaded, strip all
-         Lovable/editor and MCI recovery params from client-side history. */
+      /* Lovable preview URL guard: editor tokens authorize the iframe preview.
+         Do NOT strip __lovable_* params in the editor: React Router/HMR can reload
+         the current address after an in-app redirect, and without these params the
+         protected preview URL opens as a browser-level white error page. */
       (function () {
         var host = window.location.hostname;
         var isPreview = window.self !== window.top
@@ -87,18 +86,51 @@
 
         if (!isPreview) return;
 
-        try { window.sessionStorage.removeItem('__mci_lovable_preview_params'); } catch (_) {}
+        var PREVIEW_PARAMS_KEY = '__mci_lovable_preview_params';
+        var LOVABLE_PARAM_NAMES = ['__lovable_sha', '__lovable_token', '__lovable_load_id'];
 
-        function stripPreviewOnlyParams(url) {
+        function readPreviewParamsFromUrl(url) {
+          var values = {};
+          var found = false;
+          LOVABLE_PARAM_NAMES.forEach(function (name) {
+            var value = url.searchParams.get(name);
+            if (value) {
+              values[name] = value;
+              found = true;
+            }
+          });
+          return found ? values : null;
+        }
+
+        function readStoredPreviewParams() {
+          try {
+            var raw = window.sessionStorage.getItem(PREVIEW_PARAMS_KEY);
+            return raw ? JSON.parse(raw) : null;
+          } catch (_) {
+            return null;
+          }
+        }
+
+        function storePreviewParams(values) {
+          if (!values) return;
+          try { window.sessionStorage.setItem(PREVIEW_PARAMS_KEY, JSON.stringify(values)); } catch (_) {}
+        }
+
+        function applyPreviewParams(url, values) {
+          if (!values) return false;
           var changed = false;
-          Array.from(url.searchParams.keys()).forEach(function (name) {
-            if (name.indexOf('__mci_') === 0 || name.indexOf('__lovable_') === 0) {
-              url.searchParams.delete(name);
+          LOVABLE_PARAM_NAMES.forEach(function (name) {
+            if (values[name] && url.searchParams.get(name) !== values[name]) {
+              url.searchParams.set(name, values[name]);
               changed = true;
             }
           });
           return changed;
         }
+
+        var currentUrl = new URL(window.location.href);
+        var previewParams = readPreviewParamsFromUrl(currentUrl) || readStoredPreviewParams();
+        storePreviewParams(previewParams);
 
         function sanitizePreviewUrl(rawUrl) {
           if (!rawUrl) return rawUrl;
@@ -108,7 +140,7 @@
             var url = new URL(original, window.location.href);
             if (url.origin !== window.location.origin) return rawUrl;
 
-            stripPreviewOnlyParams(url);
+            applyPreviewParams(url, previewParams);
 
             return url.pathname + url.search + url.hash;
           } catch (_) {
@@ -116,8 +148,7 @@
           }
         }
 
-        var currentUrl = new URL(window.location.href);
-        if (stripPreviewOnlyParams(currentUrl)) {
+        if (applyPreviewParams(currentUrl, previewParams)) {
           try { window.history.replaceState(window.history.state, '', currentUrl.pathname + currentUrl.search + currentUrl.hash); } catch (_) {}
         }
 
