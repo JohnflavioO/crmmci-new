@@ -2671,7 +2671,7 @@ export default function Quotes() {
                           <ShoppingBag className="h-3 w-3" /> Loja Integrada
                         </span>
                       )}
-                      {q.is_reseller && (
+                      {(q.is_reseller || q.clients?.is_revenda) && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
                           <Store className="h-3 w-3" /> Revenda
                         </span>
