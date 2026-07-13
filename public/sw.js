@@ -1,8 +1,8 @@
 // Permanent kill-switch app-shell service worker.
 // MCI CRM does not use offline app-shell caching. This file exists only to
 // replace old Workbox/PWA workers at the same URL and unregister them safely.
-// It navigates controlled pages ONCE with a marker so a blank page controlled by
-// an old cached app shell gets released without entering an iframe reload loop.
+// It refreshes non-preview controlled pages once so an old cached app shell gets
+// released. Lovable preview iframes are never navigated by this worker.
 
 function isOldAppShellCache(name) {
   return /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name);
@@ -22,6 +22,11 @@ function isLovablePreviewUrl(rawUrl) {
   }
 }
 
+function isWorkboxCacheForThisRegistration(name) {
+  const hasWorkboxBucket = /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name);
+  return hasWorkboxBucket && name.endsWith(self.registration.scope);
+}
+
 self.addEventListener("install", () => self.skipWaiting());
 
 self.addEventListener("activate", (event) => {
@@ -30,14 +35,13 @@ self.addEventListener("activate", (event) => {
       try {
         if (typeof caches !== "undefined") {
           const names = await caches.keys();
-          await Promise.allSettled(names.filter(isOldAppShellCache).map((name) => caches.delete(name)));
+          await Promise.allSettled(names.filter(isWorkboxCacheForThisRegistration).map((name) => caches.delete(name)));
         }
         await self.clients.claim();
         const windowClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-        await self.registration.unregister();
         await Promise.allSettled(windowClients.map((client) => {
           try {
-            if (isLovablePreviewUrl(client.url)) return client.navigate(client.url);
+            if (isLovablePreviewUrl(client.url)) return undefined;
             const url = new URL(client.url);
             if (url.searchParams.get("__mci_sw_evicted") === "1") return undefined;
             url.searchParams.set("__mci_sw_evicted", "1");
@@ -47,7 +51,9 @@ self.addEventListener("activate", (event) => {
             return undefined;
           }
         }));
-      } finally {}
+      } finally {
+        await self.registration.unregister();
+      }
     })(),
   );
 });
