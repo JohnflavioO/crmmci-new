@@ -78,7 +78,6 @@ export const clearBrowserCachesAndWorkers = async () => {
   let clearedCaches = 0;
   let unregisteredWorkers = 0;
   const isPreview = isLovablePreviewRuntime();
-  const appShellWorkerPaths = ["/sw.js", "/service-worker.js"];
 
   try {
     if ("caches" in window) {
