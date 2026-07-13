@@ -102,14 +102,14 @@
         } catch (_) {}
       })();
 
-      /* Limpeza segura: no preview, qualquer service worker do mesmo domínio pode
-         manter bundles antigos e causar tela branca no iframe. Se a página atual
-         ainda estiver controlada por um SW antigo, removemos e recarregamos UMA vez
-         exatamente a mesma URL autorizada pelo editor. */
+      /* Limpeza segura de app-shell Service Workers antigos.
+         No preview do editor, NUNCA fazemos reload/location.replace: a URL do iframe
+         é temporária/autorizada pelo editor e qualquer navegação automática pode virar
+         a tela branca "temporariamente indisponível" antes do React carregar. */
       (function () {
         if (!('serviceWorker' in navigator)) return;
 
-        var appShellWorkerPaths = ['/sw.js', '/service-worker.js', '/firebase-messaging-sw.js'];
+        var appShellWorkerPaths = ['/sw.js', '/service-worker.js'];
         var reloadFlag = '__mci_app_shell_sw_reloaded_v4';
         var host = window.location.hostname;
         var isPreview = window.self !== window.top
@@ -134,11 +134,10 @@
         };
 
         var shouldRemoveWorker = function (scriptURL) {
-          return isPreview ? isSameOriginScript(scriptURL) : isAppShellScript(scriptURL);
+          return isPreview ? isAppShellScript(scriptURL) : isAppShellScript(scriptURL);
         };
 
         var isAppShellCache = function (name) {
-          if (isPreview) return true;
           return /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name)
             && (name.indexOf(window.location.origin) !== -1 || name.indexOf(window.location.host) !== -1);
         };
@@ -156,12 +155,6 @@
             }));
           }).catch(function () {}).finally(function () {
             if (isPreview) {
-              if (!controlledByRemovableWorker) return;
-              try {
-                if (window.sessionStorage.getItem(reloadFlag) === '1') return;
-                window.sessionStorage.setItem(reloadFlag, '1');
-              } catch (_) {}
-              window.location.replace(window.location.href);
               return;
             }
             if (!controlledByRemovableWorker) return;

@@ -78,12 +78,18 @@ export const clearBrowserCachesAndWorkers = async () => {
   let clearedCaches = 0;
   let unregisteredWorkers = 0;
   const isPreview = isLovablePreviewRuntime();
+  const appShellWorkerPaths = ["/sw.js", "/service-worker.js"];
 
   try {
     if ("caches" in window) {
       const names = await caches.keys();
-      await Promise.all(names.map((name) => caches.delete(name)));
-      clearedCaches = names.length;
+      const removableNames = names.filter((name) => {
+        const isAppShellCache = /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name)
+          && (name.includes(window.location.origin) || name.includes(window.location.host));
+        return isPreview ? isAppShellCache : true;
+      });
+      await Promise.all(removableNames.map((name) => caches.delete(name)));
+      clearedCaches = removableNames.length;
     }
   } catch (error) {
     console.warn("[Recovery] Não foi possível limpar caches:", error);
@@ -94,11 +100,14 @@ export const clearBrowserCachesAndWorkers = async () => {
       const registrations = await navigator.serviceWorker.getRegistrations();
       const sameOriginRegistrations = registrations.filter((registration) => {
         const worker = registration.active || registration.waiting || registration.installing;
-        if (!worker?.scriptURL) return isPreview;
+        if (!worker?.scriptURL) return false;
         try {
-          return new URL(worker.scriptURL).origin === window.location.origin;
+          const url = new URL(worker.scriptURL);
+          const isSameOrigin = url.origin === window.location.origin;
+          const isAppShellWorker = appShellWorkerPaths.includes(url.pathname);
+          return isSameOrigin && (isPreview ? isAppShellWorker : true);
         } catch {
-          return isPreview;
+          return false;
         }
       });
       await Promise.all(sameOriginRegistrations.map((registration) => registration.unregister()));
