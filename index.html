@@ -247,10 +247,9 @@
       </main>
     </div>
     <script>
-      /* Apenas registra erros pré-bootstrap no console. NÃO substitui o #root —
-         a reescrita agressiva destruía a montagem do React em conexões lentas do
-         preview do editor, causando tela branca mesmo quando o bundle ainda estava
-         baixando. Recovery real é feito pelo ErrorBoundary após o React montar. */
+      /* Apenas registra erros pré-bootstrap e instala um watchdog não destrutivo.
+         Se um HTML antigo tentar carregar um bundle removido, o watchdog chama o
+         rescue loader sem reescrever a URL do editor e sem substituir o #root. */
       (function () {
         window.addEventListener('error', function (e) {
           try { console.warn('[Startup error]', e.message || e); } catch (_) {}
@@ -258,6 +257,14 @@
         window.addEventListener('unhandledrejection', function (e) {
           try { console.warn('[Startup rejection]', (e && e.reason) || e); } catch (_) {}
         });
+        window.setTimeout(function () {
+          try {
+            if (window.__mciReactMounted === true) return;
+            import('/assets/recover-stale-entry.js?mci_watchdog=v2026-07-13-preview-entry-recovery');
+          } catch (error) {
+            try { console.warn('[Startup watchdog]', error); } catch (_) {}
+          }
+        }, 12000);
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>

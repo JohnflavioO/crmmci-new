@@ -5,7 +5,7 @@ import {
   reloadWithCacheBust,
   shouldRetryChunkLoad,
 } from "@/lib/browserRecovery";
-import { createRoot } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import "./index.css";
 
 if (import.meta.env.DEV) console.log('[Main] Inciando renderização...');
@@ -89,23 +89,37 @@ if (typeof window !== 'undefined') {
 
 
 async function startApp() {
-  const rootElement = document.getElementById("root");
-  if (!rootElement) {
-    console.error('[Main] Elemento root não encontrado!');
+  if (window.__mciReactMounted === true || window.__mciReactBootstrapping === true) {
     return;
   }
 
-  if (import.meta.env.DEV) console.log('[Main] Elemento root encontrado');
-  const { default: App } = await import("./App.tsx");
-  const root = createRoot(rootElement);
-  root.render(<App />);
-  window.__mciReactMounted = true;
-  if (import.meta.env.DEV) console.log('[Main] Renderização solicitada');
+  window.__mciReactBootstrapping = true;
+
+  const rootElement = document.getElementById("root");
+  if (!rootElement) {
+    console.error('[Main] Elemento root não encontrado!');
+    window.__mciReactBootstrapping = false;
+    return;
+  }
+
+  try {
+    if (import.meta.env.DEV) console.log('[Main] Elemento root encontrado');
+    const { default: App } = await import("./App.tsx");
+    const root = window.__mciReactRoot ?? createRoot(rootElement);
+    window.__mciReactRoot = root;
+    root.render(<App />);
+    window.__mciReactMounted = true;
+    if (import.meta.env.DEV) console.log('[Main] Renderização solicitada');
+  } finally {
+    window.__mciReactBootstrapping = false;
+  }
 }
 
 declare global {
   interface Window {
     __mciReactMounted?: boolean;
+    __mciReactBootstrapping?: boolean;
+    __mciReactRoot?: Root;
   }
 }
 
