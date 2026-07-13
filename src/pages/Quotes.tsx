@@ -1287,7 +1287,8 @@ export default function Quotes() {
         db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number'),
         db.from('clients').select('*').eq('id', quote.client_id).maybeSingle(),
       ]);
-      await generateQuotePdf(quote, qItems || [], clientData);
+      const mergedQuote = { ...quote, is_reseller: quote.is_reseller || clientData?.is_revenda || false };
+      await generateQuotePdf(mergedQuote, qItems || [], clientData);
       toast.success('PDF gerado!');
     } catch (err: any) {
       toast.error('Erro ao gerar PDF: ' + err.message);
