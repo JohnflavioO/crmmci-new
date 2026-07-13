@@ -615,7 +615,7 @@ export default function Quotes() {
       }
 
       let quotesQuery = db.from('quotes')
-        .select('*, clients(company_name, name, phone), quote_items(transfer_status, quantity, is_presale)')
+        .select('*, clients(company_name, name, phone, is_revenda), quote_items(transfer_status, quantity, is_presale)')
         .order('created_at', { ascending: false })
         .limit(1000);
       
