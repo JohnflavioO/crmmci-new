@@ -15,12 +15,33 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+function isLovablePreviewUrl(rawUrl) {
+  try {
+    const host = new URL(rawUrl).hostname;
+    return host.startsWith('id-preview--')
+      || host.startsWith('preview--')
+      || host.includes('-preview--')
+      || host.endsWith('.lovableproject.com')
+      || host.endsWith('.lovableproject-dev.com')
+      || host.endsWith('.beta.lovable.dev');
+  } catch (_) {
+    return false;
+  }
+}
+
 self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(Promise.resolve());
+  event.waitUntil(
+    (async () => {
+      const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+      if (windowClients.some((client) => isLovablePreviewUrl(client.url))) {
+        await self.registration.unregister();
+      }
+    })()
+  );
 });
 
 self.addEventListener('message', (event) => {

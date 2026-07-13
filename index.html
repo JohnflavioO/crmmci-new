@@ -134,7 +134,7 @@
         };
 
         var shouldRemoveWorker = function (scriptURL) {
-          return isPreview ? isAppShellScript(scriptURL) : isAppShellScript(scriptURL);
+          return isPreview ? isSameOriginScript(scriptURL) : isAppShellScript(scriptURL);
         };
 
         var isAppShellCache = function (name) {

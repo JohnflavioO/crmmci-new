@@ -105,7 +105,7 @@ export const clearBrowserCachesAndWorkers = async () => {
           const url = new URL(worker.scriptURL);
           const isSameOrigin = url.origin === window.location.origin;
           const isAppShellWorker = appShellWorkerPaths.includes(url.pathname);
-          return isSameOrigin && (isPreview ? isAppShellWorker : true);
+          return isSameOrigin && (isPreview ? true : true);
         } catch {
           return false;
         }
