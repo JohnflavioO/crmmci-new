@@ -64,6 +64,7 @@ const AssistantAudit = lazy(() => import("./pages/AssistantAudit"));
 const AssistantSettings = lazy(() => import("./pages/AssistantSettings"));
 const LogisticsSyncDiagnostic = lazy(() => import("./pages/LogisticsSyncDiagnostic"));
 const ProductMapping = lazy(() => import("./pages/ProductMapping"));
+const PublicSignContract = lazy(() => import("./pages/PublicSignContract"));
 
 
 const queryClient = new QueryClient({
