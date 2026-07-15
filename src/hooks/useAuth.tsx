@@ -18,6 +18,7 @@ interface AuthContextType {
   isSupportOnly: boolean;
   profile: { full_name: string; phone: string; role: string; avatar_url?: string; company_id?: string; can_access_support_manager?: boolean; permissions?: Record<string, boolean> } | null;
   forcePasswordChange: boolean;
+  refreshAccess: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -30,12 +31,24 @@ const AuthContext = createContext<AuthContextType>({
   isApproved: false, isAdmin: false, isGestor: false, isFinanceiro: false, isLogistica: false,
   isSupportTech: false, isSupportManager: false, isSupport: false, isSupportOnly: false,
   profile: null, forcePasswordChange: false,
+  refreshAccess: async () => {},
   signOut: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
 
 const APPROVED_ROLES = new Set(['admin', 'gestor', 'vendedor', 'comercial', 'financeiro', 'logistica', 'support_tech', 'support_manager']);
+
+type ProfileData = {
+  full_name: string;
+  phone: string;
+  role: string;
+  avatar_url?: string;
+  force_password_change?: boolean;
+  company_id?: string;
+  can_access_support_manager?: boolean;
+  permissions?: Record<string, boolean>;
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -48,9 +61,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLogistica, setIsLogistica] = useState(false);
   const [isSupportTech, setIsSupportTech] = useState(false);
   const [isSupportManager, setIsSupportManager] = useState(false);
-  const [profile, setProfile] = useState<{ full_name: string; phone: string; role: string; avatar_url?: string; force_password_change?: boolean; company_id?: string; can_access_support_manager?: boolean } | null>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
   const [forcePasswordChange, setForcePasswordChange] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
+
+  const applyAccessData = useCallback((data: any) => {
+    const profileData: ProfileData | null = data ? {
+      full_name: data.full_name ?? '',
+      phone: data.phone ?? '',
+      role: data.role ?? '',
+      avatar_url: data.avatar_url ?? undefined,
+      force_password_change: data.force_password_change === true,
+      company_id: data.company_id ?? undefined,
+      can_access_support_manager: data.can_access_support_manager === true,
+      permissions: (data.permissions ?? {}) as Record<string, boolean>,
+    } : null;
+
+    // Roles reais vêm APENAS de user_roles. profiles.role tem default 'comercial'
+    // e não pode ser usado para decidir aprovação (senão todo cadastro novo entra).
+    const roleSet = new Set<string>((data?.roles ?? []).map((r: any) => String(r).toLowerCase()));
+    const approvedByStatus = data?.approval_status === 'approved';
+    const approvedByRole = [...roleSet].some(r => APPROVED_ROLES.has(r));
+
+    // Aprovação exige status='approved' OU um cargo real atribuído em user_roles.
+    setIsApproved(approvedByStatus || approvedByRole);
+    setIsAdmin(roleSet.has('admin'));
+    setIsGestor(roleSet.has('gestor'));
+    setIsFinanceiro(roleSet.has('financeiro'));
+    setIsLogistica(roleSet.has('logistica'));
+    setIsSupportTech(roleSet.has('support_tech'));
+    setIsSupportManager(roleSet.has('support_manager'));
+    setProfile(profileData);
+    setForcePasswordChange(profileData?.force_password_change === true);
+
+    return { profileData, roles: [...roleSet] };
+  }, []);
+
+  const refreshAccess = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await (supabase as any).rpc('get_current_user_access').maybeSingle();
+    if (error) {
+      console.error('[Auth] Access refresh error:', error);
+      return;
+    }
+    applyAccessData(data);
+    setProfileLoaded(true);
+  }, [applyAccessData, user]);
 
   // Safety timeout: hard cap on splash — never > 3s.
   useEffect(() => {
@@ -138,43 +194,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const profileData = data ? {
-          full_name: data.full_name ?? '',
-          phone: data.phone ?? '',
-          role: data.role ?? '',
-          avatar_url: data.avatar_url ?? undefined,
-          force_password_change: data.force_password_change === true,
-          company_id: data.company_id ?? undefined,
-          can_access_support_manager: data.can_access_support_manager === true,
-          permissions: (data.permissions ?? {}) as Record<string, boolean>,
-        } : null;
+        const { profileData, roles } = applyAccessData(data);
 
-        // Roles reais vêm APENAS de user_roles. profiles.role tem default 'comercial'
-        // e não pode ser usado para decidir aprovação (senão todo cadastro novo entra).
-        const roleSet = new Set<string>((data?.roles ?? []).map((r: any) => String(r).toLowerCase()));
-
-        const approvedByStatus = data?.approval_status === 'approved';
-        const approvedByRole = [...roleSet].some(r => APPROVED_ROLES.has(r));
-
-        // Aprovação exige status='approved' OU um cargo real atribuído em user_roles.
-        setIsApproved(approvedByStatus || approvedByRole);
-        setIsAdmin(roleSet.has('admin'));
-        setIsGestor(roleSet.has('gestor'));
-        setIsFinanceiro(roleSet.has('financeiro'));
-        setIsLogistica(roleSet.has('logistica'));
-        setIsSupportTech(roleSet.has('support_tech'));
-        setIsSupportManager(roleSet.has('support_manager'));
-
-        if (profileData) {
-          setProfile(profileData as any);
-          setForcePasswordChange(profileData.force_password_change === true);
-        } else if (attempt < 2) {
+        if (!profileData && attempt < 2) {
           devWarn('[Auth] Profile empty, retrying');
           setTimeout(() => { if (!cancelled) fetchData(); }, 800);
           return;
         }
 
-        devLog('[Auth] ready', { roles: [...roleSet] });
+        devLog('[Auth] ready', { roles });
         setProfileLoaded(true);
         setLoading(false);
       } catch (e) {
@@ -189,7 +217,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     fetchData();
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [applyAccessData, user?.id]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') refreshAccess();
+    };
+
+    window.addEventListener('focus', refreshAccess);
+    window.addEventListener('mci:refresh-auth', refreshAccess);
+    document.addEventListener('visibilitychange', handleVisibility);
+    const interval = window.setInterval(refreshAccess, 45000);
+
+    return () => {
+      window.removeEventListener('focus', refreshAccess);
+      window.removeEventListener('mci:refresh-auth', refreshAccess);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.clearInterval(interval);
+    };
+  }, [refreshAccess, user]);
 
   const signOut = useCallback(async () => {
     try {
@@ -207,7 +255,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user, session, loading, profileLoaded, isApproved, isAdmin, isGestor, isFinanceiro, isLogistica,
       isSupportTech, isSupportManager, isSupport: isSupportTech || isSupportManager,
       isSupportOnly: (isSupportTech || isSupportManager) && !isAdmin && !isGestor && !isFinanceiro && !isLogistica,
-      profile, forcePasswordChange, signOut
+      profile, forcePasswordChange, refreshAccess, signOut
     }}>
       {children}
     </AuthContext.Provider>
