@@ -3323,6 +3323,10 @@ export type Database = {
         Returns: boolean
       }
       current_user_company_id: { Args: never; Returns: string }
+      current_user_has_permission: {
+        Args: { _permission: string }
+        Returns: boolean
+      }
       delete_quote_cascade: { Args: { p_quote_id: string }; Returns: undefined }
       generate_quote_number: { Args: never; Returns: string }
       generate_technical_os_number: { Args: never; Returns: string }

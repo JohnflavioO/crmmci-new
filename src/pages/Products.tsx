@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,7 +75,7 @@ const highlightText = (text: any, tokens: string[]): any => {
 };
 
 export default function Products() {
-  const { isAdmin, isGestor } = useAuth();
+  const { hasPermission } = usePermissions();
   const isMobile = useIsMobile();
   const [products, setProducts] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -107,6 +107,10 @@ export default function Products() {
   const normQuery = normalize(search);
   const tokens = tokenize(search);
   const isSearching = tokens.length > 0;
+  const canCreateProducts = hasPermission('products.create');
+  const canEditProducts = hasPermission('products.edit');
+  const canDeleteProducts = hasPermission('products.delete');
+  const canModifyProducts = canEditProducts || canDeleteProducts;
 
   const loadProducts = async () => {
     setSuggestion(null);
@@ -498,27 +502,31 @@ export default function Products() {
           >
             <Truck className="h-4 w-4" /> Sem dados logísticos
           </Button>
-          {(isAdmin || isGestor) && (
+          {canEditProducts && (
             <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleBulkSyncLI} disabled={bulkSyncingLI}>
               {bulkSyncingLI ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               Atualizar pesos e dimensões da Loja Integrada
             </Button>
           )}
-          {(isAdmin || isGestor) && (
+          {canEditProducts && (
             <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={() => setLogisticsImportOpen(true)}>
               <FileSpreadsheet className="h-4 w-4" /> Importar dados logísticos
             </Button>
           )}
-          {(isAdmin || isGestor) && (
-            <>
+          {canEditProducts && (
             <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleFetchImages} disabled={fetchingImages}>
               <ImageDown className="h-4 w-4" />
               {fetchingImages ? 'Buscando...' : 'Buscar Imagens'}
             </Button>
+          )}
+          {(canCreateProducts || canEditProducts) && (
+            <>
             <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
-              <DialogTrigger asChild>
-                <Button className="gap-2 min-h-[44px]"><Plus className="h-4 w-4" /> Novo Produto</Button>
-              </DialogTrigger>
+              {canCreateProducts && (
+                <DialogTrigger asChild>
+                  <Button className="gap-2 min-h-[44px]"><Plus className="h-4 w-4" /> Novo Produto</Button>
+                </DialogTrigger>
+              )}
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="font-display">
@@ -760,14 +768,18 @@ export default function Products() {
                     </p>
                     <p className="text-sm font-semibold mt-1">{formatCurrency(parseFloat(p.price) || 0)}</p>
                   </div>
-                  {(isAdmin || isGestor) && (
+                  {canModifyProducts && (
                     <div className="flex flex-col gap-1 shrink-0">
-                      <Button size="icon" variant="ghost" onClick={() => handleEdit(p)} className="h-10 w-10">
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => handleDelete(p.id)} className="h-10 w-10">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      {canEditProducts && (
+                        <Button size="icon" variant="ghost" onClick={() => handleEdit(p)} className="h-10 w-10">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canDeleteProducts && (
+                        <Button size="icon" variant="ghost" onClick={() => handleDelete(p.id)} className="h-10 w-10">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -787,7 +799,7 @@ export default function Products() {
                   ) : (
                     <TableHead>Valor</TableHead>
                   )}
-                  {(isAdmin || isGestor) && <TableHead className="w-28">Ações</TableHead>}
+                  {canModifyProducts && <TableHead className="w-28">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -821,22 +833,26 @@ export default function Products() {
                     ) : (
                       <TableCell>{formatCurrency(parseFloat(p.price) || 0)}</TableCell>
                     )}
-                    {(isAdmin || isGestor) && (
+                    {canModifyProducts && (
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            title="Sincronizar Loja Integrada"
-                            onClick={() => handleSyncSingleLI(p.id)}
-                            disabled={syncingLI || p.bloquear_atualizacao_logistica}
-                          >
-                            {syncingLI ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                          </Button>
-                          <Button size="icon" variant="ghost" title="Editar" onClick={() => handleEdit(p)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          {!noLogisticFilter && (
+                          {canEditProducts && (
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                title="Sincronizar Loja Integrada"
+                                onClick={() => handleSyncSingleLI(p.id)}
+                                disabled={syncingLI || p.bloquear_atualizacao_logistica}
+                              >
+                                {syncingLI ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                              </Button>
+                              <Button size="icon" variant="ghost" title="Editar" onClick={() => handleEdit(p)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                          {canDeleteProducts && !noLogisticFilter && (
                             <Button size="icon" variant="ghost" title="Excluir" onClick={() => handleDelete(p.id)}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
