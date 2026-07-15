@@ -772,7 +772,24 @@ export default function ContractGenerator() {
             )}
           </DialogContent>
         </Dialog>
+
+        {signSendContract && (
+          <SendForSignatureDialog
+            open={signSendOpen}
+            onOpenChange={setSignSendOpen}
+            contract={signSendContract}
+            buildPdfBase64={buildPdfBase64}
+            onSent={() => fetchContracts()}
+          />
+        )}
+        <SignatureDetailsDrawer
+          open={signDetailsOpen}
+          onOpenChange={setSignDetailsOpen}
+          contract={signDetailsContract}
+          onChanged={() => fetchContracts()}
+        />
       </div>
     </AppLayout>
   );
 }
+
