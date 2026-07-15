@@ -361,6 +361,15 @@ export default function ContractGenerator() {
     }
   };
 
+  const buildPdfBase64 = async (contractOrForm: any): Promise<string> => {
+    const doc = await createPDFDocument(contractOrForm);
+    const dataUri = doc.output('datauristring');
+    return dataUri.replace(/^data:application\/pdf;base64,/, '');
+  };
+
+  const openSendSignature = (contract: any) => { setSignSendContract(contract); setSignSendOpen(true); };
+  const openSignDetails = (contract: any) => { setSignDetailsContract(contract); setSignDetailsOpen(true); };
+
   const openPreview = async (contractOrForm: any = formData) => {
     try {
       setPreviewContract(contractOrForm);
