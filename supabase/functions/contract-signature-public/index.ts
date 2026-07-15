@@ -517,6 +517,16 @@ Deno.serve(async (req) => {
         .upload(signedPath, signedBytesU8, { contentType: 'application/pdf', upsert: true });
       if (upErr) return json({ error: `Falha ao salvar assinado: ${upErr.message}` }, 500);
 
+      // Gera código público único de validação (retry em caso improvável de colisão).
+      let validationCode = generateValidationCode();
+      for (let i = 0; i < 4; i++) {
+        const { data: exists } = await svc
+          .from('contract_signature_requests')
+          .select('id').eq('validation_code', validationCode).maybeSingle();
+        if (!exists) break;
+        validationCode = generateValidationCode();
+      }
+
       await svc.from('contract_signature_requests').update({
         status: 'signed',
         signed_at: new Date().toISOString(),
@@ -525,6 +535,7 @@ Deno.serve(async (req) => {
         signature_method: method,
         signature_image: method === 'drawn' ? '[stored]' : null,
         terms_accepted_at: new Date().toISOString(),
+        validation_code: validationCode,
       }).eq('id', request.id);
       await svc.from('generated_contracts').update({
         signature_status: 'signed',
@@ -534,6 +545,36 @@ Deno.serve(async (req) => {
       }).eq('id', request.contract_id);
       await recordEvent(svc, request, 'terms_accepted', {}, req.headers);
       await recordEvent(svc, request, 'signature_completed', { method }, req.headers);
+
+      // Gera certificado de evidências (PDF com trilha de auditoria + QR).
+      try {
+        const { data: fullReq } = await svc
+          .from('contract_signature_requests').select('*').eq('id', request.id).maybeSingle();
+        const { data: evts } = await svc
+          .from('contract_signature_events')
+          .select('*').eq('signature_request_id', request.id)
+          .order('created_at', { ascending: true });
+        const validationUrl = publicValidationUrl(validationCode);
+        const evBytes = await buildEvidencePdf({
+          request: fullReq ?? request,
+          events: evts ?? [],
+          validationCode,
+          validationUrl,
+          signedHash,
+        });
+        const evPath = `${request.contract_id}/${request.id}/evidence.pdf`;
+        const { error: evUp } = await svc.storage.from('contract-evidence')
+          .upload(evPath, new Uint8Array(evBytes), { contentType: 'application/pdf', upsert: true });
+        if (!evUp) {
+          await svc.from('contract_signature_requests')
+            .update({ evidence_document_url: evPath })
+            .eq('id', request.id);
+        } else {
+          console.warn('[sign] falha ao salvar certificado', evUp);
+        }
+      } catch (e) {
+        console.warn('[sign] falha gerando certificado de evidências', e);
+      }
 
       // Notifica dono
       const { data: contract } = await svc.from('generated_contracts')
@@ -547,7 +588,72 @@ Deno.serve(async (req) => {
         });
       }
 
-      return json({ ok: true });
+      return json({ ok: true, validationCode, validationUrl: publicValidationUrl(validationCode) });
+    }
+
+    // ------------ validate (público, por código curto) ------------
+    if (action === 'validate') {
+      const svc = svcClient();
+      const code = String(payload.code ?? '').trim().toUpperCase();
+      if (!code || code.length < 8) return json({ error: 'Código inválido' }, 400);
+      const { data: reqRow } = await svc
+        .from('contract_signature_requests')
+        .select('*')
+        .eq('validation_code', code)
+        .maybeSingle();
+      if (!reqRow) return json({ ok: false, error: 'Assinatura não encontrada' }, 404);
+      if (reqRow.status !== 'signed') return json({ ok: false, error: 'Assinatura não concluída' }, 409);
+
+      const { data: contract } = await svc.from('generated_contracts')
+        .select('id,client_name,total_value,created_at,contract_data_json')
+        .eq('id', reqRow.contract_id).maybeSingle();
+
+      const { data: evts } = await svc
+        .from('contract_signature_events')
+        .select('event_type,created_at,ip_address,metadata')
+        .eq('signature_request_id', reqRow.id)
+        .order('created_at', { ascending: true });
+
+      let signedPdfUrl: string | null = null;
+      if (reqRow.signed_document_url) {
+        const { data } = await svc.storage.from('contract-signed')
+          .createSignedUrl(reqRow.signed_document_url, 300);
+        signedPdfUrl = data?.signedUrl ?? null;
+      }
+      let evidencePdfUrl: string | null = null;
+      if (reqRow.evidence_document_url) {
+        const { data } = await svc.storage.from('contract-evidence')
+          .createSignedUrl(reqRow.evidence_document_url, 300);
+        evidencePdfUrl = data?.signedUrl ?? null;
+      }
+
+      return json({
+        ok: true,
+        signature: {
+          id: reqRow.id,
+          provider: reqRow.provider,
+          signer: {
+            name: reqRow.signer_name,
+            documentMasked: maskCpf(reqRow.signer_document),
+            emailHint: reqRow.signer_email.replace(/(.{2}).*(@.*)/, '$1***$2'),
+          },
+          signed_at: reqRow.signed_at,
+          method: reqRow.signature_method,
+          original_hash: reqRow.original_document_hash,
+          signed_hash: reqRow.signed_document_hash,
+          ip: reqRow.last_ip,
+        },
+        contract: contract ? {
+          number: (contract.contract_data_json as any)?.number ?? contract.id.slice(0, 8).toUpperCase(),
+          title: 'Contrato de Pré-Venda e Entrega Futura',
+          client: contract.client_name,
+          total_value: contract.total_value,
+          created_at: contract.created_at,
+        } : null,
+        events: evts ?? [],
+        signedPdfUrl,
+        evidencePdfUrl,
+      });
     }
 
     return json({ error: `Ação desconhecida: ${action}` }, 400);
