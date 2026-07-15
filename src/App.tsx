@@ -10,9 +10,10 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import AppVersionBanner from "./components/AppVersionBanner";
 
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
 import RouteFallback from "@/components/RouteFallback";
+import { lazyWithRetry as lazy } from "@/lib/lazyWithRetry";
 
 import Auth from "./pages/Auth";
 import PendingApproval from "./pages/PendingApproval";
