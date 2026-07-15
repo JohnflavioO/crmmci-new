@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -76,7 +75,6 @@ const highlightText = (text: any, tokens: string[]): any => {
 };
 
 export default function Products() {
-  const { isAdmin, isGestor } = useAuth();
   const { hasPermission } = usePermissions();
   const isMobile = useIsMobile();
   const [products, setProducts] = useState<any[]>([]);
