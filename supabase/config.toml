@@ -1,1 +1,4 @@
 project_id = "npqujpfqsnwxowlciyof"
+
+[functions.contract-signature-public]
+verify_jwt = false

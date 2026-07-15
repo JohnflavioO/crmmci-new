@@ -11,13 +11,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, FileText, Trash2, Copy, Eye, History, FileDown, Printer, Loader2, Pencil, Upload, FileSignature, X } from 'lucide-react';
+import { Plus, FileText, Trash2, Copy, Eye, History, FileDown, Printer, Loader2, Pencil, Upload, FileSignature, X, Send, ShieldCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { signatureLabel } from '@/lib/signature/statusLabels';
+import SendForSignatureDialog from '@/components/contracts/SendForSignatureDialog';
+import SignatureDetailsDrawer from '@/components/contracts/SignatureDetailsDrawer';
 
 const mciData = {
   name: "MCI - Multi Comercial e Importadora LTDA",
@@ -66,6 +70,10 @@ export default function ContractGenerator() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewContract, setPreviewContract] = useState<any | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [signSendOpen, setSignSendOpen] = useState(false);
+  const [signSendContract, setSignSendContract] = useState<any>(null);
+  const [signDetailsOpen, setSignDetailsOpen] = useState(false);
+  const [signDetailsContract, setSignDetailsContract] = useState<any>(null);
   const canRemoveSigned = isAdmin || isGestor;
   
   const [formData, setFormData] = useState<any>({
@@ -353,6 +361,15 @@ export default function ContractGenerator() {
     }
   };
 
+  const buildPdfBase64 = async (contractOrForm: any): Promise<string> => {
+    const doc = await createPDFDocument(contractOrForm);
+    const dataUri = doc.output('datauristring');
+    return dataUri.replace(/^data:application\/pdf;base64,/, '');
+  };
+
+  const openSendSignature = (contract: any) => { setSignSendContract(contract); setSignSendOpen(true); };
+  const openSignDetails = (contract: any) => { setSignDetailsContract(contract); setSignDetailsOpen(true); };
+
   const openPreview = async (contractOrForm: any = formData) => {
     try {
       setPreviewContract(contractOrForm);
@@ -506,22 +523,32 @@ export default function ContractGenerator() {
                         <TableCell className="font-medium text-sm">{contract.client_name}</TableCell>
                         <TableCell className="text-sm font-semibold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contract.total_value)}</TableCell>
                         <TableCell>
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border",
-                            contract.status === 'rascunho' && "bg-gray-100 text-gray-700 border-gray-200",
-                            contract.status === 'enviado' && "bg-blue-100 text-blue-700 border-blue-200",
-                            contract.status === 'assinado' && "bg-emerald-100 text-emerald-700 border-emerald-200"
-                          )}>
-                            {contract.status}
-                          </span>
+                          {(() => {
+                            const meta = signatureLabel(contract.signature_status ?? 'draft');
+                            const Icon = meta.icon;
+                            return (
+                              <Badge variant="outline" className={cn('gap-1', meta.className)}>
+                                <Icon className="h-3 w-3" />
+                                {meta.label}
+                              </Badge>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1 flex-wrap">
-                            <Button variant="ghost" size="icon" onClick={() => openPreview(contract)} title="Visualizar">
+                            <Button variant="ghost" size="icon" onClick={() => openPreview(contract)} title="Visualizar contrato">
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => downloadPDF(contract)} title="Baixar PDF">
+                            <Button variant="ghost" size="icon" onClick={() => downloadPDF(contract)} title="Baixar PDF original">
                               <FileDown className="h-4 w-4" />
+                            </Button>
+                            {(!contract.signature_status || ['draft','ready_to_send','cancelled','refused','expired'].includes(contract.signature_status)) && (
+                              <Button variant="ghost" size="icon" title="Enviar para assinatura" onClick={() => openSendSignature(contract)}>
+                                <Send className="h-4 w-4 text-emerald-600" />
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="icon" title="Detalhes da assinatura" onClick={() => openSignDetails(contract)}>
+                              <ShieldCheck className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="icon" title="Editar" onClick={() => {
                               setEditingId(contract.id);
@@ -537,6 +564,7 @@ export default function ContractGenerator() {
                             }}>
                               <Copy className="h-4 w-4" />
                             </Button>
+
 
                             {/* Signed contract actions */}
                             {!contract.signed_file_url ? (
@@ -744,7 +772,24 @@ export default function ContractGenerator() {
             )}
           </DialogContent>
         </Dialog>
+
+        {signSendContract && (
+          <SendForSignatureDialog
+            open={signSendOpen}
+            onOpenChange={setSignSendOpen}
+            contract={signSendContract}
+            buildPdfBase64={buildPdfBase64}
+            onSent={() => fetchContracts()}
+          />
+        )}
+        <SignatureDetailsDrawer
+          open={signDetailsOpen}
+          onOpenChange={setSignDetailsOpen}
+          contract={signDetailsContract}
+          onChanged={() => fetchContracts()}
+        />
       </div>
     </AppLayout>
   );
 }
+

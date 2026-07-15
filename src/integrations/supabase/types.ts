@@ -458,6 +458,169 @@ export type Database = {
         }
         Relationships: []
       }
+      contract_signature_events: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          device_info: string | null
+          event_type: Database["public"]["Enums"]["contract_signature_event_type"]
+          id: string
+          ip_address: string | null
+          metadata: Json
+          signature_request_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          device_info?: string | null
+          event_type: Database["public"]["Enums"]["contract_signature_event_type"]
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          signature_request_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          device_info?: string | null
+          event_type?: Database["public"]["Enums"]["contract_signature_event_type"]
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          signature_request_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_signature_events_signature_request_id_fkey"
+            columns: ["signature_request_id"]
+            isOneToOne: false
+            referencedRelation: "contract_signature_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_signature_requests: {
+        Row: {
+          cancelled_at: string | null
+          company_id: string | null
+          contract_id: string
+          created_at: string
+          created_by: string | null
+          evidence_document_url: string | null
+          expires_at: string
+          id: string
+          identity_confirmed_at: string | null
+          last_ip: string | null
+          last_user_agent: string | null
+          original_document_hash: string | null
+          original_document_url: string | null
+          otp_attempts: number
+          otp_code_hash: string | null
+          otp_expires_at: string | null
+          provider: string
+          provider_request_id: string | null
+          public_token_hash: string
+          refused_at: string | null
+          sent_at: string | null
+          signature_image: string | null
+          signature_method: string | null
+          signed_at: string | null
+          signed_document_hash: string | null
+          signed_document_url: string | null
+          signer_document: string
+          signer_email: string
+          signer_name: string
+          signer_phone: string | null
+          status: Database["public"]["Enums"]["contract_signature_status"]
+          terms_accepted_at: string | null
+          updated_at: string
+          viewed_at: string | null
+        }
+        Insert: {
+          cancelled_at?: string | null
+          company_id?: string | null
+          contract_id: string
+          created_at?: string
+          created_by?: string | null
+          evidence_document_url?: string | null
+          expires_at: string
+          id?: string
+          identity_confirmed_at?: string | null
+          last_ip?: string | null
+          last_user_agent?: string | null
+          original_document_hash?: string | null
+          original_document_url?: string | null
+          otp_attempts?: number
+          otp_code_hash?: string | null
+          otp_expires_at?: string | null
+          provider?: string
+          provider_request_id?: string | null
+          public_token_hash: string
+          refused_at?: string | null
+          sent_at?: string | null
+          signature_image?: string | null
+          signature_method?: string | null
+          signed_at?: string | null
+          signed_document_hash?: string | null
+          signed_document_url?: string | null
+          signer_document: string
+          signer_email: string
+          signer_name: string
+          signer_phone?: string | null
+          status?: Database["public"]["Enums"]["contract_signature_status"]
+          terms_accepted_at?: string | null
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Update: {
+          cancelled_at?: string | null
+          company_id?: string | null
+          contract_id?: string
+          created_at?: string
+          created_by?: string | null
+          evidence_document_url?: string | null
+          expires_at?: string
+          id?: string
+          identity_confirmed_at?: string | null
+          last_ip?: string | null
+          last_user_agent?: string | null
+          original_document_hash?: string | null
+          original_document_url?: string | null
+          otp_attempts?: number
+          otp_code_hash?: string | null
+          otp_expires_at?: string | null
+          provider?: string
+          provider_request_id?: string | null
+          public_token_hash?: string
+          refused_at?: string | null
+          sent_at?: string | null
+          signature_image?: string | null
+          signature_method?: string | null
+          signed_at?: string | null
+          signed_document_hash?: string | null
+          signed_document_url?: string | null
+          signer_document?: string
+          signer_email?: string
+          signer_name?: string
+          signer_phone?: string | null
+          status?: Database["public"]["Enums"]["contract_signature_status"]
+          terms_accepted_at?: string | null
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_signature_requests_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "generated_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_templates: {
         Row: {
           active: boolean | null
@@ -702,6 +865,7 @@ export type Database = {
           pdf_url: string | null
           responsible_name: string | null
           responsible_phone: string | null
+          signature_status: Database["public"]["Enums"]["contract_signature_status"]
           signed_file_name: string | null
           signed_file_url: string | null
           signed_uploaded_at: string | null
@@ -722,6 +886,7 @@ export type Database = {
           pdf_url?: string | null
           responsible_name?: string | null
           responsible_phone?: string | null
+          signature_status?: Database["public"]["Enums"]["contract_signature_status"]
           signed_file_name?: string | null
           signed_file_url?: string | null
           signed_uploaded_at?: string | null
@@ -742,6 +907,7 @@ export type Database = {
           pdf_url?: string | null
           responsible_name?: string | null
           responsible_phone?: string | null
+          signature_status?: Database["public"]["Enums"]["contract_signature_status"]
           signed_file_name?: string | null
           signed_file_url?: string | null
           signed_uploaded_at?: string | null
@@ -3241,7 +3407,30 @@ export type Database = {
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
-      [_ in never]: never
+      contract_signature_event_type:
+        | "request_created"
+        | "invitation_sent"
+        | "link_opened"
+        | "identity_confirmed"
+        | "verification_code_sent"
+        | "verification_code_validated"
+        | "document_viewed"
+        | "terms_accepted"
+        | "signature_completed"
+        | "signature_refused"
+        | "request_expired"
+        | "request_cancelled"
+        | "document_downloaded"
+      contract_signature_status:
+        | "draft"
+        | "ready_to_send"
+        | "sent"
+        | "viewed"
+        | "awaiting_signature"
+        | "signed"
+        | "refused"
+        | "expired"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3368,6 +3557,33 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      contract_signature_event_type: [
+        "request_created",
+        "invitation_sent",
+        "link_opened",
+        "identity_confirmed",
+        "verification_code_sent",
+        "verification_code_validated",
+        "document_viewed",
+        "terms_accepted",
+        "signature_completed",
+        "signature_refused",
+        "request_expired",
+        "request_cancelled",
+        "document_downloaded",
+      ],
+      contract_signature_status: [
+        "draft",
+        "ready_to_send",
+        "sent",
+        "viewed",
+        "awaiting_signature",
+        "signed",
+        "refused",
+        "expired",
+        "cancelled",
+      ],
+    },
   },
 } as const
