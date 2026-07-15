@@ -161,6 +161,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/rastreamento/os/:token" element={<SafeRoute><PublicTracking /></SafeRoute>} />
         <Route path="/rastreio/pedido/:token" element={<SafeRoute><LogisticsTracking /></SafeRoute>} />
+        <Route path="/assinar-contrato/:token" element={<SafeRoute><PublicSignContract /></SafeRoute>} />
         <Route path="/ajuda" element={<SafeRoute><Help /></SafeRoute>} />
         <Route path="/sobre" element={<SafeRoute><About /></SafeRoute>} />
         <Route path="/configuracoes/notificacoes" element={<SafeRoute><NotificationSettings /></SafeRoute>} />
