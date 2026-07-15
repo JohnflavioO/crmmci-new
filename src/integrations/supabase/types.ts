@@ -3335,6 +3335,7 @@ export type Database = {
           company_id: string
           force_password_change: boolean
           full_name: string
+          permissions: Json
           phone: string
           role: string
           roles: string[]
