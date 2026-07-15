@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { signatureLabel, SIGNATURE_EVENT_LABEL } from '@/lib/signature/statusLabels';
-import { Loader2, Download, Ban, RotateCcw, Copy } from 'lucide-react';
+import { Loader2, Download, Ban, RotateCcw, Copy, ShieldCheck, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -86,11 +86,21 @@ export default function SignatureDetailsDrawer({ open, onOpenChange, contract, o
     } finally { setWorking(false); }
   };
 
-  const download = async (bucket: 'contract-originals' | 'contract-signed', path?: string | null) => {
+  const download = async (bucket: 'contract-originals' | 'contract-signed' | 'contract-evidence', path?: string | null) => {
     if (!path) return;
     const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 60);
     if (error || !data) { toast.error('Falha ao gerar link'); return; }
     window.open(data.signedUrl, '_blank');
+  };
+
+  const validationUrl = request?.validation_code
+    ? `${window.location.origin}/validar-assinatura/${request.validation_code}`
+    : null;
+
+  const copyValidation = async () => {
+    if (!validationUrl) return;
+    await navigator.clipboard.writeText(validationUrl);
+    toast.success('Link de validação copiado');
   };
 
   return (
