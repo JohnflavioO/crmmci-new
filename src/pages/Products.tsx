@@ -110,7 +110,7 @@ export default function Products() {
   const canCreateProducts = hasPermission('products.create');
   const canEditProducts = hasPermission('products.edit');
   const canDeleteProducts = hasPermission('products.delete');
-  const canManageProducts = canCreateProducts || canEditProducts || canDeleteProducts;
+  const canModifyProducts = canEditProducts || canDeleteProducts;
 
   const loadProducts = async () => {
     setSuggestion(null);
@@ -768,7 +768,7 @@ export default function Products() {
                     </p>
                     <p className="text-sm font-semibold mt-1">{formatCurrency(parseFloat(p.price) || 0)}</p>
                   </div>
-                  {canManageProducts && (
+                  {canModifyProducts && (
                     <div className="flex flex-col gap-1 shrink-0">
                       {canEditProducts && (
                         <Button size="icon" variant="ghost" onClick={() => handleEdit(p)} className="h-10 w-10">
@@ -799,7 +799,7 @@ export default function Products() {
                   ) : (
                     <TableHead>Valor</TableHead>
                   )}
-                  {canManageProducts && <TableHead className="w-28">Ações</TableHead>}
+                  {canModifyProducts && <TableHead className="w-28">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -833,7 +833,7 @@ export default function Products() {
                     ) : (
                       <TableCell>{formatCurrency(parseFloat(p.price) || 0)}</TableCell>
                     )}
-                    {canManageProducts && (
+                    {canModifyProducts && (
                       <TableCell>
                         <div className="flex gap-1">
                           {canEditProducts && (
