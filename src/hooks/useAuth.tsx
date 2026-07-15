@@ -50,6 +50,19 @@ type ProfileData = {
   permissions?: Record<string, boolean>;
 };
 
+type AccessData = {
+  full_name?: string | null;
+  phone?: string | null;
+  role?: string | null;
+  avatar_url?: string | null;
+  force_password_change?: boolean | null;
+  company_id?: string | null;
+  can_access_support_manager?: boolean | null;
+  approval_status?: string | null;
+  roles?: unknown[] | null;
+  permissions?: Record<string, boolean> | null;
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -65,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [forcePasswordChange, setForcePasswordChange] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
 
-  const applyAccessData = useCallback((data: any) => {
+  const applyAccessData = useCallback((data: AccessData | null | undefined) => {
     const profileData: ProfileData | null = data ? {
       full_name: data.full_name ?? '',
       phone: data.phone ?? '',
@@ -79,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Roles reais vêm APENAS de user_roles. profiles.role tem default 'comercial'
     // e não pode ser usado para decidir aprovação (senão todo cadastro novo entra).
-    const roleSet = new Set<string>((data?.roles ?? []).map((r: any) => String(r).toLowerCase()));
+    const roleSet = new Set<string>((data?.roles ?? []).map((r) => String(r).toLowerCase()));
     const approvedByStatus = data?.approval_status === 'approved';
     const approvedByRole = [...roleSet].some(r => APPROVED_ROLES.has(r));
 
