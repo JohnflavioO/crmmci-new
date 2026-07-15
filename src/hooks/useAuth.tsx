@@ -16,7 +16,7 @@ interface AuthContextType {
   isSupportManager: boolean;
   isSupport: boolean;
   isSupportOnly: boolean;
-  profile: { full_name: string; phone: string; role: string; avatar_url?: string; company_id?: string; can_access_support_manager?: boolean } | null;
+  profile: { full_name: string; phone: string; role: string; avatar_url?: string; company_id?: string; can_access_support_manager?: boolean; permissions?: Record<string, boolean> } | null;
   forcePasswordChange: boolean;
   signOut: () => Promise<void>;
 }
