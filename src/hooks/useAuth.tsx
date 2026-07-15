@@ -148,13 +148,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           can_access_support_manager: data.can_access_support_manager === true,
         } : null;
 
-        const normalizedRole = profileData?.role?.toLowerCase();
+        // Roles reais vêm APENAS de user_roles. profiles.role tem default 'comercial'
+        // e não pode ser usado para decidir aprovação (senão todo cadastro novo entra).
         const roleSet = new Set<string>((data?.roles ?? []).map((r: any) => String(r).toLowerCase()));
-        if (normalizedRole) roleSet.add(normalizedRole);
 
         const approvedByStatus = data?.approval_status === 'approved';
         const approvedByRole = [...roleSet].some(r => APPROVED_ROLES.has(r));
 
+        // Aprovação exige status='approved' OU um cargo real atribuído em user_roles.
         setIsApproved(approvedByStatus || approvedByRole);
         setIsAdmin(roleSet.has('admin'));
         setIsGestor(roleSet.has('gestor'));
