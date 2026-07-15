@@ -82,6 +82,151 @@ function otpCode6(): string {
   return String(n).padStart(6, '0');
 }
 
+// Código público humano-legível: 12 chars base32 (sem I/O/0/1), agrupado 4-4-4.
+function generateValidationCode(): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  let out = '';
+  for (let i = 0; i < 12; i++) {
+    out += alphabet[bytes[i] % alphabet.length];
+    if (i === 3 || i === 7) out += '-';
+  }
+  return out;
+}
+
+function publicValidationUrl(code: string): string {
+  const site = Deno.env.get('PUBLIC_SITE_URL') ?? 'https://mcicrm.online';
+  return `${site.replace(/\/$/, '')}/validar-assinatura/${code}`;
+}
+
+const EVENT_LABEL: Record<string, string> = {
+  request_created: 'Solicitação criada',
+  invitation_sent: 'Convite enviado',
+  link_opened: 'Link aberto pelo signatário',
+  identity_confirmed: 'Identidade confirmada',
+  verification_code_sent: 'Código de verificação enviado',
+  verification_code_validated: 'Código validado',
+  document_viewed: 'Documento visualizado',
+  terms_accepted: 'Termos aceitos',
+  signature_completed: 'Assinatura concluída',
+  signature_refused: 'Assinatura recusada',
+  request_expired: 'Solicitação expirada',
+  request_cancelled: 'Solicitação cancelada',
+  document_downloaded: 'Documento baixado',
+};
+
+async function buildEvidencePdf(params: {
+  request: any;
+  events: any[];
+  validationCode: string;
+  validationUrl: string;
+  signedHash: string;
+}): Promise<Uint8Array> {
+  const { request, events, validationCode, validationUrl, signedHash } = params;
+
+  const pdfDoc = await PDFDocument.create();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const green = rgb(0.06, 0.17, 0.15);
+  const grey = rgb(0.35, 0.35, 0.35);
+  const black = rgb(0.13, 0.13, 0.13);
+
+  let page = pdfDoc.addPage([595, 842]); // A4
+  const margin = 48;
+  let y = 800;
+
+  // Cabeçalho
+  page.drawRectangle({ x: 0, y: 792, width: 595, height: 50, color: green });
+  page.drawText('CERTIFICADO DE EVIDÊNCIAS DE ASSINATURA', {
+    x: margin, y: 810, size: 14, font: bold, color: rgb(1, 1, 1),
+  });
+  page.drawText('MCI CRM • Provider: mci_native', {
+    x: margin, y: 796, size: 8, font, color: rgb(0.85, 0.9, 0.88),
+  });
+  y = 770;
+
+  // QR code
+  try {
+    const qrDataUrl: string = await QRCode.toDataURL(validationUrl, {
+      errorCorrectionLevel: 'M', margin: 1, width: 240,
+    });
+    const b64 = qrDataUrl.replace(/^data:image\/png;base64,/, '');
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const qrImg = await pdfDoc.embedPng(bytes);
+    page.drawImage(qrImg, { x: 595 - margin - 110, y: y - 110, width: 110, height: 110 });
+  } catch (e) { console.warn('[evidence] qr falhou', e); }
+
+  const drawKV = (label: string, value: string) => {
+    page.drawText(label, { x: margin, y, size: 9, font: bold, color: grey });
+    page.drawText(value, { x: margin, y: y - 12, size: 10, font, color: black });
+    y -= 28;
+  };
+
+  drawKV('Código público de validação', validationCode);
+  drawKV('URL de validação', validationUrl);
+  drawKV('ID da assinatura', request.id);
+  drawKV('Contrato', request.contract_id);
+  y -= 6;
+
+  page.drawText('SIGNATÁRIO', { x: margin, y, size: 10, font: bold, color: green });
+  y -= 16;
+  drawKV('Nome', request.signer_name);
+  drawKV('CPF (mascarado)', maskCpf(request.signer_document));
+  drawKV('E-mail', request.signer_email);
+  if (request.signer_phone) drawKV('Telefone', request.signer_phone);
+  drawKV('Método de assinatura', request.signature_method ?? '—');
+  drawKV('Identidade confirmada em', request.identity_confirmed_at ? new Date(request.identity_confirmed_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—');
+  drawKV('Assinado em', request.signed_at ? new Date(request.signed_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—');
+  drawKV('IP do signatário', request.last_ip ?? '—');
+  drawKV('User-agent', (request.last_user_agent ?? '—').slice(0, 90));
+
+  y -= 6;
+  page.drawText('INTEGRIDADE DO DOCUMENTO', { x: margin, y, size: 10, font: bold, color: green });
+  y -= 16;
+  drawKV('Hash SHA-256 do PDF original', request.original_document_hash ?? '—');
+  drawKV('Hash SHA-256 do PDF assinado', signedHash);
+
+  // Timeline
+  y -= 4;
+  page.drawText('TRILHA DE AUDITORIA', { x: margin, y, size: 10, font: bold, color: green });
+  y -= 16;
+
+  const ensureRoom = (needed: number) => {
+    if (y - needed < 60) {
+      page = pdfDoc.addPage([595, 842]);
+      y = 800;
+    }
+  };
+
+  for (const evt of events) {
+    ensureRoom(30);
+    const label = EVENT_LABEL[evt.event_type] ?? evt.event_type;
+    const ts = evt.created_at ? new Date(evt.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '';
+    page.drawCircle({ x: margin + 3, y: y + 3, size: 2.5, color: green });
+    page.drawText(label, { x: margin + 14, y, size: 9.5, font: bold, color: black });
+    y -= 12;
+    const meta = `${ts}${evt.ip_address ? ` • IP ${evt.ip_address}` : ''}`;
+    page.drawText(meta, { x: margin + 14, y, size: 8, font, color: grey });
+    y -= 14;
+  }
+
+  // Rodapé em cada página
+  const total = pdfDoc.getPageCount();
+  for (let i = 0; i < total; i++) {
+    const p = pdfDoc.getPage(i);
+    p.drawText(
+      `Certificado gerado automaticamente pelo CRM MCI • Valide em ${validationUrl}`,
+      { x: margin, y: 24, size: 7, font, color: grey },
+    );
+    p.drawText(`Página ${i + 1}/${total}`, { x: 595 - margin - 50, y: 24, size: 7, font, color: grey });
+  }
+
+  return pdfDoc.save();
+}
+
 async function sendResend(to: string, subject: string, html: string) {
   const key = Deno.env.get('RESEND_API_KEY');
   const lovableKey = Deno.env.get('LOVABLE_API_KEY');
