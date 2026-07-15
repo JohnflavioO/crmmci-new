@@ -513,18 +513,20 @@ export default function Products() {
               <FileSpreadsheet className="h-4 w-4" /> Importar dados logísticos
             </Button>
           )}
-          {canCreateProducts && (
-            <>
-            {canEditProducts && (
-              <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleFetchImages} disabled={fetchingImages}>
+          {canEditProducts && (
+            <Button variant="outline" className="gap-2 min-h-[44px] text-sm" onClick={handleFetchImages} disabled={fetchingImages}>
               <ImageDown className="h-4 w-4" />
               {fetchingImages ? 'Buscando...' : 'Buscar Imagens'}
-              </Button>
-            )}
+            </Button>
+          )}
+          {(canCreateProducts || canEditProducts) && (
+            <>
             <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
-              <DialogTrigger asChild>
-                <Button className="gap-2 min-h-[44px]"><Plus className="h-4 w-4" /> Novo Produto</Button>
-              </DialogTrigger>
+              {canCreateProducts && (
+                <DialogTrigger asChild>
+                  <Button className="gap-2 min-h-[44px]"><Plus className="h-4 w-4" /> Novo Produto</Button>
+                </DialogTrigger>
+              )}
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="font-display">
