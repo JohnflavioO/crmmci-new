@@ -70,6 +70,10 @@ export default function ContractGenerator() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewContract, setPreviewContract] = useState<any | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [signSendOpen, setSignSendOpen] = useState(false);
+  const [signSendContract, setSignSendContract] = useState<any>(null);
+  const [signDetailsOpen, setSignDetailsOpen] = useState(false);
+  const [signDetailsContract, setSignDetailsContract] = useState<any>(null);
   const canRemoveSigned = isAdmin || isGestor;
   
   const [formData, setFormData] = useState<any>({
