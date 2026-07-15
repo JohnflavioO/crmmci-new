@@ -65,6 +65,7 @@ const AssistantSettings = lazy(() => import("./pages/AssistantSettings"));
 const LogisticsSyncDiagnostic = lazy(() => import("./pages/LogisticsSyncDiagnostic"));
 const ProductMapping = lazy(() => import("./pages/ProductMapping"));
 const PublicSignContract = lazy(() => import("./pages/PublicSignContract"));
+const PublicValidateSignature = lazy(() => import("./pages/PublicValidateSignature"));
 
 
 const queryClient = new QueryClient({
@@ -128,6 +129,7 @@ function AppRoutes() {
           <Route path="/rastreamento/os/:token" element={<SafeRoute><PublicTracking /></SafeRoute>} />
           <Route path="/rastreio/pedido/:token" element={<SafeRoute><LogisticsTracking /></SafeRoute>} />
           <Route path="/assinar-contrato/:token" element={<SafeRoute><PublicSignContract /></SafeRoute>} />
+          <Route path="/validar-assinatura/:code" element={<SafeRoute><PublicValidateSignature /></SafeRoute>} />
           <Route path="/.lovable/oauth/consent" element={<SafeRoute><OAuthConsent /></SafeRoute>} />
           <Route path="*" element={<Auth />} />
         </Routes>
@@ -162,6 +164,7 @@ function AppRoutes() {
         <Route path="/rastreamento/os/:token" element={<SafeRoute><PublicTracking /></SafeRoute>} />
         <Route path="/rastreio/pedido/:token" element={<SafeRoute><LogisticsTracking /></SafeRoute>} />
         <Route path="/assinar-contrato/:token" element={<SafeRoute><PublicSignContract /></SafeRoute>} />
+        <Route path="/validar-assinatura/:code" element={<SafeRoute><PublicValidateSignature /></SafeRoute>} />
         <Route path="/ajuda" element={<SafeRoute><Help /></SafeRoute>} />
         <Route path="/sobre" element={<SafeRoute><About /></SafeRoute>} />
         <Route path="/configuracoes/notificacoes" element={<SafeRoute><NotificationSettings /></SafeRoute>} />
