@@ -523,22 +523,32 @@ export default function ContractGenerator() {
                         <TableCell className="font-medium text-sm">{contract.client_name}</TableCell>
                         <TableCell className="text-sm font-semibold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contract.total_value)}</TableCell>
                         <TableCell>
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border",
-                            contract.status === 'rascunho' && "bg-gray-100 text-gray-700 border-gray-200",
-                            contract.status === 'enviado' && "bg-blue-100 text-blue-700 border-blue-200",
-                            contract.status === 'assinado' && "bg-emerald-100 text-emerald-700 border-emerald-200"
-                          )}>
-                            {contract.status}
-                          </span>
+                          {(() => {
+                            const meta = signatureLabel(contract.signature_status ?? 'draft');
+                            const Icon = meta.icon;
+                            return (
+                              <Badge variant="outline" className={cn('gap-1', meta.className)}>
+                                <Icon className="h-3 w-3" />
+                                {meta.label}
+                              </Badge>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1 flex-wrap">
-                            <Button variant="ghost" size="icon" onClick={() => openPreview(contract)} title="Visualizar">
+                            <Button variant="ghost" size="icon" onClick={() => openPreview(contract)} title="Visualizar contrato">
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => downloadPDF(contract)} title="Baixar PDF">
+                            <Button variant="ghost" size="icon" onClick={() => downloadPDF(contract)} title="Baixar PDF original">
                               <FileDown className="h-4 w-4" />
+                            </Button>
+                            {(!contract.signature_status || ['draft','ready_to_send','cancelled','refused','expired'].includes(contract.signature_status)) && (
+                              <Button variant="ghost" size="icon" title="Enviar para assinatura" onClick={() => openSendSignature(contract)}>
+                                <Send className="h-4 w-4 text-emerald-600" />
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="icon" title="Detalhes da assinatura" onClick={() => openSignDetails(contract)}>
+                              <ShieldCheck className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="icon" title="Editar" onClick={() => {
                               setEditingId(contract.id);
@@ -554,6 +564,7 @@ export default function ContractGenerator() {
                             }}>
                               <Copy className="h-4 w-4" />
                             </Button>
+
 
                             {/* Signed contract actions */}
                             {!contract.signed_file_url ? (
