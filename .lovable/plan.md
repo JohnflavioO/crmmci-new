@@ -1,65 +1,83 @@
-# Plano — Auditoria e correção da sincronização logística
+# Assinatura Eletrônica de Contratos — Fase 1
 
-Objetivo: entender exatamente por que cada produto continua sem peso/dimensão após a Sincronização Inteligente e dar ferramentas para resolver caso a caso.
+Entrega o fluxo end-to-end de envio, validação por OTP e assinatura eletrônica de contratos, com todas as evidências gravadas. Provider inicial nativo (`mci_native`), atrás de uma interface `SignatureProvider` que permite trocar por Clicksign/D4Sign/DocuSign no futuro sem tocar no módulo de contratos.
 
-## 1. Backend (edge function `loja-integrada`)
+Fase 2 (não incluída aqui): certificado de evidências em PDF com QR de validação pública, timeline visual completa no drawer, página `/validar-assinatura/:code`, adaptadores stub para provedores externos.
 
-Adicionar novas actions:
+## O que a Fase 1 entrega
 
-- **`audit_missing_dimensions`** — para cada produto CRM vinculado sem peso/dimensão:
-  - buscar produto na Loja Integrada por `external_id`
-  - inspecionar em ordem: `produto`, `produto_variacao_padrao`, `produto_variacoes[0]`, endpoint `/produto_variacao/<id>`
-  - registrar peso/altura/largura/profundidade retornados em cada fonte
-  - classificar motivo: `campo_ausente`, `valor_zero`, `valor_null`, `variacao_sem_dimensao`, `sem_vinculo`, `erro_api`, `bloqueado`, `conflito_match`
-  - retornar array com { produto CRM, produto LI, ID LI, SKU LI, variação, valores por fonte, fonte usada, motivo }
+- Enviar contrato para assinatura por link seguro (email via Resend + copiar link para WhatsApp).
+- Página pública `/assinar-contrato/:token` sem login no CRM, com visualizador de PDF, aceite de termos, OTP por email e assinatura (digitada ou desenhada).
+- Contrato fica imutável após envio; alterações exigem cancelar e reemitir.
+- PDF assinado gerado com selo visual (nome, CPF mascarado, data/hora, ID da assinatura) e hash SHA-256.
+- Histórico do Gerador de Contratos com novos status em PT-BR, badges, e ações: Enviar, Copiar link, Reenviar, Cancelar, Ver contrato, Baixar original, Baixar assinado.
+- Trilha de auditoria completa (`contract_signature_events`) com IP, user-agent, timestamps.
+- RLS por `company_id`, buckets privados, token público forte armazenado só como hash, OTP com expiração e limite de tentativas.
+- Notificação ao responsável comercial quando o contrato é assinado ou recusado.
 
-- **`reprocess_missing_only`** — roda `sync_product_dimensions` apenas nos produtos sem peso OU sem dimensão (não bloqueados).
+## Banco de dados
 
-- **`bulk_similarity_match`** — para produtos "não vinculados":
-  - normaliza nome (lowercase, sem acento, sem pontuação)
-  - calcula similaridade contra catálogo LI (Jaro-Winkler / Dice)
-  - ≥ 0.95 → vincula automaticamente (`linked`)
-  - 0.85–0.95 → grava candidatos em `product_external_links.match_candidates` (`needs_validation`)
-  - < 0.85 → `not_found`
+Migration única criando:
 
-- Reforço em `sync_product_dimensions`: quando dimensões seguem zeradas após parse do produto e da variação padrão, chamar `/produto_variacao/<id>` explicitamente antes de desistir.
+- Enum `contract_signature_status`: `draft, ready_to_send, sent, viewed, awaiting_signature, signed, refused, expired, cancelled`.
+- Enum `contract_signature_event_type` com todos os eventos listados no pedido.
+- Tabela `contract_signature_requests` com os campos especificados + `otp_code_hash`, `otp_expires_at`, `otp_attempts`, `provider` default `mci_native`.
+- Tabela `contract_signature_events` com os campos especificados.
+- Coluna `signature_status` em `generated_contracts` para refletir o estado corrente.
+- Buckets privados: `contract-originals`, `contract-signed`, `contract-evidence`.
+- GRANTs + RLS: `authenticated` só enxerga registros do próprio `company_id`; `service_role` acessa tudo (edge functions); `anon` sem acesso direto — a página pública opera exclusivamente via edge functions com `service_role`.
+- Trigger de `updated_at` e trigger que preenche `company_id` a partir do contrato.
 
-## 2. Tela `LogisticsSyncDiagnostic.tsx`
+## Arquitetura de providers
 
-### Novos indicadores no topo
-- **Prontos para frete**: produtos com peso > 0 E altura > 0 E largura > 0 E comprimento > 0.
-- Separar contadores: `Vinculado completo`, `Vinculado sem peso`, `Vinculado sem dimensões`, `Aguardando validação`, `Sem correspondência`, `Erro`.
+`supabase/functions/_shared/signature-providers/`
 
-### Novos botões
-- **Reprocessar somente sem peso/dimensões** → chama `reprocess_missing_only`.
-- **Exportar pendências CSV** → gera CSV client-side com as colunas da auditoria.
-- **Auditar pendências** → chama `audit_missing_dimensions` e abre tabela detalhada.
+```text
+types.ts          -> interface SignatureProvider { createSignatureRequest,
+                     getSignatureStatus, cancelSignatureRequest,
+                     downloadSignedDocument, processWebhook }
+mci-native.ts     -> implementação nativa completa (Fase 1)
+registry.ts       -> resolve provider por nome; default 'mci_native'
+```
 
-### Nova tabela "Auditoria de pendências"
-Colunas: Produto CRM · Código · SKU · Produto LI · ID LI · SKU LI · Variação · Peso API · Altura API · Largura API · Profundidade API · Fonte consultada · Motivo.
+O frontend e o módulo de contratos nunca importam `mci-native` diretamente — sempre passam pelo edge function, que passa pelo registry.
 
-### Seção "Aguardando validação" melhorada
-Lista cada item pendente com top 3 candidatos LI + % similaridade. Ações por linha: **Vincular** (grava em `product_external_links` + sync imediato), **Ignorar** (marca `not_found`), **Sem equivalente** (mesmo efeito, sinaliza revisado).
+## Edge functions (novas)
 
-## 3. Orçamento (`Quotes.tsx` / `FreightSummaryCard`)
+- `contract-signature-send` — valida contrato, gera PDF final, calcula SHA-256, faz upload no bucket original, cria `signature_request`, dispara email via Resend com o link.
+- `contract-signature-public` — endpoint público (`verify_jwt=false`) que valida token, retorna metadados sanitizados do contrato + URL assinada de download do PDF, registra `link_opened` / `document_viewed`.
+- `contract-signature-otp` — gera e valida OTP (hash + expiração + max 5 tentativas + rate limit por IP).
+- `contract-signature-sign` — valida OTP + aceite + hash do documento, gera PDF assinado com selo visual (pdf-lib), calcula novo hash, faz upload no bucket assinado, atualiza status para `signed`, cria notificação para o `created_by`.
+- `contract-signature-cancel` / `contract-signature-resend` — ações do dono.
 
-- Ao detectar item sem peso/dimensão, checar se produto tem vínculo em `product_external_links`.
-  - Vinculado sem dados: mensagem "Produto vinculado, mas sem dados logísticos na Loja Integrada."
-  - Sem vínculo: mensagem atual ("Produto sem peso/dimensões cadastrados").
-- Card de frete só marca "pronto" quando peso, altura, largura e comprimento > 0.
+Todas registram evento em `contract_signature_events` com IP e user-agent.
 
-## Detalhes técnicos
+## Frontend
 
-- Não altera schema — usamos colunas existentes (`product_external_links.match_candidates jsonb` já existe; se não existir, migração adicional).
-- CSV gerado com `Blob` no client, sem lib nova.
-- Similaridade: implementação Dice bigram em TS puro no edge function.
-- Nenhum campo comercial (preço/estoque/descrição) é tocado.
+- `src/lib/signature/statusLabels.ts` — labels PT-BR, cores e ícones para badges.
+- `src/pages/ContractGenerator.tsx` — no histórico: badge de status, menu de ações novas; drawer "Detalhes da assinatura" com timeline básica (lista de eventos) e botões de download.
+- `src/components/contracts/SendForSignatureDialog.tsx` — coleta nome, CPF, email, telefone e validade; chama `contract-signature-send`; ao voltar mostra o link copiável.
+- `src/pages/PublicSignContract.tsx` — nova rota pública `/assinar-contrato/:token`, sem auth, visual MCI: cabeçalho, dados do contrato, visualizador de PDF (iframe da URL assinada), etapa 1 confirmar identidade → etapa 2 receber OTP → etapa 3 aceitar termos + assinar (digitada/desenhada com `react-signature-canvas`) → tela final com download do PDF assinado.
+- Rota adicionada em `App.tsx` no bloco público (fora do gate de auth), com `SafeRoute`.
 
-## Arquivos
+Visual: usa componentes shadcn já existentes, paleta e tipografia do CRM (`#0f2b26`, verde MCI). Nada de estilo "IA/futurista".
 
-- `supabase/functions/loja-integrada/index.ts` — 3 novas actions + reforço `/produto_variacao`.
-- `src/pages/LogisticsSyncDiagnostic.tsx` — novos cards, botões, tabela auditoria, painel validação.
-- `src/pages/Quotes.tsx` e/ou `src/components/FreightSummaryCard.tsx` — mensagens específicas + indicador "pronto para frete".
-- Possível migração para coluna `match_candidates` em `product_external_links` se ainda não existir.
+## Segurança aplicada
 
-Aprovar para eu implementar em uma única leva.
+- Token público = 32 bytes aleatórios base64url; DB armazena só SHA-256; edge function compara hash.
+- OTP = 6 dígitos, hash SHA-256, expira em 10 min, máx 5 tentativas, incrementa contador em cada tentativa errada.
+- URLs de download sempre assinadas com validade de 5 min.
+- CPF mascarado (`***.***.***-XX`) em qualquer resposta pública e em logs.
+- Nenhum service key exposto no frontend; toda operação sensível em edge function.
+- Após `sent`, um trigger impede update em campos-conteúdo de `generated_contracts` enquanto houver `signature_request` ativa.
+- Hash do documento validado antes de assinar (garante que o PDF servido é o mesmo assinado).
+- Webhook handler já preparado com idempotência por `provider_request_id + event_type`.
+
+## Dependências / conectores
+
+- Requer conector Resend conectado ao projeto (o usuário confirmou). Se `RESEND_API_KEY` não estiver disponível no momento do envio, retorno erro claro em vez de fingir sucesso.
+- `pdf-lib` já usado em outras funções; sem novos pacotes no frontend além de `react-signature-canvas`.
+
+## Critérios de aceite cobertos na Fase 1
+
+Itens 1–6 e 8–12 do pedido original. O item 7 (certificado de evidências em PDF) fica pronto como estrutura de dados na Fase 1 e o PDF é gerado na Fase 2.
