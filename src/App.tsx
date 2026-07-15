@@ -127,6 +127,7 @@ function AppRoutes() {
           <Route path="/quote/:token" element={<SafeRoute><PublicQuote /></SafeRoute>} />
           <Route path="/rastreamento/os/:token" element={<SafeRoute><PublicTracking /></SafeRoute>} />
           <Route path="/rastreio/pedido/:token" element={<SafeRoute><LogisticsTracking /></SafeRoute>} />
+          <Route path="/assinar-contrato/:token" element={<SafeRoute><PublicSignContract /></SafeRoute>} />
           <Route path="/.lovable/oauth/consent" element={<SafeRoute><OAuthConsent /></SafeRoute>} />
           <Route path="*" element={<Auth />} />
         </Routes>
