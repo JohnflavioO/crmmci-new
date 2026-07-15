@@ -148,6 +148,11 @@ export default function SignatureDetailsDrawer({ open, onOpenChange, contract, o
                       <Download className="w-4 h-4 mr-1" /> PDF assinado
                     </Button>
                   )}
+                  {request.evidence_document_url && (
+                    <Button size="sm" className="bg-[#0f2b26] hover:bg-[#0f2b26]/90" onClick={() => download('contract-evidence', request.evidence_document_url)}>
+                      <ShieldCheck className="w-4 h-4 mr-1" /> Certificado de evidências
+                    </Button>
+                  )}
                   {['sent','viewed','awaiting_signature'].includes(request.status) && (
                     <>
                       <Button size="sm" variant="outline" onClick={resend} disabled={working}>
@@ -160,12 +165,32 @@ export default function SignatureDetailsDrawer({ open, onOpenChange, contract, o
                   )}
                 </div>
 
+                {validationUrl && (
+                  <div className="border rounded-lg p-3 bg-emerald-50/50 border-emerald-200 space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
+                      <ShieldCheck className="w-4 h-4" /> Validação pública
+                    </div>
+                    <div className="text-xs text-emerald-900/80">Código: <span className="font-mono font-bold">{request.validation_code}</span></div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={copyValidation}>
+                        <Copy className="w-3 h-3 mr-1" /> Copiar link
+                      </Button>
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={validationUrl} target="_blank" rel="noreferrer">
+                          <ExternalLink className="w-3 h-3 mr-1" /> Abrir
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <h4 className="text-sm font-semibold mb-2">Linha do tempo</h4>
-                  <ol className="border-l pl-4 space-y-3">
+                  <ol className="border-l-2 border-emerald-200 pl-4 space-y-3">
                     {events.map((e) => (
-                      <li key={e.id} className="text-xs">
-                        <div className="font-medium">{SIGNATURE_EVENT_LABEL[e.event_type] ?? e.event_type}</div>
+                      <li key={e.id} className="relative text-xs">
+                        <span className="absolute -left-[19px] top-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
+                        <div className="font-medium text-slate-800">{SIGNATURE_EVENT_LABEL[e.event_type] ?? e.event_type}</div>
                         <div className="text-muted-foreground">
                           {format(new Date(e.created_at), 'dd/MM/yyyy HH:mm:ss', { locale: ptBR })}
                           {e.ip_address ? ` • IP ${e.ip_address}` : ''}
