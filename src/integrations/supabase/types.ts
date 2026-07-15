@@ -537,6 +537,7 @@ export type Database = {
           status: Database["public"]["Enums"]["contract_signature_status"]
           terms_accepted_at: string | null
           updated_at: string
+          validation_code: string | null
           viewed_at: string | null
         }
         Insert: {
@@ -573,6 +574,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["contract_signature_status"]
           terms_accepted_at?: string | null
           updated_at?: string
+          validation_code?: string | null
           viewed_at?: string | null
         }
         Update: {
@@ -609,6 +611,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["contract_signature_status"]
           terms_accepted_at?: string | null
           updated_at?: string
+          validation_code?: string | null
           viewed_at?: string | null
         }
         Relationships: [
