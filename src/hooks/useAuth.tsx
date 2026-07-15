@@ -146,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           force_password_change: data.force_password_change === true,
           company_id: data.company_id ?? undefined,
           can_access_support_manager: data.can_access_support_manager === true,
+          permissions: (data.permissions ?? {}) as Record<string, boolean>,
         } : null;
 
         // Roles reais vêm APENAS de user_roles. profiles.role tem default 'comercial'
