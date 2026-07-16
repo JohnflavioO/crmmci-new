@@ -57,7 +57,7 @@ export default function QuoteHeader() {
 
         {/* Brands bar */}
         <div className="mt-3 pt-2 border-t border-slate-200 flex flex-wrap items-center justify-center gap-3 text-[10px] font-semibold text-slate-500 tracking-wide">
-          {['Aputure', 'DZOFILM', 'Caligri', 'SECCED', 'Accsoon', 'Miliboo', 'Godox', '7artisans', 'CREAM SOURCE'].map(b => (
+          {['Aputure', 'DZOFILM', 'Caligri', 'SECCED', 'Accsoon', 'Miliboo', 'Dearkol', '7artisans', 'CREAM SOURCE', 'DopChoice', 'Astera'].map(b => (
             <span key={b}>{b}</span>
           ))}
         </div>
