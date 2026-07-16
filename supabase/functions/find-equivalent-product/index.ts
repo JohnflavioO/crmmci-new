@@ -308,9 +308,20 @@ Deno.serve(async (req) => {
       log('candidates_retry', { count: candidateList.length });
     }
 
+    // Category fallback: broad list within same category ordered by textual similarity
+    if (candidateList.length === 0 && normalized.category) {
+      const { data: catList } = await supabase
+        .from('products')
+        .select('id,name,brand,code,sku,category_principal,description,price,image_url,compatibility')
+        .ilike('category_principal', `%${normalized.category}%`)
+        .limit(30);
+      candidateList = (catList ?? []) as CandidateRow[];
+      log('category_fallback', { count: candidateList.length });
+    }
+
     if (candidateList.length === 0) {
       const payload = { extracted, results: [], message: 'Não encontramos produtos MCI relacionados a este equipamento no catálogo.', response_time_ms: Date.now() - started, diagnostic };
-      await supabase.from('equivalence_search_cache').upsert({ input_hash: inputHash, input_type: mode, input_value: input, extracted_specs: extracted, candidates: [] }, { onConflict: 'input_hash' });
+      // Do NOT cache empty results — always log history
       await supabase.from('equivalence_search_history').insert({ user_id: userId, input_type: mode, input_value: input, extracted_specs: extracted, response_time_ms: Date.now() - started });
       return new Response(JSON.stringify(payload), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
