@@ -103,13 +103,13 @@
       })();
 
       /* Limpeza segura de app-shell Service Workers antigos.
-         Importante: no preview o app só inicia depois desta promessa. Um Workbox
-         antigo controla a página ANTES do React e quebra o fetch do auth-bridge. */
+         Regra definitiva: no preview da Lovable NUNCA recarregar, substituir ou
+         reescrever a URL. O token da prévia é temporário; qualquer reload aqui
+         pode causar a tela nativa de "página temporariamente indisponível". */
       (function () {
         if (!('serviceWorker' in navigator)) return;
 
         var appShellWorkerPaths = ['/sw.js', '/service-worker.js'];
-        var reloadFlag = '__mci_app_shell_sw_reloaded_v4';
         var host = window.location.hostname;
         var isPreview = window.self !== window.top
           || host.indexOf('id-preview--') === 0
@@ -118,11 +118,6 @@
           || (host.indexOf('preview') !== -1 && /\.lovable\.app$/.test(host))
           || /\.lovableproject(?:-dev)?\.com$/.test(host)
           || /\.beta\.lovable\.dev$/.test(host);
-
-        var isSameOriginScript = function (scriptURL) {
-          try { return new URL(scriptURL).origin === window.location.origin; }
-          catch (_) { return false; }
-        };
 
         var isAppShellScript = function (scriptURL) {
           try {
@@ -133,13 +128,23 @@
           }
         };
 
+        var isSameOriginNonMessagingScript = function (scriptURL) {
+          try {
+            var url = new URL(scriptURL);
+            return url.origin === window.location.origin && url.pathname !== '/firebase-messaging-sw.js';
+          } catch (_) {
+            return false;
+          }
+        };
+
         var shouldRemoveWorker = function (scriptURL) {
-          return isPreview ? isSameOriginScript(scriptURL) : isAppShellScript(scriptURL);
+          return isPreview ? isSameOriginNonMessagingScript(scriptURL) : isAppShellScript(scriptURL);
         };
 
         var isAppShellCache = function (name) {
-          return /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(name)
-            && (name.indexOf(window.location.origin) !== -1 || name.indexOf(window.location.host) !== -1);
+          var looksLikeOldAppShell = /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-|workbox|vite|mci|assets\/index-|recover-stale-entry/i.test(name);
+          var looksLikeMessagingCache = /firebase|fcm|messaging|onesignal/i.test(name);
+          return looksLikeOldAppShell && !looksLikeMessagingCache;
         };
 
         var waitForActivation = function (worker) {
@@ -192,13 +197,8 @@
             return cachePromise;
           }).catch(function () {}).finally(function () {
             if (!controlledByRemovableWorker) return;
-            try {
-              if (window.sessionStorage.getItem(reloadFlag) === '1') return;
-              window.sessionStorage.setItem(reloadFlag, '1');
-            } catch (_) {}
             if (isPreview) {
-              window.__mciSkipAppBootForSwReload = true;
-              window.location.reload();
+              try { console.warn('[Preview] Service Worker antigo removido sem recarregar a URL temporária.'); } catch (_) {}
               return;
             }
             var url = new URL(window.location.href);
@@ -214,33 +214,6 @@
         window.addEventListener('load', cleanup, { once: true });
       })();
 
-      /* Preview hard-lock: o editor não pode registrar novos Service Workers.
-         Mesmo um registro acidental futuro pode prender bundle antigo neste navegador.
-         No preview, bloqueamos novos registros antes do React/Firebase iniciarem. */
-      (function () {
-        var host = window.location.hostname;
-        var isPreview = window.self !== window.top
-          || host.indexOf('id-preview--') === 0
-          || host.indexOf('preview--') !== -1
-          || host.indexOf('-preview--') !== -1
-          || (host.indexOf('preview') !== -1 && /\.lovable\.app$/.test(host))
-          || /\.lovableproject(?:-dev)?\.com$/.test(host)
-          || /\.beta\.lovable\.dev$/.test(host);
-
-        if (!isPreview || !('serviceWorker' in navigator) || !navigator.serviceWorker.register) return;
-
-        try {
-          var originalRegister = navigator.serviceWorker.register.bind(navigator.serviceWorker);
-          Object.defineProperty(navigator.serviceWorker, 'register', {
-            configurable: true,
-            value: function (scriptURL, options) {
-              try { console.warn('[Preview] Service Worker bloqueado no editor:', scriptURL); } catch (_) {}
-              return Promise.reject(new DOMException('Service Worker desativado no preview do editor.', 'SecurityError'));
-            }
-          });
-          navigator.serviceWorker.__mciOriginalRegister = originalRegister;
-        } catch (_) {}
-      })();
     </script>
     <link rel="icon" type="image/png" href="/favicon.png">
     <!-- TODO: Set the document title to the name of your application -->

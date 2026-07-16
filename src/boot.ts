@@ -1,6 +1,5 @@
 type MciPreviewWindow = Window & typeof globalThis & {
   __mciPreviewSwCleanupPromise?: Promise<unknown>;
-  __mciSkipAppBootForSwReload?: boolean;
 };
 
 const boot = async () => {
@@ -14,9 +13,7 @@ const boot = async () => {
     // A limpeza é defensiva; falha nela não pode impedir o app de abrir.
   }
 
-  if (!win.__mciSkipAppBootForSwReload) {
-    await import("./main");
-  }
+  await import("./main");
 };
 
 void boot();
