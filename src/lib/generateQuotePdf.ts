@@ -84,7 +84,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
   // Brands bar
   doc.setFontSize(5.5);
   doc.setTextColor(120);
-  const brands = 'Aputure • DZOFILM • Caligri • SECCED • Accsoon • Miliboo • Godox • 7artisans • CREAM SOURCE';
+  const brands = 'Aputure • DZOFILM • Caligri • SECCED • Accsoon • Miliboo • Dearkol • 7artisans • CREAM SOURCE • DopChoice • Astera';
   doc.text(brands, W / 2, y, { align: 'center' });
   y += 3;
   doc.setDrawColor(200);
