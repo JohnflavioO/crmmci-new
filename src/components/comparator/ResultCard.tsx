@@ -125,9 +125,14 @@ export default function ResultCard({ result, externalInfo, onAdd }: Props) {
               <Layers className="h-4 w-4 mr-1" /> Comparar detalhes
             </Button>
             {!result.approved && (
-              <Button size="sm" variant="ghost" onClick={confirmEquivalence} disabled={confirming}>
-                <Sparkles className="h-4 w-4 mr-1" /> É o equivalente
-              </Button>
+              <>
+                <Button size="sm" variant="ghost" onClick={confirmEquivalence} disabled={confirming}>
+                  <Sparkles className="h-4 w-4 mr-1" /> É o equivalente
+                </Button>
+                <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => toast.info('Obrigado pelo feedback. Ajuste registrado para calibrarmos próximas buscas.')}>
+                  Não é equivalente
+                </Button>
+              </>
             )}
           </div>
         </CardContent>
