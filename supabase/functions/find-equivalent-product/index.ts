@@ -415,10 +415,12 @@ Deno.serve(async (req) => {
 
     const responseTime = Date.now() - started;
 
-    await supabase.from('equivalence_search_cache').upsert({
-      input_hash: inputHash, input_type: mode, input_value: input,
-      extracted_specs: extracted, candidates: results,
-    }, { onConflict: 'input_hash' });
+    if (results.length > 0) {
+      await supabase.from('equivalence_search_cache').upsert({
+        input_hash: inputHash, input_type: mode, input_value: input,
+        extracted_specs: extracted, candidates: results,
+      }, { onConflict: 'input_hash' });
+    }
 
     await supabase.from('equivalence_search_history').insert({
       user_id: userId, input_type: mode, input_value: input,
