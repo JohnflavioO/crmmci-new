@@ -214,6 +214,23 @@ export default function EquipmentComparator() {
                         </ul>
                       </div>
                     )}
+                    <div className="pt-2 border-t">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Button size="sm" variant="outline" onClick={runCatalogTest} disabled={catalogTesting}>
+                          {catalogTesting ? 'Testando…' : 'Testar busca no catálogo'}
+                        </Button>
+                        <span className="text-muted-foreground">Roda buscas diretas por termos comuns.</span>
+                      </div>
+                      {catalogTest && (
+                        <div className="flex flex-wrap gap-1">
+                          {catalogTest.map((t) => (
+                            <Badge key={t.term} variant={t.matches > 0 ? 'secondary' : 'outline'}>
+                              {t.term}: {t.matches}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
                 )}
               </Card>
