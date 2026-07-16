@@ -105,9 +105,12 @@ export default function EquipmentComparator() {
                   className="pl-9"
                 />
               </div>
-              <Button onClick={handleSearch} disabled={search.isPending} className="min-w-[140px]">
+              <Button onClick={() => handleSearch(false)} disabled={search.isPending} className="min-w-[140px]">
                 {search.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
                 Encontrar equivalente
+              </Button>
+              <Button onClick={() => handleSearch(true)} disabled={search.isPending} variant="outline" className="min-w-[140px]" title="Ignora cache e refaz a chamada">
+                Refazer sem cache
               </Button>
             </div>
             <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
