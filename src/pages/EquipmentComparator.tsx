@@ -20,6 +20,9 @@ export default function EquipmentComparator() {
   const search = useEquivalentSearch();
   const history = useSearchHistory();
   const approved = useApprovedEquivalences();
+  const { isAdmin, isGestor } = useAuth();
+  const canSeeDiagnostic = isAdmin || isGestor;
+  const [showDiagnostic, setShowDiagnostic] = useState(false);
 
   const [addProduct, setAddProduct] = useState<ComparatorProduct | null>(null);
   const [addOpen, setAddOpen] = useState(false);
