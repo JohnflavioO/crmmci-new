@@ -142,26 +142,56 @@
             && (name.indexOf(window.location.origin) !== -1 || name.indexOf(window.location.host) !== -1);
         };
 
+        var waitForActivation = function (worker) {
+          return new Promise(function (resolve) {
+            if (!worker || worker.state === 'activated') return resolve();
+            var done = false;
+            var finish = function () {
+              if (done) return;
+              done = true;
+              resolve();
+            };
+            worker.addEventListener('statechange', function () {
+              if (worker.state === 'activated' || worker.state === 'redundant') finish();
+            });
+            setTimeout(finish, 2500);
+          });
+        };
+
+        var replaceOldWorkerBeforeUnregister = function (registration, worker) {
+          var previousScript = worker && worker.scriptURL;
+          var updatePromise = Promise.resolve();
+          try { updatePromise = registration.update(); } catch (_) {}
+          return Promise.resolve(updatePromise).then(function () {
+            var replacement = registration.installing || registration.waiting;
+            if (replacement && replacement.scriptURL !== previousScript) {
+              return waitForActivation(replacement);
+            }
+          }).catch(function () {}).then(function () {
+            return registration.unregister();
+          });
+        };
+
         var cleanup = function () {
           var controlledByRemovableWorker = !!(navigator.serviceWorker.controller && shouldRemoveWorker(navigator.serviceWorker.controller.scriptURL));
           navigator.serviceWorker.getRegistrations().then(function (registrations) {
             return Promise.allSettled(registrations.map(function (registration) {
               var worker = registration.active || registration.waiting || registration.installing;
               if (worker && shouldRemoveWorker(worker.scriptURL)) {
-                try { registration.update(); } catch (_) {}
-                return registration.unregister();
+                return replaceOldWorkerBeforeUnregister(registration, worker);
               }
               return null;
             }));
           }).catch(function () {}).finally(function () {
-            if (isPreview) {
-              return;
-            }
             if (!controlledByRemovableWorker) return;
             try {
               if (window.sessionStorage.getItem(reloadFlag) === '1') return;
               window.sessionStorage.setItem(reloadFlag, '1');
             } catch (_) {}
+            if (isPreview) {
+              window.location.reload();
+              return;
+            }
             var url = new URL(window.location.href);
             if (url.searchParams.get('__mci_sw_clean') === '1') return;
             url.searchParams.set('__mci_sw_clean', '1');
