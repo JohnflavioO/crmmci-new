@@ -128,8 +128,17 @@
           }
         };
 
+        var isSameOriginNonMessagingScript = function (scriptURL) {
+          try {
+            var url = new URL(scriptURL);
+            return url.origin === window.location.origin && url.pathname !== '/firebase-messaging-sw.js';
+          } catch (_) {
+            return false;
+          }
+        };
+
         var shouldRemoveWorker = function (scriptURL) {
-          return isAppShellScript(scriptURL);
+          return isPreview ? isSameOriginNonMessagingScript(scriptURL) : isAppShellScript(scriptURL);
         };
 
         var isAppShellCache = function (name) {
