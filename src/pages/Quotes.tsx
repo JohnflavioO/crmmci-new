@@ -1493,6 +1493,13 @@ export default function Quotes() {
           <Button
             variant="outline"
             className="gap-2 w-full sm:w-auto min-h-[44px]"
+            onClick={() => window.open('/comparador', '_blank')}
+          >
+            <Search className="h-4 w-4" /> Encontrar equivalente
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2 w-full sm:w-auto min-h-[44px]"
             onClick={() => setFreightDrawerOpen(true)}
           >
             <Truck className="h-4 w-4" /> Calcular Frete

@@ -657,6 +657,86 @@ export type Database = {
         }
         Relationships: []
       }
+      equivalence_search_cache: {
+        Row: {
+          candidates: Json | null
+          created_at: string
+          expires_at: string
+          extracted_specs: Json | null
+          id: string
+          input_hash: string
+          input_type: string
+          input_value: string | null
+        }
+        Insert: {
+          candidates?: Json | null
+          created_at?: string
+          expires_at?: string
+          extracted_specs?: Json | null
+          id?: string
+          input_hash: string
+          input_type: string
+          input_value?: string | null
+        }
+        Update: {
+          candidates?: Json | null
+          created_at?: string
+          expires_at?: string
+          extracted_specs?: Json | null
+          id?: string
+          input_hash?: string
+          input_type?: string
+          input_value?: string | null
+        }
+        Relationships: []
+      }
+      equivalence_search_history: {
+        Row: {
+          chosen_product_id: string | null
+          company_id: string | null
+          created_at: string
+          extracted_specs: Json | null
+          id: string
+          input_type: string
+          input_value: string
+          is_favorite: boolean
+          response_time_ms: number | null
+          user_id: string
+        }
+        Insert: {
+          chosen_product_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          extracted_specs?: Json | null
+          id?: string
+          input_type: string
+          input_value: string
+          is_favorite?: boolean
+          response_time_ms?: number | null
+          user_id: string
+        }
+        Update: {
+          chosen_product_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          extracted_specs?: Json | null
+          id?: string
+          input_type?: string
+          input_value?: string
+          is_favorite?: boolean
+          response_time_ms?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equivalence_search_history_chosen_product_id_fkey"
+            columns: ["chosen_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_action_history: {
         Row: {
           action_type: string
@@ -1314,6 +1394,62 @@ export type Database = {
           target_user_name?: string | null
         }
         Relationships: []
+      }
+      product_equivalences: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          company_id: string | null
+          confidence: number | null
+          created_at: string
+          id: string
+          marca_externa: string | null
+          mci_product_id: string
+          modelo_externo: string | null
+          notes: string | null
+          produto_externo: string | null
+          updated_at: string
+          url_externa: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id?: string | null
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          marca_externa?: string | null
+          mci_product_id: string
+          modelo_externo?: string | null
+          notes?: string | null
+          produto_externo?: string | null
+          updated_at?: string
+          url_externa?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id?: string | null
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          marca_externa?: string | null
+          mci_product_id?: string
+          modelo_externo?: string | null
+          notes?: string | null
+          produto_externo?: string | null
+          updated_at?: string
+          url_externa?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_equivalences_mci_product_id_fkey"
+            columns: ["mci_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_external_links: {
         Row: {
@@ -3409,6 +3545,27 @@ export type Database = {
       public_quote_action: {
         Args: { p_action: string; p_token: string }
         Returns: Json
+      }
+      search_product_candidates: {
+        Args: {
+          p_brand?: string
+          p_category?: string
+          p_limit?: number
+          p_query: string
+        }
+        Returns: {
+          brand: string
+          category_principal: string
+          code: string
+          compatibility: string
+          description: string
+          id: string
+          image_url: string
+          name: string
+          price: number
+          score: number
+          sku: string
+        }[]
       }
       set_default_origin_cep: { Args: { _cep: string }; Returns: string }
       show_limit: { Args: never; Returns: number }

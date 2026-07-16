@@ -67,6 +67,7 @@ const LogisticsSyncDiagnostic = lazy(() => import("./pages/LogisticsSyncDiagnost
 const ProductMapping = lazy(() => import("./pages/ProductMapping"));
 const PublicSignContract = lazy(() => import("./pages/PublicSignContract"));
 const PublicValidateSignature = lazy(() => import("./pages/PublicValidateSignature"));
+const EquipmentComparator = lazy(() => import("./pages/EquipmentComparator"));
 
 
 const queryClient = new QueryClient({
@@ -210,6 +211,7 @@ function AppRoutes() {
             <Route path="/ecoflow" element={<SafeRoute><EcoflowCalculator /></SafeRoute>} />
             <Route path="/frete" element={<SafeRoute><FreightQuote /></SafeRoute>} />
             <Route path="/tasks" element={<SafeRoute><Tasks /></SafeRoute>} />
+            <Route path="/comparador" element={<SafeRoute><EquipmentComparator /></SafeRoute>} />
             <Route path="/metrics" element={<SafeRoute><Metrics /></SafeRoute>} />
             <Route path="/pipeline" element={<SafeRoute><Pipeline /></SafeRoute>} />
             <Route path="/quote/:token" element={<SafeRoute><PublicQuote /></SafeRoute>} />
