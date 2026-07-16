@@ -81,11 +81,16 @@ export default function ResultCard({ result, externalInfo, onAdd }: Props) {
                     {p.brand ?? 'Sem marca'} {p.code ? `• ${p.code}` : ''} {p.sku ? `• SKU ${p.sku}` : ''}
                   </p>
                 </div>
-                {result.approved && (
-                  <Badge variant="secondary" className="gap-1 shrink-0">
-                    <CheckCircle2 className="h-3 w-3" /> Aprovado
-                  </Badge>
-                )}
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  {result.tier && TIER_META[result.tier] && (
+                    <Badge className={`gap-1 ${TIER_META[result.tier].className}`}>{TIER_META[result.tier].label}</Badge>
+                  )}
+                  {result.approved && (
+                    <Badge variant="secondary" className="gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Aprovado
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               <div className="mt-3 flex items-center gap-3">
