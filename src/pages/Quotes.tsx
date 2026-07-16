@@ -1204,9 +1204,9 @@ export default function Quotes() {
   };
 
   const isQuoteEligibleForRecycle = (q: any) => {
-    if (q?.source !== 'loja_integrada') return false;
-    const paid = q?.payment_status === 'liquidado' || q?.payment_status === 'pago';
-    if (!paid) return false;
+    // Permite reciclar qualquer orçamento que não esteja em fase final de entrega.
+    // (Antes exigia source='loja_integrada' + pagamento liquidado, o que bloqueava
+    // propostas antigas/manuais.)
     const st = String(q?.status || '').toLowerCase();
     if (st === 'faturado' || st === 'entregue') return false;
     return true;
