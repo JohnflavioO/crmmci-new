@@ -23,14 +23,16 @@ interface CandidateRow {
   score?: number;
 }
 
-interface ExtractedSpecs {
+interface Normalized {
   brand?: string;
   model?: string;
   category?: string;
   type?: string;
-  specs?: Record<string, string>;
+  keywords?: string[];
+  application?: string;
 }
 
+// ---------- helpers ----------
 function isPrivateHost(hostname: string): boolean {
   const h = hostname.toLowerCase();
   if (h === 'localhost' || h === '0.0.0.0' || h.endsWith('.local')) return true;
@@ -43,13 +45,45 @@ function isPrivateHost(hostname: string): boolean {
   return false;
 }
 
+function stripAccents(s: string) {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+// Very small synonym/expansion table for the most common categories in our catalog.
+// Never invents products — only expands the search terms used against the catalog.
+const SYNONYMS: Record<string, string[]> = {
+  ilumina: ['LED', 'iluminador', 'light', 'luz', 'refletor', 'painel', 'panel', 'COB', 'daylight', 'bicolor', 'RGB'],
+  led: ['LED', 'COB', 'iluminador', 'painel', 'luz continua'],
+  cob: ['COB', 'LED', 'daylight', 'Bowens', 'iluminador'],
+  bowens: ['Bowens', 'montagem Bowens', 'modificador', 'softbox'],
+  daylight: ['daylight', '5600K', '5600', 'luz do dia'],
+  softbox: ['softbox', 'modificador', 'Bowens'],
+  camera: ['câmera', 'camera', 'cinema', 'mirrorless', 'sensor'],
+  lente: ['lente', 'lens', 'objetiva', 'focal'],
+  audio: ['microfone', 'lapela', 'shotgun', 'sem fio', 'wireless'],
+  microfone: ['microfone', 'mic', 'lapela', 'shotgun'],
+  tripe: ['tripé', 'tripod', 'suporte'],
+};
+
+function expandKeywords(base: string[], category?: string, type?: string): string[] {
+  const out = new Set<string>();
+  for (const k of base) {
+    const clean = k.trim();
+    if (clean && clean.length >= 2) out.add(clean);
+  }
+  const seeds = [category, type, ...base].filter(Boolean).map((s) => stripAccents(String(s).toLowerCase()));
+  for (const seed of seeds) {
+    for (const [key, syns] of Object.entries(SYNONYMS)) {
+      if (seed.includes(key)) syns.forEach((s) => out.add(s));
+    }
+  }
+  return Array.from(out).slice(0, 20);
+}
+
 async function callAI(system: string, user: string, apiKey: string): Promise<string> {
   const resp = await fetch(LOVABLE_AI_URL, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: MODEL,
       messages: [
@@ -69,16 +103,13 @@ async function callAI(system: string, user: string, apiKey: string): Promise<str
   return data?.choices?.[0]?.message?.content ?? '{}';
 }
 
-async function scrapeUrl(url: string): Promise<ExtractedSpecs & { title?: string; description?: string; image?: string }> {
+async function scrapeUrl(url: string) {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), 15000);
   try {
     const resp = await fetch(url, {
       signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; MCI-CRM/1.0)',
-        Accept: 'text/html,application/xhtml+xml',
-      },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MCI-CRM/1.0)', Accept: 'text/html,application/xhtml+xml' },
       redirect: 'follow',
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -97,9 +128,32 @@ async function scrapeUrl(url: string): Promise<ExtractedSpecs & { title?: string
   }
 }
 
+const AGENT_SYSTEM = `Você é o "Agente Comparador de Equipamentos MCI", especialista em foto, vídeo, iluminação e áudio profissional.
+Sua missão: dado um equipamento pesquisado (marca/modelo/categoria/specs) e uma lista de candidatos REAIS do catálogo MCI, escolha os MELHORES equivalentes disponíveis.
+
+Regras obrigatórias:
+- NUNCA invente produtos, IDs, preços ou estoque. Trabalhe apenas com os candidatos recebidos.
+- A marca NÃO precisa ser igual à pesquisada. Priorize equivalência TÉCNICA (aplicação, potência, fonte, mount, sensor, etc.).
+- Sempre retorne o máximo de 3 candidatos, ordenados por compatibilidade descendente.
+- Para cada resultado, classifique em um de: "equivalente_direto", "alternativa_superior", "alternativa_economica", "relacionado".
+- Escala de compatibilidade: 90-100 equivalência muito alta; 75-89 boa alternativa; 60-74 alternativa aproximada; 40-59 apenas relacionado; abaixo de 40 não retornar.
+- Se nenhum candidato passar de 40, devolva um array vazio.
+- Justifique com "reasons", "similarities", "differences", "pros" e "cons" (frases curtas, em português).
+
+Responda APENAS em JSON válido no formato:
+{"results":[{"id":"<uuid>","compatibility":0-100,"tier":"equivalente_direto|alternativa_superior|alternativa_economica|relacionado","reasons":[string],"similarities":[string],"differences":[string],"pros":[string],"cons":[string]}]}`;
+
+const EXTRACT_SYSTEM = `Você identifica equipamentos profissionais de foto/vídeo/iluminação/áudio. Sempre responda APENAS em JSON:
+{"brand": string, "model": string, "category": string, "type": string, "application": string, "keywords": string[]}
+- "category" ex.: "Iluminação", "Câmera", "Lente", "Áudio", "Tripé", "Acessório".
+- "keywords": 5 a 10 termos técnicos úteis para busca no catálogo (LED, COB, Bowens, 5600K, 60W, RGB, daylight, wireless etc.).
+- Se algo for desconhecido, deixe em branco. Nunca invente.`;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   const started = Date.now();
+  const diagnostic: Record<string, any> = { steps: [], errors: [] };
+  const log = (step: string, data?: any) => { diagnostic.steps.push({ step, at: Date.now() - started, ...(data ?? {}) }); };
 
   try {
     const authHeader = req.headers.get('Authorization');
@@ -120,31 +174,26 @@ Deno.serve(async (req) => {
     const userId = claims.claims.sub;
 
     const apiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'AI não configurado' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
 
     const body = await req.json().catch(() => ({}));
     const input: string = (body?.input ?? '').toString().trim();
     if (!input || input.length > 2000) {
       return new Response(JSON.stringify({ error: 'Entrada inválida' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+    diagnostic.input = input;
 
     let mode: 'url' | 'text' = 'text';
-    let extracted: ExtractedSpecs & { title?: string; description?: string; image?: string; source_url?: string } = {};
+    let extracted: Normalized & { title?: string; description?: string; image?: string; source_url?: string } = {};
     let urlObj: URL | null = null;
 
     if (/^https?:\/\//i.test(input)) {
-      try {
-        urlObj = new URL(input);
-      } catch {
-        return new Response(JSON.stringify({ error: 'URL inválida' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
+      try { urlObj = new URL(input); } catch { return new Response(JSON.stringify({ error: 'URL inválida' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }); }
       if (!['http:', 'https:'].includes(urlObj.protocol) || isPrivateHost(urlObj.hostname)) {
         return new Response(JSON.stringify({ error: 'URL não permitida' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       mode = 'url';
     }
+    diagnostic.mode = mode;
 
     // Cache lookup
     const hashSource = mode === 'url' ? urlObj!.toString() : input.toLowerCase();
@@ -159,62 +208,46 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (cached && new Date(cached.expires_at as string).getTime() > Date.now() && body?.force_refresh !== true) {
-      return new Response(JSON.stringify({ cached: true, extracted: cached.extracted_specs, results: cached.candidates, response_time_ms: Date.now() - started }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      log('cache_hit');
+      return new Response(JSON.stringify({
+        cached: true, extracted: cached.extracted_specs, results: cached.candidates,
+        response_time_ms: Date.now() - started, diagnostic,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // If URL, check approved equivalences first
-    if (mode === 'url') {
-      const { data: approved } = await supabase
-        .from('product_equivalences')
-        .select('mci_product_id, confidence, notes')
-        .eq('url_externa', urlObj!.toString())
-        .order('confidence', { ascending: false })
-        .limit(3);
-      if (approved && approved.length > 0) {
-        const ids = approved.map((a) => a.mci_product_id);
-        const { data: prods } = await supabase.from('products').select('*').in('id', ids);
-        const results = (prods ?? []).map((p) => ({
-          product: p,
-          compatibility: approved.find((a) => a.mci_product_id === p.id)?.confidence ?? 95,
-          reasons: ['Equivalência aprovada anteriormente por um vendedor'],
-          similarities: [],
-          differences: [],
-          pros: [],
-          cons: [],
-          approved: true,
-        }));
-        return new Response(JSON.stringify({ approved_match: true, results, extracted: { source_url: urlObj!.toString() }, response_time_ms: Date.now() - started }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-    }
-
-    // Extract specs
+    // Scrape if URL
     if (mode === 'url') {
       try {
         const scraped = await scrapeUrl(urlObj!.toString());
         extracted = { ...scraped, source_url: urlObj!.toString() };
+        log('scraped', { title: scraped.title });
       } catch (e: any) {
-        return new Response(JSON.stringify({ error: 'Não foi possível ler a URL informada.', detail: String(e?.message ?? e) }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        diagnostic.errors.push({ where: 'scrape', message: String(e?.message ?? e) });
+        return new Response(JSON.stringify({ error: 'Não foi possível ler a URL informada.', detail: String(e?.message ?? e), diagnostic }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
 
-    // Use AI to normalize into specs (brand, model, category, type)
-    const extractSystem =
-      'Você é um assistente que identifica equipamentos de foto/vídeo/áudio/iluminação. Responda APENAS em JSON válido no formato: {"brand": string, "model": string, "category": string, "type": string, "keywords": string[]}. Nunca invente. Se não souber, use string vazia.';
-    const extractUser = mode === 'url'
-      ? `Extraia dados do produto abaixo:\nTítulo: ${extracted.title ?? ''}\nDescrição: ${extracted.description ?? ''}\nMarca (meta): ${extracted.brand ?? ''}\nURL: ${urlObj!.toString()}`
-      : `Extraia dados do texto do cliente: "${input}"`;
-    let normalized: { brand?: string; model?: string; category?: string; type?: string; keywords?: string[] } = {};
-    try {
-      const raw = await callAI(extractSystem, extractUser, apiKey);
-      normalized = JSON.parse(raw);
-    } catch (e: any) {
-      if (e.message === 'AI_RATE_LIMIT') return new Response(JSON.stringify({ error: 'Limite de requisições da IA atingido. Tente novamente em instantes.' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      if (e.message === 'AI_CREDITS') return new Response(JSON.stringify({ error: 'Créditos de IA esgotados. Adicione créditos no workspace.' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      console.error('AI extract error', e);
+    // Extract specs via AI (fallback to naive parse if AI down)
+    let normalized: Normalized = {};
+    let aiAvailable = !!apiKey;
+    if (aiAvailable) {
+      try {
+        const extractUser = mode === 'url'
+          ? `Extraia dados do produto abaixo:\nTítulo: ${extracted.title ?? ''}\nDescrição: ${extracted.description ?? ''}\nMarca (meta): ${extracted.brand ?? ''}\nURL: ${urlObj!.toString()}`
+          : `Extraia dados do texto do cliente: "${input}"`;
+        const raw = await callAI(EXTRACT_SYSTEM, extractUser, apiKey!);
+        normalized = JSON.parse(raw);
+        log('extracted', normalized);
+      } catch (e: any) {
+        diagnostic.errors.push({ where: 'ai_extract', message: e?.message ?? String(e) });
+        if (e.message === 'AI_RATE_LIMIT' || e.message === 'AI_CREDITS') aiAvailable = false;
+      }
+    }
+    // Naive fallback: split words
+    if (!normalized.brand && !normalized.model) {
+      const parts = input.split(/\s+/).filter(Boolean);
+      normalized.brand = normalized.brand || parts[0];
+      normalized.model = normalized.model || parts.slice(1).join(' ') || undefined;
     }
     extracted = { ...extracted, ...normalized };
 
@@ -228,114 +261,166 @@ Deno.serve(async (req) => {
         .order('confidence', { ascending: false })
         .limit(3);
       if (approved && approved.length > 0) {
+        log('approved_match', { count: approved.length });
         const ids = approved.map((a) => a.mci_product_id);
         const { data: prods } = await supabase.from('products').select('*').in('id', ids);
         const results = (prods ?? []).map((p) => ({
           product: p,
           compatibility: approved.find((a) => a.mci_product_id === p.id)?.confidence ?? 95,
-          reasons: ['Equivalência aprovada anteriormente'],
+          tier: 'equivalente_direto',
+          reasons: ['Equivalência aprovada anteriormente por um vendedor'],
           similarities: [], differences: [], pros: [], cons: [], approved: true,
         }));
-        return new Response(JSON.stringify({ approved_match: true, results, extracted, response_time_ms: Date.now() - started }), {
+        return new Response(JSON.stringify({ approved_match: true, results, extracted, response_time_ms: Date.now() - started, diagnostic }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
     }
 
-    // Pre-filter candidates
+    // Build keyword list (expanded with synonyms)
+    const baseKeywords = [normalized.model, normalized.type, ...(normalized.keywords ?? [])].filter(Boolean) as string[];
+    const keywords = expandKeywords(baseKeywords, normalized.category, normalized.type);
+    diagnostic.keywords = keywords;
+
+    // Pre-filter candidates (broader search: up to 30)
     const query = [normalized.brand, normalized.model, normalized.type].filter(Boolean).join(' ') || extracted.title || input;
     const { data: candidates, error: candErr } = await supabase.rpc('search_product_candidates', {
       p_query: query,
-      p_brand: normalized.brand ?? null,
+      p_brand: null, // do NOT restrict by brand — MCI usually sells other brands
       p_category: normalized.category ?? null,
-      p_limit: 20,
+      p_limit: 30,
+      p_keywords: keywords,
     });
-    if (candErr) console.error('candidate rpc error', candErr);
+    if (candErr) diagnostic.errors.push({ where: 'candidates', message: candErr.message });
+    let candidateList = (candidates ?? []) as CandidateRow[];
+    log('candidates', { count: candidateList.length });
 
-    const candidateList = (candidates ?? []) as CandidateRow[];
+    // If no candidates at all, retry with just keywords (no query text)
+    if (candidateList.length === 0 && keywords.length > 0) {
+      const { data: retry } = await supabase.rpc('search_product_candidates', {
+        p_query: '',
+        p_brand: null,
+        p_category: normalized.category ?? null,
+        p_limit: 30,
+        p_keywords: keywords,
+      });
+      candidateList = (retry ?? []) as CandidateRow[];
+      log('candidates_retry', { count: candidateList.length });
+    }
+
     if (candidateList.length === 0) {
-      const payload = { extracted, results: [], message: 'Não encontramos um equivalente com confiança suficiente.', response_time_ms: Date.now() - started };
+      const payload = { extracted, results: [], message: 'Não encontramos produtos MCI relacionados a este equipamento no catálogo.', response_time_ms: Date.now() - started, diagnostic };
       await supabase.from('equivalence_search_cache').upsert({ input_hash: inputHash, input_type: mode, input_value: input, extracted_specs: extracted, candidates: [] }, { onConflict: 'input_hash' });
       await supabase.from('equivalence_search_history').insert({ user_id: userId, input_type: mode, input_value: input, extracted_specs: extracted, response_time_ms: Date.now() - started });
       return new Response(JSON.stringify(payload), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Ask AI to rank
-    const rankSystem =
-      'Você é especialista em equipamentos audiovisuais. Recebe um produto pesquisado e uma lista de candidatos do catálogo MCI. Retorne APENAS JSON no formato: {"results":[{"id":"<uuid do candidato>","compatibility":0-100,"reasons":[string],"similarities":[string],"differences":[string],"pros":[string],"cons":[string]}]}. Escolha até 3 candidatos ordenados por compatibilidade descendente. Se nenhum for realmente equivalente, retorne results vazio. Nunca invente produtos que não estejam na lista.';
-    const rankUser = JSON.stringify({
-      pesquisado: {
-        marca: normalized.brand,
-        modelo: normalized.model,
-        categoria: normalized.category,
-        tipo: normalized.type,
-        titulo: extracted.title,
-        descricao: extracted.description,
-        entrada_original: input,
-      },
-      candidatos: candidateList.map((c) => ({
-        id: c.id,
-        name: c.name,
-        brand: c.brand,
-        code: c.code,
-        sku: c.sku,
-        category: c.category_principal,
-        description: (c.description ?? '').slice(0, 400),
-        compatibility_notes: c.compatibility,
-      })),
-    });
-
-    let ranking: { results: Array<{ id: string; compatibility: number; reasons?: string[]; similarities?: string[]; differences?: string[]; pros?: string[]; cons?: string[] }> } = { results: [] };
-    try {
-      const raw = await callAI(rankSystem, rankUser, apiKey);
-      ranking = JSON.parse(raw);
-      if (!Array.isArray(ranking.results)) ranking.results = [];
-    } catch (e: any) {
-      if (e.message === 'AI_RATE_LIMIT') return new Response(JSON.stringify({ error: 'Limite de IA atingido, tente novamente.' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      if (e.message === 'AI_CREDITS') return new Response(JSON.stringify({ error: 'Créditos de IA esgotados.' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      console.error('AI rank error', e);
+    // Rank with AI
+    let ranking: { results: Array<{ id: string; compatibility: number; tier?: string; reasons?: string[]; similarities?: string[]; differences?: string[]; pros?: string[]; cons?: string[] }> } = { results: [] };
+    let aiRankOk = false;
+    if (aiAvailable) {
+      try {
+        const rankUser = JSON.stringify({
+          pesquisado: {
+            marca: normalized.brand,
+            modelo: normalized.model,
+            categoria: normalized.category,
+            tipo: normalized.type,
+            aplicacao: normalized.application,
+            keywords,
+            titulo: extracted.title,
+            descricao: extracted.description,
+            entrada_original: input,
+          },
+          candidatos: candidateList.map((c) => ({
+            id: c.id,
+            name: c.name,
+            brand: c.brand,
+            code: c.code,
+            sku: c.sku,
+            category: c.category_principal,
+            description: (c.description ?? '').slice(0, 500),
+            compatibility_notes: c.compatibility,
+            price: c.price,
+          })),
+        });
+        const raw = await callAI(AGENT_SYSTEM, rankUser, apiKey!);
+        ranking = JSON.parse(raw);
+        if (!Array.isArray(ranking.results)) ranking.results = [];
+        aiRankOk = true;
+        log('ai_rank', { count: ranking.results.length });
+      } catch (e: any) {
+        diagnostic.errors.push({ where: 'ai_rank', message: e?.message ?? String(e) });
+        if (e.message === 'AI_RATE_LIMIT' || e.message === 'AI_CREDITS') aiAvailable = false;
+      }
     }
 
     const byId = new Map(candidateList.map((c) => [c.id, c]));
-    const results = ranking.results
-      .filter((r) => byId.has(r.id))
-      .slice(0, 3)
-      .map((r) => ({
-        product: byId.get(r.id),
-        compatibility: Math.max(0, Math.min(100, Math.round(Number(r.compatibility) || 0))),
-        reasons: r.reasons ?? [],
-        similarities: r.similarities ?? [],
-        differences: r.differences ?? [],
-        pros: r.pros ?? [],
-        cons: r.cons ?? [],
-        approved: false,
-      }))
-      .filter((r) => r.compatibility >= 60);
+    let results: any[] = [];
+
+    if (aiRankOk) {
+      results = ranking.results
+        .filter((r) => byId.has(r.id))
+        .slice(0, 3)
+        .map((r) => ({
+          product: byId.get(r.id),
+          compatibility: Math.max(0, Math.min(100, Math.round(Number(r.compatibility) || 0))),
+          tier: r.tier ?? 'relacionado',
+          reasons: r.reasons ?? [],
+          similarities: r.similarities ?? [],
+          differences: r.differences ?? [],
+          pros: r.pros ?? [],
+          cons: r.cons ?? [],
+          approved: false,
+        }))
+        .filter((r) => r.compatibility >= 40);
+    }
+
+    // Structural fallback: if AI failed OR ranked nothing, return top 3 candidates as "relacionado"
+    if (results.length === 0) {
+      results = candidateList.slice(0, 3).map((c) => {
+        const raw = Math.round(Math.min(100, Math.max(30, (Number((c as any).score ?? 0) * 60) + 30)));
+        return {
+          product: c,
+          compatibility: raw,
+          tier: 'relacionado',
+          reasons: aiAvailable
+            ? ['Selecionado por proximidade técnica no catálogo MCI.']
+            : ['Análise técnica avançada temporariamente indisponível — resultado estrutural do catálogo.'],
+          similarities: [],
+          differences: [],
+          pros: [],
+          cons: [],
+          approved: false,
+        };
+      });
+    }
+
+    // Message based on best tier
+    const best = results[0]?.compatibility ?? 0;
+    let message: string | undefined;
+    if (best < 60) message = 'Não encontramos um equivalente direto. As opções abaixo são apenas relacionadas — avalie com o cliente.';
+    else if (best < 75) message = 'Não encontramos um equivalente direto, mas estas são as alternativas MCI tecnicamente mais próximas.';
 
     const responseTime = Date.now() - started;
 
     await supabase.from('equivalence_search_cache').upsert({
-      input_hash: inputHash,
-      input_type: mode,
-      input_value: input,
-      extracted_specs: extracted,
-      candidates: results,
+      input_hash: inputHash, input_type: mode, input_value: input,
+      extracted_specs: extracted, candidates: results,
     }, { onConflict: 'input_hash' });
 
     await supabase.from('equivalence_search_history').insert({
-      user_id: userId,
-      input_type: mode,
-      input_value: input,
-      extracted_specs: extracted,
-      response_time_ms: responseTime,
+      user_id: userId, input_type: mode, input_value: input,
+      extracted_specs: extracted, response_time_ms: responseTime,
     });
 
-    const message = results.length === 0 ? 'Não encontramos um equivalente com confiança suficiente.' : undefined;
-    return new Response(JSON.stringify({ extracted, results, message, response_time_ms: responseTime }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({
+      extracted, results, message, response_time_ms: responseTime,
+      ai_available: aiAvailable, diagnostic,
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e: any) {
     console.error('find-equivalent-product error', e);
-    return new Response(JSON.stringify({ error: 'Erro interno', detail: String(e?.message ?? e) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    diagnostic.errors.push({ where: 'top', message: String(e?.message ?? e) });
+    return new Response(JSON.stringify({ error: 'Erro interno', detail: String(e?.message ?? e), diagnostic }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
