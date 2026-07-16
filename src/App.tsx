@@ -211,6 +211,7 @@ function AppRoutes() {
             <Route path="/ecoflow" element={<SafeRoute><EcoflowCalculator /></SafeRoute>} />
             <Route path="/frete" element={<SafeRoute><FreightQuote /></SafeRoute>} />
             <Route path="/tasks" element={<SafeRoute><Tasks /></SafeRoute>} />
+            <Route path="/comparador" element={<SafeRoute><EquipmentComparator /></SafeRoute>} />
             <Route path="/metrics" element={<SafeRoute><Metrics /></SafeRoute>} />
             <Route path="/pipeline" element={<SafeRoute><Pipeline /></SafeRoute>} />
             <Route path="/quote/:token" element={<SafeRoute><PublicQuote /></SafeRoute>} />
