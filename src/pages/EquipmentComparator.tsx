@@ -37,7 +37,7 @@ export default function EquipmentComparator() {
     };
   }, [search.data, input]);
 
-  const handleSearch = () => {
+  const handleSearch = (forceRefresh = false) => {
     const value = input.trim();
     if (!value) {
       toast.error('Digite algo para pesquisar');
@@ -47,7 +47,21 @@ export default function EquipmentComparator() {
       toast.error('Digite ao menos 3 caracteres');
       return;
     }
-    search.mutate(value);
+    search.mutate({ input: value, forceRefresh });
+  };
+
+  const [catalogTest, setCatalogTest] = useState<Array<{ term: string; matches: number }> | null>(null);
+  const [catalogTesting, setCatalogTesting] = useState(false);
+  const runCatalogTest = async () => {
+    setCatalogTesting(true);
+    const terms = ['LED','COB','Bowens','daylight','5600K','iluminação','iluminador','Amaran','Aputure','60d','60x','80c'];
+    const out: Array<{ term: string; matches: number }> = [];
+    for (const t of terms) {
+      const { data } = await (supabase as any).rpc('diagnose_product_search', { p_term: t });
+      out.push({ term: t, matches: Number(data?.[0]?.matches ?? 0) });
+    }
+    setCatalogTest(out);
+    setCatalogTesting(false);
   };
 
   const handleFavorite = async (id: string, current: boolean) => {
