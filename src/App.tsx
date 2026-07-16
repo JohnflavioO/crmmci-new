@@ -67,6 +67,7 @@ const LogisticsSyncDiagnostic = lazy(() => import("./pages/LogisticsSyncDiagnost
 const ProductMapping = lazy(() => import("./pages/ProductMapping"));
 const PublicSignContract = lazy(() => import("./pages/PublicSignContract"));
 const PublicValidateSignature = lazy(() => import("./pages/PublicValidateSignature"));
+const EquipmentComparator = lazy(() => import("./pages/EquipmentComparator"));
 
 
 const queryClient = new QueryClient({
