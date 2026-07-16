@@ -214,33 +214,6 @@
         window.addEventListener('load', cleanup, { once: true });
       })();
 
-      /* Preview hard-lock: o editor não pode registrar novos Service Workers.
-         Mesmo um registro acidental futuro pode prender bundle antigo neste navegador.
-         No preview, bloqueamos novos registros antes do React/Firebase iniciarem. */
-      (function () {
-        var host = window.location.hostname;
-        var isPreview = window.self !== window.top
-          || host.indexOf('id-preview--') === 0
-          || host.indexOf('preview--') !== -1
-          || host.indexOf('-preview--') !== -1
-          || (host.indexOf('preview') !== -1 && /\.lovable\.app$/.test(host))
-          || /\.lovableproject(?:-dev)?\.com$/.test(host)
-          || /\.beta\.lovable\.dev$/.test(host);
-
-        if (!isPreview || !('serviceWorker' in navigator) || !navigator.serviceWorker.register) return;
-
-        try {
-          var originalRegister = navigator.serviceWorker.register.bind(navigator.serviceWorker);
-          Object.defineProperty(navigator.serviceWorker, 'register', {
-            configurable: true,
-            value: function (scriptURL, options) {
-              try { console.warn('[Preview] Service Worker bloqueado no editor:', scriptURL); } catch (_) {}
-              return Promise.reject(new DOMException('Service Worker desativado no preview do editor.', 'SecurityError'));
-            }
-          });
-          navigator.serviceWorker.__mciOriginalRegister = originalRegister;
-        } catch (_) {}
-      })();
     </script>
     <link rel="icon" type="image/png" href="/favicon.png">
     <!-- TODO: Set the document title to the name of your application -->
