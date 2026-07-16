@@ -187,13 +187,8 @@
             return cachePromise;
           }).catch(function () {}).finally(function () {
             if (!controlledByRemovableWorker) return;
-            try {
-              if (window.sessionStorage.getItem(reloadFlag) === '1') return;
-              window.sessionStorage.setItem(reloadFlag, '1');
-            } catch (_) {}
             if (isPreview) {
-              window.__mciSkipAppBootForSwReload = true;
-              window.location.reload();
+              try { console.warn('[Preview] Service Worker antigo removido sem recarregar a URL temporária.'); } catch (_) {}
               return;
             }
             var url = new URL(window.location.href);
@@ -205,7 +200,7 @@
           return cleanupPromise;
         };
 
-        window.__mciPreviewSwCleanupPromise = cleanup();
+        window.__mciPreviewSwCleanupPromise = isPreview ? Promise.resolve() : cleanup();
         window.addEventListener('load', cleanup, { once: true });
       })();
 
