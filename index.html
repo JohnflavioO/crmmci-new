@@ -103,9 +103,8 @@
       })();
 
       /* Limpeza segura de app-shell Service Workers antigos.
-         No preview do editor, NUNCA fazemos reload/location.replace: a URL do iframe
-         é temporária/autorizada pelo editor e qualquer navegação automática pode virar
-         a tela branca "temporariamente indisponível" antes do React carregar. */
+         Importante: no preview o app só inicia depois desta promessa. Um Workbox
+         antigo controla a página ANTES do React e quebra o fetch do auth-bridge. */
       (function () {
         if (!('serviceWorker' in navigator)) return;
 
@@ -116,6 +115,7 @@
           || host.indexOf('id-preview--') === 0
           || host.indexOf('preview--') !== -1
           || host.indexOf('-preview--') !== -1
+          || (host.indexOf('preview') !== -1 && /\.lovable\.app$/.test(host))
           || /\.lovableproject(?:-dev)?\.com$/.test(host)
           || /\.beta\.lovable\.dev$/.test(host);
 
@@ -174,7 +174,7 @@
 
         var cleanup = function () {
           var controlledByRemovableWorker = !!(navigator.serviceWorker.controller && shouldRemoveWorker(navigator.serviceWorker.controller.scriptURL));
-          navigator.serviceWorker.getRegistrations().then(function (registrations) {
+          var cleanupPromise = navigator.serviceWorker.getRegistrations().then(function (registrations) {
             return Promise.allSettled(registrations.map(function (registration) {
               var worker = registration.active || registration.waiting || registration.installing;
               if (worker && shouldRemoveWorker(worker.scriptURL)) {
@@ -189,6 +189,7 @@
               window.sessionStorage.setItem(reloadFlag, '1');
             } catch (_) {}
             if (isPreview) {
+              window.__mciSkipAppBootForSwReload = true;
               window.location.reload();
               return;
             }
@@ -198,6 +199,8 @@
             window.location.replace(url.toString());
           });
 
+          return cleanupPromise;
+
           if ('caches' in window) {
             caches.keys().then(function (names) {
               return Promise.allSettled(names.filter(isAppShellCache).map(function (name) { return caches.delete(name); }));
@@ -205,7 +208,7 @@
           }
         };
 
-        cleanup();
+        window.__mciPreviewSwCleanupPromise = cleanup();
         window.addEventListener('load', cleanup, { once: true });
       })();
 
@@ -218,6 +221,7 @@
           || host.indexOf('id-preview--') === 0
           || host.indexOf('preview--') !== -1
           || host.indexOf('-preview--') !== -1
+          || (host.indexOf('preview') !== -1 && /\.lovable\.app$/.test(host))
           || /\.lovableproject(?:-dev)?\.com$/.test(host)
           || /\.beta\.lovable\.dev$/.test(host);
 
@@ -300,6 +304,15 @@
         }, 12000);
       })();
     </script>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module">
+      try {
+        if (window.__mciPreviewSwCleanupPromise && typeof window.__mciPreviewSwCleanupPromise.then === 'function') {
+          await window.__mciPreviewSwCleanupPromise;
+        }
+      } catch (_) {}
+      if (!window.__mciSkipAppBootForSwReload) {
+        await import('/src/main.tsx');
+      }
+    </script>
   </body>
 </html>
