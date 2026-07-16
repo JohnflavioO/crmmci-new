@@ -21,6 +21,13 @@ const compatColor = (v: number) => {
   return 'bg-rose-500';
 };
 
+const TIER_META: Record<string, { label: string; className: string }> = {
+  equivalente_direto: { label: 'Equivalente direto', className: 'bg-emerald-600 text-white' },
+  alternativa_superior: { label: 'Alternativa superior', className: 'bg-sky-600 text-white' },
+  alternativa_economica: { label: 'Alternativa econômica', className: 'bg-amber-500 text-white' },
+  relacionado: { label: 'Produto relacionado', className: 'bg-slate-500 text-white' },
+};
+
 const currency = (v: number | null) =>
   v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
