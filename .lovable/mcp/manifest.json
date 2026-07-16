@@ -121,6 +121,32 @@
         "outputSchema": null
       },
       {
+        "name": "get_product_details",
+        "title": "Detalhes do produto",
+        "description": "Retorna os dados completos de um produto do catálogo MCI (nome, marca, categoria, descrição, preço, especificações e notas de compatibilidade). Somente leitura.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID do produto MCI"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
         "name": "search_products",
         "title": "Buscar produtos",
         "description": "Busca textual no catálogo MCI por nome, SKU, marca ou descrição.",

@@ -171,16 +171,37 @@ var get_products_default = defineTool5({
   }
 });
 
-// src/lib/mcp/tools/search-products.ts
+// src/lib/mcp/tools/get-product-details.ts
 import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z as z5 } from "npm:zod@^3.25.76";
-var search_products_default = defineTool6({
+var get_product_details_default = defineTool6({
+  name: "get_product_details",
+  title: "Detalhes do produto",
+  description: "Retorna os dados completos de um produto do cat\xE1logo MCI (nome, marca, categoria, descri\xE7\xE3o, pre\xE7o, especifica\xE7\xF5es e notas de compatibilidade). Somente leitura.",
+  inputSchema: {
+    id: z5.string().uuid().describe("UUID do produto MCI")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ id }, ctx) => {
+    const guard = requireAuth(ctx);
+    if (guard) return guard;
+    const { data, error } = await supabaseForUser3(ctx).from("products").select("*").eq("id", id).maybeSingle();
+    if (error) return err(error.message);
+    if (!data) return err("Produto n\xE3o encontrado");
+    return ok(data, "product");
+  }
+});
+
+// src/lib/mcp/tools/search-products.ts
+import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z6 } from "npm:zod@^3.25.76";
+var search_products_default = defineTool7({
   name: "search_products",
   title: "Buscar produtos",
   description: "Busca textual no cat\xE1logo MCI por nome, SKU, marca ou descri\xE7\xE3o.",
   inputSchema: {
-    query: z5.string().min(1).describe("Termo de busca"),
-    limit: z5.number().int().min(1).max(50).default(20)
+    query: z6.string().min(1).describe("Termo de busca"),
+    limit: z6.number().int().min(1).max(50).default(20)
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ query, limit }, ctx) => {
@@ -194,18 +215,18 @@ var search_products_default = defineTool6({
 });
 
 // src/lib/mcp/tools/search-quotes.ts
-import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.20.0";
-import { z as z6 } from "npm:zod@^3.25.76";
-var search_quotes_default = defineTool7({
+import { defineTool as defineTool8 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z7 } from "npm:zod@^3.25.76";
+var search_quotes_default = defineTool8({
   name: "search_quotes",
   title: "Buscar or\xE7amentos",
   description: "Busca or\xE7amentos por cliente, status ou intervalo de datas.",
   inputSchema: {
-    client_name: z6.string().optional(),
-    status: z6.string().optional(),
-    from: z6.string().optional().describe("Data inicial ISO (created_at >=)"),
-    to: z6.string().optional().describe("Data final ISO (created_at <=)"),
-    limit: z6.number().int().min(1).max(100).default(25)
+    client_name: z7.string().optional(),
+    status: z7.string().optional(),
+    from: z7.string().optional().describe("Data inicial ISO (created_at >=)"),
+    to: z7.string().optional().describe("Data final ISO (created_at <=)"),
+    limit: z7.number().int().min(1).max(100).default(25)
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ client_name, status, from, to, limit }, ctx) => {
@@ -223,8 +244,8 @@ var search_quotes_default = defineTool7({
 });
 
 // src/lib/mcp/tools/get-pipeline.ts
-import { defineTool as defineTool8 } from "npm:@lovable.dev/mcp-js@0.20.0";
-var get_pipeline_default = defineTool8({
+import { defineTool as defineTool9 } from "npm:@lovable.dev/mcp-js@0.20.0";
+var get_pipeline_default = defineTool9({
   name: "get_pipeline",
   title: "Pipeline comercial",
   description: "Retorna or\xE7amentos agrupados por status para visualiza\xE7\xE3o de pipeline.",
@@ -248,15 +269,15 @@ var get_pipeline_default = defineTool8({
 });
 
 // src/lib/mcp/tools/get-tasks.ts
-import { defineTool as defineTool9 } from "npm:@lovable.dev/mcp-js@0.20.0";
-import { z as z7 } from "npm:zod@^3.25.76";
-var get_tasks_default = defineTool9({
+import { defineTool as defineTool10 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z8 } from "npm:zod@^3.25.76";
+var get_tasks_default = defineTool10({
   name: "get_tasks",
   title: "Listar tarefas",
   description: "Lista tarefas do usu\xE1rio autenticado, com filtro opcional de status.",
   inputSchema: {
-    status: z7.string().optional(),
-    limit: z7.number().int().min(1).max(100).default(25)
+    status: z8.string().optional(),
+    limit: z8.number().int().min(1).max(100).default(25)
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ status, limit }, ctx) => {
@@ -271,15 +292,15 @@ var get_tasks_default = defineTool9({
 });
 
 // src/lib/mcp/tools/get-contracts.ts
-import { defineTool as defineTool10 } from "npm:@lovable.dev/mcp-js@0.20.0";
-import { z as z8 } from "npm:zod@^3.25.76";
-var get_contracts_default = defineTool10({
+import { defineTool as defineTool11 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z9 } from "npm:zod@^3.25.76";
+var get_contracts_default = defineTool11({
   name: "get_contracts",
   title: "Listar contratos",
   description: "Lista contratos gerados e suas solicita\xE7\xF5es de assinatura.",
   inputSchema: {
-    status: z8.string().optional(),
-    limit: z8.number().int().min(1).max(100).default(25)
+    status: z9.string().optional(),
+    limit: z9.number().int().min(1).max(100).default(25)
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ status, limit }, ctx) => {
@@ -294,15 +315,15 @@ var get_contracts_default = defineTool10({
 });
 
 // src/lib/mcp/tools/get-customer-history.ts
-import { defineTool as defineTool11 } from "npm:@lovable.dev/mcp-js@0.20.0";
-import { z as z9 } from "npm:zod@^3.25.76";
-var get_customer_history_default = defineTool11({
+import { defineTool as defineTool12 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z10 } from "npm:zod@^3.25.76";
+var get_customer_history_default = defineTool12({
   name: "get_customer_history",
   title: "Hist\xF3rico do cliente",
   description: "Retorna or\xE7amentos, contratos e financeiro de um cliente (por id ou nome).",
   inputSchema: {
-    client_id: z9.string().uuid().optional(),
-    client_name: z9.string().optional()
+    client_id: z10.string().uuid().optional(),
+    client_name: z10.string().optional()
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ client_id, client_name }, ctx) => {
@@ -335,8 +356,8 @@ var get_customer_history_default = defineTool11({
 });
 
 // src/lib/mcp/tools/get-dashboard.ts
-import { defineTool as defineTool12 } from "npm:@lovable.dev/mcp-js@0.20.0";
-var get_dashboard_default = defineTool12({
+import { defineTool as defineTool13 } from "npm:@lovable.dev/mcp-js@0.20.0";
+var get_dashboard_default = defineTool13({
   name: "get_dashboard",
   title: "Dashboard comercial",
   description: "Retorna m\xE9tricas resumidas: totais de clientes, or\xE7amentos por status, valor previsto.",
@@ -370,15 +391,15 @@ var get_dashboard_default = defineTool12({
 });
 
 // src/lib/mcp/tools/get-followups.ts
-import { defineTool as defineTool13 } from "npm:@lovable.dev/mcp-js@0.20.0";
-import { z as z10 } from "npm:zod@^3.25.76";
-var get_followups_default = defineTool13({
+import { defineTool as defineTool14 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z11 } from "npm:zod@^3.25.76";
+var get_followups_default = defineTool14({
   name: "get_followups",
   title: "Follow-ups pendentes",
   description: "Retorna clientes sem intera\xE7\xE3o recente (default: 30 dias) para follow-up.",
   inputSchema: {
-    days_without_contact: z10.number().int().min(1).max(365).default(30),
-    limit: z10.number().int().min(1).max(100).default(25)
+    days_without_contact: z11.number().int().min(1).max(365).default(30),
+    limit: z11.number().int().min(1).max(100).default(25)
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ days_without_contact, limit }, ctx) => {
@@ -392,15 +413,15 @@ var get_followups_default = defineTool13({
 });
 
 // src/lib/mcp/tools/get-sales-metrics.ts
-import { defineTool as defineTool14 } from "npm:@lovable.dev/mcp-js@0.20.0";
-import { z as z11 } from "npm:zod@^3.25.76";
-var get_sales_metrics_default = defineTool14({
+import { defineTool as defineTool15 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z12 } from "npm:zod@^3.25.76";
+var get_sales_metrics_default = defineTool15({
   name: "get_sales_metrics",
   title: "M\xE9tricas de vendas",
   description: "Retorna m\xE9tricas de vendas (aprovados) em um per\xEDodo: total, ticket m\xE9dio, top produtos.",
   inputSchema: {
-    from: z11.string().optional().describe("Data inicial ISO"),
-    to: z11.string().optional().describe("Data final ISO")
+    from: z12.string().optional().describe("Data inicial ISO"),
+    to: z12.string().optional().describe("Data final ISO")
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ from, to }, ctx) => {
@@ -439,6 +460,7 @@ var mcp_default = defineMcp({
     list_clients_default,
     search_clients_default,
     get_products_default,
+    get_product_details_default,
     search_products_default,
     list_quotes_default,
     search_quotes_default,

@@ -32,6 +32,7 @@ export default defineMcp({
     listClientsTool,
     searchClientsTool,
     getProductsTool,
+    getProductDetailsTool,
     searchProductsTool,
     listQuotesTool,
     searchQuotesTool,
