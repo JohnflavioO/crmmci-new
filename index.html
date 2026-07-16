@@ -103,13 +103,13 @@
       })();
 
       /* Limpeza segura de app-shell Service Workers antigos.
-         Importante: no preview o app só inicia depois desta promessa. Um Workbox
-         antigo controla a página ANTES do React e quebra o fetch do auth-bridge. */
+         Regra definitiva: no preview da Lovable NUNCA recarregar, substituir ou
+         reescrever a URL. O token da prévia é temporário; qualquer reload aqui
+         pode causar a tela nativa de "página temporariamente indisponível". */
       (function () {
         if (!('serviceWorker' in navigator)) return;
 
         var appShellWorkerPaths = ['/sw.js', '/service-worker.js'];
-        var reloadFlag = '__mci_app_shell_sw_reloaded_v4';
         var host = window.location.hostname;
         var isPreview = window.self !== window.top
           || host.indexOf('id-preview--') === 0
