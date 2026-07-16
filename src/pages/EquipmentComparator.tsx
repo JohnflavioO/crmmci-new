@@ -138,10 +138,16 @@ export default function EquipmentComparator() {
               </CardContent>
             </Card>
 
+            {search.data.message && (
+              <Card className="border-amber-500/40 bg-amber-500/5">
+                <CardContent className="p-3 text-xs">{search.data.message}</CardContent>
+              </Card>
+            )}
+
             {search.data.results.length === 0 ? (
               <Card>
                 <CardContent className="p-6 text-center text-sm text-muted-foreground">
-                  {search.data.message ?? 'Não encontramos um equivalente com confiança suficiente.'}
+                  {search.data.message ?? 'Não encontramos produtos MCI relacionados a este equipamento no catálogo.'}
                 </CardContent>
               </Card>
             ) : (
@@ -158,6 +164,42 @@ export default function EquipmentComparator() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {canSeeDiagnostic && search.data.diagnostic && (
+              <Card className="border-dashed">
+                <CardHeader className="pb-2 flex-row items-center justify-between">
+                  <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Diagnóstico do agente (admin)</CardTitle>
+                  <Button size="sm" variant="ghost" onClick={() => setShowDiagnostic((v) => !v)}>
+                    {showDiagnostic ? 'Ocultar' : 'Mostrar'}
+                  </Button>
+                </CardHeader>
+                {showDiagnostic && (
+                  <CardContent className="text-xs space-y-2">
+                    <div><b>Entrada:</b> {search.data.diagnostic.input}</div>
+                    <div><b>Modo:</b> {search.data.diagnostic.mode}</div>
+                    <div><b>Marca:</b> {(search.data.extracted?.brand as string) ?? '—'} • <b>Modelo:</b> {(search.data.extracted?.model as string) ?? '—'} • <b>Categoria:</b> {(search.data.extracted?.category as string) ?? '—'}</div>
+                    <div><b>Palavras-chave usadas:</b> {search.data.diagnostic.keywords?.join(', ') ?? '—'}</div>
+                    <div><b>IA disponível:</b> {search.data.ai_available === false ? 'Não' : 'Sim'}</div>
+                    <div>
+                      <b>Passos:</b>
+                      <ul className="list-disc list-inside ml-2">
+                        {(search.data.diagnostic.steps ?? []).map((s, i) => (
+                          <li key={i}>{s.step} <span className="text-muted-foreground">({s.at} ms) {s.count != null ? `• ${s.count} itens` : ''}</span></li>
+                        ))}
+                      </ul>
+                    </div>
+                    {(search.data.diagnostic.errors ?? []).length > 0 && (
+                      <div className="text-rose-600">
+                        <b>Erros:</b>
+                        <ul className="list-disc list-inside ml-2">
+                          {search.data.diagnostic.errors!.map((e, i) => (<li key={i}>{e.where}: {e.message}</li>))}
+                        </ul>
+                      </div>
+                    )}
+                  </CardContent>
+                )}
+              </Card>
             )}
           </div>
         )}
