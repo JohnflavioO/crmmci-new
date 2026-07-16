@@ -4,6 +4,7 @@ import listQuotesTool from "./tools/list-quotes";
 import whoamiTool from "./tools/whoami";
 import searchClientsTool from "./tools/search-clients";
 import getProductsTool from "./tools/get-products";
+import getProductDetailsTool from "./tools/get-product-details";
 import searchProductsTool from "./tools/search-products";
 import searchQuotesTool from "./tools/search-quotes";
 import getPipelineTool from "./tools/get-pipeline";
@@ -31,6 +32,7 @@ export default defineMcp({
     listClientsTool,
     searchClientsTool,
     getProductsTool,
+    getProductDetailsTool,
     searchProductsTool,
     listQuotesTool,
     searchQuotesTool,

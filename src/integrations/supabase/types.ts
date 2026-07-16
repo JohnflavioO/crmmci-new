@@ -3546,27 +3546,50 @@ export type Database = {
         Args: { p_action: string; p_token: string }
         Returns: Json
       }
-      search_product_candidates: {
-        Args: {
-          p_brand?: string
-          p_category?: string
-          p_limit?: number
-          p_query: string
-        }
-        Returns: {
-          brand: string
-          category_principal: string
-          code: string
-          compatibility: string
-          description: string
-          id: string
-          image_url: string
-          name: string
-          price: number
-          score: number
-          sku: string
-        }[]
-      }
+      search_product_candidates:
+        | {
+            Args: {
+              p_brand?: string
+              p_category?: string
+              p_limit?: number
+              p_query: string
+            }
+            Returns: {
+              brand: string
+              category_principal: string
+              code: string
+              compatibility: string
+              description: string
+              id: string
+              image_url: string
+              name: string
+              price: number
+              score: number
+              sku: string
+            }[]
+          }
+        | {
+            Args: {
+              p_brand?: string
+              p_category?: string
+              p_keywords?: string[]
+              p_limit?: number
+              p_query: string
+            }
+            Returns: {
+              brand: string
+              category_principal: string
+              code: string
+              compatibility: string
+              description: string
+              id: string
+              image_url: string
+              name: string
+              price: number
+              score: number
+              sku: string
+            }[]
+          }
       set_default_origin_cep: { Args: { _cep: string }; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }

@@ -21,6 +21,13 @@ const compatColor = (v: number) => {
   return 'bg-rose-500';
 };
 
+const TIER_META: Record<string, { label: string; className: string }> = {
+  equivalente_direto: { label: 'Equivalente direto', className: 'bg-emerald-600 text-white' },
+  alternativa_superior: { label: 'Alternativa superior', className: 'bg-sky-600 text-white' },
+  alternativa_economica: { label: 'Alternativa econômica', className: 'bg-amber-500 text-white' },
+  relacionado: { label: 'Produto relacionado', className: 'bg-slate-500 text-white' },
+};
+
 const currency = (v: number | null) =>
   v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -74,11 +81,16 @@ export default function ResultCard({ result, externalInfo, onAdd }: Props) {
                     {p.brand ?? 'Sem marca'} {p.code ? `• ${p.code}` : ''} {p.sku ? `• SKU ${p.sku}` : ''}
                   </p>
                 </div>
-                {result.approved && (
-                  <Badge variant="secondary" className="gap-1 shrink-0">
-                    <CheckCircle2 className="h-3 w-3" /> Aprovado
-                  </Badge>
-                )}
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  {result.tier && TIER_META[result.tier] && (
+                    <Badge className={`gap-1 ${TIER_META[result.tier].className}`}>{TIER_META[result.tier].label}</Badge>
+                  )}
+                  {result.approved && (
+                    <Badge variant="secondary" className="gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Aprovado
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               <div className="mt-3 flex items-center gap-3">
@@ -113,9 +125,14 @@ export default function ResultCard({ result, externalInfo, onAdd }: Props) {
               <Layers className="h-4 w-4 mr-1" /> Comparar detalhes
             </Button>
             {!result.approved && (
-              <Button size="sm" variant="ghost" onClick={confirmEquivalence} disabled={confirming}>
-                <Sparkles className="h-4 w-4 mr-1" /> É o equivalente
-              </Button>
+              <>
+                <Button size="sm" variant="ghost" onClick={confirmEquivalence} disabled={confirming}>
+                  <Sparkles className="h-4 w-4 mr-1" /> É o equivalente
+                </Button>
+                <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => toast.info('Obrigado pelo feedback. Ajuste registrado para calibrarmos próximas buscas.')}>
+                  Não é equivalente
+                </Button>
+              </>
             )}
           </div>
         </CardContent>

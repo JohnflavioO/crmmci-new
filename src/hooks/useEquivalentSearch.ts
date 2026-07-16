@@ -14,9 +14,16 @@ export interface ComparatorProduct {
   compatibility?: string | null;
 }
 
+export type ComparatorTier =
+  | 'equivalente_direto'
+  | 'alternativa_superior'
+  | 'alternativa_economica'
+  | 'relacionado';
+
 export interface ComparatorResult {
   product: ComparatorProduct;
   compatibility: number;
+  tier?: ComparatorTier;
   reasons: string[];
   similarities: string[];
   differences: string[];
@@ -32,6 +39,14 @@ export interface ComparatorResponse {
   cached?: boolean;
   approved_match?: boolean;
   response_time_ms?: number;
+  ai_available?: boolean;
+  diagnostic?: {
+    input?: string;
+    mode?: string;
+    keywords?: string[];
+    steps?: Array<{ step: string; at: number; [k: string]: any }>;
+    errors?: Array<{ where: string; message: string }>;
+  };
   error?: string;
 }
 
