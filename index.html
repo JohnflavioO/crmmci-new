@@ -119,11 +119,6 @@
           || /\.lovableproject(?:-dev)?\.com$/.test(host)
           || /\.beta\.lovable\.dev$/.test(host);
 
-        var isSameOriginScript = function (scriptURL) {
-          try { return new URL(scriptURL).origin === window.location.origin; }
-          catch (_) { return false; }
-        };
-
         var isAppShellScript = function (scriptURL) {
           try {
             var url = new URL(scriptURL);
@@ -134,7 +129,7 @@
         };
 
         var shouldRemoveWorker = function (scriptURL) {
-          return isPreview ? isSameOriginScript(scriptURL) : isAppShellScript(scriptURL);
+          return isAppShellScript(scriptURL);
         };
 
         var isAppShellCache = function (name) {
