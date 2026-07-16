@@ -53,9 +53,11 @@ export interface ComparatorResponse {
 export function useEquivalentSearch() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: string): Promise<ComparatorResponse> => {
+    mutationFn: async (args: string | { input: string; forceRefresh?: boolean }): Promise<ComparatorResponse> => {
+      const input = typeof args === 'string' ? args : args.input;
+      const force_refresh = typeof args === 'string' ? false : !!args.forceRefresh;
       const { data, error } = await supabase.functions.invoke('find-equivalent-product', {
-        body: { input },
+        body: { input, force_refresh },
       });
       if (error) throw new Error(error.message || 'Falha na busca');
       if (data?.error) throw new Error(data.error);

@@ -37,7 +37,7 @@ export default function EquipmentComparator() {
     };
   }, [search.data, input]);
 
-  const handleSearch = () => {
+  const handleSearch = (forceRefresh = false) => {
     const value = input.trim();
     if (!value) {
       toast.error('Digite algo para pesquisar');
@@ -47,7 +47,21 @@ export default function EquipmentComparator() {
       toast.error('Digite ao menos 3 caracteres');
       return;
     }
-    search.mutate(value);
+    search.mutate({ input: value, forceRefresh });
+  };
+
+  const [catalogTest, setCatalogTest] = useState<Array<{ term: string; matches: number }> | null>(null);
+  const [catalogTesting, setCatalogTesting] = useState(false);
+  const runCatalogTest = async () => {
+    setCatalogTesting(true);
+    const terms = ['LED','COB','Bowens','daylight','5600K','iluminação','iluminador','Amaran','Aputure','60d','60x','80c'];
+    const out: Array<{ term: string; matches: number }> = [];
+    for (const t of terms) {
+      const { data } = await (supabase as any).rpc('diagnose_product_search', { p_term: t });
+      out.push({ term: t, matches: Number(data?.[0]?.matches ?? 0) });
+    }
+    setCatalogTest(out);
+    setCatalogTesting(false);
   };
 
   const handleFavorite = async (id: string, current: boolean) => {
@@ -91,9 +105,12 @@ export default function EquipmentComparator() {
                   className="pl-9"
                 />
               </div>
-              <Button onClick={handleSearch} disabled={search.isPending} className="min-w-[140px]">
+              <Button onClick={() => handleSearch(false)} disabled={search.isPending} className="min-w-[140px]">
                 {search.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
                 Encontrar equivalente
+              </Button>
+              <Button onClick={() => handleSearch(true)} disabled={search.isPending} variant="outline" className="min-w-[140px]" title="Ignora cache e refaz a chamada">
+                Refazer sem cache
               </Button>
             </div>
             <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -197,6 +214,23 @@ export default function EquipmentComparator() {
                         </ul>
                       </div>
                     )}
+                    <div className="pt-2 border-t">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Button size="sm" variant="outline" onClick={runCatalogTest} disabled={catalogTesting}>
+                          {catalogTesting ? 'Testando…' : 'Testar busca no catálogo'}
+                        </Button>
+                        <span className="text-muted-foreground">Roda buscas diretas por termos comuns.</span>
+                      </div>
+                      {catalogTest && (
+                        <div className="flex flex-wrap gap-1">
+                          {catalogTest.map((t) => (
+                            <Badge key={t.term} variant={t.matches > 0 ? 'secondary' : 'outline'}>
+                              {t.term}: {t.matches}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
                 )}
               </Card>

@@ -3464,6 +3464,13 @@ export type Database = {
         Returns: boolean
       }
       delete_quote_cascade: { Args: { p_quote_id: string }; Returns: undefined }
+      diagnose_product_search: {
+        Args: { p_term: string }
+        Returns: {
+          matches: number
+          sample: Json
+        }[]
+      }
       generate_quote_number: { Args: never; Returns: string }
       generate_technical_os_number: { Args: never; Returns: string }
       get_current_user_access: {
