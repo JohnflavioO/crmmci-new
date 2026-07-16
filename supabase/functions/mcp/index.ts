@@ -97,18 +97,359 @@ var whoami_default = defineTool3({
   }
 });
 
+// src/lib/mcp/tools/search-clients.ts
+import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z3 } from "npm:zod@^3.25.76";
+
+// src/lib/mcp/_supabase.ts
+import { createClient as createClient3 } from "npm:@supabase/supabase-js@^2.110.0";
+function supabaseForUser3(ctx) {
+  return createClient3(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+function requireAuth(ctx) {
+  if (!ctx.isAuthenticated()) {
+    return { content: [{ type: "text", text: "N\xE3o autenticado" }], isError: true };
+  }
+  return null;
+}
+function ok(data, key = "data") {
+  return {
+    content: [{ type: "text", text: JSON.stringify(data) }],
+    structuredContent: { [key]: data ?? [] }
+  };
+}
+function err(message) {
+  return { content: [{ type: "text", text: message }], isError: true };
+}
+
+// src/lib/mcp/tools/search-clients.ts
+var search_clients_default = defineTool4({
+  name: "search_clients",
+  title: "Buscar clientes",
+  description: "Busca clientes por nome, email, telefone, cidade, CNPJ ou CPF respeitando permiss\xF5es (RLS).",
+  inputSchema: {
+    query: z3.string().min(1).describe("Termo de busca"),
+    limit: z3.number().int().min(1).max(50).default(20)
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ query, limit }, ctx) => {
+    const guard = requireAuth(ctx);
+    if (guard) return guard;
+    const like = `%${query}%`;
+    const { data, error } = await supabaseForUser3(ctx).from("clients").select("id,name,email,phone,city,state,cnpj,cpf,created_at").or(`name.ilike.${like},email.ilike.${like},phone.ilike.${like},city.ilike.${like},cnpj.ilike.${like},cpf.ilike.${like}`).limit(limit);
+    if (error) return err(error.message);
+    return ok(data, "clients");
+  }
+});
+
+// src/lib/mcp/tools/get-products.ts
+import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z4 } from "npm:zod@^3.25.76";
+var get_products_default = defineTool5({
+  name: "get_products",
+  title: "Listar produtos",
+  description: "Lista produtos do cat\xE1logo MCI vis\xEDveis ao usu\xE1rio autenticado.",
+  inputSchema: {
+    search: z4.string().optional().describe("Filtro por nome/SKU/marca"),
+    limit: z4.number().int().min(1).max(100).default(25)
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ search, limit }, ctx) => {
+    const guard = requireAuth(ctx);
+    if (guard) return guard;
+    let q = supabaseForUser3(ctx).from("products").select("id,name,sku,brand,category,price,stock,created_at").order("name", { ascending: true }).limit(limit);
+    if (search) {
+      const like = `%${search}%`;
+      q = q.or(`name.ilike.${like},sku.ilike.${like},brand.ilike.${like}`);
+    }
+    const { data, error } = await q;
+    if (error) return err(error.message);
+    return ok(data, "products");
+  }
+});
+
+// src/lib/mcp/tools/search-products.ts
+import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z5 } from "npm:zod@^3.25.76";
+var search_products_default = defineTool6({
+  name: "search_products",
+  title: "Buscar produtos",
+  description: "Busca textual no cat\xE1logo MCI por nome, SKU, marca ou descri\xE7\xE3o.",
+  inputSchema: {
+    query: z5.string().min(1).describe("Termo de busca"),
+    limit: z5.number().int().min(1).max(50).default(20)
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ query, limit }, ctx) => {
+    const guard = requireAuth(ctx);
+    if (guard) return guard;
+    const like = `%${query}%`;
+    const { data, error } = await supabaseForUser3(ctx).from("products").select("id,name,sku,brand,category,price,stock").or(`name.ilike.${like},sku.ilike.${like},brand.ilike.${like},description.ilike.${like}`).limit(limit);
+    if (error) return err(error.message);
+    return ok(data, "products");
+  }
+});
+
+// src/lib/mcp/tools/search-quotes.ts
+import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z6 } from "npm:zod@^3.25.76";
+var search_quotes_default = defineTool7({
+  name: "search_quotes",
+  title: "Buscar or\xE7amentos",
+  description: "Busca or\xE7amentos por cliente, status ou intervalo de datas.",
+  inputSchema: {
+    client_name: z6.string().optional(),
+    status: z6.string().optional(),
+    from: z6.string().optional().describe("Data inicial ISO (created_at >=)"),
+    to: z6.string().optional().describe("Data final ISO (created_at <=)"),
+    limit: z6.number().int().min(1).max(100).default(25)
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ client_name, status, from, to, limit }, ctx) => {
+    const guard = requireAuth(ctx);
+    if (guard) return guard;
+    let q = supabaseForUser3(ctx).from("quotes").select("id,client_name,status,total,created_at,valid_until").order("created_at", { ascending: false }).limit(limit);
+    if (client_name) q = q.ilike("client_name", `%${client_name}%`);
+    if (status) q = q.eq("status", status);
+    if (from) q = q.gte("created_at", from);
+    if (to) q = q.lte("created_at", to);
+    const { data, error } = await q;
+    if (error) return err(error.message);
+    return ok(data, "quotes");
+  }
+});
+
+// src/lib/mcp/tools/get-pipeline.ts
+import { defineTool as defineTool8 } from "npm:@lovable.dev/mcp-js@0.20.0";
+var get_pipeline_default = defineTool8({
+  name: "get_pipeline",
+  title: "Pipeline comercial",
+  description: "Retorna or\xE7amentos agrupados por status para visualiza\xE7\xE3o de pipeline.",
+  inputSchema: {},
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async (_input, ctx) => {
+    const guard = requireAuth(ctx);
+    if (guard) return guard;
+    const { data, error } = await supabaseForUser3(ctx).from("quotes").select("id,client_name,status,total,created_at").order("created_at", { ascending: false }).limit(500);
+    if (error) return err(error.message);
+    const byStatus = {};
+    for (const q of data ?? []) {
+      const s = q.status ?? "sem_status";
+      byStatus[s] ??= { count: 0, total: 0, items: [] };
+      byStatus[s].count += 1;
+      byStatus[s].total += Number(q.total ?? 0);
+      if (byStatus[s].items.length < 20) byStatus[s].items.push(q);
+    }
+    return ok(byStatus, "pipeline");
+  }
+});
+
+// src/lib/mcp/tools/get-tasks.ts
+import { defineTool as defineTool9 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z7 } from "npm:zod@^3.25.76";
+var get_tasks_default = defineTool9({
+  name: "get_tasks",
+  title: "Listar tarefas",
+  description: "Lista tarefas do usu\xE1rio autenticado, com filtro opcional de status.",
+  inputSchema: {
+    status: z7.string().optional(),
+    limit: z7.number().int().min(1).max(100).default(25)
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ status, limit }, ctx) => {
+    const guard = requireAuth(ctx);
+    if (guard) return guard;
+    let q = supabaseForUser3(ctx).from("tasks").select("*").order("created_at", { ascending: false }).limit(limit);
+    if (status) q = q.eq("status", status);
+    const { data, error } = await q;
+    if (error) return err(error.message);
+    return ok(data, "tasks");
+  }
+});
+
+// src/lib/mcp/tools/get-contracts.ts
+import { defineTool as defineTool10 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z8 } from "npm:zod@^3.25.76";
+var get_contracts_default = defineTool10({
+  name: "get_contracts",
+  title: "Listar contratos",
+  description: "Lista contratos gerados e suas solicita\xE7\xF5es de assinatura.",
+  inputSchema: {
+    status: z8.string().optional(),
+    limit: z8.number().int().min(1).max(100).default(25)
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ status, limit }, ctx) => {
+    const guard = requireAuth(ctx);
+    if (guard) return guard;
+    let q = supabaseForUser3(ctx).from("generated_contracts").select("*").order("created_at", { ascending: false }).limit(limit);
+    if (status) q = q.eq("status", status);
+    const { data, error } = await q;
+    if (error) return err(error.message);
+    return ok(data, "contracts");
+  }
+});
+
+// src/lib/mcp/tools/get-customer-history.ts
+import { defineTool as defineTool11 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z9 } from "npm:zod@^3.25.76";
+var get_customer_history_default = defineTool11({
+  name: "get_customer_history",
+  title: "Hist\xF3rico do cliente",
+  description: "Retorna or\xE7amentos, contratos e financeiro de um cliente (por id ou nome).",
+  inputSchema: {
+    client_id: z9.string().uuid().optional(),
+    client_name: z9.string().optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ client_id, client_name }, ctx) => {
+    const guard = requireAuth(ctx);
+    if (guard) return guard;
+    const sb = supabaseForUser3(ctx);
+    let client = null;
+    if (client_id) {
+      const { data } = await sb.from("clients").select("*").eq("id", client_id).maybeSingle();
+      client = data;
+    } else if (client_name) {
+      const { data } = await sb.from("clients").select("*").ilike("name", `%${client_name}%`).limit(1).maybeSingle();
+      client = data;
+    } else {
+      return err("Informe client_id ou client_name");
+    }
+    if (!client) return err("Cliente n\xE3o encontrado");
+    const [quotesRes, contractsRes, finRes] = await Promise.all([
+      sb.from("quotes").select("id,status,total,created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(50),
+      sb.from("generated_contracts").select("id,status,created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(20),
+      sb.from("financial_records").select("id,status,amount,due_date").eq("client_id", client.id).order("due_date", { ascending: false }).limit(50)
+    ]);
+    return ok({
+      client,
+      quotes: quotesRes.data ?? [],
+      contracts: contractsRes.data ?? [],
+      financial: finRes.data ?? []
+    }, "history");
+  }
+});
+
+// src/lib/mcp/tools/get-dashboard.ts
+import { defineTool as defineTool12 } from "npm:@lovable.dev/mcp-js@0.20.0";
+var get_dashboard_default = defineTool12({
+  name: "get_dashboard",
+  title: "Dashboard comercial",
+  description: "Retorna m\xE9tricas resumidas: totais de clientes, or\xE7amentos por status, valor previsto.",
+  inputSchema: {},
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async (_input, ctx) => {
+    const guard = requireAuth(ctx);
+    if (guard) return guard;
+    const sb = supabaseForUser3(ctx);
+    const [clientsRes, quotesRes] = await Promise.all([
+      sb.from("clients").select("id", { count: "exact", head: true }),
+      sb.from("quotes").select("status,total,created_at").limit(1e3)
+    ]);
+    if (quotesRes.error) return err(quotesRes.error.message);
+    const byStatus = {};
+    let grandTotal = 0;
+    for (const q of quotesRes.data ?? []) {
+      const s = q.status ?? "sem_status";
+      byStatus[s] ??= { count: 0, total: 0 };
+      byStatus[s].count += 1;
+      byStatus[s].total += Number(q.total ?? 0);
+      grandTotal += Number(q.total ?? 0);
+    }
+    return ok({
+      total_clients: clientsRes.count ?? 0,
+      total_quotes: quotesRes.data?.length ?? 0,
+      forecast_total: grandTotal,
+      quotes_by_status: byStatus
+    }, "dashboard");
+  }
+});
+
+// src/lib/mcp/tools/get-followups.ts
+import { defineTool as defineTool13 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z10 } from "npm:zod@^3.25.76";
+var get_followups_default = defineTool13({
+  name: "get_followups",
+  title: "Follow-ups pendentes",
+  description: "Retorna clientes sem intera\xE7\xE3o recente (default: 30 dias) para follow-up.",
+  inputSchema: {
+    days_without_contact: z10.number().int().min(1).max(365).default(30),
+    limit: z10.number().int().min(1).max(100).default(25)
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ days_without_contact, limit }, ctx) => {
+    const guard = requireAuth(ctx);
+    if (guard) return guard;
+    const cutoff = new Date(Date.now() - days_without_contact * 864e5).toISOString();
+    const { data, error } = await supabaseForUser3(ctx).from("clients").select("id,name,email,phone,last_contact_at,updated_at,created_at").or(`last_contact_at.lt.${cutoff},last_contact_at.is.null`).order("last_contact_at", { ascending: true, nullsFirst: true }).limit(limit);
+    if (error) return err(error.message);
+    return ok(data, "followups");
+  }
+});
+
+// src/lib/mcp/tools/get-sales-metrics.ts
+import { defineTool as defineTool14 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z11 } from "npm:zod@^3.25.76";
+var get_sales_metrics_default = defineTool14({
+  name: "get_sales_metrics",
+  title: "M\xE9tricas de vendas",
+  description: "Retorna m\xE9tricas de vendas (aprovados) em um per\xEDodo: total, ticket m\xE9dio, top produtos.",
+  inputSchema: {
+    from: z11.string().optional().describe("Data inicial ISO"),
+    to: z11.string().optional().describe("Data final ISO")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ from, to }, ctx) => {
+    const guard = requireAuth(ctx);
+    if (guard) return guard;
+    const sb = supabaseForUser3(ctx);
+    let q = sb.from("quotes").select("id,status,total,client_name,created_at").eq("status", "aprovado").limit(2e3);
+    if (from) q = q.gte("created_at", from);
+    if (to) q = q.lte("created_at", to);
+    const { data, error } = await q;
+    if (error) return err(error.message);
+    const total = (data ?? []).reduce((s, r) => s + Number(r.total ?? 0), 0);
+    const count = data?.length ?? 0;
+    return ok({
+      approved_count: count,
+      revenue_total: total,
+      average_ticket: count ? total / count : 0,
+      period: { from: from ?? null, to: to ?? null }
+    }, "metrics");
+  }
+});
+
 // src/lib/mcp/index.ts
 var projectRef = "npqujpfqsnwxowlciyof";
 var mcp_default = defineMcp({
   name: "mci-crm-mcp",
-  title: "MCI CRM MCP",
-  version: "0.1.0",
-  instructions: "Ferramentas do MCI CRM. Use `whoami` para checar a sess\xE3o, `list_clients` para consultar clientes e `list_quotes` para consultar or\xE7amentos do usu\xE1rio autenticado.",
+  title: "MCI CRM - Copiloto Comercial",
+  version: "0.2.0",
+  instructions: "Copiloto Comercial do MCI CRM. Use as ferramentas para consultar clientes, produtos, or\xE7amentos, pipeline, contratos, tarefas, follow-ups e m\xE9tricas de vendas do usu\xE1rio autenticado. Nunca invente dados: se uma consulta retornar vazio, informe. Todas as consultas respeitam as permiss\xF5es (RLS) e a carteira comercial do usu\xE1rio.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
   }),
-  tools: [whoami_default, list_clients_default, list_quotes_default]
+  tools: [
+    whoami_default,
+    list_clients_default,
+    search_clients_default,
+    get_products_default,
+    search_products_default,
+    list_quotes_default,
+    search_quotes_default,
+    get_pipeline_default,
+    get_tasks_default,
+    get_contracts_default,
+    get_customer_history_default,
+    get_dashboard_default,
+    get_followups_default,
+    get_sales_metrics_default
+  ]
 });
 
 // lovable-mcp-supabase-entry.ts
