@@ -429,10 +429,30 @@ Deno.serve(async (req) => {
 
     const responseTime = Date.now() - started;
 
+    // Always refresh commercial fields from DB against the resolved product_ids.
+    // Guarantees name/image/code/sku/price and same product_id are consistent.
     if (results.length > 0) {
+      const ids = results.map((r: any) => r?.product?.id).filter(Boolean);
+      const { data: fresh } = await supabase.from('products').select('*').in('id', ids);
+      const freshMap = new Map((fresh ?? []).map((p: any) => [p.id, p]));
+      results = results
+        .map((r: any) => {
+          const p = freshMap.get(r?.product?.id);
+          if (!p) return null;
+          return { ...r, product: p, _price_source: 'db_live', _fetched_at: new Date().toISOString() };
+        })
+        .filter(Boolean);
+    }
+
+    if (results.length > 0) {
+      // Strip volatile commercial fields before caching — they must always come live from DB.
+      const cacheSafe = results.map((r: any) => ({
+        ...r,
+        product: { ...r.product, price: null, image_url: r.product?.image_url ?? null },
+      }));
       await supabase.from('equivalence_search_cache').upsert({
         input_hash: inputHash, input_type: mode, input_value: input,
-        extracted_specs: extracted, candidates: results,
+        extracted_specs: extracted, candidates: cacheSafe,
       }, { onConflict: 'input_hash' });
     }
 
