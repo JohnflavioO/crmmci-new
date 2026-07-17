@@ -275,20 +275,31 @@ export default function EquipmentComparator() {
               <CardContent className="p-3">
                 {history.isLoading ? <p className="text-xs text-muted-foreground p-3">Carregando...</p> :
                   (history.data ?? []).length === 0 ? <p className="text-xs text-muted-foreground p-3">Sem buscas ainda.</p> :
-                  <ul className="divide-y">
-                    {(history.data ?? []).map((h: any) => (
-                      <li key={h.id} className="flex items-center gap-3 py-2 text-sm">
-                        <button onClick={() => handleFavorite(h.id, h.is_favorite)}>
-                          <Star className={`h-4 w-4 ${h.is_favorite ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}`} />
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <p className="truncate">{h.input_value}</p>
-                          <p className="text-xs text-muted-foreground">{h.input_type} • {formatDistanceToNow(new Date(h.created_at), { addSuffix: true, locale: ptBR })}</p>
-                        </div>
-                        <Button size="sm" variant="ghost" onClick={() => { setInput(h.input_value); search.mutate(h.input_value); }}>Refazer</Button>
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    <div className="flex items-center justify-between px-1 pb-2">
+                      <span className="text-xs text-muted-foreground">{(history.data ?? []).length} item(ns)</span>
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={handleClearHistory}>
+                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Limpar histórico
+                      </Button>
+                    </div>
+                    <ul className="divide-y">
+                      {(history.data ?? []).map((h: any) => (
+                        <li key={h.id} className="flex items-center gap-3 py-2 text-sm">
+                          <button onClick={() => handleFavorite(h.id, h.is_favorite)} title={h.is_favorite ? 'Desfavoritar' : 'Favoritar'}>
+                            <Star className={`h-4 w-4 ${h.is_favorite ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}`} />
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p className="truncate">{h.input_value}</p>
+                            <p className="text-xs text-muted-foreground">{h.input_type} • {formatDistanceToNow(new Date(h.created_at), { addSuffix: true, locale: ptBR })}</p>
+                          </div>
+                          <Button size="sm" variant="ghost" onClick={() => { setInput(h.input_value); search.mutate(h.input_value); }}>Refazer</Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteHistory(h.id)} title="Apagar">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
                 }
               </CardContent>
             </Card>
