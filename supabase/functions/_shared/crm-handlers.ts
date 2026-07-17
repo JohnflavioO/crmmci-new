@@ -376,6 +376,207 @@ export async function getTopProducts(ctx: CrmCtx, args: {
   });
 }
 
+// -----------------------------------------------------------------
+// Top brands (marcas mais vendidas — apenas orçamentos aprovados)
+// -----------------------------------------------------------------
+export async function getTopBrands(ctx: CrmCtx, args: {
+  from?: string; to?: string; days_back?: number; limit?: number; scope?: string;
+} = {}): Promise<CrmEnvelope> {
+  const limit = Math.min(args.limit ?? 10, 50);
+  const from = args.from ?? (args.days_back ? new Date(Date.now() - args.days_back * 86400000).toISOString() : undefined);
+  const fmtDate = (iso: string) => { try { const d = new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`; } catch { return iso; } };
+  let periodLabel = "Todo o histórico";
+  if (args.days_back) periodLabel = `Últimos ${args.days_back} dias`;
+  else if (from && args.to) periodLabel = `${fmtDate(from)} até ${fmtDate(args.to)}`;
+  else if (from) periodLabel = `A partir de ${fmtDate(from)}`;
+
+  let qq = ctx.supabase.from("quotes").select("id,client_id,created_by,created_at,status").in("status", APPROVED_STATUSES).limit(5000);
+  qq = scopeOwn(qq, "created_by", ctx, args.scope);
+  if (from) qq = qq.gte("created_at", from);
+  if (args.to) qq = qq.lte("created_at", args.to);
+  const { data: quotes, error: qErr } = await qq;
+  if (qErr) return errEnv("top_brands", qErr.message);
+  if (!quotes?.length) return okEnv("top_brands", { rows: [], count: 0, summary: { period_label: periodLabel } });
+
+  const quoteIds = quotes.map((q: any) => q.id);
+  const clientByQuote: Record<string, string | null> = {};
+  quotes.forEach((q: any) => { clientByQuote[q.id] = q.client_id ?? null; });
+
+  const { data: items, error: iErr } = await ctx.supabase
+    .from("quote_items")
+    .select("quote_id,brand,product_code,code,quantity,line_total,total_price,unit_total,unit_price")
+    .in("quote_id", quoteIds).limit(20000);
+  if (iErr) return errEnv("top_brands", iErr.message);
+
+  const codes = Array.from(new Set((items ?? []).map((it: any) => (it.product_code || it.code || "").toString().trim().toLowerCase()).filter(Boolean))) as string[];
+  const brandByCode: Record<string, string> = {};
+  if (codes.length) {
+    for (let i = 0; i < codes.length; i += 200) {
+      const slice = codes.slice(i, i + 200);
+      const { data: prods } = await ctx.supabase.from("products").select("code,sku,brand")
+        .or(`code.in.(${slice.map(c => `"${c.replace(/"/g,"")}"`).join(",")}),sku.in.(${slice.map(c => `"${c.replace(/"/g,"")}"`).join(",")})`);
+      for (const p of prods ?? []) {
+        if (p.brand) {
+          if (p.code) brandByCode[String(p.code).toLowerCase()] = p.brand;
+          if (p.sku) brandByCode[String(p.sku).toLowerCase()] = p.brand;
+        }
+      }
+    }
+  }
+
+  const agg: Record<string, { brand: string; quantity: number; revenue: number; quotes: Set<string>; clients: Set<string> }> = {};
+  for (const it of items ?? []) {
+    const rawCode = ((it as any).product_code || (it as any).code || "").toString().trim().toLowerCase();
+    const brand = ((it as any).brand?.toString().trim()) || brandByCode[rawCode] || null;
+    if (!brand) continue;
+    const key = brand.toLowerCase();
+    const qty = Number((it as any).quantity ?? 0);
+    const rev = Number((it as any).line_total ?? (it as any).total_price ?? (it as any).unit_total ?? (Number((it as any).unit_price ?? 0) * qty));
+    agg[key] ??= { brand, quantity: 0, revenue: 0, quotes: new Set(), clients: new Set() };
+    agg[key].quantity += qty;
+    agg[key].revenue += rev;
+    agg[key].quotes.add((it as any).quote_id);
+    const cid = clientByQuote[(it as any).quote_id];
+    if (cid) agg[key].clients.add(cid);
+  }
+
+  const totalRev = Object.values(agg).reduce((s, r) => s + r.revenue, 0);
+  const rows = Object.values(agg)
+    .map(r => ({
+      brand: r.brand,
+      quantity_sold: r.quantity,
+      revenue: r.revenue,
+      approved_quotes_count: r.quotes.size,
+      customer_count: r.clients.size,
+      participation_percentage: totalRev > 0 ? Number(((r.revenue / totalRev) * 100).toFixed(2)) : 0,
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, limit);
+
+  return okEnv("top_brands", {
+    columns: ["brand", "quantity_sold", "revenue", "customer_count", "approved_quotes_count", "participation_percentage"],
+    rows, count: rows.length,
+    summary: { period_label: periodLabel, approved_quotes_scanned: quotes.length },
+  });
+}
+
+// -----------------------------------------------------------------
+// Inactive clients (clientes sem compra aprovada há X dias)
+// -----------------------------------------------------------------
+export async function getInactiveClients(ctx: CrmCtx, args: {
+  inactive_days?: number; minimum_revenue?: number; limit?: number; scope?: string;
+  period_start?: string; period_end?: string;
+} = {}): Promise<CrmEnvelope> {
+  const inactiveDays = args.inactive_days ?? 90;
+  const minRevenue = args.minimum_revenue ?? 0;
+  const limit = Math.min(args.limit ?? 20, 100);
+  const cutoff = new Date(Date.now() - inactiveDays * 86400000);
+
+  let qq = ctx.supabase.from("quotes")
+    .select("id,client_id,client_name,total,total_amount,approved_at,created_at,created_by,salesperson,status")
+    .in("status", APPROVED_STATUSES).limit(10000);
+  qq = scopeOwn(qq, "created_by", ctx, args.scope);
+  if (args.period_start) qq = qq.gte("created_at", args.period_start);
+  if (args.period_end) qq = qq.lte("created_at", args.period_end);
+  const { data: quotes, error } = await qq;
+  if (error) return errEnv("inactive_clients", error.message);
+
+  const map = new Map<string, { client_id: string; client_name: string; last: Date; count: number; revenue: number; seller: string | null }>();
+  for (const q of quotes ?? []) {
+    const cid = (q as any).client_id;
+    if (!cid) continue;
+    const d = new Date((q as any).approved_at || (q as any).created_at);
+    const v = Number((q as any).total_amount ?? (q as any).total ?? 0);
+    const cur = map.get(cid);
+    if (!cur) map.set(cid, { client_id: cid, client_name: (q as any).client_name || "Sem cliente", last: d, count: 1, revenue: v, seller: (q as any).salesperson ?? null });
+    else { cur.count++; cur.revenue += v; if (d > cur.last) cur.last = d; }
+  }
+
+  const rows = Array.from(map.values())
+    .filter(r => r.last < cutoff && r.revenue >= minRevenue)
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, limit)
+    .map(r => {
+      const days = Math.floor((Date.now() - r.last.getTime()) / 86400000);
+      return {
+        client_id: r.client_id,
+        client_name: r.client_name,
+        last_purchase_date: r.last.toISOString(),
+        days_inactive: days,
+        total_revenue: r.revenue,
+        total_purchases: r.count,
+        seller_name: r.seller,
+        recommended_action: days >= 180 ? "Reengajamento urgente" : "Follow-up comercial",
+      };
+    });
+
+  return okEnv("inactive_clients", {
+    columns: ["client_name", "last_purchase_date", "days_inactive", "total_revenue", "total_purchases", "seller_name", "recommended_action"],
+    rows, count: rows.length,
+    summary: { inactive_days: inactiveDays, minimum_revenue: minRevenue },
+  });
+}
+
+// -----------------------------------------------------------------
+// Repurchase window (janela de recompra baseada em intervalo médio)
+// -----------------------------------------------------------------
+export async function getRepurchaseWindow(ctx: CrmCtx, args: {
+  min_purchases?: number; tolerance_pct?: number; limit?: number; scope?: string;
+} = {}): Promise<CrmEnvelope> {
+  const minPurchases = Math.max(args.min_purchases ?? 2, 2);
+  const tol = args.tolerance_pct ?? 0.3;
+  const limit = Math.min(args.limit ?? 20, 100);
+
+  let qq = ctx.supabase.from("quotes")
+    .select("id,client_id,client_name,total,total_amount,approved_at,created_at,created_by,status")
+    .in("status", APPROVED_STATUSES).limit(10000);
+  qq = scopeOwn(qq, "created_by", ctx, args.scope);
+  const { data: quotes, error } = await qq;
+  if (error) return errEnv("repurchase_window", error.message);
+
+  const map = new Map<string, { client_id: string; client_name: string; dates: Date[] }>();
+  for (const q of quotes ?? []) {
+    const cid = (q as any).client_id;
+    if (!cid) continue;
+    const d = new Date((q as any).approved_at || (q as any).created_at);
+    const cur = map.get(cid);
+    if (!cur) map.set(cid, { client_id: cid, client_name: (q as any).client_name || "Sem cliente", dates: [d] });
+    else cur.dates.push(d);
+  }
+
+  const now = Date.now();
+  const rows: any[] = [];
+  for (const r of map.values()) {
+    if (r.dates.length < minPurchases) continue;
+    r.dates.sort((a, b) => a.getTime() - b.getTime());
+    const first = r.dates[0], last = r.dates[r.dates.length - 1];
+    const avgDays = Math.round((last.getTime() - first.getTime()) / 86400000 / (r.dates.length - 1));
+    if (avgDays <= 0) continue;
+    const expected = new Date(last.getTime() + avgDays * 86400000);
+    const daysUntil = Math.floor((expected.getTime() - now) / 86400000);
+    const daysSinceLast = Math.floor((now - last.getTime()) / 86400000);
+    const inWindow = daysSinceLast >= avgDays * (1 - tol) && daysSinceLast <= avgDays * (1 + tol);
+    if (!inWindow) continue;
+    const confidence = r.dates.length >= 4 ? "alta" : r.dates.length >= 3 ? "média" : "baixa";
+    rows.push({
+      client_id: r.client_id,
+      client_name: r.client_name,
+      last_purchase_date: last.toISOString(),
+      average_purchase_interval_days: avgDays,
+      expected_repurchase_date: expected.toISOString(),
+      days_until_repurchase: daysUntil,
+      confidence,
+      recommended_action: daysUntil <= 0 ? "Abordagem imediata" : "Preparar oferta",
+    });
+  }
+  rows.sort((a, b) => a.days_until_repurchase - b.days_until_repurchase);
+  return okEnv("repurchase_window", {
+    columns: ["client_name", "last_purchase_date", "average_purchase_interval_days", "expected_repurchase_date", "days_until_repurchase", "confidence", "recommended_action"],
+    rows: rows.slice(0, limit), count: Math.min(rows.length, limit),
+    summary: { min_purchases: minPurchases, tolerance_pct: tol },
+  });
+}
+
 
 // -----------------------------------------------------------------
 // Follow-ups / Tasks
