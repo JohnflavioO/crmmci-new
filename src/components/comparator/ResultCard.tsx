@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, Plus, Layers, Sparkles } from 'lucide-react';
+import { CheckCircle2, Plus, Layers, Sparkles, ExternalLink, RefreshCw, AlertTriangle } from 'lucide-react';
 import CompareDetailsDrawer from './CompareDetailsDrawer';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -28,8 +28,31 @@ const TIER_META: Record<string, { label: string; className: string }> = {
   relacionado: { label: 'Produto relacionado', className: 'bg-slate-500 text-white' },
 };
 
-const currency = (v: number | null) =>
-  v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const currency = (v: number) =>
+  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+// Single source of truth: only CRM-provided price is displayed.
+// Never invent, estimate, or default to zero.
+type PriceState =
+  | { kind: 'loading' }
+  | { kind: 'error' }
+  | { kind: 'on_request' }
+  | { kind: 'promo'; promo: number; original?: number | null }
+  | { kind: 'value'; value: number }
+  | { kind: 'unavailable' };
+
+function resolvePrice(p: any): PriceState {
+  if (!p) return { kind: 'error' };
+  if (p.price_on_request === true) return { kind: 'on_request' };
+  const promo = Number(p.promotional_price);
+  if (Number.isFinite(promo) && promo > 0) {
+    const orig = Number(p.price);
+    return { kind: 'promo', promo, original: Number.isFinite(orig) && orig > promo ? orig : null };
+  }
+  const price = Number(p.price);
+  if (Number.isFinite(price) && price > 0) return { kind: 'value', value: price };
+  return { kind: 'unavailable' };
+}
 
 export default function ResultCard({ result, externalInfo, onAdd }: Props) {
   const [showCompare, setShowCompare] = useState(false);
