@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, Plus, Layers, Sparkles } from 'lucide-react';
+import { CheckCircle2, Plus, Layers, Sparkles, ExternalLink, RefreshCw, AlertTriangle } from 'lucide-react';
 import CompareDetailsDrawer from './CompareDetailsDrawer';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -28,15 +28,70 @@ const TIER_META: Record<string, { label: string; className: string }> = {
   relacionado: { label: 'Produto relacionado', className: 'bg-slate-500 text-white' },
 };
 
-const currency = (v: number | null) =>
-  v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const currency = (v: number) =>
+  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+// Single source of truth: only CRM-provided price is displayed.
+// Never invent, estimate, or default to zero.
+type PriceState =
+  | { kind: 'loading' }
+  | { kind: 'error' }
+  | { kind: 'on_request' }
+  | { kind: 'promo'; promo: number; original?: number | null }
+  | { kind: 'value'; value: number }
+  | { kind: 'unavailable' };
+
+function resolvePrice(p: any): PriceState {
+  if (!p) return { kind: 'error' };
+  if (p.price_on_request === true) return { kind: 'on_request' };
+  const promo = Number(p.promotional_price);
+  if (Number.isFinite(promo) && promo > 0) {
+    const orig = Number(p.price);
+    return { kind: 'promo', promo, original: Number.isFinite(orig) && orig > promo ? orig : null };
+  }
+  const price = Number(p.price);
+  if (Number.isFinite(price) && price > 0) return { kind: 'value', value: price };
+  return { kind: 'unavailable' };
+}
 
 export default function ResultCard({ result, externalInfo, onAdd }: Props) {
   const [showCompare, setShowCompare] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const p = result.product;
+  const [live, setLive] = useState<any>(null);
+  const [liveState, setLiveState] = useState<'loading' | 'ok' | 'error'>('loading');
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const baseId = result.product?.id;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!baseId) { setLiveState('error'); return; }
+    setLiveState('loading');
+    (async () => {
+      // Single source of truth: always fetch commercial data live from CRM by product_id.
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', baseId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error || !data) { setLive(null); setLiveState('error'); return; }
+      setLive(data);
+      setLiveState('ok');
+    })();
+    return () => { cancelled = true; };
+  }, [baseId, reloadKey]);
+
+  // Only render fields from the live product to guarantee card consistency (same product_id).
+  const p: any = live ?? (liveState === 'loading' ? result.product : null);
+  const price: PriceState = liveState === 'loading'
+    ? { kind: 'loading' }
+    : liveState === 'error' || !p
+      ? { kind: 'error' }
+      : resolvePrice(p);
 
   const confirmEquivalence = async () => {
+    if (!p?.id) return;
     setConfirming(true);
     try {
       const { data: userRes } = await supabase.auth.getUser();
@@ -60,6 +115,25 @@ export default function ResultCard({ result, externalInfo, onAdd }: Props) {
       setConfirming(false);
     }
   };
+
+  if (liveState === 'error' || !p) {
+    return (
+      <Card className="border-amber-400/60">
+        <CardContent className="p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">Produto encontrado, mas os dados comerciais não puderam ser validados no momento.</p>
+            <p className="text-xs text-muted-foreground mt-1">Não exibimos preço nem estoque sem confirmação do cadastro real.</p>
+            <div className="mt-3 flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setReloadKey((k) => k + 1)}>
+                <RefreshCw className="h-4 w-4 mr-1" /> Atualizar dados do produto
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <>
@@ -103,9 +177,28 @@ export default function ResultCard({ result, externalInfo, onAdd }: Props) {
                     <div className={`h-full ${compatColor(result.compatibility)}`} style={{ width: `${result.compatibility}%` }} />
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-[10px] uppercase text-muted-foreground tracking-wider">Preço</p>
-                  <p className="text-sm font-semibold">{currency(p.price)}</p>
+                <div className="text-right min-w-[110px]">
+                  <p className="text-[10px] uppercase text-muted-foreground tracking-wider">Preço (CRM)</p>
+                  {price.kind === 'loading' && (
+                    <p className="text-xs text-muted-foreground">Validando…</p>
+                  )}
+                  {price.kind === 'on_request' && (
+                    <p className="text-sm font-semibold">Preço sob consulta</p>
+                  )}
+                  {price.kind === 'promo' && (
+                    <>
+                      <p className="text-sm font-semibold text-emerald-600">{currency(price.promo)}</p>
+                      {price.original != null && (
+                        <p className="text-[11px] text-muted-foreground line-through">{currency(price.original)}</p>
+                      )}
+                    </>
+                  )}
+                  {price.kind === 'value' && (
+                    <p className="text-sm font-semibold">{currency(price.value)}</p>
+                  )}
+                  {price.kind === 'unavailable' && (
+                    <p className="text-xs text-muted-foreground">Preço não informado</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -124,6 +217,16 @@ export default function ResultCard({ result, externalInfo, onAdd }: Props) {
             <Button size="sm" variant="outline" onClick={() => setShowCompare(true)}>
               <Layers className="h-4 w-4 mr-1" /> Comparar detalhes
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => window.open(`/products?highlight=${p.id}`, '_blank', 'noopener,noreferrer')}
+            >
+              <ExternalLink className="h-4 w-4 mr-1" /> Abrir produto no CRM
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setReloadKey((k) => k + 1)} title="Recarregar dados comerciais">
+              <RefreshCw className="h-4 w-4 mr-1" /> Atualizar
+            </Button>
             {!result.approved && (
               <>
                 <Button size="sm" variant="ghost" onClick={confirmEquivalence} disabled={confirming}>
@@ -135,8 +238,13 @@ export default function ResultCard({ result, externalInfo, onAdd }: Props) {
               </>
             )}
           </div>
+
+          <p className="text-[10px] text-muted-foreground/70 mt-1">
+            Dados comerciais lidos ao vivo do cadastro (ID {p.id.slice(0, 8)}…) em {new Date().toLocaleTimeString('pt-BR')}.
+          </p>
         </CardContent>
       </Card>
+
 
       <CompareDetailsDrawer
         open={showCompare}
