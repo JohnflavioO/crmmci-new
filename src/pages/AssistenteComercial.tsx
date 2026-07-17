@@ -507,20 +507,119 @@ export default function AssistenteComercial() {
   );
 
   // ---------- Result renderer (executive card, never chat bubble) ----------
+  const renderTopProducts = (result: any) => {
+    const s = result.summary || {};
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <Card><CardContent className="p-4">
+            <p className="text-[10px] uppercase text-muted-foreground tracking-wider">Período</p>
+            <p className="text-base font-semibold mt-1">{s.period_label || 'Todo o histórico'}</p>
+          </CardContent></Card>
+          <Card><CardContent className="p-4">
+            <p className="text-[10px] uppercase text-muted-foreground tracking-wider">Métrica</p>
+            <p className="text-base font-semibold mt-1">{METRIC_LABELS[s.metric] || 'Receita'}</p>
+          </CardContent></Card>
+          <Card><CardContent className="p-4">
+            <p className="text-[10px] uppercase text-muted-foreground tracking-wider">Orçamentos analisados</p>
+            <p className="text-base font-semibold mt-1">{s.approved_quotes_scanned ?? 0}</p>
+          </CardContent></Card>
+        </div>
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0 py-3">
+            <CardTitle className="text-sm font-semibold">{result.count} produtos no ranking</CardTitle>
+            <Button variant="outline" size="sm" onClick={() => exportRows(result)}>
+              <Download className="h-3.5 w-3.5" /> Exportar Excel
+            </Button>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto max-h-[560px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10">#</TableHead>
+                    <TableHead className="w-16">Imagem</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Marca</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead className="text-right">Qtd. vendida</TableHead>
+                    <TableHead className="text-right">Receita</TableHead>
+                    <TableHead className="text-right">Aprovados</TableHead>
+                    <TableHead className="text-right">Preço médio</TableHead>
+                    <TableHead className="text-right">Participação</TableHead>
+                    <TableHead className="w-[140px]">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {result.rows.map((r: any, i: number) => (
+                    <TableRow key={r.product_id || r.product_code || i}>
+                      <TableCell className="text-sm font-medium">{r.ranking_position}</TableCell>
+                      <TableCell>
+                        {r.image_url ? (
+                          <img src={r.image_url} alt={r.product_name} className="h-10 w-10 rounded object-cover border border-border/40" loading="lazy" />
+                        ) : (
+                          <div className="h-10 w-10 rounded bg-muted/40 border border-border/40" />
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm font-medium max-w-[280px]">{r.product_name}</TableCell>
+                      <TableCell className="text-sm">{r.brand || '—'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{r.sku || '—'}</TableCell>
+                      <TableCell className="text-sm text-right">{Number(r.quantity_sold || 0).toLocaleString('pt-BR')}</TableCell>
+                      <TableCell className="text-sm text-right font-medium">{fmtBRLFull(r.revenue)}</TableCell>
+                      <TableCell className="text-sm text-right">{r.approved_quotes_count}</TableCell>
+                      <TableCell className="text-sm text-right">{fmtBRLFull(r.average_price)}</TableCell>
+                      <TableCell className="text-sm text-right">{Number(r.share_pct || 0).toFixed(1)}%</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-7 px-2">
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem disabled={!r.product_id} onClick={() => r.product_id && navigate(`/products?id=${r.product_id}`)}>
+                              <ExternalLink className="h-4 w-4" /> Ver produto
+                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled={!r.product_id} onClick={() => r.product_id && navigate(`/products?id=${r.product_id}&edit=1`)}>
+                              <Pencil className="h-4 w-4" /> Abrir cadastro
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/quotes?new=1${r.product_id ? `&product_id=${r.product_id}` : ''}`)}>
+                              <FileText className="h-4 w-4" /> Criar orçamento
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/estoque-sc?q=${encodeURIComponent(r.sku || r.product_code || r.product_name)}`)}>
+                              <Search className="h-4 w-4" /> Consultar estoque
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
   const renderResult = (result: any) => {
     if (!result) return null;
+    if (result.entity === 'top_products' && result.rows?.length) return renderTopProducts(result);
     return (
       <div className="space-y-4">
         {result.summary && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {Object.entries(result.summary).map(([k, v]) => (
-              <Card key={k}>
-                <CardContent className="p-4">
-                  <p className="text-[10px] uppercase text-muted-foreground tracking-wider">{k.replace(/_/g, ' ')}</p>
-                  <p className="text-xl font-semibold mt-1">{formatValue(v, k)}</p>
-                </CardContent>
-              </Card>
-            ))}
+            {Object.entries(result.summary)
+              .filter(([, v]) => typeof v !== 'object' || v === null)
+              .map(([k, v]) => (
+                <Card key={k}>
+                  <CardContent className="p-4">
+                    <p className="text-[10px] uppercase text-muted-foreground tracking-wider">{SUMMARY_LABELS[k] || k.replace(/_/g, ' ')}</p>
+                    <p className="text-xl font-semibold mt-1">{formatSummaryValue(k, v)}</p>
+                  </CardContent>
+                </Card>
+              ))}
           </div>
         )}
         {result.rows && result.rows.length > 0 && (
