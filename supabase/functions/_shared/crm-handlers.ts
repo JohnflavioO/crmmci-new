@@ -735,6 +735,25 @@ export const TOOL_REGISTRY: Record<string, ToolDef> = {
     parameters: { type: "object", properties: { status: { type: "string" }, limit: { type: "number" } } },
     handler: getContracts, readOnly: true,
   },
+  get_top_brands: {
+    name: "get_top_brands",
+    description: "Ranking de marcas mais vendidas (orçamentos aprovados). Retorna receita, unidades, clientes e participação %.",
+    parameters: { type: "object", properties: { from: { type: "string" }, to: { type: "string" }, days_back: { type: "number" }, limit: { type: "number" }, scope: { type: "string", enum: ["own", "team"] } } },
+    handler: getTopBrands, readOnly: true,
+  },
+  get_inactive_clients: {
+    name: "get_inactive_clients",
+    description: "Clientes sem compra aprovada há X dias (default 90). Retorna dias inativos, receita histórica, vendedor e ação recomendada.",
+    parameters: { type: "object", properties: { inactive_days: { type: "number" }, minimum_revenue: { type: "number" }, limit: { type: "number" }, scope: { type: "string", enum: ["own", "team"] }, period_start: { type: "string" }, period_end: { type: "string" } } },
+    handler: getInactiveClients, readOnly: true, aliases: ["inactive_clients"],
+  },
+  get_repurchase_window: {
+    name: "get_repurchase_window",
+    description: "Clientes em janela de recompra: intervalo médio entre compras aprovadas, data prevista, confiança e ação recomendada. Requer no mínimo 2 compras.",
+    parameters: { type: "object", properties: { min_purchases: { type: "number" }, tolerance_pct: { type: "number" }, limit: { type: "number" }, scope: { type: "string", enum: ["own", "team"] } } },
+    handler: getRepurchaseWindow, readOnly: true, aliases: ["recompute_repurchase", "repurchase_window"],
+  },
+
 };
 
 // Resolve name or alias to a tool
