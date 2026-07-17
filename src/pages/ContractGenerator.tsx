@@ -845,9 +845,11 @@ export default function ContractGenerator() {
         />
 
         <Dialog open={clientPickerOpen} onOpenChange={setClientPickerOpen}>
-          <DialogContent className="max-w-xl">
-            <DialogHeader><DialogTitle>Selecionar cliente</DialogTitle></DialogHeader>
-            <div className="space-y-3">
+          <DialogContent className="w-[calc(100vw-32px)] max-w-[560px] p-0 gap-0 overflow-hidden bg-background">
+            <DialogHeader className="px-5 py-4 border-b">
+              <DialogTitle className="text-base">Selecionar cliente</DialogTitle>
+            </DialogHeader>
+            <div className="px-5 pt-4 pb-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -858,7 +860,9 @@ export default function ContractGenerator() {
                   onChange={(e) => setClientSearch(e.target.value)}
                 />
               </div>
-              <div className="max-h-[420px] overflow-y-auto space-y-2 pr-1">
+            </div>
+            <div className="px-5 pb-5 max-h-[60vh] overflow-y-auto">
+              <div className="space-y-2">
                 {loadingClients ? (
                   <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Carregando...
@@ -872,10 +876,10 @@ export default function ContractGenerator() {
                     key={c.id}
                     type="button"
                     onClick={() => applyClient(c)}
-                    className="w-full text-left p-3 rounded-md border hover:border-primary hover:bg-primary/5 transition-colors"
+                    className="w-full min-w-0 text-left p-3 rounded-md border bg-card hover:border-primary hover:bg-primary/5 transition-colors"
                   >
-                    <div className="font-medium text-sm truncate">{c.company_name || c.name}</div>
-                    <div className="text-xs text-muted-foreground truncate mt-0.5">
+                    <div className="min-w-0 font-medium text-sm truncate">{c.company_name || c.name}</div>
+                    <div className="min-w-0 text-xs text-muted-foreground truncate mt-0.5">
                       {[c.cpf_cnpj, c.email, [c.city, c.state].filter(Boolean).join('/')].filter(Boolean).join(' • ') || '—'}
                     </div>
                   </button>
