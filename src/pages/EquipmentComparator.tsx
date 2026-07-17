@@ -177,7 +177,7 @@ export default function EquipmentComparator() {
                       key={r.product.id + i}
                       result={r}
                       externalInfo={externalInfo}
-                      onAdd={() => { setAddProduct(r.product); setAddOpen(true); }}
+                      onAdd={() => { setAddProduct(r.product); setAddCompat(r.compatibility); setAddOpen(true); }}
                     />
                   ))}
                 </div>
