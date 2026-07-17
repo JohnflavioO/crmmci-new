@@ -81,7 +81,7 @@ export default function EquipmentComparator() {
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <BrainCircuit className="h-5 w-5 text-primary" />
             <h1 className="text-2xl font-bold font-display">Comparador Inteligente de Equipamentos</h1>
           </div>
           <p className="text-sm text-muted-foreground">
