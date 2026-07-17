@@ -1,6 +1,6 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
-import { supabaseForUser, requireAuth, ok, err } from "../_supabase";
+import { runShared } from "../_bridge";
 
 export default defineTool({
   name: "search_quotes",
@@ -14,19 +14,5 @@ export default defineTool({
     limit: z.number().int().min(1).max(100).default(25),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ client_name, status, from, to, limit }, ctx) => {
-    const guard = requireAuth(ctx); if (guard) return guard;
-    let q = supabaseForUser(ctx)
-      .from("quotes")
-      .select("id,client_name,status,total,created_at,valid_until")
-      .order("created_at", { ascending: false })
-      .limit(limit);
-    if (client_name) q = q.ilike("client_name", `%${client_name}%`);
-    if (status) q = q.eq("status", status);
-    if (from) q = q.gte("created_at", from);
-    if (to) q = q.lte("created_at", to);
-    const { data, error } = await q;
-    if (error) return err(error.message);
-    return ok(data, "quotes");
-  },
+  handler: (args, ctx) => runShared("search_quotes", args, ctx),
 });

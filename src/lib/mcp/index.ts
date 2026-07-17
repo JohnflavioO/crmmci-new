@@ -14,6 +14,9 @@ import getCustomerHistoryTool from "./tools/get-customer-history";
 import getDashboardTool from "./tools/get-dashboard";
 import getFollowupsTool from "./tools/get-followups";
 import getSalesMetricsTool from "./tools/get-sales-metrics";
+import getTopProductsTool from "./tools/get-top-products";
+
+
 
 const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unset";
 
@@ -43,5 +46,6 @@ export default defineMcp({
     getDashboardTool,
     getFollowupsTool,
     getSalesMetricsTool,
+    getTopProductsTool,
   ],
 });

@@ -1,6 +1,6 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
-import { supabaseForUser, requireAuth, ok, err } from "../_supabase";
+import { runShared } from "../_bridge";
 
 export default defineTool({
   name: "search_products",
@@ -11,15 +11,5 @@ export default defineTool({
     limit: z.number().int().min(1).max(50).default(20),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ query, limit }, ctx) => {
-    const guard = requireAuth(ctx); if (guard) return guard;
-    const like = `%${query}%`;
-    const { data, error } = await supabaseForUser(ctx)
-      .from("products")
-      .select("id,name,sku,brand,category,price,stock")
-      .or(`name.ilike.${like},sku.ilike.${like},brand.ilike.${like},description.ilike.${like}`)
-      .limit(limit);
-    if (error) return err(error.message);
-    return ok(data, "products");
-  },
+  handler: (args, ctx) => runShared("search_products", args, ctx),
 });

@@ -6,15 +6,426 @@
 import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.20.0";
 
 // src/lib/mcp/tools/list-clients.ts
-import { createClient } from "npm:@supabase/supabase-js@^2.110.0";
 import { defineTool } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z } from "npm:zod@^3.25.76";
+
+// src/lib/mcp/_bridge.ts
+import { createClient } from "npm:@supabase/supabase-js@^2.110.0";
+
+// supabase/functions/_shared/crm-handlers.ts
+var APPROVED_STATUSES = ["approved", "aprovado", "aprovada", "won", "closed_won"];
+var okEnv = (entity, extra = {}) => ({
+  ok: true,
+  entity,
+  ...extra
+});
+var errEnv = (entity, error) => ({ ok: false, entity, error });
+function scopeOwn(query, column, ctx, scope) {
+  const role = ctx.profile?.role;
+  const isBoss = role === "admin" || role === "gestor";
+  if (isBoss && scope === "team") return query;
+  return query.eq(column, ctx.userId);
+}
+async function listClients(ctx, args = {}) {
+  const limit = Math.min(args.limit ?? 25, 200);
+  let q = ctx.supabase.from("clients").select("id,name,company_name,email,phone,city,state,salesperson_id,created_by,last_interaction_at,created_at").order("company_name", { ascending: true }).limit(limit);
+  q = scopeOwn(q, "salesperson_id", ctx, args.scope);
+  if (args.search) {
+    const like = `%${args.search}%`;
+    q = q.or(`name.ilike.${like},company_name.ilike.${like},email.ilike.${like},phone.ilike.${like}`);
+  }
+  const { data, error } = await q;
+  if (error) return errEnv("clients", error.message);
+  return okEnv("clients", {
+    columns: ["company_name", "name", "city", "state", "email", "phone"],
+    rows: data ?? [],
+    count: data?.length ?? 0
+  });
+}
+async function searchClients(ctx, args) {
+  const limit = Math.min(args.limit ?? 20, 50);
+  const like = `%${args.query}%`;
+  const { data, error } = await ctx.supabase.from("clients").select("id,name,company_name,email,phone,city,state,cpf_cnpj,created_at").or(`name.ilike.${like},company_name.ilike.${like},email.ilike.${like},phone.ilike.${like},city.ilike.${like},cpf_cnpj.ilike.${like}`).limit(limit);
+  if (error) return errEnv("clients", error.message);
+  return okEnv("clients", { rows: data ?? [], count: data?.length ?? 0 });
+}
+async function getCustomerHistory(ctx, args) {
+  if (!args.client_id && !args.client_name) return errEnv("client_history", "Informe client_id ou client_name");
+  let client = null;
+  if (args.client_id) {
+    const { data } = await ctx.supabase.from("clients").select("*").eq("id", args.client_id).maybeSingle();
+    client = data;
+  } else {
+    const { data } = await ctx.supabase.from("clients").select("*").ilike("name", `%${args.client_name}%`).limit(1).maybeSingle();
+    client = data;
+  }
+  if (!client) return errEnv("client_history", "Cliente n\xE3o encontrado");
+  const [q, c, f] = await Promise.all([
+    ctx.supabase.from("quotes").select("id,quote_number,status,total,total_amount,created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(50),
+    ctx.supabase.from("generated_contracts").select("id,status,created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(20),
+    ctx.supabase.from("financial_records").select("id,status,amount,due_date").eq("client_id", client.id).order("due_date", { ascending: false }).limit(50)
+  ]);
+  return okEnv("client_history", {
+    data: { client, quotes: q.data ?? [], contracts: c.data ?? [], financial: f.data ?? [] }
+  });
+}
+async function searchProducts(ctx, args = {}) {
+  const term = args.query ?? args.search;
+  const limit = Math.min(args.limit ?? 25, 200);
+  let q = ctx.supabase.from("products").select("id,name,code,sku,brand,category_principal,price,level").order("name", { ascending: true }).limit(limit);
+  if (term) {
+    const like = `%${term}%`;
+    q = q.or(`name.ilike.${like},code.ilike.${like},sku.ilike.${like},brand.ilike.${like},description.ilike.${like}`);
+  }
+  if (args.brand) q = q.ilike("brand", `%${args.brand}%`);
+  if (args.category) q = q.ilike("category_principal", `%${args.category}%`);
+  const { data, error } = await q;
+  if (error) return errEnv("products", error.message);
+  return okEnv("products", {
+    columns: ["name", "code", "brand", "category_principal", "price"],
+    rows: data ?? [],
+    count: data?.length ?? 0
+  });
+}
+async function getProductDetails(ctx, args) {
+  const { data, error } = await ctx.supabase.from("products").select("*").eq("id", args.id).maybeSingle();
+  if (error) return errEnv("product", error.message);
+  if (!data) return errEnv("product", "Produto n\xE3o encontrado");
+  return okEnv("product", { data });
+}
+async function listQuotes(ctx, args = {}) {
+  const limit = Math.min(args.limit ?? 25, 200);
+  let q = ctx.supabase.from("quotes").select("id,quote_number,client_name,status,total,total_amount,created_at,created_by").order("quote_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(limit);
+  q = scopeOwn(q, "created_by", ctx, args.scope);
+  if (args.status) q = q.eq("status", args.status);
+  const { data, error } = await q;
+  if (error) return errEnv("quotes", error.message);
+  return okEnv("quotes", {
+    columns: ["quote_number", "client_name", "total_amount", "status", "created_at"],
+    rows: data ?? [],
+    count: data?.length ?? 0
+  });
+}
+async function searchQuotes(ctx, args) {
+  const limit = Math.min(args.limit ?? 25, 200);
+  let q = ctx.supabase.from("quotes").select("id,quote_number,client_name,status,total,total_amount,created_at,created_by").order("created_at", { ascending: false }).limit(limit);
+  q = scopeOwn(q, "created_by", ctx, args.scope);
+  if (args.client_name) q = q.ilike("client_name", `%${args.client_name}%`);
+  if (args.status) q = q.eq("status", args.status);
+  if (args.from) q = q.gte("created_at", args.from);
+  if (args.to) q = q.lte("created_at", args.to);
+  const { data, error } = await q;
+  if (error) return errEnv("quotes", error.message);
+  return okEnv("quotes", { rows: data ?? [], count: data?.length ?? 0 });
+}
+async function getPipeline(ctx, args = {}) {
+  let q = ctx.supabase.from("quotes").select("id,quote_number,client_name,status,total,total_amount,created_at,created_by").in("status", ["draft", "sent", "negotiation", "negociacao", "pre_sale", "contact_made"]).order("created_at", { ascending: false }).limit(500);
+  q = scopeOwn(q, "created_by", ctx, args.scope);
+  const { data, error } = await q;
+  if (error) return errEnv("pipeline", error.message);
+  const byStage = {};
+  for (const r of data ?? []) {
+    const s = r.status ?? "sem_status";
+    byStage[s] ??= { count: 0, value: 0, items: [] };
+    byStage[s].count += 1;
+    byStage[s].value += Number(r.total_amount ?? r.total ?? 0);
+    if (byStage[s].items.length < 20) byStage[s].items.push(r);
+  }
+  return okEnv("pipeline", { summary: byStage, rows: data ?? [], count: data?.length ?? 0 });
+}
+async function getDashboard(ctx) {
+  const [clientsRes, quotesRes] = await Promise.all([
+    ctx.supabase.from("clients").select("id", { count: "exact", head: true }),
+    ctx.supabase.from("quotes").select("status,total,total_amount,created_at").limit(2e3)
+  ]);
+  if (quotesRes.error) return errEnv("dashboard", quotesRes.error.message);
+  const byStatus = {};
+  let grand = 0;
+  for (const q of quotesRes.data ?? []) {
+    const s = q.status ?? "sem_status";
+    const v = Number(q.total_amount ?? q.total ?? 0);
+    byStatus[s] ??= { count: 0, total: 0 };
+    byStatus[s].count += 1;
+    byStatus[s].total += v;
+    grand += v;
+  }
+  return okEnv("dashboard", {
+    summary: {
+      total_clients: clientsRes.count ?? 0,
+      total_quotes: quotesRes.data?.length ?? 0,
+      forecast_total: grand,
+      quotes_by_status: byStatus
+    }
+  });
+}
+async function getSalesMetrics(ctx, args = {}) {
+  const from = args.from ?? (args.days_back ? new Date(Date.now() - args.days_back * 864e5).toISOString() : void 0);
+  let q = ctx.supabase.from("quotes").select("id,status,total,total_amount,client_name,created_at,created_by").in("status", APPROVED_STATUSES).limit(5e3);
+  q = scopeOwn(q, "created_by", ctx, args.scope);
+  if (from) q = q.gte("created_at", from);
+  if (args.to) q = q.lte("created_at", args.to);
+  const { data, error } = await q;
+  if (error) return errEnv("sales_metrics", error.message);
+  const total = (data ?? []).reduce((s, r) => s + Number(r.total_amount ?? r.total ?? 0), 0);
+  const count = data?.length ?? 0;
+  return okEnv("sales_metrics", {
+    summary: {
+      approved_count: count,
+      revenue_total: total,
+      average_ticket: count ? total / count : 0,
+      period: { from: from ?? null, to: args.to ?? null }
+    }
+  });
+}
+async function getTopProducts(ctx, args = {}) {
+  const limit = Math.min(args.limit ?? 10, 50);
+  const metric = args.metric ?? "revenue";
+  const from = args.from ?? (args.days_back ? new Date(Date.now() - args.days_back * 864e5).toISOString() : void 0);
+  let qq = ctx.supabase.from("quotes").select("id,created_by,created_at,status").in("status", APPROVED_STATUSES).limit(5e3);
+  qq = scopeOwn(qq, "created_by", ctx, args.scope);
+  if (from) qq = qq.gte("created_at", from);
+  if (args.to) qq = qq.lte("created_at", args.to);
+  const { data: quotes, error: qErr } = await qq;
+  if (qErr) return errEnv("top_products", qErr.message);
+  if (!quotes || quotes.length === 0) {
+    return okEnv("top_products", { rows: [], count: 0, summary: { metric, period: { from: from ?? null, to: args.to ?? null } } });
+  }
+  const quoteIds = quotes.map((q) => q.id);
+  let ii = ctx.supabase.from("quote_items").select("quote_id,code,product_code,description,brand,quantity,line_total,total_price,unit_total,unit_price").in("quote_id", quoteIds).limit(2e4);
+  if (args.brand) ii = ii.ilike("brand", `%${args.brand}%`);
+  const { data: items, error: iErr } = await ii;
+  if (iErr) return errEnv("top_products", iErr.message);
+  const agg = {};
+  for (const it of items ?? []) {
+    const code = it.product_code || it.code || null;
+    const name = it.description || code || "(sem descri\xE7\xE3o)";
+    const key = (code || name).toLowerCase();
+    const qty = Number(it.quantity ?? 0);
+    const rev = Number(it.line_total ?? it.total_price ?? it.unit_total ?? Number(it.unit_price ?? 0) * qty);
+    agg[key] ??= { key, code, name, brand: it.brand ?? null, quantity: 0, revenue: 0, quotes: /* @__PURE__ */ new Set() };
+    agg[key].quantity += qty;
+    agg[key].revenue += rev;
+    agg[key].quotes.add(it.quote_id);
+  }
+  const rows = Object.values(agg).map((r, idx) => ({
+    ranking_position: idx + 1,
+    product_code: r.code,
+    product_name: r.name,
+    brand: r.brand,
+    quantity_sold: r.quantity,
+    revenue: r.revenue,
+    approved_quotes_count: r.quotes.size
+  })).sort((a, b) => metric === "quantity" ? b.quantity_sold - a.quantity_sold : b.revenue - a.revenue).slice(0, limit).map((r, idx) => ({ ...r, ranking_position: idx + 1 }));
+  return okEnv("top_products", {
+    columns: ["ranking_position", "product_name", "brand", "quantity_sold", "revenue", "approved_quotes_count"],
+    rows,
+    count: rows.length,
+    summary: { metric, period: { from: from ?? null, to: args.to ?? null }, approved_quotes_scanned: quotes.length }
+  });
+}
+async function getFollowups(ctx, args = {}) {
+  const days = args.days_without_contact ?? 30;
+  const limit = Math.min(args.limit ?? 25, 200);
+  const cutoff = new Date(Date.now() - days * 864e5).toISOString();
+  const { data, error } = await ctx.supabase.from("clients").select("id,name,company_name,email,phone,last_interaction_at").or(`last_interaction_at.lt.${cutoff},last_interaction_at.is.null`).order("last_interaction_at", { ascending: true, nullsFirst: true }).limit(limit);
+  if (error) return errEnv("followups", error.message);
+  return okEnv("followups", {
+    columns: ["company_name", "name", "phone", "last_interaction_at"],
+    rows: data ?? [],
+    count: data?.length ?? 0
+  });
+}
+async function getTasks(ctx, args = {}) {
+  const limit = Math.min(args.limit ?? 25, 200);
+  let q = ctx.supabase.from("tasks").select("id,title,description,status,priority,due_date,client_id,user_id,created_at").order("due_date", { ascending: true, nullsFirst: false }).limit(limit);
+  if (args.status) q = q.eq("status", args.status);
+  if (args.overdue_only) q = q.lt("due_date", (/* @__PURE__ */ new Date()).toISOString()).neq("status", "done");
+  const { data, error } = await q;
+  if (error) return errEnv("tasks", error.message);
+  return okEnv("tasks", {
+    columns: ["title", "due_date", "status", "priority"],
+    rows: data ?? [],
+    count: data?.length ?? 0
+  });
+}
+async function getContracts(ctx, args = {}) {
+  const limit = Math.min(args.limit ?? 25, 200);
+  let q = ctx.supabase.from("generated_contracts").select("*").order("created_at", { ascending: false }).limit(limit);
+  if (args.status) q = q.eq("status", args.status);
+  const { data, error } = await q;
+  if (error) return errEnv("contracts", error.message);
+  return okEnv("contracts", { rows: data ?? [], count: data?.length ?? 0 });
+}
+var TOOL_REGISTRY = {
+  list_clients: {
+    name: "list_clients",
+    description: "Lista clientes da carteira do usu\xE1rio. Use scope='team' apenas se admin/gestor pedir a equipe inteira.",
+    parameters: { type: "object", properties: { search: { type: "string" }, limit: { type: "number" }, scope: { type: "string", enum: ["own", "team"] } } },
+    handler: listClients,
+    readOnly: true,
+    aliases: ["get_clients"]
+  },
+  search_clients: {
+    name: "search_clients",
+    description: "Busca clientes por nome, empresa, e-mail, telefone, cidade, CPF ou CNPJ.",
+    parameters: { type: "object", required: ["query"], properties: { query: { type: "string" }, limit: { type: "number" } } },
+    handler: searchClients,
+    readOnly: true
+  },
+  get_customer_history: {
+    name: "get_customer_history",
+    description: "Hist\xF3rico completo de um cliente (or\xE7amentos, contratos, financeiro).",
+    parameters: { type: "object", properties: { client_id: { type: "string" }, client_name: { type: "string" } } },
+    handler: getCustomerHistory,
+    readOnly: true
+  },
+  search_products: {
+    name: "search_products",
+    description: "Busca produtos por nome, c\xF3digo, SKU, marca, descri\xE7\xE3o ou categoria.",
+    parameters: { type: "object", properties: { query: { type: "string" }, brand: { type: "string" }, category: { type: "string" }, limit: { type: "number" } } },
+    handler: searchProducts,
+    readOnly: true,
+    aliases: ["get_products", "list_products"]
+  },
+  get_product_details: {
+    name: "get_product_details",
+    description: "Retorna todos os dados do produto MCI pelo id.",
+    parameters: { type: "object", required: ["id"], properties: { id: { type: "string" } } },
+    handler: getProductDetails,
+    readOnly: true
+  },
+  list_quotes: {
+    name: "list_quotes",
+    description: "Lista or\xE7amentos da carteira do usu\xE1rio. Aceita filtro por status.",
+    parameters: { type: "object", properties: { status: { type: "string" }, limit: { type: "number" }, scope: { type: "string", enum: ["own", "team"] } } },
+    handler: listQuotes,
+    readOnly: true,
+    aliases: ["get_quotes"]
+  },
+  search_quotes: {
+    name: "search_quotes",
+    description: "Busca or\xE7amentos por cliente, status, per\xEDodo (from/to ISO).",
+    parameters: { type: "object", properties: { client_name: { type: "string" }, status: { type: "string" }, from: { type: "string" }, to: { type: "string" }, limit: { type: "number" }, scope: { type: "string", enum: ["own", "team"] } } },
+    handler: searchQuotes,
+    readOnly: true
+  },
+  get_pipeline: {
+    name: "get_pipeline",
+    description: "Or\xE7amentos abertos agrupados por est\xE1gio do pipeline.",
+    parameters: { type: "object", properties: { scope: { type: "string", enum: ["own", "team"] } } },
+    handler: getPipeline,
+    readOnly: true
+  },
+  get_dashboard: {
+    name: "get_dashboard",
+    description: "Dashboard executivo: totais de clientes, or\xE7amentos por status, valor previsto.",
+    parameters: { type: "object", properties: {} },
+    handler: getDashboard,
+    readOnly: true
+  },
+  get_sales_metrics: {
+    name: "get_sales_metrics",
+    description: "M\xE9tricas de vendas (or\xE7amentos aprovados): receita total, ticket m\xE9dio. Aceita from/to ou days_back.",
+    parameters: { type: "object", properties: { from: { type: "string" }, to: { type: "string" }, days_back: { type: "number" }, scope: { type: "string", enum: ["own", "team"] } } },
+    handler: getSalesMetrics,
+    readOnly: true,
+    aliases: ["get_metrics"]
+  },
+  get_top_products: {
+    name: "get_top_products",
+    description: "Ranking de produtos mais vendidos (apenas or\xE7amentos aprovados). metric='quantity' ou 'revenue'.",
+    parameters: {
+      type: "object",
+      properties: {
+        from: { type: "string" },
+        to: { type: "string" },
+        days_back: { type: "number" },
+        metric: { type: "string", enum: ["quantity", "revenue"] },
+        brand: { type: "string" },
+        limit: { type: "number" },
+        scope: { type: "string", enum: ["own", "team"] }
+      }
+    },
+    handler: getTopProducts,
+    readOnly: true
+  },
+  get_followups: {
+    name: "get_followups",
+    description: "Clientes sem intera\xE7\xE3o recente (default 30 dias) para follow-up.",
+    parameters: { type: "object", properties: { days_without_contact: { type: "number" }, limit: { type: "number" } } },
+    handler: getFollowups,
+    readOnly: true
+  },
+  get_tasks: {
+    name: "get_tasks",
+    description: "Lista tarefas do usu\xE1rio. overdue_only=true traz apenas vencidas n\xE3o conclu\xEDdas.",
+    parameters: { type: "object", properties: { status: { type: "string" }, overdue_only: { type: "boolean" }, limit: { type: "number" } } },
+    handler: getTasks,
+    readOnly: true
+  },
+  get_contracts: {
+    name: "get_contracts",
+    description: "Lista contratos gerados e status de assinatura.",
+    parameters: { type: "object", properties: { status: { type: "string" }, limit: { type: "number" } } },
+    handler: getContracts,
+    readOnly: true
+  }
+};
+function resolveTool(name) {
+  if (TOOL_REGISTRY[name]) return TOOL_REGISTRY[name];
+  for (const t of Object.values(TOOL_REGISTRY)) {
+    if (t.aliases?.includes(name)) return t;
+  }
+  return null;
+}
+
+// src/lib/mcp/_bridge.ts
 function supabaseForUser(ctx) {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }
+function requireAuth(ctx) {
+  if (!ctx.isAuthenticated()) {
+    return { content: [{ type: "text", text: "N\xE3o autenticado" }], isError: true };
+  }
+  return null;
+}
+async function loadProfile(supabase, userId) {
+  const { data } = await supabase.from("profiles").select("full_name, role, company_id").eq("user_id", userId).maybeSingle();
+  return data ?? null;
+}
+async function runShared(name, args, ctx) {
+  const guard = requireAuth(ctx);
+  if (guard) return guard;
+  const tool = resolveTool(name);
+  if (!tool) return { content: [{ type: "text", text: `Tool ${name} n\xE3o implementada` }], isError: true };
+  const supabase = supabaseForUser(ctx);
+  const userId = ctx.getUserId() ?? "";
+  const profile = await loadProfile(supabase, userId);
+  const crmCtx = { supabase, userId, profile, companyId: profile?.company_id ?? null };
+  try {
+    const res = await tool.handler(crmCtx, args ?? {});
+    if (!res.ok) {
+      return { content: [{ type: "text", text: res.error ?? "Erro desconhecido" }], isError: true };
+    }
+    const structured = { ok: true, entity: res.entity };
+    if (res.rows !== void 0) structured.rows = res.rows;
+    if (res.count !== void 0) structured.count = res.count;
+    if (res.summary !== void 0) structured.summary = res.summary;
+    if (res.data !== void 0) structured.data = res.data;
+    if (res.columns !== void 0) structured.columns = res.columns;
+    return {
+      content: [{ type: "text", text: JSON.stringify(structured).slice(0, 12e3) }],
+      structuredContent: structured
+    };
+  } catch (e) {
+    return { content: [{ type: "text", text: e?.message ?? "Erro na execu\xE7\xE3o" }], isError: true };
+  }
+}
+
+// src/lib/mcp/tools/list-clients.ts
 var list_clients_default = defineTool({
   name: "list_clients",
   title: "Listar clientes",
@@ -24,31 +435,12 @@ var list_clients_default = defineTool({
     limit: z.number().int().min(1).max(100).default(25)
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ search, limit }, ctx) => {
-    if (!ctx.isAuthenticated()) {
-      return { content: [{ type: "text", text: "N\xE3o autenticado" }], isError: true };
-    }
-    let query = supabaseForUser(ctx).from("clients").select("id,name,email,phone,city,state,created_at").order("created_at", { ascending: false }).limit(limit);
-    if (search) query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`);
-    const { data, error } = await query;
-    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    return {
-      content: [{ type: "text", text: JSON.stringify(data) }],
-      structuredContent: { clients: data ?? [] }
-    };
-  }
+  handler: (args, ctx) => runShared("list_clients", args, ctx)
 });
 
 // src/lib/mcp/tools/list-quotes.ts
-import { createClient as createClient2 } from "npm:@supabase/supabase-js@^2.110.0";
 import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z as z2 } from "npm:zod@^3.25.76";
-function supabaseForUser2(ctx) {
-  return createClient2(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
-    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
-}
 var list_quotes_default = defineTool2({
   name: "list_quotes",
   title: "Listar or\xE7amentos",
@@ -58,19 +450,7 @@ var list_quotes_default = defineTool2({
     limit: z2.number().int().min(1).max(100).default(25)
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ status, limit }, ctx) => {
-    if (!ctx.isAuthenticated()) {
-      return { content: [{ type: "text", text: "N\xE3o autenticado" }], isError: true };
-    }
-    let query = supabaseForUser2(ctx).from("quotes").select("id,client_name,status,total,created_at").order("created_at", { ascending: false }).limit(limit);
-    if (status) query = query.eq("status", status);
-    const { data, error } = await query;
-    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    return {
-      content: [{ type: "text", text: JSON.stringify(data) }],
-      structuredContent: { quotes: data ?? [] }
-    };
-  }
+  handler: (args, ctx) => runShared("list_quotes", args, ctx)
 });
 
 // src/lib/mcp/tools/whoami.ts
@@ -100,49 +480,16 @@ var whoami_default = defineTool3({
 // src/lib/mcp/tools/search-clients.ts
 import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z as z3 } from "npm:zod@^3.25.76";
-
-// src/lib/mcp/_supabase.ts
-import { createClient as createClient3 } from "npm:@supabase/supabase-js@^2.110.0";
-function supabaseForUser3(ctx) {
-  return createClient3(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
-    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
-}
-function requireAuth(ctx) {
-  if (!ctx.isAuthenticated()) {
-    return { content: [{ type: "text", text: "N\xE3o autenticado" }], isError: true };
-  }
-  return null;
-}
-function ok(data, key = "data") {
-  return {
-    content: [{ type: "text", text: JSON.stringify(data) }],
-    structuredContent: { [key]: data ?? [] }
-  };
-}
-function err(message) {
-  return { content: [{ type: "text", text: message }], isError: true };
-}
-
-// src/lib/mcp/tools/search-clients.ts
 var search_clients_default = defineTool4({
   name: "search_clients",
   title: "Buscar clientes",
-  description: "Busca clientes por nome, email, telefone, cidade, CNPJ ou CPF respeitando permiss\xF5es (RLS).",
+  description: "Busca clientes por nome, empresa, e-mail, telefone, cidade, CNPJ ou CPF respeitando permiss\xF5es (RLS).",
   inputSchema: {
     query: z3.string().min(1).describe("Termo de busca"),
     limit: z3.number().int().min(1).max(50).default(20)
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ query, limit }, ctx) => {
-    const guard = requireAuth(ctx);
-    if (guard) return guard;
-    const like = `%${query}%`;
-    const { data, error } = await supabaseForUser3(ctx).from("clients").select("id,name,email,phone,city,state,cnpj,cpf,created_at").or(`name.ilike.${like},email.ilike.${like},phone.ilike.${like},city.ilike.${like},cnpj.ilike.${like},cpf.ilike.${like}`).limit(limit);
-    if (error) return err(error.message);
-    return ok(data, "clients");
-  }
+  handler: (args, ctx) => runShared("search_clients", args, ctx)
 });
 
 // src/lib/mcp/tools/get-products.ts
@@ -157,18 +504,7 @@ var get_products_default = defineTool5({
     limit: z4.number().int().min(1).max(100).default(25)
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ search, limit }, ctx) => {
-    const guard = requireAuth(ctx);
-    if (guard) return guard;
-    let q = supabaseForUser3(ctx).from("products").select("id,name,sku,brand,category,price,stock,created_at").order("name", { ascending: true }).limit(limit);
-    if (search) {
-      const like = `%${search}%`;
-      q = q.or(`name.ilike.${like},sku.ilike.${like},brand.ilike.${like}`);
-    }
-    const { data, error } = await q;
-    if (error) return err(error.message);
-    return ok(data, "products");
-  }
+  handler: (args, ctx) => runShared("search_products", args, ctx)
 });
 
 // src/lib/mcp/tools/get-product-details.ts
@@ -177,19 +513,10 @@ import { z as z5 } from "npm:zod@^3.25.76";
 var get_product_details_default = defineTool6({
   name: "get_product_details",
   title: "Detalhes do produto",
-  description: "Retorna os dados completos de um produto do cat\xE1logo MCI (nome, marca, categoria, descri\xE7\xE3o, pre\xE7o, especifica\xE7\xF5es e notas de compatibilidade). Somente leitura.",
-  inputSchema: {
-    id: z5.string().uuid().describe("UUID do produto MCI")
-  },
+  description: "Retorna os dados completos de um produto do cat\xE1logo MCI. Somente leitura.",
+  inputSchema: { id: z5.string().uuid().describe("UUID do produto MCI") },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ id }, ctx) => {
-    const guard = requireAuth(ctx);
-    if (guard) return guard;
-    const { data, error } = await supabaseForUser3(ctx).from("products").select("*").eq("id", id).maybeSingle();
-    if (error) return err(error.message);
-    if (!data) return err("Produto n\xE3o encontrado");
-    return ok(data, "product");
-  }
+  handler: (args, ctx) => runShared("get_product_details", args, ctx)
 });
 
 // src/lib/mcp/tools/search-products.ts
@@ -204,14 +531,7 @@ var search_products_default = defineTool7({
     limit: z6.number().int().min(1).max(50).default(20)
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ query, limit }, ctx) => {
-    const guard = requireAuth(ctx);
-    if (guard) return guard;
-    const like = `%${query}%`;
-    const { data, error } = await supabaseForUser3(ctx).from("products").select("id,name,sku,brand,category,price,stock").or(`name.ilike.${like},sku.ilike.${like},brand.ilike.${like},description.ilike.${like}`).limit(limit);
-    if (error) return err(error.message);
-    return ok(data, "products");
-  }
+  handler: (args, ctx) => runShared("search_products", args, ctx)
 });
 
 // src/lib/mcp/tools/search-quotes.ts
@@ -229,18 +549,7 @@ var search_quotes_default = defineTool8({
     limit: z7.number().int().min(1).max(100).default(25)
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ client_name, status, from, to, limit }, ctx) => {
-    const guard = requireAuth(ctx);
-    if (guard) return guard;
-    let q = supabaseForUser3(ctx).from("quotes").select("id,client_name,status,total,created_at,valid_until").order("created_at", { ascending: false }).limit(limit);
-    if (client_name) q = q.ilike("client_name", `%${client_name}%`);
-    if (status) q = q.eq("status", status);
-    if (from) q = q.gte("created_at", from);
-    if (to) q = q.lte("created_at", to);
-    const { data, error } = await q;
-    if (error) return err(error.message);
-    return ok(data, "quotes");
-  }
+  handler: (args, ctx) => runShared("search_quotes", args, ctx)
 });
 
 // src/lib/mcp/tools/get-pipeline.ts
@@ -251,21 +560,7 @@ var get_pipeline_default = defineTool9({
   description: "Retorna or\xE7amentos agrupados por status para visualiza\xE7\xE3o de pipeline.",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async (_input, ctx) => {
-    const guard = requireAuth(ctx);
-    if (guard) return guard;
-    const { data, error } = await supabaseForUser3(ctx).from("quotes").select("id,client_name,status,total,created_at").order("created_at", { ascending: false }).limit(500);
-    if (error) return err(error.message);
-    const byStatus = {};
-    for (const q of data ?? []) {
-      const s = q.status ?? "sem_status";
-      byStatus[s] ??= { count: 0, total: 0, items: [] };
-      byStatus[s].count += 1;
-      byStatus[s].total += Number(q.total ?? 0);
-      if (byStatus[s].items.length < 20) byStatus[s].items.push(q);
-    }
-    return ok(byStatus, "pipeline");
-  }
+  handler: (args, ctx) => runShared("get_pipeline", args, ctx)
 });
 
 // src/lib/mcp/tools/get-tasks.ts
@@ -280,15 +575,7 @@ var get_tasks_default = defineTool10({
     limit: z8.number().int().min(1).max(100).default(25)
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ status, limit }, ctx) => {
-    const guard = requireAuth(ctx);
-    if (guard) return guard;
-    let q = supabaseForUser3(ctx).from("tasks").select("*").order("created_at", { ascending: false }).limit(limit);
-    if (status) q = q.eq("status", status);
-    const { data, error } = await q;
-    if (error) return err(error.message);
-    return ok(data, "tasks");
-  }
+  handler: (args, ctx) => runShared("get_tasks", args, ctx)
 });
 
 // src/lib/mcp/tools/get-contracts.ts
@@ -303,15 +590,7 @@ var get_contracts_default = defineTool11({
     limit: z9.number().int().min(1).max(100).default(25)
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ status, limit }, ctx) => {
-    const guard = requireAuth(ctx);
-    if (guard) return guard;
-    let q = supabaseForUser3(ctx).from("generated_contracts").select("*").order("created_at", { ascending: false }).limit(limit);
-    if (status) q = q.eq("status", status);
-    const { data, error } = await q;
-    if (error) return err(error.message);
-    return ok(data, "contracts");
-  }
+  handler: (args, ctx) => runShared("get_contracts", args, ctx)
 });
 
 // src/lib/mcp/tools/get-customer-history.ts
@@ -326,33 +605,7 @@ var get_customer_history_default = defineTool12({
     client_name: z10.string().optional()
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ client_id, client_name }, ctx) => {
-    const guard = requireAuth(ctx);
-    if (guard) return guard;
-    const sb = supabaseForUser3(ctx);
-    let client = null;
-    if (client_id) {
-      const { data } = await sb.from("clients").select("*").eq("id", client_id).maybeSingle();
-      client = data;
-    } else if (client_name) {
-      const { data } = await sb.from("clients").select("*").ilike("name", `%${client_name}%`).limit(1).maybeSingle();
-      client = data;
-    } else {
-      return err("Informe client_id ou client_name");
-    }
-    if (!client) return err("Cliente n\xE3o encontrado");
-    const [quotesRes, contractsRes, finRes] = await Promise.all([
-      sb.from("quotes").select("id,status,total,created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(50),
-      sb.from("generated_contracts").select("id,status,created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(20),
-      sb.from("financial_records").select("id,status,amount,due_date").eq("client_id", client.id).order("due_date", { ascending: false }).limit(50)
-    ]);
-    return ok({
-      client,
-      quotes: quotesRes.data ?? [],
-      contracts: contractsRes.data ?? [],
-      financial: finRes.data ?? []
-    }, "history");
-  }
+  handler: (args, ctx) => runShared("get_customer_history", args, ctx)
 });
 
 // src/lib/mcp/tools/get-dashboard.ts
@@ -363,31 +616,7 @@ var get_dashboard_default = defineTool13({
   description: "Retorna m\xE9tricas resumidas: totais de clientes, or\xE7amentos por status, valor previsto.",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async (_input, ctx) => {
-    const guard = requireAuth(ctx);
-    if (guard) return guard;
-    const sb = supabaseForUser3(ctx);
-    const [clientsRes, quotesRes] = await Promise.all([
-      sb.from("clients").select("id", { count: "exact", head: true }),
-      sb.from("quotes").select("status,total,created_at").limit(1e3)
-    ]);
-    if (quotesRes.error) return err(quotesRes.error.message);
-    const byStatus = {};
-    let grandTotal = 0;
-    for (const q of quotesRes.data ?? []) {
-      const s = q.status ?? "sem_status";
-      byStatus[s] ??= { count: 0, total: 0 };
-      byStatus[s].count += 1;
-      byStatus[s].total += Number(q.total ?? 0);
-      grandTotal += Number(q.total ?? 0);
-    }
-    return ok({
-      total_clients: clientsRes.count ?? 0,
-      total_quotes: quotesRes.data?.length ?? 0,
-      forecast_total: grandTotal,
-      quotes_by_status: byStatus
-    }, "dashboard");
-  }
+  handler: (args, ctx) => runShared("get_dashboard", args, ctx)
 });
 
 // src/lib/mcp/tools/get-followups.ts
@@ -402,14 +631,7 @@ var get_followups_default = defineTool14({
     limit: z11.number().int().min(1).max(100).default(25)
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ days_without_contact, limit }, ctx) => {
-    const guard = requireAuth(ctx);
-    if (guard) return guard;
-    const cutoff = new Date(Date.now() - days_without_contact * 864e5).toISOString();
-    const { data, error } = await supabaseForUser3(ctx).from("clients").select("id,name,email,phone,last_contact_at,updated_at,created_at").or(`last_contact_at.lt.${cutoff},last_contact_at.is.null`).order("last_contact_at", { ascending: true, nullsFirst: true }).limit(limit);
-    if (error) return err(error.message);
-    return ok(data, "followups");
-  }
+  handler: (args, ctx) => runShared("get_followups", args, ctx)
 });
 
 // src/lib/mcp/tools/get-sales-metrics.ts
@@ -418,30 +640,33 @@ import { z as z12 } from "npm:zod@^3.25.76";
 var get_sales_metrics_default = defineTool15({
   name: "get_sales_metrics",
   title: "M\xE9tricas de vendas",
-  description: "Retorna m\xE9tricas de vendas (aprovados) em um per\xEDodo: total, ticket m\xE9dio, top produtos.",
+  description: "Retorna m\xE9tricas de vendas (or\xE7amentos aprovados) em um per\xEDodo: receita total, ticket m\xE9dio.",
   inputSchema: {
     from: z12.string().optional().describe("Data inicial ISO"),
-    to: z12.string().optional().describe("Data final ISO")
+    to: z12.string().optional().describe("Data final ISO"),
+    days_back: z12.number().int().min(1).max(3650).optional()
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ from, to }, ctx) => {
-    const guard = requireAuth(ctx);
-    if (guard) return guard;
-    const sb = supabaseForUser3(ctx);
-    let q = sb.from("quotes").select("id,status,total,client_name,created_at").eq("status", "aprovado").limit(2e3);
-    if (from) q = q.gte("created_at", from);
-    if (to) q = q.lte("created_at", to);
-    const { data, error } = await q;
-    if (error) return err(error.message);
-    const total = (data ?? []).reduce((s, r) => s + Number(r.total ?? 0), 0);
-    const count = data?.length ?? 0;
-    return ok({
-      approved_count: count,
-      revenue_total: total,
-      average_ticket: count ? total / count : 0,
-      period: { from: from ?? null, to: to ?? null }
-    }, "metrics");
-  }
+  handler: (args, ctx) => runShared("get_sales_metrics", args, ctx)
+});
+
+// src/lib/mcp/tools/get-top-products.ts
+import { defineTool as defineTool16 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z13 } from "npm:zod@^3.25.76";
+var get_top_products_default = defineTool16({
+  name: "get_top_products",
+  title: "Produtos mais vendidos",
+  description: "Ranking de produtos mais vendidos considerando apenas or\xE7amentos aprovados. Escolha metric='quantity' para volume ou 'revenue' para faturamento.",
+  inputSchema: {
+    from: z13.string().optional().describe("Data inicial ISO"),
+    to: z13.string().optional().describe("Data final ISO"),
+    days_back: z13.number().int().min(1).max(3650).optional(),
+    metric: z13.enum(["quantity", "revenue"]).default("revenue"),
+    brand: z13.string().optional(),
+    limit: z13.number().int().min(1).max(50).default(10)
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: (args, ctx) => runShared("get_top_products", args, ctx)
 });
 
 // src/lib/mcp/index.ts
@@ -470,7 +695,8 @@ var mcp_default = defineMcp({
     get_customer_history_default,
     get_dashboard_default,
     get_followups_default,
-    get_sales_metrics_default
+    get_sales_metrics_default,
+    get_top_products_default
   ]
 });
 
