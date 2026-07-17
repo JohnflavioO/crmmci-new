@@ -75,6 +75,56 @@ export default function ContractGenerator() {
   const [signDetailsOpen, setSignDetailsOpen] = useState(false);
   const [signDetailsContract, setSignDetailsContract] = useState<any>(null);
   const canRemoveSigned = isAdmin || isGestor;
+
+  // Client picker
+  const [clientPickerOpen, setClientPickerOpen] = useState(false);
+  const [clientSearch, setClientSearch] = useState('');
+  const [clientResults, setClientResults] = useState<any[]>([]);
+  const [loadingClients, setLoadingClients] = useState(false);
+
+  useEffect(() => {
+    if (!clientPickerOpen) return;
+    let cancel = false;
+    const t = setTimeout(async () => {
+      setLoadingClients(true);
+      try {
+        let q = supabase
+          .from('clients')
+          .select('id, name, company_name, cpf_cnpj, email, phone, contact_phone, city, state, contact_name')
+          .order('updated_at', { ascending: false })
+          .limit(25);
+        const term = clientSearch.trim();
+        if (term) {
+          const t2 = `%${term}%`;
+          q = q.or(`name.ilike.${t2},company_name.ilike.${t2},cpf_cnpj.ilike.${t2},email.ilike.${t2},city.ilike.${t2}`);
+        }
+        const { data, error } = await q;
+        if (!cancel) {
+          if (error) toast.error('Erro ao buscar clientes: ' + error.message);
+          setClientResults(data || []);
+        }
+      } finally {
+        if (!cancel) setLoadingClients(false);
+      }
+    }, 300);
+    return () => { cancel = true; clearTimeout(t); };
+  }, [clientPickerOpen, clientSearch]);
+
+  const applyClient = (c: any) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      client: {
+        name: c.company_name || c.name || '',
+        document: c.cpf_cnpj || '',
+        city: [c.city, c.state].filter(Boolean).join('/'),
+        responsible: c.contact_name || c.name || '',
+        phone: c.contact_phone || c.phone || '',
+        email: c.email || '',
+      }
+    }));
+    setClientPickerOpen(false);
+    toast.success('Dados do cliente preenchidos');
+  };
   
   const [formData, setFormData] = useState<any>({
     client: { ...initialClient },
