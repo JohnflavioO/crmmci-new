@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Search, Sparkles, Loader2, Link2, Star, History, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Search, BrainCircuit, Loader2, Link2, Star, History, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { useEquivalentSearch, useSearchHistory, useApprovedEquivalences, type ComparatorProduct } from '@/hooks/useEquivalentSearch';
 import ResultCard from '@/components/comparator/ResultCard';
 import AddToQuoteDialog from '@/components/comparator/AddToQuoteDialog';
@@ -74,6 +74,30 @@ export default function EquipmentComparator() {
     history.refetch();
   };
 
+  const handleDeleteHistory = async (id: string) => {
+    const { error } = await (supabase as any)
+      .from('equivalence_search_history')
+      .delete()
+      .eq('id', id);
+    if (error) return toast.error('Falha ao apagar: ' + error.message);
+    toast.success('Item removido do histórico');
+    history.refetch();
+  };
+
+  const handleClearHistory = async () => {
+    const items = (history.data ?? []).filter((h: any) => !h.is_favorite);
+    if (items.length === 0) return;
+    if (!confirm(`Apagar ${items.length} item(ns) do histórico? Favoritos serão mantidos.`)) return;
+    const ids = items.map((h: any) => h.id);
+    const { error } = await (supabase as any)
+      .from('equivalence_search_history')
+      .delete()
+      .in('id', ids);
+    if (error) return toast.error('Falha ao limpar: ' + error.message);
+    toast.success('Histórico limpo');
+    history.refetch();
+  };
+
   const isUrl = /^https?:\/\//i.test(input.trim());
 
   return (
@@ -81,7 +105,7 @@ export default function EquipmentComparator() {
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <BrainCircuit className="h-5 w-5 text-primary" />
             <h1 className="text-2xl font-bold font-display">Comparador Inteligente de Equipamentos</h1>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -251,20 +275,31 @@ export default function EquipmentComparator() {
               <CardContent className="p-3">
                 {history.isLoading ? <p className="text-xs text-muted-foreground p-3">Carregando...</p> :
                   (history.data ?? []).length === 0 ? <p className="text-xs text-muted-foreground p-3">Sem buscas ainda.</p> :
-                  <ul className="divide-y">
-                    {(history.data ?? []).map((h: any) => (
-                      <li key={h.id} className="flex items-center gap-3 py-2 text-sm">
-                        <button onClick={() => handleFavorite(h.id, h.is_favorite)}>
-                          <Star className={`h-4 w-4 ${h.is_favorite ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}`} />
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <p className="truncate">{h.input_value}</p>
-                          <p className="text-xs text-muted-foreground">{h.input_type} • {formatDistanceToNow(new Date(h.created_at), { addSuffix: true, locale: ptBR })}</p>
-                        </div>
-                        <Button size="sm" variant="ghost" onClick={() => { setInput(h.input_value); search.mutate(h.input_value); }}>Refazer</Button>
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    <div className="flex items-center justify-between px-1 pb-2">
+                      <span className="text-xs text-muted-foreground">{(history.data ?? []).length} item(ns)</span>
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={handleClearHistory}>
+                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Limpar histórico
+                      </Button>
+                    </div>
+                    <ul className="divide-y">
+                      {(history.data ?? []).map((h: any) => (
+                        <li key={h.id} className="flex items-center gap-3 py-2 text-sm">
+                          <button onClick={() => handleFavorite(h.id, h.is_favorite)} title={h.is_favorite ? 'Desfavoritar' : 'Favoritar'}>
+                            <Star className={`h-4 w-4 ${h.is_favorite ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}`} />
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p className="truncate">{h.input_value}</p>
+                            <p className="text-xs text-muted-foreground">{h.input_type} • {formatDistanceToNow(new Date(h.created_at), { addSuffix: true, locale: ptBR })}</p>
+                          </div>
+                          <Button size="sm" variant="ghost" onClick={() => { setInput(h.input_value); search.mutate(h.input_value); }}>Refazer</Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteHistory(h.id)} title="Apagar">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
                 }
               </CardContent>
             </Card>
