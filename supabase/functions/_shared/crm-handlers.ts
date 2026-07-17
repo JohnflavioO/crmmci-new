@@ -255,6 +255,20 @@ export async function getTopProducts(ctx: CrmCtx, args: {
   const metric = args.metric ?? "revenue";
   const from = args.from ?? (args.days_back ? new Date(Date.now() - args.days_back * 86400000).toISOString() : undefined);
 
+  // Human-friendly period label (never expose raw JSON to the UI)
+  const fmtDate = (iso: string) => {
+    try { const d = new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`; } catch { return iso; }
+  };
+  let periodLabel = "Todo o histórico";
+  if (args.days_back) periodLabel = `Últimos ${args.days_back} dias`;
+  else if (from && args.to) periodLabel = `${fmtDate(from)} até ${fmtDate(args.to)}`;
+  else if (from) {
+    const d = new Date(from); const now = new Date();
+    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === 1) periodLabel = "Este mês";
+    else if (d.getFullYear() === now.getFullYear() && d.getMonth() === 0 && d.getDate() === 1) periodLabel = "Este ano";
+    else periodLabel = `A partir de ${fmtDate(from)}`;
+  } else if (args.to) periodLabel = `Até ${fmtDate(args.to)}`;
+
   // 1) approved quotes (RLS-scoped) matching filters
   let qq = ctx.supabase
     .from("quotes")
@@ -267,53 +281,101 @@ export async function getTopProducts(ctx: CrmCtx, args: {
   const { data: quotes, error: qErr } = await qq;
   if (qErr) return errEnv("top_products", qErr.message);
   if (!quotes || quotes.length === 0) {
-    return okEnv("top_products", { rows: [], count: 0, summary: { metric, period: { from: from ?? null, to: args.to ?? null } } });
+    return okEnv("top_products", { rows: [], count: 0, summary: { metric, period_label: periodLabel, approved_quotes_scanned: 0 } });
   }
   const quoteIds = quotes.map((q: any) => q.id);
 
   // 2) aggregate items (quote_items has no product_id → key by code/description)
   let ii = ctx.supabase
     .from("quote_items")
-    .select("quote_id,code,product_code,description,brand,quantity,line_total,total_price,unit_total,unit_price")
+    .select("quote_id,code,product_code,description,brand,quantity,line_total,total_price,unit_total,unit_price,image_url,model")
     .in("quote_id", quoteIds)
     .limit(20000);
   if (args.brand) ii = ii.ilike("brand", `%${args.brand}%`);
   const { data: items, error: iErr } = await ii;
   if (iErr) return errEnv("top_products", iErr.message);
 
-  const agg: Record<string, { key: string; code: string | null; name: string; brand: string | null; quantity: number; revenue: number; quotes: Set<string> }> = {};
+  const looksLikeName = (s: any) => typeof s === "string" && s.trim().length >= 3 && !/^\d+$/.test(s.trim());
+  const agg: Record<string, {
+    key: string; code: string | null; itemName: string | null; itemBrand: string | null;
+    itemImage: string | null; quantity: number; revenue: number; quotes: Set<string>;
+  }> = {};
   for (const it of items ?? []) {
-    const code = (it as any).product_code || (it as any).code || null;
-    const name = (it as any).description || code || "(sem descrição)";
-    const key = (code || name).toLowerCase();
+    const code = ((it as any).product_code || (it as any).code || "").toString().trim() || null;
+    const rawDesc = ((it as any).description || "").toString().trim();
+    const itemName = looksLikeName(rawDesc) ? rawDesc : null;
+    const key = (code || itemName || rawDesc || "sem-chave").toLowerCase();
     const qty = Number((it as any).quantity ?? 0);
     const rev = Number((it as any).line_total ?? (it as any).total_price ?? (it as any).unit_total ?? (Number((it as any).unit_price ?? 0) * qty));
-    agg[key] ??= { key, code, name, brand: (it as any).brand ?? null, quantity: 0, revenue: 0, quotes: new Set() };
+    agg[key] ??= { key, code, itemName, itemBrand: (it as any).brand ?? null, itemImage: (it as any).image_url ?? null, quantity: 0, revenue: 0, quotes: new Set() };
     agg[key].quantity += qty;
     agg[key].revenue += rev;
     agg[key].quotes.add((it as any).quote_id);
   }
+
+  // 3) enrich with real products table (name/brand/sku/image_url/id) — batch by code/sku
+  const codes = Array.from(new Set(Object.values(agg).map((r) => r.code).filter(Boolean))) as string[];
+  const productByCode: Record<string, any> = {};
+  const productBySku: Record<string, any> = {};
+  if (codes.length > 0) {
+    const chunk = 200;
+    for (let i = 0; i < codes.length; i += chunk) {
+      const slice = codes.slice(i, i + chunk);
+      const { data: prods } = await ctx.supabase
+        .from("products")
+        .select("id,name,brand,sku,code,image_url")
+        .or(`code.in.(${slice.map((c) => `"${c.replace(/"/g, "")}"`).join(",")}),sku.in.(${slice.map((c) => `"${c.replace(/"/g, "")}"`).join(",")})`);
+      for (const p of prods ?? []) {
+        if (p.code) productByCode[String(p.code).toLowerCase()] = p;
+        if (p.sku) productBySku[String(p.sku).toLowerCase()] = p;
+      }
+    }
+  }
+
+  const totalRevenue = Object.values(agg).reduce((s, r) => s + r.revenue, 0);
+  const totalQty = Object.values(agg).reduce((s, r) => s + r.quantity, 0);
+
   const rows = Object.values(agg)
-    .map((r, idx) => ({
-      ranking_position: idx + 1,
-      product_code: r.code,
-      product_name: r.name,
-      brand: r.brand,
-      quantity_sold: r.quantity,
-      revenue: r.revenue,
-      approved_quotes_count: r.quotes.size,
-    }))
+    .map((r) => {
+      const codeKey = r.code?.toLowerCase();
+      const prod = (codeKey && (productByCode[codeKey] || productBySku[codeKey])) || null;
+      // Name priority: 1) products.name  2) item description (only if it's a real name)  3) fallback
+      const name = (prod?.name && String(prod.name).trim())
+        || (r.itemName && String(r.itemName).trim())
+        || "Produto sem nome cadastrado";
+      const brand = prod?.brand || r.itemBrand || null;
+      const sku = prod?.sku || null;
+      const image_url = prod?.image_url || r.itemImage || null;
+      const avg = r.quantity > 0 ? r.revenue / r.quantity : 0;
+      const share = metric === "quantity"
+        ? (totalQty > 0 ? (r.quantity / totalQty) * 100 : 0)
+        : (totalRevenue > 0 ? (r.revenue / totalRevenue) * 100 : 0);
+      return {
+        product_id: prod?.id ?? null,
+        product_code: prod?.code ?? r.code ?? null,
+        sku,
+        product_name: name,
+        brand,
+        image_url,
+        quantity_sold: r.quantity,
+        revenue: r.revenue,
+        approved_quotes_count: r.quotes.size,
+        average_price: avg,
+        share_pct: Number(share.toFixed(2)),
+      };
+    })
     .sort((a, b) => metric === "quantity" ? b.quantity_sold - a.quantity_sold : b.revenue - a.revenue)
     .slice(0, limit)
-    .map((r, idx) => ({ ...r, ranking_position: idx + 1 }));
+    .map((r, idx) => ({ ranking_position: idx + 1, ...r }));
 
   return okEnv("top_products", {
-    columns: ["ranking_position", "product_name", "brand", "quantity_sold", "revenue", "approved_quotes_count"],
+    columns: ["ranking_position", "image_url", "product_name", "brand", "sku", "quantity_sold", "revenue", "approved_quotes_count", "average_price", "share_pct"],
     rows,
     count: rows.length,
-    summary: { metric, period: { from: from ?? null, to: args.to ?? null }, approved_quotes_scanned: quotes.length },
+    summary: { metric, period_label: periodLabel, approved_quotes_scanned: quotes.length },
   });
 }
+
 
 // -----------------------------------------------------------------
 // Follow-ups / Tasks
