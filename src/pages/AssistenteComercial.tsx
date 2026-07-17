@@ -809,9 +809,6 @@ export default function AssistenteComercial() {
                 <CardHeader className="py-3">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2">
                     <ListChecks className="h-4 w-4 text-muted-foreground" /> Resultado
-                    {lastAssistant.tool_name && (
-                      <Badge variant="outline" className="text-[10px] font-normal">{lastAssistant.tool_name}</Badge>
-                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
