@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Search, Sparkles, Loader2, Link2, Star, History, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Search, BrainCircuit, Loader2, Link2, Star, History, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { useEquivalentSearch, useSearchHistory, useApprovedEquivalences, type ComparatorProduct } from '@/hooks/useEquivalentSearch';
 import ResultCard from '@/components/comparator/ResultCard';
 import AddToQuoteDialog from '@/components/comparator/AddToQuoteDialog';
