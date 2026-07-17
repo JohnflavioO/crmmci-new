@@ -52,6 +52,28 @@ type Message = {
 const fmtBRL = (v: number) =>
   (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
+const fmtBRLFull = (v: any) =>
+  Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+// Labels for summary keys (never expose raw snake_case or JSON)
+const SUMMARY_LABELS: Record<string, string> = {
+  metric: 'Métrica',
+  period_label: 'Período',
+  approved_quotes_scanned: 'Orçamentos analisados',
+  revenue_total: 'Receita total',
+  average_ticket: 'Ticket médio',
+  approved_count: 'Aprovados',
+};
+const METRIC_LABELS: Record<string, string> = { quantity: 'Quantidade', revenue: 'Receita' };
+
+function formatSummaryValue(k: string, v: any) {
+  if (v == null || v === '') return '—';
+  if (k === 'metric') return METRIC_LABELS[String(v)] || String(v);
+  if (k === 'revenue_total' || k === 'average_ticket') return fmtBRLFull(v);
+  if (typeof v === 'object') return '—'; // never render raw JSON
+  return String(v);
+}
+
 function formatValue(v: any, key: string) {
   if (v == null || v === '') return '—';
   if (typeof v === 'number' && (key.includes('amount') || key.includes('total') || key.includes('revenue') || key.includes('price'))) {
