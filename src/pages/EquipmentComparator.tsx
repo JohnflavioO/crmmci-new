@@ -314,7 +314,15 @@ export default function EquipmentComparator() {
         </Tabs>
       </div>
 
-      <AddToQuoteDialog open={addOpen} onOpenChange={setAddOpen} product={addProduct} />
+      <AddToQuoteDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        product={addProduct}
+        compatibility={addCompat}
+        searchInput={input}
+        externalBrand={externalInfo.brand}
+        externalModel={externalInfo.model}
+      />
     </AppLayout>
   );
 }
