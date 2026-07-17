@@ -709,6 +709,7 @@ export default function InteligenciaComercial() {
         title: `Marca em destaque: ${brandRow.brand}`,
         desc: `${brandRow.quantity_sold} unidades • ${brandRow.customer_count} cliente(s) • ${fmtBRL(brandRow.revenue)} (${brandRow.participation_percentage}% do faturamento).`,
         diagnostics: topBrandsQuery.data?.diagnostics,
+        onClick: () => drillBrand(brandRow.brand),
       });
     }
 
@@ -720,6 +721,7 @@ export default function InteligenciaComercial() {
         title: `Produto líder: ${prodRow.product_name}`,
         desc: `${prodRow.brand ?? 'Sem marca'}${prodRow.sku ? ` • SKU ${prodRow.sku}` : (prodRow.product_code ? ` • Código ${prodRow.product_code}` : '')} • ${prodRow.quantity_sold} un. • ${fmtBRL(prodRow.revenue)} (${prodRow.share_pct}%).`,
         diagnostics: topProductsQuery.data?.diagnostics,
+        onClick: () => drillProduct(prodRow),
       });
     }
 
