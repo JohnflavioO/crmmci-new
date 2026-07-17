@@ -31,7 +31,7 @@ const analyticItems = [
 ];
 
 const toolItems = [
-  { to: '/comparador', icon: Sparkles, label: 'Comparador Inteligente' },
+  { to: '/comparador', icon: PackageSearch, label: 'Comparador Inteligente' },
   { to: '/contracts', icon: FileText, label: 'Gerador de Contratos', permission: 'contracts.use' as const },
   { to: '/assistente', icon: Compass, label: 'Assistente Comercial' },
   { to: '/ecoflow', icon: Calculator, label: 'Calculadora Ecoflow' },
