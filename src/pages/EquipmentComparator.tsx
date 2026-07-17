@@ -26,6 +26,7 @@ export default function EquipmentComparator() {
 
   const [addProduct, setAddProduct] = useState<ComparatorProduct | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [addCompat, setAddCompat] = useState<number | undefined>(undefined);
 
   const externalInfo = useMemo(() => {
     const d = search.data?.extracted ?? {};
@@ -176,7 +177,7 @@ export default function EquipmentComparator() {
                       key={r.product.id + i}
                       result={r}
                       externalInfo={externalInfo}
-                      onAdd={() => { setAddProduct(r.product); setAddOpen(true); }}
+                      onAdd={() => { setAddProduct(r.product); setAddCompat(r.compatibility); setAddOpen(true); }}
                     />
                   ))}
                 </div>
@@ -313,7 +314,15 @@ export default function EquipmentComparator() {
         </Tabs>
       </div>
 
-      <AddToQuoteDialog open={addOpen} onOpenChange={setAddOpen} product={addProduct} />
+      <AddToQuoteDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        product={addProduct}
+        compatibility={addCompat}
+        searchInput={input}
+        externalBrand={externalInfo.brand}
+        externalModel={externalInfo.model}
+      />
     </AppLayout>
   );
 }
