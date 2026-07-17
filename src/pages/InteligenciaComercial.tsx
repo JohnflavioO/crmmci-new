@@ -145,7 +145,7 @@ const emptyCommercialData: CommercialData = {
 };
 
 const isValidTab = (value: unknown): value is IntelligenceTab =>
-  ['dashboard', 'ranking', 'top', 'products', 'evolution', 'alerts'].includes(String(value));
+  ['dashboard', 'ranking', 'top', 'products', 'evolution', 'alerts', 'diag'].includes(String(value));
 
 const readSavedViewState = (): IntelligenceViewState => {
   if (typeof window === 'undefined') return defaultViewState;
