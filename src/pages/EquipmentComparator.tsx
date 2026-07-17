@@ -74,6 +74,30 @@ export default function EquipmentComparator() {
     history.refetch();
   };
 
+  const handleDeleteHistory = async (id: string) => {
+    const { error } = await (supabase as any)
+      .from('equivalence_search_history')
+      .delete()
+      .eq('id', id);
+    if (error) return toast.error('Falha ao apagar: ' + error.message);
+    toast.success('Item removido do histórico');
+    history.refetch();
+  };
+
+  const handleClearHistory = async () => {
+    const items = (history.data ?? []).filter((h: any) => !h.is_favorite);
+    if (items.length === 0) return;
+    if (!confirm(`Apagar ${items.length} item(ns) do histórico? Favoritos serão mantidos.`)) return;
+    const ids = items.map((h: any) => h.id);
+    const { error } = await (supabase as any)
+      .from('equivalence_search_history')
+      .delete()
+      .in('id', ids);
+    if (error) return toast.error('Falha ao limpar: ' + error.message);
+    toast.success('Histórico limpo');
+    history.refetch();
+  };
+
   const isUrl = /^https?:\/\//i.test(input.trim());
 
   return (
