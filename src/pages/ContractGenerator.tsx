@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, FileText, Trash2, Copy, Eye, History, FileDown, Printer, Loader2, Pencil, Upload, FileSignature, X, Send, ShieldCheck } from 'lucide-react';
+import { Plus, FileText, Trash2, Copy, Eye, History, FileDown, Printer, Loader2, Pencil, Upload, FileSignature, X, Send, ShieldCheck, Search, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -75,6 +75,56 @@ export default function ContractGenerator() {
   const [signDetailsOpen, setSignDetailsOpen] = useState(false);
   const [signDetailsContract, setSignDetailsContract] = useState<any>(null);
   const canRemoveSigned = isAdmin || isGestor;
+
+  // Client picker
+  const [clientPickerOpen, setClientPickerOpen] = useState(false);
+  const [clientSearch, setClientSearch] = useState('');
+  const [clientResults, setClientResults] = useState<any[]>([]);
+  const [loadingClients, setLoadingClients] = useState(false);
+
+  useEffect(() => {
+    if (!clientPickerOpen) return;
+    let cancel = false;
+    const t = setTimeout(async () => {
+      setLoadingClients(true);
+      try {
+        let q = supabase
+          .from('clients')
+          .select('id, name, company_name, cpf_cnpj, email, phone, contact_phone, city, state, contact_name')
+          .order('updated_at', { ascending: false })
+          .limit(25);
+        const term = clientSearch.trim();
+        if (term) {
+          const t2 = `%${term}%`;
+          q = q.or(`name.ilike.${t2},company_name.ilike.${t2},cpf_cnpj.ilike.${t2},email.ilike.${t2},city.ilike.${t2}`);
+        }
+        const { data, error } = await q;
+        if (!cancel) {
+          if (error) toast.error('Erro ao buscar clientes: ' + error.message);
+          setClientResults(data || []);
+        }
+      } finally {
+        if (!cancel) setLoadingClients(false);
+      }
+    }, 300);
+    return () => { cancel = true; clearTimeout(t); };
+  }, [clientPickerOpen, clientSearch]);
+
+  const applyClient = (c: any) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      client: {
+        name: c.company_name || c.name || '',
+        document: c.cpf_cnpj || '',
+        city: [c.city, c.state].filter(Boolean).join('/'),
+        responsible: c.contact_name || c.name || '',
+        phone: c.contact_phone || c.phone || '',
+        email: c.email || '',
+      }
+    }));
+    setClientPickerOpen(false);
+    toast.success('Dados do cliente preenchidos');
+  };
   
   const [formData, setFormData] = useState<any>({
     client: { ...initialClient },
@@ -628,7 +678,12 @@ export default function ContractGenerator() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <Card>
-                <CardHeader><CardTitle className="text-lg">Dados do Cliente</CardTitle></CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between gap-2">
+                  <CardTitle className="text-lg">Dados do Cliente</CardTitle>
+                  <Button variant="outline" size="sm" onClick={() => { setClientSearch(''); setClientPickerOpen(true); }}>
+                    <Users className="h-4 w-4 mr-1" /> Selecionar cliente
+                  </Button>
+                </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1"><Label className="text-xs">Razão Social</Label><Input className="h-9" placeholder={clientPlaceholders.name} value={formData.client.name} onChange={e => setFormData({...formData, client: {...formData.client, name: e.target.value}})} /></div>
                   <div className="space-y-1"><Label className="text-xs">CNPJ</Label><Input className="h-9" placeholder={clientPlaceholders.document} value={formData.client.document} onChange={e => setFormData({...formData, client: {...formData.client, document: e.target.value}})} /></div>
@@ -788,6 +843,47 @@ export default function ContractGenerator() {
           contract={signDetailsContract}
           onChanged={() => fetchContracts()}
         />
+
+        <Dialog open={clientPickerOpen} onOpenChange={setClientPickerOpen}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader><DialogTitle>Selecionar cliente</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  autoFocus
+                  className="pl-9"
+                  placeholder="Buscar por nome, empresa, CNPJ, e-mail ou cidade..."
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                />
+              </div>
+              <div className="max-h-[420px] overflow-y-auto space-y-2 pr-1">
+                {loadingClients ? (
+                  <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Carregando...
+                  </div>
+                ) : clientResults.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    Nenhum cliente encontrado.
+                  </div>
+                ) : clientResults.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => applyClient(c)}
+                    className="w-full text-left p-3 rounded-md border hover:border-primary hover:bg-primary/5 transition-colors"
+                  >
+                    <div className="font-medium text-sm truncate">{c.company_name || c.name}</div>
+                    <div className="text-xs text-muted-foreground truncate mt-0.5">
+                      {[c.cpf_cnpj, c.email, [c.city, c.state].filter(Boolean).join('/')].filter(Boolean).join(' • ') || '—'}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
