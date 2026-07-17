@@ -231,7 +231,7 @@ export async function getSalesMetrics(ctx: CrmCtx, args: { from?: string; to?: s
   if (args.to) q = q.lte("created_at", args.to);
   const { data, error } = await q;
   if (error) return errEnv("sales_metrics", error.message);
-  const total = (data ?? []).reduce((s, r: any) => s + Number(r.total_amount ?? r.total ?? 0), 0);
+  const total = (data ?? []).reduce((s: number, r: any) => s + Number(r.total_amount ?? r.total ?? 0), 0);
   const count = data?.length ?? 0;
   return okEnv("sales_metrics", {
     summary: {
