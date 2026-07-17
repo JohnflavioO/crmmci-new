@@ -579,6 +579,84 @@ export async function getRepurchaseWindow(ctx: CrmCtx, args: {
 
 
 // -----------------------------------------------------------------
+// Commercial overview — payload agregado usado pela página
+// Inteligência Comercial. Substitui o loadCommercialData no frontend.
+// -----------------------------------------------------------------
+const COUNTABLE_STATUSES = new Set(APPROVED_STATUSES);
+
+export async function getCommercialOverview(ctx: CrmCtx, args: { scope?: string; limit?: number } = {}): Promise<CrmEnvelope> {
+  const role = ctx.profile?.role;
+  const canSeeAll = role === "admin" || role === "gestor";
+  const wantsTeam = canSeeAll && (args.scope ?? "team") !== "own";
+  const limit = Math.min(args.limit ?? 5000, 10000);
+
+  let qq = ctx.supabase
+    .from("quotes")
+    .select("id, quote_number, client_id, client_name, salesperson, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (!wantsTeam) qq = qq.eq("created_by", ctx.userId);
+  const { data: quotesRaw, error: qErr } = await qq;
+  if (qErr) return errEnv("commercial_overview", qErr.message);
+
+  const validQuotes = (quotesRaw ?? []).filter((q: any) => {
+    if (q.is_demonstration) return false;
+    const s = (q.status ?? "").toLowerCase().trim();
+    return COUNTABLE_STATUSES.has(s);
+  });
+
+  const [clientsRes, productsRes, profilesRes] = await Promise.all([
+    ctx.supabase.from("clients").select("id, name, company_name, contact_name, email, phone, contact_phone, city, state, cpf_cnpj, created_by"),
+    ctx.supabase.from("products").select("id, name, brand, code, sku"),
+    wantsTeam
+      ? ctx.supabase.from("profiles").select("user_id, full_name, active").eq("active", true)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (clientsRes.error) return errEnv("commercial_overview", clientsRes.error.message);
+  if (productsRes.error) return errEnv("commercial_overview", productsRes.error.message);
+  if ((profilesRes as any).error) return errEnv("commercial_overview", (profilesRes as any).error.message);
+
+  const clients: Record<string, any> = {};
+  for (const c of (clientsRes.data ?? [])) clients[(c as any).id] = c;
+
+  const quoteIds = validQuotes.map((q: any) => q.id);
+  const items: any[] = [];
+  const CHUNK = 200;
+  for (let i = 0; i < quoteIds.length; i += CHUNK) {
+    const slice = quoteIds.slice(i, i + CHUNK);
+    const { data, error } = await ctx.supabase
+      .from("quote_items")
+      .select("quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total")
+      .in("quote_id", slice);
+    if (error) return errEnv("commercial_overview", error.message);
+    if (data) items.push(...data);
+  }
+
+  const sellerProfiles = ((profilesRes as any).data ?? []).map((p: any) => ({
+    user_id: p.user_id,
+    full_name: p.full_name || "Vendedor",
+  }));
+
+  return okEnv("commercial_overview", {
+    data: {
+      quotes: validQuotes,
+      clients,
+      items,
+      products: productsRes.data ?? [],
+      sellerProfiles,
+      loadedAt: Date.now(),
+      scope: wantsTeam ? "team" : "own",
+    },
+    summary: {
+      quotes_count: validQuotes.length,
+      items_count: items.length,
+      clients_count: Object.keys(clients).length,
+      scope: wantsTeam ? "team" : "own",
+    },
+  });
+}
+
+// -----------------------------------------------------------------
 // Follow-ups / Tasks
 // -----------------------------------------------------------------
 export async function getFollowups(ctx: CrmCtx, args: { days_without_contact?: number; limit?: number } = {}): Promise<CrmEnvelope> {

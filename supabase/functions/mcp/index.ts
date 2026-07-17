@@ -442,6 +442,7 @@ async function getRepurchaseWindow(ctx, args = {}) {
     summary: { min_purchases: minPurchases, tolerance_pct: tol }
   });
 }
+var COUNTABLE_STATUSES = new Set(APPROVED_STATUSES);
 async function getFollowups(ctx, args = {}) {
   const days = args.days_without_contact ?? 30;
   const limit = Math.min(args.limit ?? 25, 200);
