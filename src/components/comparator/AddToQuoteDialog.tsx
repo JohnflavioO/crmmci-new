@@ -3,7 +3,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Dialog, DialogPortal, DialogOverlay } from '@/components/ui/dialog';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,9 +13,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Loader2, Search, FileText, PlusCircle, User, ChevronLeft, CheckCircle2, AlertTriangle, ExternalLink, ArrowRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Loader2, Search, FileText, PlusCircle, User, ChevronLeft, CheckCircle2, AlertTriangle, ExternalLink, ArrowRight, X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { ComparatorProduct } from '@/hooks/useEquivalentSearch';
@@ -65,23 +67,21 @@ export default function AddToQuoteDialog({
   const { user, isGestor } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const isMobile = useIsMobile();
 
   const [tab, setTab] = useState<'existing' | 'new'>('existing');
   const [step, setStep] = useState<Step>('browse');
 
-  // shared
   const [qty, setQty] = useState(1);
   const [unitPrice, setUnitPrice] = useState<number>(product?.price ?? 0);
   const [notes, setNotes] = useState('');
 
-  // existing
   const [search, setSearch] = useState('');
   const debounced = useDebounced(search, 350);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [page, setPage] = useState(0);
   const [selectedQuote, setSelectedQuote] = useState<any | null>(null);
 
-  // new quote
   const [clientSearch, setClientSearch] = useState('');
   const debouncedClient = useDebounced(clientSearch, 350);
   const [selectedClient, setSelectedClient] = useState<any | null>(null);
@@ -91,7 +91,6 @@ export default function AddToQuoteDialog({
   const [savedQuoteNumber, setSavedQuoteNumber] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // reset on open/close/product change
   useEffect(() => {
     if (open) {
       setTab('existing');
@@ -112,7 +111,6 @@ export default function AddToQuoteDialog({
 
   const activeStatuses = ['draft', 'sent', 'pre_sale', 'pre_venda', 'contact_made', 'contato_feito', 'negotiation', 'negociacao'];
 
-  // quotes query
   const quotesQ = useQuery({
     queryKey: ['comparator_quotes', user?.id, isGestor, debounced, statusFilter, page],
     enabled: open && tab === 'existing' && !!user?.id,
@@ -124,11 +122,10 @@ export default function AddToQuoteDialog({
         .order('updated_at', { ascending: false })
         .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
 
-      // Enforce wallet visibility client-side (RLS also enforces)
       if (!isGestor && user?.id) q = q.eq('created_by', user.id);
 
       if (statusFilter === 'all') q = q.in('status', activeStatuses);
-      else if (statusFilter === 'recent') { /* no status filter, just order by recent */ }
+      else if (statusFilter === 'recent') { /* no filter */ }
       else q = q.eq('status', statusFilter);
 
       if (debounced.trim()) {
@@ -141,7 +138,6 @@ export default function AddToQuoteDialog({
     },
   });
 
-  // clients query
   const clientsQ = useQuery({
     queryKey: ['comparator_clients', user?.id, debouncedClient],
     enabled: open && tab === 'new' && !!user?.id,
@@ -162,7 +158,7 @@ export default function AddToQuoteDialog({
     },
   });
 
-  const productActive = !!product; // basic check; catalog product returned by comparator is assumed active
+  const productActive = !!product;
   const subtotal = qty * (unitPrice || 0);
 
   const productSpecs = useMemo(() => {
@@ -193,7 +189,7 @@ export default function AddToQuoteDialog({
   };
 
   const handleConfirmExisting = async () => {
-    if (!product || !selectedQuote) return;
+    if (!product || !selectedQuote || saving) return;
     setSaving(true);
     try {
       await insertItem(selectedQuote.id);
@@ -210,7 +206,7 @@ export default function AddToQuoteDialog({
   };
 
   const handleCreateNew = async () => {
-    if (!product || !selectedClient || !user?.id) return;
+    if (!product || !selectedClient || !user?.id || saving) return;
     setSaving(true);
     try {
       const clientDisplay = selectedClient.company_name || selectedClient.name || 'Cliente';
@@ -261,22 +257,23 @@ export default function AddToQuoteDialog({
     setNotes('');
   };
 
-  // --- Render helpers ---
+  // ============= Sections =============
+
   const ProductHeader = () => product && (
-    <div className="flex gap-3 items-center border rounded-lg p-3 bg-muted/40">
+    <div className="flex gap-3 items-start border rounded-lg p-3 bg-muted/40">
       {product.image_url ? (
-        <img src={product.image_url} alt="" className="w-14 h-14 object-contain rounded bg-background" />
+        <img src={product.image_url} alt="" className="w-14 h-14 shrink-0 object-contain rounded bg-background" />
       ) : (
-        <div className="w-14 h-14 rounded bg-background flex items-center justify-center text-xs text-muted-foreground">MCI</div>
+        <div className="w-14 h-14 shrink-0 rounded bg-background flex items-center justify-center text-xs text-muted-foreground">MCI</div>
       )}
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold truncate">{product.name}</p>
-        <p className="text-xs text-muted-foreground truncate">
+        <p className="text-sm font-semibold line-clamp-2 leading-snug">{product.name}</p>
+        <p className="text-xs text-muted-foreground truncate mt-0.5">
           {product.brand ?? '—'} {product.code ? `• ${product.code}` : ''} {product.category_principal ? `• ${product.category_principal}` : ''}
         </p>
       </div>
-      <div className="text-right">
-        <p className="text-sm font-semibold">{currency(product.price ?? 0)}</p>
+      <div className="text-right shrink-0">
+        <p className="text-sm font-semibold whitespace-nowrap">{currency(product.price ?? 0)}</p>
         {typeof compatibility === 'number' && (
           <Badge variant="secondary" className="mt-1">{compatibility.toFixed(0)}% match</Badge>
         )}
@@ -286,18 +283,16 @@ export default function AddToQuoteDialog({
 
   const renderBrowseExisting = () => (
     <div className="space-y-3">
-      <div className="flex flex-col md:flex-row gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            placeholder="Buscar por número do orçamento ou cliente..."
-            className="pl-9"
-          />
-        </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+          placeholder="Buscar por número do orçamento ou cliente..."
+          className="pl-9"
+        />
       </div>
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap gap-1.5">
         {[
           { v: 'all', label: 'Em aberto' },
           { v: 'negotiation', label: 'Em negociação' },
@@ -312,13 +307,14 @@ export default function AddToQuoteDialog({
             size="sm"
             variant={statusFilter === f.v ? 'default' : 'outline'}
             onClick={() => { setStatusFilter(f.v); setPage(0); }}
+            className="h-7 px-3 text-xs"
           >
             {f.label}
           </Button>
         ))}
       </div>
 
-      <ScrollArea className="h-[380px] pr-2">
+      <div className="space-y-2">
         {quotesQ.isLoading ? (
           <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Carregando...
@@ -328,36 +324,34 @@ export default function AddToQuoteDialog({
             Nenhum orçamento encontrado na sua carteira.
           </div>
         ) : (
-          <div className="grid gap-2">
-            {quotesQ.data!.rows.map((q: any) => {
-              const meta = STATUS_META[q.status] ?? { label: q.status, className: 'bg-slate-500' };
-              const value = Number(q.total_amount ?? q.total ?? 0);
-              return (
-                <Card key={q.id} className="p-3 hover:border-primary/60 transition-colors">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm">{q.quote_number}</span>
-                        <Badge className={`${meta.className} text-white`}>{meta.label}</Badge>
-                      </div>
-                      <p className="text-sm mt-0.5 truncate">{q.client_name || 'Sem cliente'}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {currency(value)} • atualizado {formatDistanceToNow(new Date(q.updated_at || q.created_at), { addSuffix: true, locale: ptBR })}
-                      </p>
+          quotesQ.data!.rows.map((q: any) => {
+            const meta = STATUS_META[q.status] ?? { label: q.status, className: 'bg-slate-500' };
+            const value = Number(q.total_amount ?? q.total ?? 0);
+            return (
+              <Card key={q.id} className="p-3 hover:border-primary/60 transition-colors">
+                <div className="flex items-start justify-between gap-3 flex-wrap sm:flex-nowrap">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm">{q.quote_number}</span>
+                      <Badge className={`${meta.className} text-white text-[10px] px-1.5 py-0`}>{meta.label}</Badge>
                     </div>
-                    <Button size="sm" onClick={() => { setSelectedQuote(q); setStep('preview'); }}>
-                      Selecionar <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                    </Button>
+                    <p className="text-sm mt-0.5 truncate">{q.client_name || 'Sem cliente'}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {currency(value)} • {formatDistanceToNow(new Date(q.updated_at || q.created_at), { addSuffix: true, locale: ptBR })}
+                    </p>
                   </div>
-                </Card>
-              );
-            })}
-          </div>
+                  <Button size="sm" onClick={() => { setSelectedQuote(q); setStep('preview'); }} className="shrink-0">
+                    Selecionar <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                  </Button>
+                </div>
+              </Card>
+            );
+          })
         )}
-      </ScrollArea>
+      </div>
 
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{quotesQ.data?.count ?? 0} orçamento(s) na sua carteira</span>
+      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground pt-2 border-t">
+        <span>{quotesQ.data?.count ?? 0} orçamento(s)</span>
         <div className="flex gap-1">
           <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>Anterior</Button>
           <Button size="sm" variant="outline"
@@ -370,8 +364,8 @@ export default function AddToQuoteDialog({
 
   const renderBrowseNew = () => (
     <div className="space-y-3">
-      <div className="flex gap-2">
-        <div className="relative flex-1">
+      <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={clientSearch}
@@ -380,48 +374,46 @@ export default function AddToQuoteDialog({
             className="pl-9"
           />
         </div>
-        <Button variant="outline" onClick={() => { onOpenChange(false); navigate('/clients?new=1'); }}>
-          <PlusCircle className="h-4 w-4 mr-1" /> Cadastrar cliente
+        <Button variant="outline" onClick={() => { onOpenChange(false); navigate('/clients?new=1'); }} className="shrink-0">
+          <PlusCircle className="h-4 w-4 mr-1" /> Cadastrar
         </Button>
       </div>
 
-      <ScrollArea className="h-[300px] pr-2">
+      <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1">
         {clientsQ.isLoading ? (
-          <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Carregando...
           </div>
         ) : (clientsQ.data ?? []).length === 0 ? (
-          <div className="text-center py-10 text-sm text-muted-foreground">
+          <div className="text-center py-8 text-sm text-muted-foreground">
             Nenhum cliente da sua carteira encontrado.
           </div>
         ) : (
-          <div className="grid gap-2">
-            {clientsQ.data!.map((c: any) => {
-              const selected = selectedClient?.id === c.id;
-              return (
-                <Card
-                  key={c.id}
-                  className={`p-3 cursor-pointer transition-colors ${selected ? 'border-primary bg-primary/5' : 'hover:border-primary/60'}`}
-                  onClick={() => setSelectedClient(c)}
-                >
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm truncate">{c.company_name || c.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {[c.cpf_cnpj, c.email, [c.city, c.state].filter(Boolean).join('/')].filter(Boolean).join(' • ') || '—'}
-                      </p>
-                    </div>
-                    {selected && <CheckCircle2 className="h-4 w-4 text-primary" />}
+          clientsQ.data!.map((c: any) => {
+            const selected = selectedClient?.id === c.id;
+            return (
+              <Card
+                key={c.id}
+                className={`p-3 cursor-pointer transition-colors ${selected ? 'border-primary bg-primary/5' : 'hover:border-primary/60'}`}
+                onClick={() => setSelectedClient(c)}
+              >
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm truncate">{c.company_name || c.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {[c.cpf_cnpj, c.email, [c.city, c.state].filter(Boolean).join('/')].filter(Boolean).join(' • ') || '—'}
+                    </p>
                   </div>
-                </Card>
-              );
-            })}
-          </div>
+                  {selected && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+                </div>
+              </Card>
+            );
+          })
         )}
-      </ScrollArea>
+      </div>
 
-      <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+      <div className="grid grid-cols-2 gap-3 pt-3 border-t">
         <div>
           <Label className="text-xs">Quantidade</Label>
           <Input type="number" min={1} value={qty}
@@ -438,17 +430,8 @@ export default function AddToQuoteDialog({
         <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Notas internas do orçamento..." />
       </div>
       <div className="flex items-center justify-between p-3 rounded-md bg-muted/40 text-sm">
-        <span className="text-muted-foreground">Subtotal</span>
+        <span className="text-muted-foreground">Subtotal • Status inicial: <b>Rascunho</b></span>
         <span className="font-semibold">{currency(subtotal)}</span>
-      </div>
-      <div className="text-xs text-muted-foreground">Status inicial: <b>Rascunho</b></div>
-
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-        <Button onClick={handleCreateNew} disabled={saving || !selectedClient || !productActive}>
-          {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          Criar orçamento
-        </Button>
       </div>
     </div>
   );
@@ -457,7 +440,7 @@ export default function AddToQuoteDialog({
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 p-4 rounded-lg border bg-muted/30 text-sm">
         <div><span className="text-muted-foreground">Orçamento:</span><br /><b>{selectedQuote.quote_number}</b></div>
-        <div><span className="text-muted-foreground">Cliente:</span><br /><b>{selectedQuote.client_name}</b></div>
+        <div><span className="text-muted-foreground">Cliente:</span><br /><b className="truncate block">{selectedQuote.client_name}</b></div>
         <div className="col-span-2"><span className="text-muted-foreground">Produto:</span><br /><b>{product.name}</b></div>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -482,23 +465,11 @@ export default function AddToQuoteDialog({
           Produto indisponível — confirme com administrador antes de adicionar.
         </div>
       )}
-      <div className="flex justify-between">
-        <Button variant="ghost" onClick={() => setStep('browse')}>
-          <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
-        </Button>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleConfirmExisting} disabled={saving || !productActive}>
-            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Confirmar adição
-          </Button>
-        </div>
-      </div>
     </div>
   );
 
   const renderSuccess = () => (
-    <div className="space-y-5 text-center py-4">
+    <div className="space-y-5 text-center py-6">
       <div className="mx-auto w-14 h-14 rounded-full bg-emerald-500/15 flex items-center justify-center">
         <CheckCircle2 className="h-8 w-8 text-emerald-600" />
       </div>
@@ -518,41 +489,95 @@ export default function AddToQuoteDialog({
     </div>
   );
 
+  // ============= Footer per state =============
+  const renderFooter = () => {
+    if (step === 'success') return null;
+    if (step === 'preview' && tab === 'existing') {
+      return (
+        <>
+          <Button variant="ghost" onClick={() => setStep('browse')} className="mr-auto">
+            <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
+          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleConfirmExisting} disabled={saving || !productActive}>
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Confirmar adição
+          </Button>
+        </>
+      );
+    }
+    if (tab === 'new') {
+      return (
+        <>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleCreateNew} disabled={saving || !selectedClient || !productActive}>
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Criar orçamento
+          </Button>
+        </>
+      );
+    }
+    return <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>;
+  };
+
+  const contentClass = cn(
+    'fixed z-50 bg-background shadow-lg border flex flex-col overflow-hidden',
+    'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+    isMobile
+      ? 'inset-0 w-full h-[100dvh] rounded-none'
+      : 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-32px)] max-w-[760px] max-h-[88vh] rounded-lg',
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Adicionar ao orçamento</DialogTitle>
-          <DialogDescription>
-            Selecione um orçamento existente da sua carteira ou crie um novo já com este produto.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogPortal>
+        <DialogOverlay />
+        <DialogPrimitive.Content className={contentClass} aria-describedby="add-to-quote-desc">
+          {/* Header */}
+          <div className="shrink-0 border-b px-5 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <DialogPrimitive.Title className="text-base font-semibold">Adicionar ao orçamento</DialogPrimitive.Title>
+                <DialogPrimitive.Description id="add-to-quote-desc" className="text-xs text-muted-foreground mt-0.5">
+                  Selecione um orçamento existente da sua carteira ou crie um novo já com este produto.
+                </DialogPrimitive.Description>
+              </div>
+              <DialogPrimitive.Close className="rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring shrink-0">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Fechar</span>
+              </DialogPrimitive.Close>
+            </div>
+            <div className="mt-3">
+              <ProductHeader />
+            </div>
+          </div>
 
-        <div className="space-y-4">
-          <ProductHeader />
+          {/* Scrollable content */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+            {step === 'success' ? renderSuccess() : (
+              <Tabs value={tab} onValueChange={(v) => { setTab(v as any); setStep('browse'); }}>
+                <TabsList className="grid grid-cols-2 w-full">
+                  <TabsTrigger value="existing"><FileText className="h-4 w-4 mr-1" /> Orçamento existente</TabsTrigger>
+                  <TabsTrigger value="new"><PlusCircle className="h-4 w-4 mr-1" /> Novo orçamento</TabsTrigger>
+                </TabsList>
+                <TabsContent value="existing" className="mt-4">
+                  {step === 'preview' ? renderPreview() : renderBrowseExisting()}
+                </TabsContent>
+                <TabsContent value="new" className="mt-4">
+                  {renderBrowseNew()}
+                </TabsContent>
+              </Tabs>
+            )}
+          </div>
 
-          {step === 'success' ? renderSuccess() : (
-            <Tabs value={tab} onValueChange={(v) => { setTab(v as any); setStep('browse'); }}>
-              <TabsList className="grid grid-cols-2 w-full">
-                <TabsTrigger value="existing"><FileText className="h-4 w-4 mr-1" /> Orçamento existente</TabsTrigger>
-                <TabsTrigger value="new"><PlusCircle className="h-4 w-4 mr-1" /> Novo orçamento</TabsTrigger>
-              </TabsList>
-              <TabsContent value="existing" className="mt-4">
-                {step === 'preview' ? renderPreview() : renderBrowseExisting()}
-              </TabsContent>
-              <TabsContent value="new" className="mt-4">
-                {renderBrowseNew()}
-              </TabsContent>
-            </Tabs>
+          {/* Footer */}
+          {step !== 'success' && (
+            <div className="shrink-0 border-t px-5 py-3 flex items-center justify-end gap-2 bg-background">
+              {renderFooter()}
+            </div>
           )}
-        </div>
-
-        {step === 'browse' && tab === 'existing' && (
-          <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
-          </DialogFooter>
-        )}
-      </DialogContent>
+        </DialogPrimitive.Content>
+      </DialogPortal>
     </Dialog>
   );
 }
