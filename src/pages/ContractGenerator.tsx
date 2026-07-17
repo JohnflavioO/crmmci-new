@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, FileText, Trash2, Copy, Eye, History, FileDown, Printer, Loader2, Pencil, Upload, FileSignature, X, Send, ShieldCheck } from 'lucide-react';
+import { Plus, FileText, Trash2, Copy, Eye, History, FileDown, Printer, Loader2, Pencil, Upload, FileSignature, X, Send, ShieldCheck, Search, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
