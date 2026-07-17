@@ -178,16 +178,21 @@ function classify(raw: string): { mode: 'sql'; tool: string; args: any; label: s
 
 function humanizeSqlResult(label: string, tool: string, result: any): string {
   if (!result?.ok) return `Não foi possível consultar os dados neste momento. ${result?.error ?? ''}`.trim();
+  const brl = (v: any) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   if (tool === 'get_top_products') {
     const n = result.count ?? 0;
-    if (n === 0) return 'Não foram encontrados produtos vendidos no período informado.';
+    const period = result.summary?.period_label ?? 'Todo o histórico';
+    if (n === 0) return `Nenhum produto vendido encontrado no período (${period}).`;
     const top = result.rows?.[0];
-    const metric = result.summary?.metric === 'quantity' ? `${top.quantity_sold} unidades` : Number(top.revenue).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    return `${label}: 1º ${top.product_name} (${metric}). ${n} produtos no ranking.`;
+    const isQty = result.summary?.metric === 'quantity';
+    const metricSentence = isQty
+      ? `${top.quantity_sold} unidades vendidas e faturamento de ${brl(top.revenue)}`
+      : `faturamento de ${brl(top.revenue)} em ${top.quantity_sold} unidades`;
+    return `Período: ${period}. Foram encontrados ${n} produtos no ranking. O produto mais vendido foi ${top.product_name}, com ${metricSentence}.`;
   }
   if (tool === 'get_sales_metrics') {
     const s = result.summary;
-    return `Vendas aprovadas: ${s.approved_count} orçamentos, receita ${Number(s.revenue_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}, ticket médio ${Number(s.average_ticket).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}.`;
+    return `Vendas aprovadas: ${s.approved_count} orçamentos, receita ${brl(s.revenue_total)}, ticket médio ${brl(s.average_ticket)}.`;
   }
   const n = result?.count ?? 0;
   const map: Record<string, string> = { clients: 'clientes', quotes: 'orçamentos', products: 'produtos', followups: 'clientes para follow-up', pipeline: 'itens no pipeline', tasks: 'tarefas' };
