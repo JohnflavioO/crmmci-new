@@ -271,6 +271,32 @@ Deno.serve(async (req) => {
   const requestId = crypto.randomUUID();
 
   try {
+    // ---------- /health (public, no auth) ----------
+    if (path === '/health' || path.endsWith('/health')) {
+      const checks: Record<string, any> = {
+        ok: true,
+        request_id: requestId,
+        ts: new Date().toISOString(),
+        ai_key_configured: !!LOVABLE_API_KEY,
+        ai_model: AI_MODEL,
+        ai_timeout_ms: AI_TIMEOUT_MS,
+        ai_max_retries: AI_MAX_RETRIES,
+        registry_tools: Object.keys(TOOL_REGISTRY),
+        registry_tool_count: Object.keys(TOOL_REGISTRY).length,
+        write_tools: Object.keys(writeTools),
+      };
+      try {
+        const svc = createClient(SUPABASE_URL, SERVICE_ROLE);
+        const { error } = await svc.from('assistant_conversations').select('id', { count: 'exact', head: true }).limit(1);
+        checks.db_ok = !error;
+        if (error) checks.db_error = error.message;
+      } catch (e: any) {
+        checks.db_ok = false; checks.db_error = e.message; checks.ok = false;
+      }
+      if (!LOVABLE_API_KEY) checks.ok = false;
+      return new Response(JSON.stringify(checks, null, 2), { status: checks.ok ? 200 : 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -284,6 +310,34 @@ Deno.serve(async (req) => {
     const userId = userData.user.id;
     const { data: profile } = await supabase.from('profiles').select('full_name, role, company_id, permissions').eq('user_id', userId).maybeSingle();
     const companyId = profile?.company_id ?? null;
+
+    // ---------- /debug (admin/gestor only) ----------
+    if (path === '/debug' || path.endsWith('/debug')) {
+      if (!['admin', 'gestor'].includes(profile?.role)) {
+        return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const dbg = await req.json().catch(() => ({}));
+      const { message: dbgMsg, tool: dbgTool, args: dbgArgs, execute } = dbg as { message?: string; tool?: string; args?: any; execute?: boolean };
+      const out: any = { request_id: requestId, user: { id: userId, role: profile?.role, company_id: companyId } };
+      if (dbgMsg) out.classification = classify(dbgMsg);
+      if (dbgTool) {
+        const t = resolveTool(dbgTool);
+        if (!t) out.tool_error = `tool ${dbgTool} não encontrada`;
+        else {
+          out.resolved_tool = t.name;
+          out.args = dbgArgs ?? {};
+          if (execute) {
+            const t0 = Date.now();
+            try {
+              const crmCtx: CrmCtx = { supabase, userId, profile, companyId };
+              const result = await t.handler(crmCtx, dbgArgs ?? {});
+              out.result = result; out.ms = Date.now() - t0;
+            } catch (e: any) { out.error = e.message; out.ms = Date.now() - t0; }
+          }
+        }
+      }
+      return new Response(JSON.stringify(out, null, 2), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     // ---------- /confirm endpoint (write tools) ----------
     if (path === '/confirm' || path.endsWith('/confirm')) {
