@@ -709,6 +709,7 @@ export default function InteligenciaComercial() {
         title: `Marca em destaque: ${brandRow.brand}`,
         desc: `${brandRow.quantity_sold} unidades • ${brandRow.customer_count} cliente(s) • ${fmtBRL(brandRow.revenue)} (${brandRow.participation_percentage}% do faturamento).`,
         diagnostics: topBrandsQuery.data?.diagnostics,
+        onClick: () => drillBrand(brandRow.brand),
       });
     }
 
@@ -720,6 +721,7 @@ export default function InteligenciaComercial() {
         title: `Produto líder: ${prodRow.product_name}`,
         desc: `${prodRow.brand ?? 'Sem marca'}${prodRow.sku ? ` • SKU ${prodRow.sku}` : (prodRow.product_code ? ` • Código ${prodRow.product_code}` : '')} • ${prodRow.quantity_sold} un. • ${fmtBRL(prodRow.revenue)} (${prodRow.share_pct}%).`,
         diagnostics: topProductsQuery.data?.diagnostics,
+        onClick: () => drillProduct(prodRow),
       });
     }
 
@@ -815,6 +817,31 @@ export default function InteligenciaComercial() {
   const drillTopClient = () => {
     if (!top5[0]) return;
     openDrill(`Top Cliente: ${top5[0].clientName}`, `${clientLocation(top5[0].client)} • ${clientCnpjLabel(top5[0].client)}`, filteredQuotes.filter(q => top5[0].quoteIds.includes(q.id)));
+  };
+  const drillBrand = (brand: string) => {
+    const norm = (brand || '').trim().toLowerCase();
+    if (!norm) return;
+    const ids = new Set<string>();
+    filteredQuotes.forEach(q => {
+      (itemsByQuote.get(q.id) || []).forEach(it => {
+        if ((resolveItem(it).brand || '').trim().toLowerCase() === norm) ids.add(q.id);
+      });
+    });
+    openDrill(`Marca em destaque: ${brand}`, `Orçamentos aprovados contendo itens da marca ${brand}`, filteredQuotes.filter(q => ids.has(q.id)));
+  };
+  const drillProduct = (prodRow: any) => {
+    const name = (prodRow?.product_name || '').trim().toLowerCase();
+    const code = (prodRow?.sku || prodRow?.product_code || '').trim().toLowerCase();
+    const ids = new Set<string>();
+    filteredQuotes.forEach(q => {
+      (itemsByQuote.get(q.id) || []).forEach(it => {
+        const r = resolveItem(it);
+        const matchCode = code && (r.code || '').trim().toLowerCase() === code;
+        const matchName = !code && name && (r.name || '').trim().toLowerCase() === name;
+        if (matchCode || matchName) ids.add(q.id);
+      });
+    });
+    openDrill(`Produto líder: ${prodRow?.product_name ?? ''}`, `${prodRow?.brand ?? ''}${code ? ` • ${prodRow?.sku ? 'SKU' : 'Código'} ${prodRow?.sku ?? prodRow?.product_code}` : ''}`, filteredQuotes.filter(q => ids.has(q.id)));
   };
 
   if (isInitialLoading) {
