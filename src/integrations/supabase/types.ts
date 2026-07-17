@@ -369,6 +369,8 @@ export type Database = {
         Row: {
           address: string | null
           address_number: string | null
+          assigned_at: string | null
+          assigned_user_id: string | null
           cep: string | null
           city: string | null
           client_type: string | null
@@ -383,7 +385,9 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           email: string | null
+          external_registration_id: string | null
           id: string
+          is_new_registration: boolean
           is_revenda: boolean
           is_whatsapp: boolean | null
           last_interaction_at: string | null
@@ -392,13 +396,19 @@ export type Database = {
           notes: string | null
           phone: string | null
           pipeline_stage: string
+          received_at: string | null
+          registration_status: string | null
           salesperson_id: string | null
+          source: string | null
+          source_label: string | null
           state: string | null
           updated_at: string | null
         }
         Insert: {
           address?: string | null
           address_number?: string | null
+          assigned_at?: string | null
+          assigned_user_id?: string | null
           cep?: string | null
           city?: string | null
           client_type?: string | null
@@ -413,7 +423,9 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           email?: string | null
+          external_registration_id?: string | null
           id?: string
+          is_new_registration?: boolean
           is_revenda?: boolean
           is_whatsapp?: boolean | null
           last_interaction_at?: string | null
@@ -422,13 +434,19 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           pipeline_stage?: string
+          received_at?: string | null
+          registration_status?: string | null
           salesperson_id?: string | null
+          source?: string | null
+          source_label?: string | null
           state?: string | null
           updated_at?: string | null
         }
         Update: {
           address?: string | null
           address_number?: string | null
+          assigned_at?: string | null
+          assigned_user_id?: string | null
           cep?: string | null
           city?: string | null
           client_type?: string | null
@@ -443,7 +461,9 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           email?: string | null
+          external_registration_id?: string | null
           id?: string
+          is_new_registration?: boolean
           is_revenda?: boolean
           is_whatsapp?: boolean | null
           last_interaction_at?: string | null
@@ -452,7 +472,11 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           pipeline_stage?: string
+          received_at?: string | null
+          registration_status?: string | null
           salesperson_id?: string | null
+          source?: string | null
+          source_label?: string | null
           state?: string | null
           updated_at?: string | null
         }
@@ -2158,6 +2182,271 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "quotes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reseller_consultant_history: {
+        Row: {
+          action: string
+          changed_by: string | null
+          consultant_id: string | null
+          created_at: string
+          id: string
+          new_data: Json | null
+          previous_data: Json | null
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          consultant_id?: string | null
+          created_at?: string
+          id?: string
+          new_data?: Json | null
+          previous_data?: Json | null
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          consultant_id?: string | null
+          created_at?: string
+          id?: string
+          new_data?: Json | null
+          previous_data?: Json | null
+        }
+        Relationships: []
+      }
+      reseller_consultants: {
+        Row: {
+          active: boolean
+          consultant_code: string
+          created_at: string
+          crm_user_id: string | null
+          display_name: string
+          display_order: number
+          id: string
+          is_default_fallback: boolean
+          is_none_option: boolean
+          received_count: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          consultant_code: string
+          created_at?: string
+          crm_user_id?: string | null
+          display_name: string
+          display_order?: number
+          id?: string
+          is_default_fallback?: boolean
+          is_none_option?: boolean
+          received_count?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          consultant_code?: string
+          created_at?: string
+          crm_user_id?: string | null
+          display_name?: string
+          display_order?: number
+          id?: string
+          is_default_fallback?: boolean
+          is_none_option?: boolean
+          received_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      reseller_registration_history: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          new_assigned_user_id: string | null
+          new_status: string | null
+          notes: string | null
+          performed_by: string | null
+          performed_by_name: string | null
+          previous_assigned_user_id: string | null
+          previous_status: string | null
+          registration_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_assigned_user_id?: string | null
+          new_status?: string | null
+          notes?: string | null
+          performed_by?: string | null
+          performed_by_name?: string | null
+          previous_assigned_user_id?: string | null
+          previous_status?: string | null
+          registration_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_assigned_user_id?: string | null
+          new_status?: string | null
+          notes?: string | null
+          performed_by?: string | null
+          performed_by_name?: string | null
+          previous_assigned_user_id?: string | null
+          previous_status?: string | null
+          registration_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reseller_registration_history_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "reseller_registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reseller_registrations: {
+        Row: {
+          address_number: string | null
+          assigned_user_id: string | null
+          assignment_reason: string | null
+          cep: string | null
+          city: string | null
+          client_id: string | null
+          cnpj: string
+          company_name: string
+          complement: string | null
+          consultant_selected_code: string | null
+          consultant_selected_label: string | null
+          created_at: string
+          duplicate_reason: string | null
+          email: string
+          form_url: string | null
+          how_did_you_know: string | null
+          id: string
+          interests: string[]
+          ip_hash: string | null
+          is_duplicate: boolean
+          message: string | null
+          neighborhood: string | null
+          origin: string | null
+          phone: string
+          privacy_consent: boolean
+          raw_payload: Json | null
+          registration_status: string
+          responsible_name: string
+          state: string | null
+          state_registration: string | null
+          street: string | null
+          submitted_at: string
+          trade_name: string | null
+          updated_at: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+          website: string | null
+          years_in_market: string | null
+        }
+        Insert: {
+          address_number?: string | null
+          assigned_user_id?: string | null
+          assignment_reason?: string | null
+          cep?: string | null
+          city?: string | null
+          client_id?: string | null
+          cnpj: string
+          company_name: string
+          complement?: string | null
+          consultant_selected_code?: string | null
+          consultant_selected_label?: string | null
+          created_at?: string
+          duplicate_reason?: string | null
+          email: string
+          form_url?: string | null
+          how_did_you_know?: string | null
+          id?: string
+          interests?: string[]
+          ip_hash?: string | null
+          is_duplicate?: boolean
+          message?: string | null
+          neighborhood?: string | null
+          origin?: string | null
+          phone: string
+          privacy_consent?: boolean
+          raw_payload?: Json | null
+          registration_status?: string
+          responsible_name: string
+          state?: string | null
+          state_registration?: string | null
+          street?: string | null
+          submitted_at?: string
+          trade_name?: string | null
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          website?: string | null
+          years_in_market?: string | null
+        }
+        Update: {
+          address_number?: string | null
+          assigned_user_id?: string | null
+          assignment_reason?: string | null
+          cep?: string | null
+          city?: string | null
+          client_id?: string | null
+          cnpj?: string
+          company_name?: string
+          complement?: string | null
+          consultant_selected_code?: string | null
+          consultant_selected_label?: string | null
+          created_at?: string
+          duplicate_reason?: string | null
+          email?: string
+          form_url?: string | null
+          how_did_you_know?: string | null
+          id?: string
+          interests?: string[]
+          ip_hash?: string | null
+          is_duplicate?: boolean
+          message?: string | null
+          neighborhood?: string | null
+          origin?: string | null
+          phone?: string
+          privacy_consent?: boolean
+          raw_payload?: Json | null
+          registration_status?: string
+          responsible_name?: string
+          state?: string | null
+          state_registration?: string | null
+          street?: string | null
+          submitted_at?: string
+          trade_name?: string | null
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          website?: string | null
+          years_in_market?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reseller_registrations_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
