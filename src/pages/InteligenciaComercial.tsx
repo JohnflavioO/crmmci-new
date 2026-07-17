@@ -3,7 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import AppLayout from '@/components/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useCrmTool } from '@/hooks/useCrmTool';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -663,102 +665,108 @@ export default function InteligenciaComercial() {
     return out.slice(0, 50);
   }, [aggregated]);
 
-  // ---------- Insights Inteligentes ----------
-  type Insight = { icon: any; tone: string; title: string; desc: string; onClick?: () => void };
+  // ---------- Insights Inteligentes — via handlers compartilhados (crm-tools) ----------
+  type Insight = { icon: any; tone: string; title: string; desc: string; onClick?: () => void; diagnostics?: any };
+
+  // days_back derivado do filtro atual de período (Infinity → sem filtro)
+  const daysBackArg = periodDays === Infinity ? undefined : Number(periodDays);
+  const canSeeTeam = canSeeAll; // admin/gestor
+  const toolScope = canSeeTeam ? 'team' : undefined;
+
+  const topProductsQuery = useCrmTool('get_top_products',
+    { days_back: daysBackArg, metric: 'revenue', limit: 5, scope: toolScope },
+    { enabled: !!user?.id });
+  const topBrandsQuery = useCrmTool('get_top_brands',
+    { days_back: daysBackArg, limit: 5, scope: toolScope },
+    { enabled: !!user?.id });
+  const inactiveClientsQuery = useCrmTool('get_inactive_clients',
+    { inactive_days: 90, limit: 10, scope: toolScope },
+    { enabled: !!user?.id });
+  const repurchaseQuery = useCrmTool('get_repurchase_window',
+    { min_purchases: 2, tolerance_pct: 0.3, limit: 10, scope: toolScope },
+    { enabled: !!user?.id });
+
   const insights = useMemo<Insight[]>(() => {
     const items: Insight[] = [];
 
-    // Recompra
-    const recompra = aggregated.filter(a =>
-      a.intervalAvgDays != null && a.daysSinceLast != null &&
-      a.daysSinceLast >= (a.intervalAvgDays * 0.85) && a.daysSinceLast <= (a.intervalAvgDays * 1.3)
-    ).sort((a, b) => b.totalValue - a.totalValue).slice(0, 10);
-    if (recompra.length) {
-      const ids = new Set(recompra.flatMap(r => r.quoteIds));
+    // Recompra — handler compartilhado
+    const repRows: any[] = repurchaseQuery.data?.rows ?? [];
+    if (repRows.length) {
       items.push({
         icon: Repeat, tone: 'emerald',
-        title: `${recompra.length} cliente(s) em janela de recompra`,
-        desc: recompra.slice(0, 3).map(r => r.clientName).join(', ') + ' — abordagem comercial recomendada.',
-        onClick: () => openDrill('Janela de recompra', 'Clientes recorrentes prestes a recomprar', filteredQuotes.filter(q => ids.has(q.id))),
+        title: `${repRows.length} cliente(s) em janela de recompra`,
+        desc: repRows.slice(0, 3).map(r => r.client_name).join(', ') + ' — abordagem comercial recomendada.',
+        diagnostics: repurchaseQuery.data?.diagnostics,
+        onClick: () => {
+          const ids = new Set(repRows.map(r => r.client_id));
+          openDrill('Janela de recompra',
+            `Baseado em intervalo médio entre compras (mín. ${repurchaseQuery.data?.summary?.min_purchases ?? 2} compras).`,
+            filteredQuotes.filter(q => q.client_id && ids.has(q.client_id)));
+        },
       });
     }
 
-    // Inativos de alto valor
-    const inativosTop = aggregated.filter(a => !a.isActive && a.totalValue > 0)
-      .sort((a, b) => b.totalValue - a.totalValue).slice(0, 10);
-    if (inativosTop.length) {
-      const ids = new Set(inativosTop.flatMap(a => a.quoteIds));
+    // Inativos — handler compartilhado
+    const inaRows: any[] = inactiveClientsQuery.data?.rows ?? [];
+    if (inaRows.length) {
+      const top3 = inaRows.slice(0, 3);
       items.push({
         icon: AlertTriangle, tone: 'red',
-        title: `${inativosTop.length} cliente(s) de alto valor inativo(s)`,
-        desc: inativosTop.slice(0, 3).map(r => `${r.clientName} (${fmtBRL(r.totalValue)})`).join(' • '),
-        onClick: () => openDrill('Inativos de alto valor', 'Clientes com histórico relevante e sem compras recentes', filteredQuotes.filter(q => ids.has(q.id))),
+        title: `${inaRows.length} cliente(s) de alto valor inativo(s)`,
+        desc: top3.map(r => `${r.client_name} (${fmtBRL(r.total_revenue)})`).join(' • '),
+        diagnostics: inactiveClientsQuery.data?.diagnostics,
+        onClick: () => {
+          const ids = new Set(inaRows.map(r => r.client_id));
+          openDrill('Inativos de alto valor',
+            `Sem compras aprovadas há ${inactiveClientsQuery.data?.summary?.inactive_days ?? 90}+ dias.`,
+            filteredQuotes.filter(q => q.client_id && ids.has(q.client_id)));
+        },
       });
     }
 
-    // Crescimento de receita
+    // Crescimento de receita (KPIs locais permanecem — Fase B migra para get_sales_metrics)
     const g = growth(kpis.totalRevenue, prevKpis.totalRevenue);
     if (g != null && g >= 10) {
-      items.push({
-        icon: TrendingUp, tone: 'emerald',
+      items.push({ icon: TrendingUp, tone: 'emerald',
         title: `Receita cresceu ${g.toFixed(1)}% vs período anterior`,
         desc: `De ${fmtCompact(prevKpis.totalRevenue)} para ${fmtCompact(kpis.totalRevenue)}.`,
-        onClick: () => drillRevenue(),
-      });
+        onClick: () => drillRevenue() });
     } else if (g != null && g <= -10) {
-      items.push({
-        icon: TrendingDown, tone: 'red',
+      items.push({ icon: TrendingDown, tone: 'red',
         title: `Receita caiu ${Math.abs(g).toFixed(1)}% vs período anterior`,
         desc: `Atenção: queda de ${fmtCompact(prevKpis.totalRevenue - kpis.totalRevenue)} no período.`,
-        onClick: () => drillRevenue(),
-      });
+        onClick: () => drillRevenue() });
     }
 
-    // Marca destaque — recalculo direto a partir dos itens válidos (fonte da verdade)
-    const brandTotals: Record<string, { value: number; qty: number; quotes: Set<string>; clients: Set<string> }> = {};
-    filteredQuotes.forEach(q => {
-      (itemsByQuote.get(q.id) || []).forEach(it => {
-        const r = resolveItem(it);
-        if (!brandTotals[r.brand]) brandTotals[r.brand] = { value: 0, qty: 0, quotes: new Set(), clients: new Set() };
-        brandTotals[r.brand].value += itemValue(it);
-        brandTotals[r.brand].qty += Number(it.quantity || 0);
-        brandTotals[r.brand].quotes.add(q.id);
-        if (q.client_id) brandTotals[r.brand].clients.add(q.client_id);
-      });
-    });
-    const topBrandEntry = Object.entries(brandTotals)
-      .filter(([b]) => b !== 'Sem marca')
-      .sort((a, b) => b[1].value - a[1].value)[0]
-      || Object.entries(brandTotals).sort((a, b) => b[1].value - a[1].value)[0];
-    if (topBrandEntry && topBrandEntry[1].value > 0) {
-      const [bName, bData] = topBrandEntry;
+    // Marca em destaque — handler compartilhado
+    const brandRow: any = topBrandsQuery.data?.rows?.[0];
+    if (brandRow && brandRow.brand) {
       items.push({
         icon: Crown, tone: 'amber',
-        title: `Marca em destaque: ${bName}`,
-        desc: `Responsável por ${fmtBRL(bData.value)} em vendas • ${bData.qty} unidades • ${bData.clients.size} cliente(s).`,
-        onClick: () => openDrill(`Marca em destaque: ${bName}`, `${fmtBRLfull(bData.value)} • ${bData.qty} un. • ${bData.clients.size} cliente(s)`, filteredQuotes.filter(q => bData.quotes.has(q.id))),
+        title: `Marca em destaque: ${brandRow.brand}`,
+        desc: `${brandRow.quantity_sold} unidades • ${brandRow.customer_count} cliente(s) • ${fmtBRL(brandRow.revenue)} (${brandRow.participation_percentage}% do faturamento).`,
+        diagnostics: topBrandsQuery.data?.diagnostics,
       });
     }
 
-    // Produto líder
-    if (topProducts[0]) {
-      const top = topProducts[0];
-      const ids = new Set<string>();
-      filteredQuotes.forEach(q => {
-        (itemsByQuote.get(q.id) || []).forEach(it => {
-          if (resolveItem(it).key === top.key) ids.add(q.id);
-        });
-      });
+    // Produto líder — handler compartilhado (nome oficial, nunca "Item sem nome")
+    const prodRow: any = topProductsQuery.data?.rows?.[0];
+    if (prodRow && prodRow.product_name) {
       items.push({
         icon: Package, tone: 'indigo',
-        title: `Produto líder: ${top.desc}`,
-        desc: `${top.brand}${top.code ? ` • Código ${top.code}` : ''} • ${top.qty} un. vendidas para ${top.clientsCount} cliente(s) • ${fmtBRL(top.value)}.`,
-        onClick: () => openDrill(`Produto líder: ${top.desc}`, `${top.brand}${top.code ? ` • Código ${top.code}` : ''} • ${top.qty} un. • ${fmtBRLfull(top.value)}`, filteredQuotes.filter(q => ids.has(q.id))),
+        title: `Produto líder: ${prodRow.product_name}`,
+        desc: `${prodRow.brand ?? 'Sem marca'}${prodRow.sku ? ` • SKU ${prodRow.sku}` : (prodRow.product_code ? ` • Código ${prodRow.product_code}` : '')} • ${prodRow.quantity_sold} un. • ${fmtBRL(prodRow.revenue)} (${prodRow.share_pct}%).`,
+        diagnostics: topProductsQuery.data?.diagnostics,
       });
     }
 
     return items;
-  }, [aggregated, kpis, prevKpis, topProducts, filteredQuotes, itemsByQuote, productByCode]);
+  }, [
+    repurchaseQuery.data, inactiveClientsQuery.data, topBrandsQuery.data, topProductsQuery.data,
+    kpis, prevKpis, filteredQuotes,
+  ]);
+
+
 
   // ---------- Export ----------
   const exportRows = () => filteredAggregated.map((a, i) => ({
@@ -1116,6 +1124,12 @@ export default function InteligenciaComercial() {
                             <p className="text-sm font-semibold">{it.title}</p>
                             <p className="text-xs opacity-80 mt-0.5">{it.desc}</p>
                             {clickable && <p className="text-[10px] opacity-70 mt-1 font-medium">Ver detalhes →</p>}
+                            {canSeeAll && it.diagnostics && (
+                              <p className="text-[10px] opacity-60 mt-1 font-mono">
+                                tool: {it.diagnostics.tool} • {it.diagnostics.duration_ms}ms • {it.diagnostics.row_count ?? 0} reg.
+                              </p>
+                            )}
+
                           </div>
                         </button>
                       );
