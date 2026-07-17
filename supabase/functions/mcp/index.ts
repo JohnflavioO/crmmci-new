@@ -498,6 +498,146 @@ async function getCommercialOverview(ctx, args = {}) {
     }
   });
 }
+async function getClientRanking(ctx, args = {}) {
+  const overview = await getCommercialOverview(ctx, { scope: args.scope });
+  if (!overview.ok) return overview;
+  const payload = overview.data ?? {};
+  const quotes = payload.quotes ?? [];
+  const clients = payload.clients ?? {};
+  const items = payload.items ?? [];
+  const products = payload.products ?? [];
+  const productByCode = /* @__PURE__ */ new Map();
+  for (const p of products) {
+    if (p?.code) productByCode.set(String(p.code).toLowerCase(), p);
+    if (p?.sku) productByCode.set(String(p.sku).toLowerCase(), p);
+  }
+  const itemsByQuote = /* @__PURE__ */ new Map();
+  for (const it of items) {
+    const arr = itemsByQuote.get(it.quote_id) ?? [];
+    arr.push(it);
+    itemsByQuote.set(it.quote_id, arr);
+  }
+  const now = Date.now();
+  const period = args.period_days === "all" || !args.period_days ? null : Number(args.period_days);
+  const filtered = quotes.filter((q) => {
+    if (period != null) {
+      const d = new Date(q.approved_at || q.created_at).getTime();
+      if (now - d > period * 864e5) return false;
+    }
+    if (args.seller_id && args.seller_id !== "all") {
+      if (q.salesperson_id !== args.seller_id && q.created_by !== args.seller_id) return false;
+    }
+    if (args.state && args.state !== "all") {
+      const c = q.client_id ? clients[q.client_id] : null;
+      if ((c?.state ?? "") !== args.state) return false;
+    }
+    if (args.city && args.city !== "all") {
+      const c = q.client_id ? clients[q.client_id] : null;
+      if ((c?.city ?? "") !== args.city) return false;
+    }
+    return true;
+  });
+  const itemValue = (it) => {
+    const tp = Number(it.total_price || 0);
+    if (tp > 0) return tp;
+    const lt = Number(it.line_total || 0);
+    if (lt > 0) return lt;
+    const ut = Number(it.unit_total || 0);
+    if (ut > 0) return ut;
+    const up = Number(it.unit_price || 0);
+    const qty = Number(it.quantity || 0) || 1;
+    return up * qty;
+  };
+  const qValue = (q) => Number(q.total_amount ?? q.total ?? 0);
+  const map = /* @__PURE__ */ new Map();
+  for (const q of filtered) {
+    const cid = q.client_id || `__${q.client_name || "sem"}`;
+    const c = q.client_id ? clients[q.client_id] ?? null : null;
+    let a = map.get(cid);
+    if (!a) {
+      a = {
+        client_id: cid,
+        client_name: c?.company_name || c?.name || q.client_name || "Sem cliente",
+        cnpj: c?.cpf_cnpj || "",
+        city: c?.city || "",
+        state: c?.state || "",
+        salesperson: q.salesperson || "",
+        quotes_count: 0,
+        total_value: 0,
+        received_value: 0,
+        first_purchase: null,
+        last_purchase: null,
+        monthly: {},
+        brands: {},
+        products: {}
+      };
+      map.set(cid, a);
+    }
+    const val = qValue(q);
+    const dateStr = q.approved_at || q.created_at;
+    const d = new Date(dateStr);
+    a.quotes_count += 1;
+    a.total_value += val;
+    if ((q.payment_status ?? "").toLowerCase() === "liquidado") a.received_value += val;
+    if (!a.first_purchase || d < new Date(a.first_purchase)) a.first_purchase = dateStr;
+    if (!a.last_purchase || d > new Date(a.last_purchase)) a.last_purchase = dateStr;
+    const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    a.monthly[mk] = (a.monthly[mk] || 0) + val;
+    for (const it of itemsByQuote.get(q.id) ?? []) {
+      const rawCode = String(it.code || it.product_code || "").trim();
+      const prod = rawCode ? productByCode.get(rawCode.toLowerCase()) : void 0;
+      const desc = (it.description || "").trim();
+      const name = prod?.name?.trim() || desc || rawCode || "Item sem nome";
+      const brand = prod?.brand?.trim() || it.brand || "Sem marca";
+      const v = itemValue(it);
+      a.brands[brand] = (a.brands[brand] || 0) + v;
+      const key = (rawCode || desc || name).toLowerCase();
+      if (!a.products[key]) a.products[key] = { qty: 0, value: 0, name, brand };
+      a.products[key].qty += Number(it.quantity || 0);
+      a.products[key].value += v;
+    }
+  }
+  const rows = Array.from(map.values()).map((a) => {
+    const ticket = a.quotes_count ? a.total_value / a.quotes_count : 0;
+    const lastDate = a.last_purchase ? new Date(a.last_purchase) : null;
+    const firstDate = a.first_purchase ? new Date(a.first_purchase) : null;
+    const daysSinceLast = lastDate ? Math.floor((now - lastDate.getTime()) / 864e5) : null;
+    const intervalAvgDays = firstDate && lastDate && a.quotes_count > 1 ? Math.round(Math.floor((lastDate.getTime() - firstDate.getTime()) / 864e5) / (a.quotes_count - 1)) : null;
+    const isActive = (daysSinceLast ?? 9999) <= 90;
+    const isRecurrent = a.quotes_count >= 2;
+    const status = (daysSinceLast ?? 9999) <= 30 ? "verde" : (daysSinceLast ?? 9999) <= 90 ? "amarelo" : "vermelho";
+    const topProducts = Object.values(a.products).sort((x, y) => y.value - x.value).slice(0, 5);
+    return {
+      ...a,
+      ticket_medio: ticket,
+      days_since_last: daysSinceLast,
+      interval_avg_days: intervalAvgDays,
+      is_active: isActive,
+      is_recurrent: isRecurrent,
+      status,
+      top_products: topProducts
+    };
+  }).filter((a) => {
+    if (args.only_recurrent && !a.is_recurrent) return false;
+    if (args.active_filter === "active" && !a.is_active) return false;
+    if (args.active_filter === "inactive" && a.is_active) return false;
+    return true;
+  }).sort((x, y) => y.total_value - x.total_value);
+  const limit = Math.min(args.limit ?? 500, 2e3);
+  const trimmed = rows.slice(0, limit);
+  return okEnv("client_ranking", {
+    rows: trimmed,
+    count: trimmed.length,
+    summary: {
+      total_clients: rows.length,
+      active_clients: rows.filter((a) => a.is_active).length,
+      recurrent_clients: rows.filter((a) => a.is_recurrent).length,
+      total_revenue: rows.reduce((s, a) => s + a.total_value, 0),
+      period_days: args.period_days ?? "all",
+      scope: payload.scope
+    }
+  });
+}
 async function getFollowups(ctx, args = {}) {
   const days = args.days_without_contact ?? 30;
   const limit = Math.min(args.limit ?? 25, 200);
@@ -675,6 +815,26 @@ var TOOL_REGISTRY = {
     handler: getCommercialOverview,
     readOnly: true,
     aliases: ["commercial_overview", "intelligence_overview"]
+  },
+  get_client_ranking: {
+    name: "get_client_ranking",
+    description: "Ranking de clientes agregado no servidor (aba Rankings da Intelig\xEAncia Comercial): valor total, ticket m\xE9dio, marcas, top produtos, status, recorr\xEAncia, per\xEDodo configur\xE1vel.",
+    parameters: {
+      type: "object",
+      properties: {
+        scope: { type: "string", enum: ["own", "team"] },
+        period_days: { type: ["number", "string"], description: "N\xFAmero de dias ou 'all'" },
+        seller_id: { type: "string" },
+        state: { type: "string" },
+        city: { type: "string" },
+        only_recurrent: { type: "boolean" },
+        active_filter: { type: "string", enum: ["all", "active", "inactive"] },
+        limit: { type: "number" }
+      }
+    },
+    handler: getClientRanking,
+    readOnly: true,
+    aliases: ["client_ranking", "top_clients"]
   }
 };
 function resolveTool(name) {

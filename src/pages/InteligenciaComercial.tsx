@@ -101,7 +101,7 @@ interface ProductRow {
   sku: string | null;
 }
 
-type IntelligenceTab = 'dashboard' | 'ranking' | 'top' | 'products' | 'evolution' | 'alerts';
+type IntelligenceTab = 'dashboard' | 'ranking' | 'top' | 'products' | 'evolution' | 'alerts' | 'diag';
 type IntelligenceViewState = {
   period: '30' | '90' | '180' | '365' | 'all';
   sellerFilter: string;
@@ -145,7 +145,7 @@ const emptyCommercialData: CommercialData = {
 };
 
 const isValidTab = (value: unknown): value is IntelligenceTab =>
-  ['dashboard', 'ranking', 'top', 'products', 'evolution', 'alerts'].includes(String(value));
+  ['dashboard', 'ranking', 'top', 'products', 'evolution', 'alerts', 'diag'].includes(String(value));
 
 const readSavedViewState = (): IntelligenceViewState => {
   if (typeof window === 'undefined') return defaultViewState;
@@ -637,6 +637,17 @@ export default function InteligenciaComercial() {
   const repurchaseQuery = useCrmTool('get_repurchase_window',
     { min_purchases: 2, tolerance_pct: 0.3, limit: 10, scope: toolScope },
     { enabled: !!user?.id });
+  const clientRankingQuery = useCrmTool('get_client_ranking',
+    {
+      scope: toolScope,
+      period_days: periodDays === Infinity ? 'all' : Number(periodDays),
+      seller_id: sellerFilter !== 'all' ? sellerFilter : undefined,
+      state: stateFilter !== 'all' ? stateFilter : undefined,
+      city: cityFilter !== 'all' ? cityFilter : undefined,
+      active_filter: activeFilter,
+      limit: 300,
+    },
+    { enabled: !!user?.id && canSeeAll });
 
   const insights = useMemo<Insight[]>(() => {
     const items: Insight[] = [];
@@ -933,13 +944,16 @@ export default function InteligenciaComercial() {
         )}
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as IntelligenceTab)} className="space-y-4">
-          <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full h-auto">
+          <TabsList className={cn("grid w-full h-auto", canSeeAll ? "grid-cols-4 md:grid-cols-7" : "grid-cols-3 md:grid-cols-6")}>
             <TabsTrigger value="dashboard" className="gap-1.5"><BarChart3 className="h-4 w-4" /><span className="hidden sm:inline">Dashboard</span></TabsTrigger>
             <TabsTrigger value="ranking" className="gap-1.5"><Trophy className="h-4 w-4" /><span className="hidden sm:inline">Rankings</span></TabsTrigger>
             <TabsTrigger value="top" className="gap-1.5"><UsersIcon className="h-4 w-4" /><span className="hidden sm:inline">Clientes</span></TabsTrigger>
             <TabsTrigger value="products" className="gap-1.5"><ShoppingCart className="h-4 w-4" /><span className="hidden sm:inline">Produtos</span></TabsTrigger>
             <TabsTrigger value="evolution" className="gap-1.5"><Activity className="h-4 w-4" /><span className="hidden sm:inline">Evolução</span></TabsTrigger>
             <TabsTrigger value="alerts" className="gap-1.5"><Sparkles className="h-4 w-4" /><span className="hidden sm:inline">Alertas IA</span></TabsTrigger>
+            {canSeeAll && (
+              <TabsTrigger value="diag" className="gap-1.5"><Brain className="h-4 w-4" /><span className="hidden sm:inline">Diagnóstico</span></TabsTrigger>
+            )}
           </TabsList>
 
           {/* DASHBOARD */}
@@ -1237,6 +1251,80 @@ export default function InteligenciaComercial() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {canSeeAll && (
+            <TabsContent value="diag">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Brain className="h-4 w-4 text-primary" /> Diagnóstico técnico (admin/gestor)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Todas as chamadas à camada compartilhada <span className="font-mono">/crm-tools</span> executadas por esta página.
+                    Fonte única de verdade — mesmos handlers usados pelo Assistente Comercial e pelo MCP.
+                  </p>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Tool</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Latência</TableHead>
+                          <TableHead className="text-right">Registros</TableHead>
+                          <TableHead>Request ID</TableHead>
+                          <TableHead>Gerado em</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[
+                          { label: 'get_commercial_overview', q: commercialQuery, diag: null as any, rows: quotes.length, err: commercialQuery.error?.message },
+                          { label: 'get_top_products', q: topProductsQuery, diag: topProductsQuery.data?.diagnostics, rows: topProductsQuery.data?.count, err: topProductsQuery.data?.error },
+                          { label: 'get_top_brands', q: topBrandsQuery, diag: topBrandsQuery.data?.diagnostics, rows: topBrandsQuery.data?.count, err: topBrandsQuery.data?.error },
+                          { label: 'get_inactive_clients', q: inactiveClientsQuery, diag: inactiveClientsQuery.data?.diagnostics, rows: inactiveClientsQuery.data?.count, err: inactiveClientsQuery.data?.error },
+                          { label: 'get_repurchase_window', q: repurchaseQuery, diag: repurchaseQuery.data?.diagnostics, rows: repurchaseQuery.data?.count, err: repurchaseQuery.data?.error },
+                          { label: 'get_client_ranking', q: clientRankingQuery, diag: clientRankingQuery.data?.diagnostics, rows: clientRankingQuery.data?.count, err: clientRankingQuery.data?.error },
+                        ].map((row, i) => {
+                          const loading = row.q.isFetching;
+                          const ok = !row.err && !row.q.isError;
+                          return (
+                            <TableRow key={i}>
+                              <TableCell className="font-mono text-xs">{row.label}</TableCell>
+                              <TableCell>
+                                {loading ? (
+                                  <Badge variant="outline" className="text-xs">carregando</Badge>
+                                ) : ok ? (
+                                  <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-500/30 text-xs">ok</Badge>
+                                ) : (
+                                  <Badge variant="destructive" className="text-xs">erro</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-xs">{row.diag?.duration_ms != null ? `${row.diag.duration_ms}ms` : '—'}</TableCell>
+                              <TableCell className="text-right font-mono text-xs">{row.rows ?? '—'}</TableCell>
+                              <TableCell className="font-mono text-[10px] text-muted-foreground">{row.diag?.request_id?.slice(0, 8) ?? '—'}</TableCell>
+                              <TableCell className="font-mono text-[10px] text-muted-foreground">
+                                {row.diag?.generated_at ? new Date(row.diag.generated_at).toLocaleTimeString('pt-BR') : '—'}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {clientRankingQuery.data?.summary && (
+                    <div className="rounded-lg border bg-muted/30 p-3">
+                      <p className="text-xs font-semibold mb-1">Preview: get_client_ranking</p>
+                      <p className="text-[11px] text-muted-foreground font-mono">
+                        {JSON.stringify(clientRankingQuery.data.summary)}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
