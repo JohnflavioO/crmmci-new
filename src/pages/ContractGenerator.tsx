@@ -843,6 +843,47 @@ export default function ContractGenerator() {
           contract={signDetailsContract}
           onChanged={() => fetchContracts()}
         />
+
+        <Dialog open={clientPickerOpen} onOpenChange={setClientPickerOpen}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader><DialogTitle>Selecionar cliente</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  autoFocus
+                  className="pl-9"
+                  placeholder="Buscar por nome, empresa, CNPJ, e-mail ou cidade..."
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                />
+              </div>
+              <div className="max-h-[420px] overflow-y-auto space-y-2 pr-1">
+                {loadingClients ? (
+                  <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Carregando...
+                  </div>
+                ) : clientResults.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    Nenhum cliente encontrado.
+                  </div>
+                ) : clientResults.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => applyClient(c)}
+                    className="w-full text-left p-3 rounded-md border hover:border-primary hover:bg-primary/5 transition-colors"
+                  >
+                    <div className="font-medium text-sm truncate">{c.company_name || c.name}</div>
+                    <div className="text-xs text-muted-foreground truncate mt-0.5">
+                      {[c.cpf_cnpj, c.email, [c.city, c.state].filter(Boolean).join('/')].filter(Boolean).join(' • ') || '—'}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
