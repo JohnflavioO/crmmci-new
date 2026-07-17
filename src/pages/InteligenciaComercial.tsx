@@ -1251,6 +1251,80 @@ export default function InteligenciaComercial() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {canSeeAll && (
+            <TabsContent value="diag">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Brain className="h-4 w-4 text-primary" /> Diagnóstico técnico (admin/gestor)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Todas as chamadas à camada compartilhada <span className="font-mono">/crm-tools</span> executadas por esta página.
+                    Fonte única de verdade — mesmos handlers usados pelo Assistente Comercial e pelo MCP.
+                  </p>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Tool</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Latência</TableHead>
+                          <TableHead className="text-right">Registros</TableHead>
+                          <TableHead>Request ID</TableHead>
+                          <TableHead>Gerado em</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[
+                          { label: 'get_commercial_overview', q: commercialQuery, diag: null as any, rows: quotes.length, err: commercialQuery.error?.message },
+                          { label: 'get_top_products', q: topProductsQuery, diag: topProductsQuery.data?.diagnostics, rows: topProductsQuery.data?.count, err: topProductsQuery.data?.error },
+                          { label: 'get_top_brands', q: topBrandsQuery, diag: topBrandsQuery.data?.diagnostics, rows: topBrandsQuery.data?.count, err: topBrandsQuery.data?.error },
+                          { label: 'get_inactive_clients', q: inactiveClientsQuery, diag: inactiveClientsQuery.data?.diagnostics, rows: inactiveClientsQuery.data?.count, err: inactiveClientsQuery.data?.error },
+                          { label: 'get_repurchase_window', q: repurchaseQuery, diag: repurchaseQuery.data?.diagnostics, rows: repurchaseQuery.data?.count, err: repurchaseQuery.data?.error },
+                          { label: 'get_client_ranking', q: clientRankingQuery, diag: clientRankingQuery.data?.diagnostics, rows: clientRankingQuery.data?.count, err: clientRankingQuery.data?.error },
+                        ].map((row, i) => {
+                          const loading = row.q.isFetching;
+                          const ok = !row.err && !row.q.isError;
+                          return (
+                            <TableRow key={i}>
+                              <TableCell className="font-mono text-xs">{row.label}</TableCell>
+                              <TableCell>
+                                {loading ? (
+                                  <Badge variant="outline" className="text-xs">carregando</Badge>
+                                ) : ok ? (
+                                  <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-500/30 text-xs">ok</Badge>
+                                ) : (
+                                  <Badge variant="destructive" className="text-xs">erro</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-xs">{row.diag?.duration_ms != null ? `${row.diag.duration_ms}ms` : '—'}</TableCell>
+                              <TableCell className="text-right font-mono text-xs">{row.rows ?? '—'}</TableCell>
+                              <TableCell className="font-mono text-[10px] text-muted-foreground">{row.diag?.request_id?.slice(0, 8) ?? '—'}</TableCell>
+                              <TableCell className="font-mono text-[10px] text-muted-foreground">
+                                {row.diag?.generated_at ? new Date(row.diag.generated_at).toLocaleTimeString('pt-BR') : '—'}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {clientRankingQuery.data?.summary && (
+                    <div className="rounded-lg border bg-muted/30 p-3">
+                      <p className="text-xs font-semibold mb-1">Preview: get_client_ranking</p>
+                      <p className="text-[11px] text-muted-foreground font-mono">
+                        {JSON.stringify(clientRankingQuery.data.summary)}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
