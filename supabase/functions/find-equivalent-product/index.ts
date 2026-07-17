@@ -209,8 +209,22 @@ Deno.serve(async (req) => {
 
     if (cached && new Date(cached.expires_at as string).getTime() > Date.now() && body?.force_refresh !== true) {
       log('cache_hit');
+      const cachedResults = Array.isArray(cached.candidates) ? cached.candidates as any[] : [];
+      const ids = cachedResults.map((r) => r?.product?.id).filter(Boolean) as string[];
+      let freshMap = new Map<string, any>();
+      if (ids.length) {
+        const { data: fresh } = await supabase.from('products').select('*').in('id', ids);
+        freshMap = new Map((fresh ?? []).map((p: any) => [p.id, p]));
+      }
+      const refreshed = cachedResults
+        .map((r) => {
+          const p = freshMap.get(r?.product?.id);
+          if (!p) return null;
+          return { ...r, product: p, _price_source: 'db_live', _fetched_at: new Date().toISOString() };
+        })
+        .filter(Boolean);
       return new Response(JSON.stringify({
-        cached: true, extracted: cached.extracted_specs, results: cached.candidates,
+        cached: true, extracted: cached.extracted_specs, results: refreshed,
         response_time_ms: Date.now() - started, diagnostic,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
