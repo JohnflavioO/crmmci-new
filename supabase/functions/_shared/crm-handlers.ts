@@ -1003,6 +1003,24 @@ export const TOOL_REGISTRY: Record<string, ToolDef> = {
     parameters: { type: "object", properties: { scope: { type: "string", enum: ["own", "team"] }, limit: { type: "number" } } },
     handler: getCommercialOverview, readOnly: true, aliases: ["commercial_overview", "intelligence_overview"],
   },
+  get_client_ranking: {
+    name: "get_client_ranking",
+    description: "Ranking de clientes agregado no servidor (aba Rankings da Inteligência Comercial): valor total, ticket médio, marcas, top produtos, status, recorrência, período configurável.",
+    parameters: {
+      type: "object",
+      properties: {
+        scope: { type: "string", enum: ["own", "team"] },
+        period_days: { type: ["number", "string"], description: "Número de dias ou 'all'" },
+        seller_id: { type: "string" },
+        state: { type: "string" },
+        city: { type: "string" },
+        only_recurrent: { type: "boolean" },
+        active_filter: { type: "string", enum: ["all", "active", "inactive"] },
+        limit: { type: "number" },
+      },
+    },
+    handler: getClientRanking, readOnly: true, aliases: ["client_ranking", "top_clients"],
+  },
 
 };
 
