@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { CheckCircle2, ExternalLink, Plus, Layers, Sparkles } from 'lucide-react';
+import { CheckCircle2, Plus, Layers, Sparkles } from 'lucide-react';
+import CompareDetailsDrawer from './CompareDetailsDrawer';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { ComparatorResult } from '@/hooks/useEquivalentSearch';
@@ -138,72 +138,19 @@ export default function ResultCard({ result, externalInfo, onAdd }: Props) {
         </CardContent>
       </Card>
 
-      <Sheet open={showCompare} onOpenChange={setShowCompare}>
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Comparação detalhada</SheetTitle>
-          </SheetHeader>
-          <div className="mt-4 space-y-4 text-sm">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="border rounded-md p-3">
-                <p className="text-[10px] uppercase text-muted-foreground">Pesquisado</p>
-                <p className="font-semibold">{externalInfo?.brand ?? '—'}</p>
-                <p className="text-xs text-muted-foreground">{externalInfo?.model ?? externalInfo?.input ?? ''}</p>
-              </div>
-              <div className="border rounded-md p-3">
-                <p className="text-[10px] uppercase text-muted-foreground">Equivalente MCI</p>
-                <p className="font-semibold">{p.brand ?? '—'}</p>
-                <p className="text-xs text-muted-foreground">{p.name}</p>
-              </div>
-            </div>
+      <CompareDetailsDrawer
+        open={showCompare}
+        onOpenChange={setShowCompare}
+        mciProductId={p.id}
+        external={{
+          input: externalInfo?.input,
+          brand: externalInfo?.brand,
+          model: externalInfo?.model,
+          category: p.category_principal ?? undefined,
+          url: externalInfo?.url,
+        }}
+      />
 
-            {result.similarities?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-emerald-600 mb-1">Semelhanças</p>
-                <ul className="text-xs list-disc list-inside space-y-0.5">
-                  {result.similarities.map((s, i) => (<li key={i}>{s}</li>))}
-                </ul>
-              </div>
-            )}
-            {result.differences?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-amber-600 mb-1">Diferenças</p>
-                <ul className="text-xs list-disc list-inside space-y-0.5">
-                  {result.differences.map((s, i) => (<li key={i}>{s}</li>))}
-                </ul>
-              </div>
-            )}
-            {result.pros?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-primary mb-1">Vantagens</p>
-                <ul className="text-xs list-disc list-inside space-y-0.5">
-                  {result.pros.map((s, i) => (<li key={i}>{s}</li>))}
-                </ul>
-              </div>
-            )}
-            {result.cons?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-rose-600 mb-1">Desvantagens</p>
-                <ul className="text-xs list-disc list-inside space-y-0.5">
-                  {result.cons.map((s, i) => (<li key={i}>{s}</li>))}
-                </ul>
-              </div>
-            )}
-
-            {p.description && (
-              <div className="pt-2 border-t">
-                <p className="text-xs font-semibold mb-1">Descrição do produto MCI</p>
-                <p className="text-xs text-muted-foreground whitespace-pre-line">{p.description}</p>
-              </div>
-            )}
-            {externalInfo?.url && (
-              <a href={externalInfo.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                <ExternalLink className="h-3 w-3" /> Abrir origem
-              </a>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
     </>
   );
 }
