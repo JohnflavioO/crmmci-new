@@ -190,69 +190,21 @@ const writeCachedCommercialData = (cacheKey: string | undefined, data: Commercia
 };
 
 const loadCommercialData = async (userId: string | undefined, canSeeAll: boolean): Promise<CommercialData> => {
-  let qQuery = supabase
-    .from('quotes')
-    .select('id, quote_number, client_id, client_name, salesperson, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration')
-    .order('created_at', { ascending: false })
-    .limit(5000);
-
-  if (!canSeeAll) {
-    if (!userId) return emptyCommercialData;
-    qQuery = qQuery.eq('created_by', userId);
-  }
-
-  const { data: qData, error: qErr } = await qQuery;
-  if (qErr) throw qErr;
-
-  const valid = ((qData || []) as QuoteRow[]).filter(isCountable);
-
-  const [clientsRes, productsRes, profilesRes] = await Promise.all([
-    supabase
-      .from('clients')
-      .select('id, name, company_name, contact_name, email, phone, contact_phone, city, state, cpf_cnpj, created_by'),
-    supabase
-      .from('products')
-      .select('id, name, brand, code, sku'),
-    canSeeAll
-      ? supabase
-          .from('profiles')
-          .select('user_id, full_name, active')
-          .eq('active', true)
-      : Promise.resolve({ data: [], error: null } as any),
-  ]);
-
-  if (clientsRes.error) throw clientsRes.error;
-  if (productsRes.error) throw productsRes.error;
-  if ((profilesRes as any).error) throw (profilesRes as any).error;
-
-  const clients: Record<string, ClientRow> = {};
-  ((clientsRes.data || []) as any[]).forEach(c => { clients[c.id] = c; });
-
-  const quoteIds = valid.map(q => q.id);
-  const allItems: ItemRow[] = [];
-  if (quoteIds.length) {
-    const chunkSize = 200;
-    for (let i = 0; i < quoteIds.length; i += chunkSize) {
-      const chunk = quoteIds.slice(i, i + chunkSize);
-      const { data: iData, error: iErr } = await supabase
-        .from('quote_items')
-        .select('quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total')
-        .in('quote_id', chunk);
-      if (iErr) throw iErr;
-      if (iData) allItems.push(...(iData as any));
-    }
-  }
-
+  if (!userId) return emptyCommercialData;
+  const { data, error } = await supabase.functions.invoke('crm-tools', {
+    body: { tool: 'get_commercial_overview', args: { scope: canSeeAll ? 'team' : 'own' } },
+  });
+  if (error) throw new Error(error.message);
+  if (!data?.ok) throw new Error(data?.error || 'Falha ao carregar overview comercial');
+  const payload = (data.data ?? {}) as Partial<CommercialData>;
+  const quotes = ((payload.quotes ?? []) as QuoteRow[]).filter(isCountable);
   return {
-    quotes: valid,
-    clients,
-    items: allItems,
-    products: (productsRes.data || []) as ProductRow[],
-    sellerProfiles: (((profilesRes as any).data || []) as any[]).map(p => ({
-      user_id: p.user_id,
-      full_name: p.full_name || 'Vendedor',
-    })),
-    loadedAt: Date.now(),
+    quotes,
+    clients: (payload.clients ?? {}) as Record<string, ClientRow>,
+    items: (payload.items ?? []) as ItemRow[],
+    products: (payload.products ?? []) as ProductRow[],
+    sellerProfiles: (payload.sellerProfiles ?? []) as { user_id: string; full_name: string }[],
+    loadedAt: payload.loadedAt || Date.now(),
   };
 };
 
