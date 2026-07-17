@@ -26,6 +26,7 @@ export default function EquipmentComparator() {
 
   const [addProduct, setAddProduct] = useState<ComparatorProduct | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [addCompat, setAddCompat] = useState<number | undefined>(undefined);
 
   const externalInfo = useMemo(() => {
     const d = search.data?.extracted ?? {};
