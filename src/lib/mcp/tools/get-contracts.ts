@@ -1,6 +1,6 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
-import { supabaseForUser, requireAuth, ok, err } from "../_supabase";
+import { runShared } from "../_bridge";
 
 export default defineTool({
   name: "get_contracts",
@@ -11,16 +11,5 @@ export default defineTool({
     limit: z.number().int().min(1).max(100).default(25),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ status, limit }, ctx) => {
-    const guard = requireAuth(ctx); if (guard) return guard;
-    let q = supabaseForUser(ctx)
-      .from("generated_contracts")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(limit);
-    if (status) q = q.eq("status", status);
-    const { data, error } = await q;
-    if (error) return err(error.message);
-    return ok(data, "contracts");
-  },
+  handler: (args, ctx) => runShared("get_contracts", args, ctx),
 });

@@ -63,7 +63,7 @@
       {
         "name": "search_clients",
         "title": "Buscar clientes",
-        "description": "Busca clientes por nome, email, telefone, cidade, CNPJ ou CPF respeitando permissões (RLS).",
+        "description": "Busca clientes por nome, empresa, e-mail, telefone, cidade, CNPJ ou CPF respeitando permissões (RLS).",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -123,7 +123,7 @@
       {
         "name": "get_product_details",
         "title": "Detalhes do produto",
-        "description": "Retorna os dados completos de um produto do catálogo MCI (nome, marca, categoria, descrição, preço, especificações e notas de compatibilidade). Somente leitura.",
+        "description": "Retorna os dados completos de um produto do catálogo MCI. Somente leitura.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -388,7 +388,7 @@
       {
         "name": "get_sales_metrics",
         "title": "Métricas de vendas",
-        "description": "Retorna métricas de vendas (aprovados) em um período: total, ticket médio, top produtos.",
+        "description": "Retorna métricas de vendas (orçamentos aprovados) em um período: receita total, ticket médio.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -404,6 +404,59 @@
             "to": {
               "type": "string",
               "description": "Data final ISO"
+            },
+            "days_back": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3650
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_top_products",
+        "title": "Produtos mais vendidos",
+        "description": "Ranking de produtos mais vendidos considerando apenas orçamentos aprovados. Escolha metric='quantity' para volume ou 'revenue' para faturamento.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string",
+              "description": "Data inicial ISO"
+            },
+            "to": {
+              "type": "string",
+              "description": "Data final ISO"
+            },
+            "days_back": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3650
+            },
+            "metric": {
+              "type": "string",
+              "enum": [
+                "quantity",
+                "revenue"
+              ],
+              "default": "revenue"
+            },
+            "brand": {
+              "type": "string"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
             }
           },
           "additionalProperties": false,
