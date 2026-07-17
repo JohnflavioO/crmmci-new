@@ -831,6 +831,12 @@ export const TOOL_REGISTRY: Record<string, ToolDef> = {
     parameters: { type: "object", properties: { min_purchases: { type: "number" }, tolerance_pct: { type: "number" }, limit: { type: "number" }, scope: { type: "string", enum: ["own", "team"] } } },
     handler: getRepurchaseWindow, readOnly: true, aliases: ["recompute_repurchase", "repurchase_window"],
   },
+  get_commercial_overview: {
+    name: "get_commercial_overview",
+    description: "Payload agregado da Inteligência Comercial: quotes aprovados válidos + clients + items + products + sellerProfiles. Substitui o SQL direto no navegador. scope='team' apenas para admin/gestor.",
+    parameters: { type: "object", properties: { scope: { type: "string", enum: ["own", "team"] }, limit: { type: "number" } } },
+    handler: getCommercialOverview, readOnly: true, aliases: ["commercial_overview", "intelligence_overview"],
+  },
 
 };
 
