@@ -678,7 +678,12 @@ export default function ContractGenerator() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <Card>
-                <CardHeader><CardTitle className="text-lg">Dados do Cliente</CardTitle></CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between gap-2">
+                  <CardTitle className="text-lg">Dados do Cliente</CardTitle>
+                  <Button variant="outline" size="sm" onClick={() => { setClientSearch(''); setClientPickerOpen(true); }}>
+                    <Users className="h-4 w-4 mr-1" /> Selecionar cliente
+                  </Button>
+                </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1"><Label className="text-xs">Razão Social</Label><Input className="h-9" placeholder={clientPlaceholders.name} value={formData.client.name} onChange={e => setFormData({...formData, client: {...formData.client, name: e.target.value}})} /></div>
                   <div className="space-y-1"><Label className="text-xs">CNPJ</Label><Input className="h-9" placeholder={clientPlaceholders.document} value={formData.client.document} onChange={e => setFormData({...formData, client: {...formData.client, document: e.target.value}})} /></div>
