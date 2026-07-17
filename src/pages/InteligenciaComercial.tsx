@@ -637,6 +637,17 @@ export default function InteligenciaComercial() {
   const repurchaseQuery = useCrmTool('get_repurchase_window',
     { min_purchases: 2, tolerance_pct: 0.3, limit: 10, scope: toolScope },
     { enabled: !!user?.id });
+  const clientRankingQuery = useCrmTool('get_client_ranking',
+    {
+      scope: toolScope,
+      period_days: periodDays === Infinity ? 'all' : Number(periodDays),
+      seller_id: sellerFilter !== 'all' ? sellerFilter : undefined,
+      state: stateFilter !== 'all' ? stateFilter : undefined,
+      city: cityFilter !== 'all' ? cityFilter : undefined,
+      active_filter: activeFilter,
+      limit: 300,
+    },
+    { enabled: !!user?.id && canSeeAll });
 
   const insights = useMemo<Insight[]>(() => {
     const items: Insight[] = [];
