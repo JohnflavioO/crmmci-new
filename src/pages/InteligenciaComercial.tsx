@@ -944,13 +944,16 @@ export default function InteligenciaComercial() {
         )}
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as IntelligenceTab)} className="space-y-4">
-          <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full h-auto">
+          <TabsList className={cn("grid w-full h-auto", canSeeAll ? "grid-cols-4 md:grid-cols-7" : "grid-cols-3 md:grid-cols-6")}>
             <TabsTrigger value="dashboard" className="gap-1.5"><BarChart3 className="h-4 w-4" /><span className="hidden sm:inline">Dashboard</span></TabsTrigger>
             <TabsTrigger value="ranking" className="gap-1.5"><Trophy className="h-4 w-4" /><span className="hidden sm:inline">Rankings</span></TabsTrigger>
             <TabsTrigger value="top" className="gap-1.5"><UsersIcon className="h-4 w-4" /><span className="hidden sm:inline">Clientes</span></TabsTrigger>
             <TabsTrigger value="products" className="gap-1.5"><ShoppingCart className="h-4 w-4" /><span className="hidden sm:inline">Produtos</span></TabsTrigger>
             <TabsTrigger value="evolution" className="gap-1.5"><Activity className="h-4 w-4" /><span className="hidden sm:inline">Evolução</span></TabsTrigger>
             <TabsTrigger value="alerts" className="gap-1.5"><Sparkles className="h-4 w-4" /><span className="hidden sm:inline">Alertas IA</span></TabsTrigger>
+            {canSeeAll && (
+              <TabsTrigger value="diag" className="gap-1.5"><Brain className="h-4 w-4" /><span className="hidden sm:inline">Diagnóstico</span></TabsTrigger>
+            )}
           </TabsList>
 
           {/* DASHBOARD */}
