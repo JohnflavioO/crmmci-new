@@ -1124,6 +1124,12 @@ export default function InteligenciaComercial() {
                             <p className="text-sm font-semibold">{it.title}</p>
                             <p className="text-xs opacity-80 mt-0.5">{it.desc}</p>
                             {clickable && <p className="text-[10px] opacity-70 mt-1 font-medium">Ver detalhes →</p>}
+                            {canSeeAll && it.diagnostics && (
+                              <p className="text-[10px] opacity-60 mt-1 font-mono">
+                                tool: {it.diagnostics.tool} • {it.diagnostics.duration_ms}ms • {it.diagnostics.row_count ?? 0} reg.
+                              </p>
+                            )}
+
                           </div>
                         </button>
                       );
