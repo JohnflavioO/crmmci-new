@@ -657,6 +657,172 @@ export async function getCommercialOverview(ctx: CrmCtx, args: { scope?: string;
 }
 
 // -----------------------------------------------------------------
+// Client Ranking — server-side aggregation used pela aba Rankings
+// -----------------------------------------------------------------
+export async function getClientRanking(
+  ctx: CrmCtx,
+  args: {
+    scope?: string;
+    period_days?: number | "all";
+    seller_id?: string;
+    state?: string;
+    city?: string;
+    only_recurrent?: boolean;
+    active_filter?: "all" | "active" | "inactive";
+    limit?: number;
+  } = {},
+): Promise<CrmEnvelope> {
+  const overview = await getCommercialOverview(ctx, { scope: args.scope });
+  if (!overview.ok) return overview;
+
+  const payload: any = overview.data ?? {};
+  const quotes: any[] = payload.quotes ?? [];
+  const clients: Record<string, any> = payload.clients ?? {};
+  const items: any[] = payload.items ?? [];
+  const products: any[] = payload.products ?? [];
+
+  const productByCode = new Map<string, any>();
+  for (const p of products) {
+    if (p?.code) productByCode.set(String(p.code).toLowerCase(), p);
+    if (p?.sku) productByCode.set(String(p.sku).toLowerCase(), p);
+  }
+
+  const itemsByQuote = new Map<string, any[]>();
+  for (const it of items) {
+    const arr = itemsByQuote.get(it.quote_id) ?? [];
+    arr.push(it);
+    itemsByQuote.set(it.quote_id, arr);
+  }
+
+  const now = Date.now();
+  const period = args.period_days === "all" || !args.period_days ? null : Number(args.period_days);
+  const filtered = quotes.filter((q) => {
+    if (period != null) {
+      const d = new Date(q.approved_at || q.created_at).getTime();
+      if (now - d > period * 86400000) return false;
+    }
+    if (args.seller_id && args.seller_id !== "all") {
+      if (q.salesperson_id !== args.seller_id && q.created_by !== args.seller_id) return false;
+    }
+    if (args.state && args.state !== "all") {
+      const c = q.client_id ? clients[q.client_id] : null;
+      if ((c?.state ?? "") !== args.state) return false;
+    }
+    if (args.city && args.city !== "all") {
+      const c = q.client_id ? clients[q.client_id] : null;
+      if ((c?.city ?? "") !== args.city) return false;
+    }
+    return true;
+  });
+
+  const itemValue = (it: any) => {
+    const tp = Number(it.total_price || 0); if (tp > 0) return tp;
+    const lt = Number(it.line_total || 0); if (lt > 0) return lt;
+    const ut = Number(it.unit_total || 0); if (ut > 0) return ut;
+    const up = Number(it.unit_price || 0);
+    const qty = Number(it.quantity || 0) || 1;
+    return up * qty;
+  };
+  const qValue = (q: any) => Number(q.total_amount ?? q.total ?? 0);
+
+  const map = new Map<string, any>();
+  for (const q of filtered) {
+    const cid = q.client_id || `__${q.client_name || "sem"}`;
+    const c = q.client_id ? clients[q.client_id] ?? null : null;
+    let a = map.get(cid);
+    if (!a) {
+      a = {
+        client_id: cid,
+        client_name: c?.company_name || c?.name || q.client_name || "Sem cliente",
+        cnpj: c?.cpf_cnpj || "",
+        city: c?.city || "",
+        state: c?.state || "",
+        salesperson: q.salesperson || "",
+        quotes_count: 0,
+        total_value: 0,
+        received_value: 0,
+        first_purchase: null as string | null,
+        last_purchase: null as string | null,
+        monthly: {} as Record<string, number>,
+        brands: {} as Record<string, number>,
+        products: {} as Record<string, { qty: number; value: number; name: string; brand: string }>,
+      };
+      map.set(cid, a);
+    }
+    const val = qValue(q);
+    const dateStr = q.approved_at || q.created_at;
+    const d = new Date(dateStr);
+    a.quotes_count += 1;
+    a.total_value += val;
+    if ((q.payment_status ?? "").toLowerCase() === "liquidado") a.received_value += val;
+    if (!a.first_purchase || d < new Date(a.first_purchase)) a.first_purchase = dateStr;
+    if (!a.last_purchase || d > new Date(a.last_purchase)) a.last_purchase = dateStr;
+    const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    a.monthly[mk] = (a.monthly[mk] || 0) + val;
+    for (const it of (itemsByQuote.get(q.id) ?? [])) {
+      const rawCode = String(it.code || it.product_code || "").trim();
+      const prod = rawCode ? productByCode.get(rawCode.toLowerCase()) : undefined;
+      const desc = (it.description || "").trim();
+      const name = prod?.name?.trim() || desc || rawCode || "Item sem nome";
+      const brand = (prod?.brand?.trim() || it.brand || "Sem marca");
+      const v = itemValue(it);
+      a.brands[brand] = (a.brands[brand] || 0) + v;
+      const key = (rawCode || desc || name).toLowerCase();
+      if (!a.products[key]) a.products[key] = { qty: 0, value: 0, name, brand };
+      a.products[key].qty += Number(it.quantity || 0);
+      a.products[key].value += v;
+    }
+  }
+
+  const rows = Array.from(map.values()).map((a) => {
+    const ticket = a.quotes_count ? a.total_value / a.quotes_count : 0;
+    const lastDate = a.last_purchase ? new Date(a.last_purchase) : null;
+    const firstDate = a.first_purchase ? new Date(a.first_purchase) : null;
+    const daysSinceLast = lastDate ? Math.floor((now - lastDate.getTime()) / 86400000) : null;
+    const intervalAvgDays = (firstDate && lastDate && a.quotes_count > 1)
+      ? Math.round(Math.floor((lastDate.getTime() - firstDate.getTime()) / 86400000) / (a.quotes_count - 1))
+      : null;
+    const isActive = (daysSinceLast ?? 9999) <= 90;
+    const isRecurrent = a.quotes_count >= 2;
+    const status = (daysSinceLast ?? 9999) <= 30 ? "verde" : (daysSinceLast ?? 9999) <= 90 ? "amarelo" : "vermelho";
+    const topProducts = Object.values(a.products)
+      .sort((x: any, y: any) => y.value - x.value)
+      .slice(0, 5);
+    return {
+      ...a,
+      ticket_medio: ticket,
+      days_since_last: daysSinceLast,
+      interval_avg_days: intervalAvgDays,
+      is_active: isActive,
+      is_recurrent: isRecurrent,
+      status,
+      top_products: topProducts,
+    };
+  }).filter((a) => {
+    if (args.only_recurrent && !a.is_recurrent) return false;
+    if (args.active_filter === "active" && !a.is_active) return false;
+    if (args.active_filter === "inactive" && a.is_active) return false;
+    return true;
+  }).sort((x, y) => y.total_value - x.total_value);
+
+  const limit = Math.min(args.limit ?? 500, 2000);
+  const trimmed = rows.slice(0, limit);
+
+  return okEnv("client_ranking", {
+    rows: trimmed,
+    count: trimmed.length,
+    summary: {
+      total_clients: rows.length,
+      active_clients: rows.filter((a) => a.is_active).length,
+      recurrent_clients: rows.filter((a) => a.is_recurrent).length,
+      total_revenue: rows.reduce((s, a) => s + a.total_value, 0),
+      period_days: args.period_days ?? "all",
+      scope: payload.scope,
+    },
+  });
+}
+
+// -----------------------------------------------------------------
 // Follow-ups / Tasks
 // -----------------------------------------------------------------
 export async function getFollowups(ctx: CrmCtx, args: { days_without_contact?: number; limit?: number } = {}): Promise<CrmEnvelope> {
