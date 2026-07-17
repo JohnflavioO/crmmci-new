@@ -101,7 +101,7 @@ interface ProductRow {
   sku: string | null;
 }
 
-type IntelligenceTab = 'dashboard' | 'ranking' | 'top' | 'products' | 'evolution' | 'alerts';
+type IntelligenceTab = 'dashboard' | 'ranking' | 'top' | 'products' | 'evolution' | 'alerts' | 'diag';
 type IntelligenceViewState = {
   period: '30' | '90' | '180' | '365' | 'all';
   sellerFilter: string;
