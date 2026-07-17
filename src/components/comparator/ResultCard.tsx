@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { CheckCircle2, ExternalLink, Plus, Layers, Sparkles } from 'lucide-react';
+import CompareDetailsDrawer from './CompareDetailsDrawer';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { ComparatorResult } from '@/hooks/useEquivalentSearch';
