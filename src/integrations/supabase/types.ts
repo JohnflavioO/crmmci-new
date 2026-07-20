@@ -2004,6 +2004,7 @@ export type Database = {
       quotes: {
         Row: {
           approved_at: string | null
+          approver_name: string | null
           client_id: string | null
           client_name: string
           company_id: string | null
@@ -2063,6 +2064,7 @@ export type Database = {
         }
         Insert: {
           approved_at?: string | null
+          approver_name?: string | null
           client_id?: string | null
           client_name?: string
           company_id?: string | null
@@ -2122,6 +2124,7 @@ export type Database = {
         }
         Update: {
           approved_at?: string | null
+          approver_name?: string | null
           client_id?: string | null
           client_name?: string
           company_id?: string | null
@@ -3838,10 +3841,16 @@ export type Database = {
         Returns: number
       }
       process_smart_opportunities_diagnostics: { Args: never; Returns: Json }
-      public_quote_action: {
-        Args: { p_action: string; p_token: string }
-        Returns: Json
-      }
+      public_quote_action:
+        | { Args: { p_action: string; p_token: string }; Returns: Json }
+        | {
+            Args: {
+              p_action: string
+              p_approver_name?: string
+              p_token: string
+            }
+            Returns: Json
+          }
       search_product_candidates:
         | {
             Args: {
