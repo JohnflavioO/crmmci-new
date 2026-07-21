@@ -141,14 +141,9 @@ export default function UserPermissionsEditor({ userId, userName, userRole }: Us
   const loadPermissions = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('permissions')
-        .eq('user_id', userId)
-        .maybeSingle();
-
+      const { data, error } = await (supabase as any).rpc('admin_get_user_permissions', { _user_id: userId });
       if (error) throw error;
-      setPermissions((data?.permissions as Record<string, boolean>) || {});
+      setPermissions((data as Record<string, boolean>) || {});
     } catch (error: any) {
       toast.error('Erro ao carregar permissões: ' + error.message);
     } finally {
