@@ -3742,6 +3742,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_get_user_permissions: { Args: { _user_id: string }; Returns: Json }
+      admin_set_user_permissions: {
+        Args: { _permissions: Json; _user_id: string }
+        Returns: undefined
+      }
       can_view_company_profile: {
         Args: { _target_company_id: string; _target_user_id: string }
         Returns: boolean
