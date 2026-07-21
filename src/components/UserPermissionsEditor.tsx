@@ -168,11 +168,7 @@ export default function UserPermissionsEditor({ userId, userName, userRole }: Us
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ permissions })
-        .eq('user_id', userId);
-
+      const { error } = await (supabase as any).rpc('admin_set_user_permissions', { _user_id: userId, _permissions: permissions });
       if (error) throw error;
       toast.success('Permissões atualizadas com sucesso!');
     } catch (error: any) {
