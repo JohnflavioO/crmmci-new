@@ -1354,6 +1354,28 @@ export default function Quotes() {
     setItems([emptyItem()]);
   };
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const cid = searchParams.get('client_id');
+    const isNew = searchParams.get('new');
+    if (isNew && cid && clients.length > 0) {
+      const exists = clients.some((c: any) => c.id === cid);
+      if (exists) {
+        setEditingQuote(null);
+        const defaultSp = getDefaultSalesperson();
+        setForm({ ...defaultForm, salesperson: defaultSp, client_id: cid });
+        setItems([emptyItem()]);
+        setDialogOpen(true);
+      } else {
+        toast.error('Cliente não encontrado ou sem acesso');
+      }
+      searchParams.delete('new');
+      searchParams.delete('client_id');
+      setSearchParams(searchParams, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clients]);
+
   const baseFiltered = quotes.filter((q: any) => {
     if (canViewTeamQuotes) {
       if (responsibleFilter === 'me') {
