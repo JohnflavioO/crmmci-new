@@ -947,11 +947,18 @@ export default function Clients() {
                     <TableCell>
                       <ActionMenu 
                         actions={[
+                          {
+                            label: "Novo Orçamento",
+                            icon: FileText,
+                            onClick: () => navigate(`/quotes?new=1&client_id=${c.id}`),
+                            isPrimary: true,
+                            className: "text-primary"
+                          },
                           { 
                             label: "WhatsApp", 
                             icon: MessageCircle, 
                             onClick: () => window.open(`https://wa.me/${c.phone?.replace(/\D/g, '')}`, '_blank'),
-                            isPrimary: true,
+                            isSecondary: true,
                             disabled: !c.phone,
                             className: "text-green-600"
                           },
