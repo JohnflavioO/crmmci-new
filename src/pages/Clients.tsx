@@ -958,7 +958,6 @@ export default function Clients() {
                             label: "WhatsApp", 
                             icon: MessageCircle, 
                             onClick: () => window.open(`https://wa.me/${c.phone?.replace(/\D/g, '')}`, '_blank'),
-                            isSecondary: true,
                             disabled: !c.phone,
                             className: "text-green-600"
                           },
