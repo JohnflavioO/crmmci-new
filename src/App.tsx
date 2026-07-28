@@ -7,7 +7,6 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { PrivacyProvider } from "@/hooks/usePrivacy";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import AppVersionBanner from "./components/AppVersionBanner";
 
 import { Suspense, useEffect, useState, type ReactNode } from "react";
@@ -250,7 +249,6 @@ const App = () => (
 
                 <Toaster />
                 <Sonner position="bottom-right" closeButton theme="light" richColors />
-                <PWAUpdatePrompt />
               </NotificationsProvider>
             </PrivacyProvider>
           </AuthProvider>
