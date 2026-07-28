@@ -1,6 +1,10 @@
-const CACHE_VERSION = "v2026-07-13-definitive-preview-production-recovery";
-const PREVIEW_CHUNK_RECOVERY_KEY = "__mci_preview_chunk_recovery_done";
-const PREVIEW_IN_PLACE_RECOVERY_KEY = "__mci_preview_in_place_recovery_done";
+// Recuperação de browser — versão simples e previsível.
+// Regra: nunca importar "rescue loaders", nunca recarregar em loop, nunca
+// bloquear o bootstrap do React. Apenas storage seguro + limpeza de cache/SW
+// e, no máximo, UM reload com cache-bust fora do preview.
+
+const CACHE_VERSION = "v2026-07-28-simple-boot";
+const CHUNK_RETRY_KEY = "__mci_chunk_retry_done";
 
 const isLovablePreviewRuntime = () => {
   if (typeof window === "undefined") return false;
@@ -8,7 +12,6 @@ const isLovablePreviewRuntime = () => {
   return window.self !== window.top
     || host.startsWith("id-preview--")
     || host.includes("-preview--")
-    || host.includes("lovable.app")
     || host.endsWith(".lovableproject.com")
     || host.endsWith(".lovableproject-dev.com")
     || host.endsWith(".beta.lovable.dev");
@@ -25,12 +28,11 @@ const createMemoryStorage = (): Storage => {
     key: (index: number) => Array.from(store.keys())[index] ?? null,
     removeItem: (key: string) => store.delete(key),
     setItem: (key: string, value: string) => store.set(key, String(value)),
-  };
+  } as Storage;
 };
 
 const ensureSafeStorage = (name: "localStorage" | "sessionStorage") => {
   if (typeof window === "undefined") return undefined;
-
   try {
     const storage = window[name];
     const testKey = `__mci_storage_test_${Date.now()}`;
@@ -40,12 +42,9 @@ const ensureSafeStorage = (name: "localStorage" | "sessionStorage") => {
   } catch {
     const fallback = createMemoryStorage();
     try {
-      Object.defineProperty(window, name, {
-        configurable: true,
-        value: fallback,
-      });
+      Object.defineProperty(window, name, { configurable: true, value: fallback });
     } catch {
-      // Se o navegador bloquear a redefinição, seguimos com o fallback em memória.
+      // Navegador bloqueou a redefinição; seguimos com o fallback local.
     }
     return fallback;
   }
@@ -58,39 +57,20 @@ export const installBrowserSafetyGuards = () => {
 
 installBrowserSafetyGuards();
 
-const getSafeStorage = (name: "localStorage" | "sessionStorage") => ensureSafeStorage(name);
-
-const safeStorage = (name: "localStorage" | "sessionStorage", action: (storage: Storage) => void | string | null) => {
-  try {
-    const storage = getSafeStorage(name);
-    if (!storage) return null;
-    return action(storage) ?? null;
-  } catch {
-    return null;
-  }
-};
-
 export const isLikelyChunkLoadError = (error: unknown) => {
   const message = error instanceof Error ? `${error.name} ${error.message} ${error.stack ?? ""}` : String(error);
-  return /ChunkLoadError|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk|Failed to load module script|Expected a JavaScript module script|dynamically imported module/i.test(message);
+  return /ChunkLoadError|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk|Failed to load module script|Expected a JavaScript module script/i.test(message);
 };
 
 export const clearBrowserCachesAndWorkers = async () => {
   let clearedCaches = 0;
   let unregisteredWorkers = 0;
-  const isPreview = isLovablePreviewRuntime();
 
   try {
     if ("caches" in window) {
       const names = await caches.keys();
-      const removableNames = names.filter((name) => {
-        const isAppShellCache = /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-|workbox|vite|mci|supabase|firebase/i.test(name)
-          || name.includes(window.location.origin)
-          || name.includes(window.location.host);
-        return isPreview ? isAppShellCache : true;
-      });
-      await Promise.all(removableNames.map((name) => caches.delete(name)));
-      clearedCaches = removableNames.length;
+      await Promise.all(names.map((name) => caches.delete(name)));
+      clearedCaches = names.length;
     }
   } catch (error) {
     console.warn("[Recovery] Não foi possível limpar caches:", error);
@@ -99,20 +79,13 @@ export const clearBrowserCachesAndWorkers = async () => {
   try {
     if ("serviceWorker" in navigator) {
       const registrations = await navigator.serviceWorker.getRegistrations();
-      const sameOriginRegistrations = registrations.filter((registration) => {
+      const removable = registrations.filter((registration) => {
         const worker = registration.active || registration.waiting || registration.installing;
-        if (!worker?.scriptURL) return false;
-        try {
-          const url = new URL(worker.scriptURL);
-          const isSameOrigin = url.origin === window.location.origin;
-          if (isPreview) return isSameOrigin;
-          return isSameOrigin;
-        } catch {
-          return false;
-        }
+        const url = worker?.scriptURL ?? "";
+        return url !== "" && !url.includes("/firebase-messaging-sw.js");
       });
-      await Promise.all(sameOriginRegistrations.map((registration) => registration.unregister()));
-      unregisteredWorkers = sameOriginRegistrations.length;
+      await Promise.all(removable.map((registration) => registration.unregister()));
+      unregisteredWorkers = removable.length;
     }
   } catch (error) {
     console.warn("[Recovery] Não foi possível remover service workers:", error);
@@ -121,91 +94,32 @@ export const clearBrowserCachesAndWorkers = async () => {
   return { clearedCaches, unregisteredWorkers };
 };
 
-const recoverPreviewInPlace = () => {
-  // O preview da Lovable usa URLs temporárias com token. Recarregar ou trocar a
-  // URL do iframe pode invalidar a sessão do editor e deixar o navegador na tela
-  // nativa de "página temporariamente indisponível". Portanto, no preview a
-  // recuperação é sempre dentro da página atual: limpar caches/workers e importar
-  // o rescue loader, sem location.reload/replace.
-  try {
-    if (window.sessionStorage.getItem(PREVIEW_IN_PLACE_RECOVERY_KEY) === CACHE_VERSION) {
-      return;
-    }
-    window.sessionStorage.setItem(PREVIEW_IN_PLACE_RECOVERY_KEY, CACHE_VERSION);
-    window.sessionStorage.setItem(PREVIEW_CHUNK_RECOVERY_KEY, CACHE_VERSION);
-  } catch {
-    // Se storage estiver bloqueado, seguimos mesmo assim com a recuperação em memória.
-  }
-
-  void clearBrowserCachesAndWorkers().finally(() => {
-    try {
-      if (window.__mciReactBootstrapping === true && window.__mciReactMounted !== true) {
-        window.__mciReactBootstrapping = false;
-      }
-    } catch {
-      // best-effort
-    }
-    void import(/* @vite-ignore */ `/assets/recover-stale-entry.js?mci_preview_recover=${CACHE_VERSION}&t=${Date.now()}`);
-  });
-};
-
 export const reloadWithCacheBust = () => {
+  // No preview da Lovable a URL tem token temporário: nunca reescrever.
   if (isLovablePreviewRuntime()) {
-    recoverPreviewInPlace();
+    window.location.reload();
     return;
   }
-
   const url = new URL(window.location.href);
-
   url.searchParams.set("__mci_cache", CACHE_VERSION);
-  url.searchParams.set("__mci_reload", String(Date.now()));
-  url.searchParams.set("__mci_chunk_retry", "1");
   window.location.replace(url.toString());
 };
 
-
-export const runOneTimeCacheRefresh = () => {
-  if (isLovablePreviewRuntime()) return;
-
-  const key = "__mci_cache_version";
-  const currentVersion = safeStorage("localStorage", (storage) => storage.getItem(key));
-
-  if (currentVersion === CACHE_VERSION) return;
-
-  safeStorage("localStorage", (storage) => storage.setItem(key, CACHE_VERSION));
-
-  void clearBrowserCachesAndWorkers().then(({ clearedCaches, unregisteredWorkers }) => {
-    const alreadyReloaded = new URL(window.location.href).searchParams.get("__mci_cache") === CACHE_VERSION;
-    if (!alreadyReloaded && (clearedCaches > 0 || unregisteredWorkers > 0)) {
-      reloadWithCacheBust();
-    }
-  });
-};
+// Mantido apenas por compatibilidade: não faz mais limpeza automática nem reload.
+export const runOneTimeCacheRefresh = () => {};
 
 export const clearLocalAppStateAndReload = async () => {
-  if (isLovablePreviewRuntime()) {
-    await clearBrowserCachesAndWorkers();
-    return;
-  }
-
-  safeStorage("localStorage", (storage) => storage.clear());
-  safeStorage("sessionStorage", (storage) => storage.clear());
+  try { window.localStorage.clear(); } catch { /* storage bloqueado */ }
+  try { window.sessionStorage.clear(); } catch { /* storage bloqueado */ }
   await clearBrowserCachesAndWorkers();
   reloadWithCacheBust();
 };
 
+// Permite no máximo uma tentativa de recarregar por sessão em erro de chunk.
 export const shouldRetryChunkLoad = () => {
-  if (isLovablePreviewRuntime()) {
-    try {
-      return window.sessionStorage.getItem(PREVIEW_IN_PLACE_RECOVERY_KEY) !== CACHE_VERSION;
-    } catch {
-      return false;
-    }
-  }
-
   try {
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("__mci_chunk_retry") === "1") return false;
+    if (window.sessionStorage.getItem(CHUNK_RETRY_KEY) === CACHE_VERSION) return false;
+    window.sessionStorage.setItem(CHUNK_RETRY_KEY, CACHE_VERSION);
     return true;
   } catch {
     return false;
