@@ -71,147 +71,21 @@
         };
       })();
 
-      /* Lovable preview guard: nunca reescreve a URL do editor. Apenas memoriza
-         tokens e remove Service Workers antigos que podem controlar o iframe antes
-         do React carregar. */
-      (function () {
-        var host = window.location.hostname;
-        var isPreview = window.self !== window.top
-          || host.indexOf('id-preview--') === 0
-          || host.indexOf('preview--') !== -1
-          || host.indexOf('-preview--') !== -1
-          || /\.lovableproject(?:-dev)?\.com$/.test(host)
-          || /\.beta\.lovable\.dev$/.test(host);
-
-        if (!isPreview) return;
-
-        var PREVIEW_PARAMS_KEY = '__mci_lovable_preview_params';
-        var LOVABLE_PARAM_NAMES = ['__lovable_sha', '__lovable_token', '__lovable_load_id'];
-        try {
-          var currentUrl = new URL(window.location.href);
-          var values = {};
-          var found = false;
-          LOVABLE_PARAM_NAMES.forEach(function (name) {
-            var value = currentUrl.searchParams.get(name);
-            if (value) {
-              values[name] = value;
-              found = true;
-            }
-          });
-          if (found) window.sessionStorage.setItem(PREVIEW_PARAMS_KEY, JSON.stringify(values));
-        } catch (_) {}
-      })();
-
-      /* Limpeza segura de app-shell Service Workers antigos.
-         Regra definitiva: no preview da Lovable NUNCA recarregar, substituir ou
-         reescrever a URL. O token da prévia é temporário; qualquer reload aqui
-         pode causar a tela nativa de "página temporariamente indisponível". */
+      /* Limpeza de Service Workers antigos (app-shell). Nunca bloqueia o boot
+         do React e nunca recarrega/reescreve a URL do preview. */
       (function () {
         if (!('serviceWorker' in navigator)) return;
-
-        var appShellWorkerPaths = ['/sw.js', '/service-worker.js'];
-        var host = window.location.hostname;
-        var isPreview = window.self !== window.top
-          || host.indexOf('id-preview--') === 0
-          || host.indexOf('preview--') !== -1
-          || host.indexOf('-preview--') !== -1
-          || (host.indexOf('preview') !== -1 && /\.lovable\.app$/.test(host))
-          || /\.lovableproject(?:-dev)?\.com$/.test(host)
-          || /\.beta\.lovable\.dev$/.test(host);
-
-        var isAppShellScript = function (scriptURL) {
-          try {
-            var url = new URL(scriptURL);
-            return url.origin === window.location.origin && appShellWorkerPaths.indexOf(url.pathname) !== -1;
-          } catch (_) {
-            return false;
-          }
-        };
-
-        var isSameOriginNonMessagingScript = function (scriptURL) {
-          try {
-            var url = new URL(scriptURL);
-            return url.origin === window.location.origin && url.pathname !== '/firebase-messaging-sw.js';
-          } catch (_) {
-            return false;
-          }
-        };
-
-        var shouldRemoveWorker = function (scriptURL) {
-          return isPreview ? isSameOriginNonMessagingScript(scriptURL) : isAppShellScript(scriptURL);
-        };
-
-        var isAppShellCache = function (name) {
-          var looksLikeOldAppShell = /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-|workbox|vite|mci|assets\/index-|recover-stale-entry/i.test(name);
-          var looksLikeMessagingCache = /firebase|fcm|messaging|onesignal/i.test(name);
-          return looksLikeOldAppShell && !looksLikeMessagingCache;
-        };
-
-        var waitForActivation = function (worker) {
-          return new Promise(function (resolve) {
-            if (!worker || worker.state === 'activated') return resolve();
-            var done = false;
-            var finish = function () {
-              if (done) return;
-              done = true;
-              resolve();
-            };
-            worker.addEventListener('statechange', function () {
-              if (worker.state === 'activated' || worker.state === 'redundant') finish();
-            });
-            setTimeout(finish, 2500);
-          });
-        };
-
-        var replaceOldWorkerBeforeUnregister = function (registration, worker) {
-          var previousScript = worker && worker.scriptURL;
-          var updatePromise = Promise.resolve();
-          try { updatePromise = registration.update(); } catch (_) {}
-          return Promise.resolve(updatePromise).then(function () {
-            var replacement = registration.installing || registration.waiting;
-            if (replacement && replacement.scriptURL !== previousScript) {
-              return waitForActivation(replacement);
-            }
-          }).catch(function () {}).then(function () {
-            return registration.unregister();
-          });
-        };
-
-        var cleanup = function () {
-          var controlledByRemovableWorker = !!(navigator.serviceWorker.controller && shouldRemoveWorker(navigator.serviceWorker.controller.scriptURL));
-          var cachePromise = Promise.resolve();
-          if ('caches' in window) {
-            cachePromise = caches.keys().then(function (names) {
-              return Promise.allSettled(names.filter(isAppShellCache).map(function (name) { return caches.delete(name); }));
-            }).catch(function () {});
-          }
-          var cleanupPromise = navigator.serviceWorker.getRegistrations().then(function (registrations) {
-            return Promise.allSettled(registrations.map(function (registration) {
-              var worker = registration.active || registration.waiting || registration.installing;
-              if (worker && shouldRemoveWorker(worker.scriptURL)) {
-                return replaceOldWorkerBeforeUnregister(registration, worker);
+        try {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            regs.forEach(function (reg) {
+              var worker = reg.active || reg.waiting || reg.installing;
+              var url = worker && worker.scriptURL || '';
+              if (url.indexOf('/firebase-messaging-sw.js') === -1) {
+                try { reg.unregister(); } catch (_) {}
               }
-              return null;
-            }));
-          }).then(function () {
-            return cachePromise;
-          }).catch(function () {}).finally(function () {
-            if (!controlledByRemovableWorker) return;
-            if (isPreview) {
-              try { console.warn('[Preview] Service Worker antigo removido sem recarregar a URL temporária.'); } catch (_) {}
-              return;
-            }
-            var url = new URL(window.location.href);
-            if (url.searchParams.get('__mci_sw_clean') === '1') return;
-            url.searchParams.set('__mci_sw_clean', '1');
-            window.location.replace(url.toString());
-          });
-
-          return cleanupPromise;
-        };
-
-        window.__mciPreviewSwCleanupPromise = cleanup();
-        window.addEventListener('load', cleanup, { once: true });
+            });
+          }).catch(function () {});
+        } catch (_) {}
       })();
 
     </script>
@@ -255,30 +129,6 @@
         <p style="margin:0;font-weight:700">Carregando MCI CRM...</p>
       </main>
     </div>
-    <script>
-      /* Apenas registra erros pré-bootstrap e instala um watchdog não destrutivo.
-         Se um HTML antigo tentar carregar um bundle removido, o watchdog chama o
-         rescue loader sem reescrever a URL do editor e sem substituir o #root. */
-      (function () {
-        window.addEventListener('error', function (e) {
-          try { console.warn('[Startup error]', e.message || e); } catch (_) {}
-        });
-        window.addEventListener('unhandledrejection', function (e) {
-          try { console.warn('[Startup rejection]', (e && e.reason) || e); } catch (_) {}
-        });
-        window.setTimeout(function () {
-          try {
-            if (window.__mciReactMounted === true) return;
-            if (window.__mciReactBootstrapping === true) {
-              window.__mciReactBootstrapping = false;
-            }
-            import('/assets/recover-stale-entry.js?mci_watchdog=v2026-07-13-preview-entry-recovery');
-          } catch (error) {
-            try { console.warn('[Startup watchdog]', error); } catch (_) {}
-          }
-        }, 12000);
-      })();
-    </script>
-    <script type="module" src="/src/boot.ts"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
