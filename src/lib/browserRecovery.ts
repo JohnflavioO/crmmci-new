@@ -1,10 +1,12 @@
-// Recuperação de browser — versão simples e previsível.
-// Regra: nunca importar "rescue loaders", nunca recarregar em loop, nunca
-// bloquear o bootstrap do React. Apenas storage seguro + limpeza de cache/SW
-// e, no máximo, UM reload com cache-bust fora do preview.
+// Recuperação de browser — simples, previsível e sem app-shell.
+// Regra: o CRM nunca deve depender de Service Worker para carregar a UI.
+// Mantemos apenas o Firebase Messaging SW; qualquer SW legado/cache de app-shell
+// é removido sem bloquear o boot do React e com no máximo UM reload seguro.
 
-const CACHE_VERSION = "v2026-07-28-simple-boot";
+const CACHE_VERSION = "v2026-07-28-no-app-shell-sw";
 const CHUNK_RETRY_KEY = "__mci_chunk_retry_done";
+const LEGACY_SW_BOOT_KEY = `__mci_legacy_sw_removed_${CACHE_VERSION}`;
+const WINDOW_NAME_MARKER = `[mci-legacy-sw-removed:${CACHE_VERSION}]`;
 
 const isLovablePreviewRuntime = () => {
   if (typeof window === "undefined") return false;
@@ -15,6 +17,14 @@ const isLovablePreviewRuntime = () => {
     || host.endsWith(".lovableproject.com")
     || host.endsWith(".lovableproject-dev.com")
     || host.endsWith(".beta.lovable.dev");
+};
+
+const isFirebaseMessagingWorker = (scriptURL: string) => {
+  try {
+    return new URL(scriptURL).pathname === "/firebase-messaging-sw.js";
+  } catch {
+    return scriptURL.endsWith("/firebase-messaging-sw.js");
+  }
 };
 
 const createMemoryStorage = (): Storage => {
@@ -53,9 +63,15 @@ const ensureSafeStorage = (name: "localStorage" | "sessionStorage") => {
 export const installBrowserSafetyGuards = () => {
   ensureSafeStorage("localStorage");
   ensureSafeStorage("sessionStorage");
-};
 
-installBrowserSafetyGuards();
+  // Executa fora do caminho crítico: o React monta imediatamente, enquanto
+  // caches/SWs antigos são removidos em paralelo.
+  if (typeof window !== "undefined") {
+    window.setTimeout(() => {
+      void removeLegacyServiceWorkers({ reloadAfterRemoval: true });
+    }, 0);
+  }
+};
 
 export const isLikelyChunkLoadError = (error: unknown) => {
   const message = error instanceof Error ? `${error.name} ${error.message} ${error.stack ?? ""}` : String(error);
@@ -82,7 +98,7 @@ export const clearBrowserCachesAndWorkers = async () => {
       const removable = registrations.filter((registration) => {
         const worker = registration.active || registration.waiting || registration.installing;
         const url = worker?.scriptURL ?? "";
-        return url !== "" && !url.includes("/firebase-messaging-sw.js");
+        return url !== "" && !isFirebaseMessagingWorker(url);
       });
       await Promise.all(removable.map((registration) => registration.unregister()));
       unregisteredWorkers = removable.length;
@@ -92,6 +108,72 @@ export const clearBrowserCachesAndWorkers = async () => {
   }
 
   return { clearedCaches, unregisteredWorkers };
+};
+
+const hasBootRecoveryReloaded = () => {
+  try {
+    if (window.sessionStorage.getItem(LEGACY_SW_BOOT_KEY) === "1") return true;
+  } catch { /* storage bloqueado */ }
+
+  try {
+    return window.name.includes(WINDOW_NAME_MARKER);
+  } catch {
+    return false;
+  }
+};
+
+const markBootRecoveryReloaded = () => {
+  try { window.sessionStorage.setItem(LEGACY_SW_BOOT_KEY, "1"); } catch { /* storage bloqueado */ }
+  try {
+    if (!window.name.includes(WINDOW_NAME_MARKER)) {
+      window.name = `${window.name || ""}${WINDOW_NAME_MARKER}`;
+    }
+  } catch { /* window.name bloqueado */ }
+};
+
+export const removeLegacyServiceWorkers = async (options?: { reloadAfterRemoval?: boolean }) => {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    return { removedWorkers: 0, clearedCaches: 0 };
+  }
+
+  let removedWorkers = 0;
+  let clearedCaches = 0;
+
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    const legacyRegistrations = registrations.filter((registration) => {
+      const worker = registration.active || registration.waiting || registration.installing;
+      const scriptURL = worker?.scriptURL ?? "";
+      return scriptURL !== "" && !isFirebaseMessagingWorker(scriptURL);
+    });
+
+    if (legacyRegistrations.length === 0) {
+      return { removedWorkers, clearedCaches };
+    }
+
+    await Promise.all(legacyRegistrations.map((registration) => registration.unregister()));
+    removedWorkers = legacyRegistrations.length;
+
+    if ("caches" in window) {
+      const names = await caches.keys();
+      await Promise.all(names.map((name) => caches.delete(name)));
+      clearedCaches = names.length;
+    }
+
+    console.warn("[Recovery] Service Worker legado removido; cache antigo limpo.", {
+      removedWorkers,
+      clearedCaches,
+    });
+
+    if (options?.reloadAfterRemoval && !hasBootRecoveryReloaded()) {
+      markBootRecoveryReloaded();
+      window.location.reload();
+    }
+  } catch (error) {
+    console.warn("[Recovery] Falha ao remover Service Worker legado:", error);
+  }
+
+  return { removedWorkers, clearedCaches };
 };
 
 export const reloadWithCacheBust = () => {
