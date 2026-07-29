@@ -282,7 +282,7 @@ export default function AppSidebar({ onNavigate }: Props) {
           <>
             <SectionLabel>Comercial</SectionLabel>
             {commercialItems.map(item => (
-              <LinkItem key={item.to} {...item} color={item.color} />
+              <LinkItem key={item.to} {...item} color={item.color} badge={item.to === '/clients' ? resellerNewCount : 0} />
             ))}
 
             <SectionDivider />
