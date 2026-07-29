@@ -11,13 +11,17 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { z } from 'npm:zod@3.23.8';
 
-const DEFAULT_ORIGINS = ['https://cadastro-revenda-mci.lovable.app'];
+const DEFAULT_ORIGINS = [
+  'https://cadastro-revenda-mci.lovable.app',
+  'https://cadastro-revenda.mcicrm.online',
+];
 const ALLOWED_ORIGINS = (() => {
   const fromEnv = (Deno.env.get('RESELLER_LANDING_ORIGINS') ?? '')
     .split(',')
-    .map((s) => s.trim())
+    .map((s) => s.trim().replace(/\/+$/, ''))
     .filter(Boolean);
-  return fromEnv.length ? fromEnv : DEFAULT_ORIGINS;
+  // Union of env + defaults, so both transition domains are always accepted.
+  return Array.from(new Set([...DEFAULT_ORIGINS, ...fromEnv]));
 })();
 
 const MIN_FILL_MS = 3000;
