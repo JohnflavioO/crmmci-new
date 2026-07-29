@@ -1131,6 +1131,12 @@ export default function Clients() {
                     <TableCell>
                       <ActionMenu 
                         actions={[
+                          ...(regsFor(c.id).length > 0 ? [{
+                            label: "Cadastro de Revenda",
+                            icon: Store,
+                            onClick: () => openResellerDrawer(c),
+                            className: "text-orange-600",
+                          }] : []),
                           {
                             label: "Novo Orçamento",
                             icon: FileText,
@@ -1138,6 +1144,7 @@ export default function Clients() {
                             isPrimary: true,
                             className: "text-primary"
                           },
+
                           { 
                             label: "WhatsApp", 
                             icon: MessageCircle, 
