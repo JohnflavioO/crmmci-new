@@ -19,6 +19,9 @@ import ClientFilterBar from '@/components/clients/ClientFilterBar';
 import ClientFilterDrawer, { emptyFilters } from '@/components/clients/ClientFilterDrawer';
 import { useClientFilters } from '@/components/clients/useClientFilters';
 import ClientHistory360 from '@/components/clients/ClientHistory360';
+import { Badge } from '@/components/ui/badge';
+import ResellerRegistrationDrawer from '@/components/clients/ResellerRegistrationDrawer';
+import { useResellerRegistrations, RESELLER_STATUS_LABELS, RESELLER_STATUS_OPTIONS } from '@/hooks/useResellerRegistrations';
 
 interface Client {
   id: string;
@@ -77,6 +80,22 @@ export default function Clients() {
 
   const [cnpjLoading, setCnpjLoading] = useState(false);
   const [historyClientId, setHistoryClientId] = useState<string | null>(null);
+
+  // Cadastros de revenda (Landing Revenda)
+  const {
+    registrations: resellerRegs,
+    byClient: resellerByClient,
+    newCount: resellerNewCount,
+    pendingDistributionCount,
+    refresh: refreshResellers,
+  } = useResellerRegistrations();
+  const [resellerClient, setResellerClient] = useState<{ id: string; name: string; source: string | null } | null>(null);
+  const [originFilter, setOriginFilter] = useState<'all' | 'landing' | 'internal'>('all');
+  const [situationFilter, setSituationFilter] = useState<'all' | 'new' | 'viewed' | 'pending' | 'duplicate'>('all');
+  const [regStatusFilter, setRegStatusFilter] = useState<string>('all');
+  const [regOwnerFilter, setRegOwnerFilter] = useState<string>('all');
+  const [regPeriodFilter, setRegPeriodFilter] = useState<string>('all');
+
 
   const loadClients = useCallback(async () => {
     if (!user?.id) return;
@@ -528,11 +547,98 @@ export default function Clients() {
 
   const showSellerColumn = canSeeAll && ownerFilter !== 'mine';
 
+  // ---- Cadastros de revenda (Landing Revenda) ----
+  const regsFor = (clientId: string) => resellerByClient.get(clientId) || [];
+  const latestRegFor = (clientId: string) => regsFor(clientId)[0];
+
+  const matchesResellerFilters = (c: Client) => {
+    const regs = regsFor(c.id);
+    const latest = regs[0];
+    const src = (c as any).source || '';
+
+    if (originFilter === 'landing' && !regs.length && src !== 'landing_revenda') return false;
+    if (originFilter === 'internal' && (regs.length > 0 || src === 'landing_revenda')) return false;
+
+    if (situationFilter !== 'all') {
+      if (!regs.length) return false;
+      if (situationFilter === 'new' && !regs.some(r => !r.viewed_by_me)) return false;
+      if (situationFilter === 'viewed' && !regs.some(r => r.viewed_by_me)) return false;
+      if (situationFilter === 'pending' && !regs.some(r => r.registration_status === 'pendente_distribuicao')) return false;
+      if (situationFilter === 'duplicate' && !regs.some(r => r.is_duplicate)) return false;
+    }
+
+    if (regStatusFilter !== 'all') {
+      if (!regs.some(r => r.registration_status === regStatusFilter)) return false;
+    }
+
+    if (regOwnerFilter !== 'all') {
+      if (!regs.some(r => (r.assigned_user_id || 'none') === regOwnerFilter)) return false;
+    }
+
+    if (regPeriodFilter !== 'all' && latest) {
+      const days = Number(regPeriodFilter);
+      const since = Date.now() - days * 86400000;
+      if (!regs.some(r => new Date(r.submitted_at || 0).getTime() >= since)) return false;
+    } else if (regPeriodFilter !== 'all' && !latest) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const visibleClients = filtered
+    .filter(matchesResellerFilters)
+    .slice()
+    .sort((a, b) => {
+      const aNew = regsFor(a.id).some(r => !r.viewed_by_me) ? 1 : 0;
+      const bNew = regsFor(b.id).some(r => !r.viewed_by_me) ? 1 : 0;
+      if (aNew !== bNew) return bNew - aNew;
+      return 0;
+    });
+
+  const openResellerDrawer = (c: Client) => {
+    setResellerClient({ id: c.id, name: c.company_name, source: (c as any).source || null });
+  };
+
+  const ResellerBadges = ({ clientId }: { clientId: string }) => {
+    const regs = regsFor(clientId);
+    if (!regs.length) return null;
+    const latest = regs[0];
+    const hasNew = regs.some(r => !r.viewed_by_me);
+    return (
+      <span className="inline-flex flex-wrap items-center gap-1 align-middle">
+        {hasNew && (
+          <Badge className="h-5 px-1.5 text-[10px] bg-primary/15 text-primary hover:bg-primary/20 border-0">Novo cadastro</Badge>
+        )}
+        <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-orange-500/40 text-orange-600">Landing Revenda</Badge>
+        {regs.length > 1 && (
+          <Badge variant="outline" className="h-5 px-1.5 text-[10px]">{regs.length} solicitações de revenda</Badge>
+        )}
+        {regs.some(r => r.is_duplicate) && (
+          <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-amber-500/50 text-amber-600">Duplicidade</Badge>
+        )}
+        <span className="text-[10px] text-muted-foreground">
+          {RESELLER_STATUS_LABELS[latest.registration_status] || latest.registration_status}
+          {' • '}{latest.submitted_at ? new Date(latest.submitted_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
+          {latest.assigned_user_name ? ` • ${latest.assigned_user_name}` : ' • Pendente de distribuição'}
+        </span>
+      </span>
+    );
+  };
+
+
   return (
     <AppLayout>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 md:mb-6">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold font-display">Clientes</h1>
+          <h1 className="text-xl md:text-2xl font-bold font-display flex items-center gap-2">
+            Clientes
+            {resellerNewCount > 0 && (
+              <Badge className="bg-primary/15 text-primary hover:bg-primary/20 border-0">
+                {resellerNewCount} novo{resellerNewCount > 1 ? 's' : ''}
+              </Badge>
+            )}
+          </h1>
           <p className="text-muted-foreground text-sm">Gerencie sua base de clientes</p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -834,6 +940,68 @@ export default function Clients() {
         onClearAll={clearAll}
       />
 
+      {/* Filtros dos cadastros de revenda */}
+      {(resellerRegs.length > 0 || originFilter !== 'all' || situationFilter !== 'all') && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Select value={originFilter} onValueChange={(v: any) => setOriginFilter(v)}>
+            <SelectTrigger className="h-9 w-[180px]"><SelectValue placeholder="Origem" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Origem: todas</SelectItem>
+              <SelectItem value="landing">Landing Revenda</SelectItem>
+              <SelectItem value="internal">Cadastros internos</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={situationFilter} onValueChange={(v: any) => setSituationFilter(v)}>
+            <SelectTrigger className="h-9 w-[210px]"><SelectValue placeholder="Situação" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Situação: todas</SelectItem>
+              <SelectItem value="new">Novos</SelectItem>
+              <SelectItem value="viewed">Visualizados</SelectItem>
+              <SelectItem value="pending">Pendentes de distribuição</SelectItem>
+              <SelectItem value="duplicate">Duplicados</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={regStatusFilter} onValueChange={setRegStatusFilter}>
+            <SelectTrigger className="h-9 w-[220px]"><SelectValue placeholder="Status do cadastro" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Status: todos</SelectItem>
+              {RESELLER_STATUS_OPTIONS.map(o => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {canSeeAll && (
+            <Select value={regOwnerFilter} onValueChange={setRegOwnerFilter}>
+              <SelectTrigger className="h-9 w-[200px]"><SelectValue placeholder="Consultor" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Consultor: todos</SelectItem>
+                <SelectItem value="none">Sem responsável</SelectItem>
+                {sellers.map(s => (
+                  <SelectItem key={s.user_id} value={s.user_id}>{s.full_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Select value={regPeriodFilter} onValueChange={setRegPeriodFilter}>
+            <SelectTrigger className="h-9 w-[190px]"><SelectValue placeholder="Período" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Período: todos</SelectItem>
+              <SelectItem value="7">Últimos 7 dias</SelectItem>
+              <SelectItem value="30">Últimos 30 dias</SelectItem>
+              <SelectItem value="90">Últimos 90 dias</SelectItem>
+            </SelectContent>
+          </Select>
+          {pendingDistributionCount > 0 && (
+            <Button size="sm" variant="outline" className="h-9"
+              onClick={() => { setOriginFilter('landing'); setSituationFilter('pending'); }}>
+              Pendentes de distribuição ({pendingDistributionCount})
+            </Button>
+          )}
+        </div>
+      )}
+
+
+
       {/* Filter drawer */}
       <ClientFilterDrawer
         open={drawerOpen}
@@ -851,13 +1019,13 @@ export default function Clients() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Buscar cliente..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
             </div>
-            {filtered.length > 0 && (
-              <p className="text-sm text-muted-foreground">{filtered.length} cliente(s)</p>
+            {visibleClients.length > 0 && (
+              <p className="text-sm text-muted-foreground">{visibleClients.length} cliente(s)</p>
             )}
           </div>
         </CardHeader>
         <CardContent>
-          {filtered.length === 0 ? (
+          {visibleClients.length === 0 ? (
             <div className="text-center py-12">
               <Building2 className="mx-auto h-12 w-12 text-muted-foreground/30" />
               <p className="text-muted-foreground mt-3">Nenhum cliente encontrado</p>
@@ -867,7 +1035,7 @@ export default function Clients() {
             </div>
           ) : isMobile ? (
             <div className="space-y-3">
-              {filtered.map(c => (
+              {visibleClients.map(c => (
                 <div key={c.id} className="p-3 rounded-lg border bg-muted/30 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -878,8 +1046,14 @@ export default function Clients() {
                       <div>
                         <p className="font-medium text-sm">{c.company_name}</p>
                         <p className="text-xs text-muted-foreground">{c.cpf_cnpj || '-'}</p>
+                        {regsFor(c.id).length > 0 && (
+                          <button type="button" className="mt-1 text-left" onClick={() => openResellerDrawer(c)}>
+                            <ResellerBadges clientId={c.id} />
+                          </button>
+                        )}
                       </div>
                     </div>
+
                     <div className="flex gap-1">
                       <Button size="icon" variant="ghost" onClick={() => handleEdit(c)} className="h-10 w-10">
                         <Pencil className="h-4 w-4" />
@@ -907,7 +1081,7 @@ export default function Clients() {
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                      checked={visibleClients.length > 0 && selectedIds.size === visibleClients.length}
                       onCheckedChange={(checked) => handleSelectAll(!!checked)}
                     />
                   </TableHead>
@@ -921,7 +1095,7 @@ export default function Clients() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map(c => (
+                {visibleClients.map(c => (
                   <TableRow key={c.id} data-state={selectedIds.has(c.id) ? 'selected' : undefined}>
                     <TableCell>
                       <Checkbox
@@ -929,7 +1103,17 @@ export default function Clients() {
                         onCheckedChange={() => toggleSelect(c.id)}
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{c.company_name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="space-y-1">
+                        <span>{c.company_name}</span>
+                        {regsFor(c.id).length > 0 && (
+                          <button type="button" className="block text-left" onClick={() => openResellerDrawer(c)}>
+                            <ResellerBadges clientId={c.id} />
+                          </button>
+                        )}
+                      </div>
+                    </TableCell>
+
                     <TableCell>{c.cpf_cnpj}</TableCell>
                     <TableCell>{[c.city, c.state].filter(Boolean).join('/')}</TableCell>
                     <TableCell>{c.contact_name}</TableCell>
@@ -947,6 +1131,12 @@ export default function Clients() {
                     <TableCell>
                       <ActionMenu 
                         actions={[
+                          ...(regsFor(c.id).length > 0 ? [{
+                            label: "Cadastro de Revenda",
+                            icon: Store,
+                            onClick: () => openResellerDrawer(c),
+                            className: "text-orange-600",
+                          }] : []),
                           {
                             label: "Novo Orçamento",
                             icon: FileText,
@@ -954,6 +1144,7 @@ export default function Clients() {
                             isPrimary: true,
                             className: "text-primary"
                           },
+
                           { 
                             label: "WhatsApp", 
                             icon: MessageCircle, 
@@ -1028,6 +1219,15 @@ export default function Clients() {
           {historyClientId && <ClientHistory360 clientId={historyClientId} />}
         </DialogContent>
       </Dialog>
+
+      <ResellerRegistrationDrawer
+        open={!!resellerClient}
+        onOpenChange={(o) => { if (!o) setResellerClient(null); }}
+        registrations={resellerClient ? (resellerByClient.get(resellerClient.id) || []) : []}
+        clientName={resellerClient?.name}
+        clientSource={resellerClient?.source}
+        onChanged={refreshResellers}
+      />
     </AppLayout>
   );
 }

@@ -11,6 +11,7 @@ import UserProfileEditor from './UserProfileEditor';
 import SidebarVersion from './SidebarVersion';
 import { usePermissions } from '@/hooks/usePermissions';
 import { prefetchRoute } from '@/lib/routePrefetch';
+import { useResellerRegistrations } from '@/hooks/useResellerRegistrations';
 
 
 const commercialItems = [
@@ -59,6 +60,7 @@ interface Props {
 export default function AppSidebar({ onNavigate }: Props) {
   const { isAdmin, isGestor, isFinanceiro, isLogistica, isSupport, isSupportTech, isSupportManager, signOut } = useAuth();
   const { hasPermission } = usePermissions();
+  const { newCount: resellerNewCount } = useResellerRegistrations();
 
   const location = useLocation();
   const [refreshing, setRefreshing] = useState(false);
@@ -101,7 +103,7 @@ export default function AppSidebar({ onNavigate }: Props) {
   const isFinanceiroOnly = isFinanceiro && !isAdmin && !isGestor;
   const isLogisticaOnly = isLogistica && !isAdmin && !isGestor && !isFinanceiro;
 
-  const LinkItem = ({ to, icon: Icon, label, color }: { to: string; icon: any; label: string; color?: string }) => {
+  const LinkItem = ({ to, icon: Icon, label, color, badge }: { to: string; icon: any; label: string; color?: string; badge?: number }) => {
     const isActive = location.pathname === to;
     return (
       <NavLink
@@ -120,6 +122,11 @@ export default function AppSidebar({ onNavigate }: Props) {
       >
         <Icon className={cn('h-[19px] w-[19px] shrink-0 transition-colors', isActive && 'text-sidebar-primary')} />
         <span className="truncate">{label}</span>
+        {!!badge && badge > 0 && (
+          <span className="ml-auto shrink-0 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+            {badge > 99 ? '99+' : badge}
+          </span>
+        )}
       </NavLink>
     );
   };
@@ -282,7 +289,7 @@ export default function AppSidebar({ onNavigate }: Props) {
           <>
             <SectionLabel>Comercial</SectionLabel>
             {commercialItems.map(item => (
-              <LinkItem key={item.to} {...item} color={item.color} />
+              <LinkItem key={item.to} {...item} color={item.color} badge={item.to === '/clients' ? resellerNewCount : 0} />
             ))}
 
             <SectionDivider />

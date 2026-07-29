@@ -3871,6 +3871,31 @@ export type Database = {
       is_support_any: { Args: never; Returns: boolean }
       is_support_manager: { Args: never; Returns: boolean }
       is_support_tech: { Args: never; Returns: boolean }
+      list_reseller_assignable_users: {
+        Args: never
+        Returns: {
+          full_name: string
+          user_id: string
+        }[]
+      }
+      list_reseller_registrations_summary: {
+        Args: never
+        Returns: {
+          assigned_user_id: string
+          assigned_user_name: string
+          client_id: string
+          cnpj: string
+          company_name: string
+          consultant_selected_label: string
+          duplicate_reason: string
+          id: string
+          is_duplicate: boolean
+          registration_status: string
+          submitted_at: string
+          trade_name: string
+          viewed_by_me: boolean
+        }[]
+      }
       log_reseller_registration_view: {
         Args: { p_registration_id: string }
         Returns: undefined
@@ -3945,6 +3970,15 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      transfer_reseller_registration_portfolio: {
+        Args: {
+          p_new_assigned_user_id: string
+          p_reason?: string
+          p_registration_id: string
+          p_transfer_client?: boolean
+        }
+        Returns: Json
+      }
     }
     Enums: {
       contract_signature_event_type:
