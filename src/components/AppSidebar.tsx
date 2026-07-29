@@ -101,7 +101,7 @@ export default function AppSidebar({ onNavigate }: Props) {
   const isFinanceiroOnly = isFinanceiro && !isAdmin && !isGestor;
   const isLogisticaOnly = isLogistica && !isAdmin && !isGestor && !isFinanceiro;
 
-  const LinkItem = ({ to, icon: Icon, label, color }: { to: string; icon: any; label: string; color?: string }) => {
+  const LinkItem = ({ to, icon: Icon, label, color, badge }: { to: string; icon: any; label: string; color?: string; badge?: number }) => {
     const isActive = location.pathname === to;
     return (
       <NavLink
