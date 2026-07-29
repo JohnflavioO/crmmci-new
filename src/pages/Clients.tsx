@@ -528,6 +528,86 @@ export default function Clients() {
 
   const showSellerColumn = canSeeAll && ownerFilter !== 'mine';
 
+  // ---- Cadastros de revenda (Landing Revenda) ----
+  const regsFor = (clientId: string) => resellerByClient.get(clientId) || [];
+  const latestRegFor = (clientId: string) => regsFor(clientId)[0];
+
+  const matchesResellerFilters = (c: Client) => {
+    const regs = regsFor(c.id);
+    const latest = regs[0];
+    const src = (c as any).source || '';
+
+    if (originFilter === 'landing' && !regs.length && src !== 'landing_revenda') return false;
+    if (originFilter === 'internal' && (regs.length > 0 || src === 'landing_revenda')) return false;
+
+    if (situationFilter !== 'all') {
+      if (!regs.length) return false;
+      if (situationFilter === 'new' && !regs.some(r => !r.viewed_by_me)) return false;
+      if (situationFilter === 'viewed' && !regs.some(r => r.viewed_by_me)) return false;
+      if (situationFilter === 'pending' && !regs.some(r => r.registration_status === 'pendente_distribuicao')) return false;
+      if (situationFilter === 'duplicate' && !regs.some(r => r.is_duplicate)) return false;
+    }
+
+    if (regStatusFilter !== 'all') {
+      if (!regs.some(r => r.registration_status === regStatusFilter)) return false;
+    }
+
+    if (regOwnerFilter !== 'all') {
+      if (!regs.some(r => (r.assigned_user_id || 'none') === regOwnerFilter)) return false;
+    }
+
+    if (regPeriodFilter !== 'all' && latest) {
+      const days = Number(regPeriodFilter);
+      const since = Date.now() - days * 86400000;
+      if (!regs.some(r => new Date(r.submitted_at || 0).getTime() >= since)) return false;
+    } else if (regPeriodFilter !== 'all' && !latest) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const visibleClients = filtered
+    .filter(matchesResellerFilters)
+    .slice()
+    .sort((a, b) => {
+      const aNew = regsFor(a.id).some(r => !r.viewed_by_me) ? 1 : 0;
+      const bNew = regsFor(b.id).some(r => !r.viewed_by_me) ? 1 : 0;
+      if (aNew !== bNew) return bNew - aNew;
+      return 0;
+    });
+
+  const openResellerDrawer = (c: Client) => {
+    setResellerClient({ id: c.id, name: c.company_name, source: (c as any).source || null });
+  };
+
+  const ResellerBadges = ({ clientId }: { clientId: string }) => {
+    const regs = regsFor(clientId);
+    if (!regs.length) return null;
+    const latest = regs[0];
+    const hasNew = regs.some(r => !r.viewed_by_me);
+    return (
+      <span className="inline-flex flex-wrap items-center gap-1 align-middle">
+        {hasNew && (
+          <Badge className="h-5 px-1.5 text-[10px] bg-primary/15 text-primary hover:bg-primary/20 border-0">Novo cadastro</Badge>
+        )}
+        <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-orange-500/40 text-orange-600">Landing Revenda</Badge>
+        {regs.length > 1 && (
+          <Badge variant="outline" className="h-5 px-1.5 text-[10px]">{regs.length} solicitações de revenda</Badge>
+        )}
+        {regs.some(r => r.is_duplicate) && (
+          <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-amber-500/50 text-amber-600">Duplicidade</Badge>
+        )}
+        <span className="text-[10px] text-muted-foreground">
+          {RESELLER_STATUS_LABELS[latest.registration_status] || latest.registration_status}
+          {' • '}{latest.submitted_at ? new Date(latest.submitted_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
+          {latest.assigned_user_name ? ` • ${latest.assigned_user_name}` : ' • Pendente de distribuição'}
+        </span>
+      </span>
+    );
+  };
+
+
   return (
     <AppLayout>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 md:mb-6">
