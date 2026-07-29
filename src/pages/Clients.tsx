@@ -1081,7 +1081,7 @@ export default function Clients() {
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                      checked={visibleClients.length > 0 && selectedIds.size === visibleClients.length}
                       onCheckedChange={(checked) => handleSelectAll(!!checked)}
                     />
                   </TableHead>
@@ -1095,7 +1095,7 @@ export default function Clients() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map(c => (
+                {visibleClients.map(c => (
                   <TableRow key={c.id} data-state={selectedIds.has(c.id) ? 'selected' : undefined}>
                     <TableCell>
                       <Checkbox
@@ -1103,7 +1103,17 @@ export default function Clients() {
                         onCheckedChange={() => toggleSelect(c.id)}
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{c.company_name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="space-y-1">
+                        <span>{c.company_name}</span>
+                        {regsFor(c.id).length > 0 && (
+                          <button type="button" className="block text-left" onClick={() => openResellerDrawer(c)}>
+                            <ResellerBadges clientId={c.id} />
+                          </button>
+                        )}
+                      </div>
+                    </TableCell>
+
                     <TableCell>{c.cpf_cnpj}</TableCell>
                     <TableCell>{[c.city, c.state].filter(Boolean).join('/')}</TableCell>
                     <TableCell>{c.contact_name}</TableCell>
