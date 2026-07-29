@@ -482,6 +482,24 @@ export type Database = {
         }
         Relationships: []
       }
+      cnpj_lookup_cache: {
+        Row: {
+          cnpj: string
+          fetched_at: string
+          payload: Json
+        }
+        Insert: {
+          cnpj: string
+          fetched_at?: string
+          payload: Json
+        }
+        Update: {
+          cnpj?: string
+          fetched_at?: string
+          payload?: Json
+        }
+        Relationships: []
+      }
       contract_signature_events: {
         Row: {
           company_id: string | null
