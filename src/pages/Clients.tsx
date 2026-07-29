@@ -1019,13 +1019,13 @@ export default function Clients() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Buscar cliente..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
             </div>
-            {filtered.length > 0 && (
-              <p className="text-sm text-muted-foreground">{filtered.length} cliente(s)</p>
+            {visibleClients.length > 0 && (
+              <p className="text-sm text-muted-foreground">{visibleClients.length} cliente(s)</p>
             )}
           </div>
         </CardHeader>
         <CardContent>
-          {filtered.length === 0 ? (
+          {visibleClients.length === 0 ? (
             <div className="text-center py-12">
               <Building2 className="mx-auto h-12 w-12 text-muted-foreground/30" />
               <p className="text-muted-foreground mt-3">Nenhum cliente encontrado</p>
@@ -1035,7 +1035,7 @@ export default function Clients() {
             </div>
           ) : isMobile ? (
             <div className="space-y-3">
-              {filtered.map(c => (
+              {visibleClients.map(c => (
                 <div key={c.id} className="p-3 rounded-lg border bg-muted/30 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -1046,8 +1046,14 @@ export default function Clients() {
                       <div>
                         <p className="font-medium text-sm">{c.company_name}</p>
                         <p className="text-xs text-muted-foreground">{c.cpf_cnpj || '-'}</p>
+                        {regsFor(c.id).length > 0 && (
+                          <button type="button" className="mt-1 text-left" onClick={() => openResellerDrawer(c)}>
+                            <ResellerBadges clientId={c.id} />
+                          </button>
+                        )}
                       </div>
                     </div>
+
                     <div className="flex gap-1">
                       <Button size="icon" variant="ghost" onClick={() => handleEdit(c)} className="h-10 w-10">
                         <Pencil className="h-4 w-4" />
