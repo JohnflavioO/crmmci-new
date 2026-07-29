@@ -81,6 +81,22 @@ export default function Clients() {
   const [cnpjLoading, setCnpjLoading] = useState(false);
   const [historyClientId, setHistoryClientId] = useState<string | null>(null);
 
+  // Cadastros de revenda (Landing Revenda)
+  const {
+    registrations: resellerRegs,
+    byClient: resellerByClient,
+    newCount: resellerNewCount,
+    pendingDistributionCount,
+    refresh: refreshResellers,
+  } = useResellerRegistrations();
+  const [resellerClient, setResellerClient] = useState<{ id: string; name: string; source: string | null } | null>(null);
+  const [originFilter, setOriginFilter] = useState<'all' | 'landing' | 'internal'>('all');
+  const [situationFilter, setSituationFilter] = useState<'all' | 'new' | 'viewed' | 'pending' | 'duplicate'>('all');
+  const [regStatusFilter, setRegStatusFilter] = useState<string>('all');
+  const [regOwnerFilter, setRegOwnerFilter] = useState<string>('all');
+  const [regPeriodFilter, setRegPeriodFilter] = useState<string>('all');
+
+
   const loadClients = useCallback(async () => {
     if (!user?.id) return;
     try {
