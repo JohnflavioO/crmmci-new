@@ -556,9 +556,20 @@ export default function ContractGenerator() {
 
         {view === 'list' ? (
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
               <CardTitle>Histórico</CardTitle>
+              {canSeeAllContracts && (
+                <Button
+                  type="button"
+                  variant={showAllContracts ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setShowAllContracts((v) => !v)}
+                >
+                  {showAllContracts ? 'Vendo todos os contratos' : 'Ver contratos de todos'}
+                </Button>
+              )}
             </CardHeader>
+
             <CardContent>
               {loading ? (
                 <div className="flex justify-center py-8"><Loader2 className="animate-spin h-8 w-8 text-emerald-600" /></div>
