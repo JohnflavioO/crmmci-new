@@ -940,6 +940,68 @@ export default function Clients() {
         onClearAll={clearAll}
       />
 
+      {/* Filtros dos cadastros de revenda */}
+      {(resellerRegs.length > 0 || originFilter !== 'all' || situationFilter !== 'all') && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Select value={originFilter} onValueChange={(v: any) => setOriginFilter(v)}>
+            <SelectTrigger className="h-9 w-[180px]"><SelectValue placeholder="Origem" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Origem: todas</SelectItem>
+              <SelectItem value="landing">Landing Revenda</SelectItem>
+              <SelectItem value="internal">Cadastros internos</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={situationFilter} onValueChange={(v: any) => setSituationFilter(v)}>
+            <SelectTrigger className="h-9 w-[210px]"><SelectValue placeholder="Situação" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Situação: todas</SelectItem>
+              <SelectItem value="new">Novos</SelectItem>
+              <SelectItem value="viewed">Visualizados</SelectItem>
+              <SelectItem value="pending">Pendentes de distribuição</SelectItem>
+              <SelectItem value="duplicate">Duplicados</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={regStatusFilter} onValueChange={setRegStatusFilter}>
+            <SelectTrigger className="h-9 w-[220px]"><SelectValue placeholder="Status do cadastro" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Status: todos</SelectItem>
+              {RESELLER_STATUS_OPTIONS.map(o => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {canSeeAll && (
+            <Select value={regOwnerFilter} onValueChange={setRegOwnerFilter}>
+              <SelectTrigger className="h-9 w-[200px]"><SelectValue placeholder="Consultor" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Consultor: todos</SelectItem>
+                <SelectItem value="none">Sem responsável</SelectItem>
+                {sellers.map(s => (
+                  <SelectItem key={s.user_id} value={s.user_id}>{s.full_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Select value={regPeriodFilter} onValueChange={setRegPeriodFilter}>
+            <SelectTrigger className="h-9 w-[190px]"><SelectValue placeholder="Período" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Período: todos</SelectItem>
+              <SelectItem value="7">Últimos 7 dias</SelectItem>
+              <SelectItem value="30">Últimos 30 dias</SelectItem>
+              <SelectItem value="90">Últimos 90 dias</SelectItem>
+            </SelectContent>
+          </Select>
+          {pendingDistributionCount > 0 && (
+            <Button size="sm" variant="outline" className="h-9"
+              onClick={() => { setOriginFilter('landing'); setSituationFilter('pending'); }}>
+              Pendentes de distribuição ({pendingDistributionCount})
+            </Button>
+          )}
+        </div>
+      )}
+
+
+
       {/* Filter drawer */}
       <ClientFilterDrawer
         open={drawerOpen}
