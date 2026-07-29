@@ -11,7 +11,10 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { z } from 'npm:zod@3.23.8';
 
-const DEFAULT_ORIGINS = ['https://cadastro-revenda-mci.lovable.app'];
+const DEFAULT_ORIGINS = [
+  'https://cadastro-revenda-mci.lovable.app',
+  'https://cadastro-revenda.mcicrm.online',
+];
 const ALLOWED_ORIGINS = (() => {
   const fromEnv = (Deno.env.get('RESELLER_LANDING_ORIGINS') ?? '')
     .split(',')
