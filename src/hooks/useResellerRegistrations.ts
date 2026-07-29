@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -73,15 +73,37 @@ export function useResellerRegistrations() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Mantém a referência mais recente sem recriar o canal a cada render.
+  const loadRef = useRef(load);
+  useEffect(() => { loadRef.current = load; }, [load]);
+
   useEffect(() => {
     if (!user?.id) return;
-    const channel = supabase
-      .channel('reseller-registrations-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reseller_registrations' }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reseller_registration_history' }, () => load())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user?.id, load]);
+    // Nome único por montagem evita colisão de tópico (StrictMode / remount),
+    // que causava "cannot add postgres_changes callbacks ... after subscribe()".
+    const topic = `reseller-registrations-live-${user.id}-${Math.random().toString(36).slice(2)}`;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    try {
+      channel = supabase
+        .channel(topic)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reseller_registrations' }, () => loadRef.current())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reseller_registration_history' }, () => loadRef.current())
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn('[reseller] realtime indisponível:', status);
+          }
+        });
+    } catch (e) {
+      // Realtime é melhoria, nunca requisito para renderizar a página.
+      console.warn('[reseller] falha ao iniciar realtime', e);
+    }
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
 
   const byClient = useMemo(() => {
     const map = new Map<string, ResellerRegSummary[]>();
