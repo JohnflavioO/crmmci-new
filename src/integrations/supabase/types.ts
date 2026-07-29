@@ -2264,6 +2264,24 @@ export type Database = {
         }
         Relationships: []
       }
+      reseller_rate_limit: {
+        Row: {
+          hit_at: string
+          id: string
+          ip_hash: string
+        }
+        Insert: {
+          hit_at?: string
+          id?: string
+          ip_hash: string
+        }
+        Update: {
+          hit_at?: string
+          id?: string
+          ip_hash?: string
+        }
+        Relationships: []
+      }
       reseller_registration_history: {
         Row: {
           action: string
@@ -2326,6 +2344,7 @@ export type Database = {
           city: string | null
           client_id: string | null
           cnpj: string
+          commercial_contact_consent: boolean
           company_name: string
           complement: string | null
           consultant_selected_code: string | null
@@ -2333,6 +2352,8 @@ export type Database = {
           created_at: string
           duplicate_reason: string | null
           email: string
+          external_registration_id: string | null
+          form_started_at: string | null
           form_url: string | null
           how_did_you_know: string | null
           id: string
@@ -2345,6 +2366,7 @@ export type Database = {
           phone: string
           privacy_consent: boolean
           raw_payload: Json | null
+          referrer: string | null
           registration_status: string
           responsible_name: string
           state: string | null
@@ -2369,6 +2391,7 @@ export type Database = {
           city?: string | null
           client_id?: string | null
           cnpj: string
+          commercial_contact_consent?: boolean
           company_name: string
           complement?: string | null
           consultant_selected_code?: string | null
@@ -2376,6 +2399,8 @@ export type Database = {
           created_at?: string
           duplicate_reason?: string | null
           email: string
+          external_registration_id?: string | null
+          form_started_at?: string | null
           form_url?: string | null
           how_did_you_know?: string | null
           id?: string
@@ -2388,6 +2413,7 @@ export type Database = {
           phone: string
           privacy_consent?: boolean
           raw_payload?: Json | null
+          referrer?: string | null
           registration_status?: string
           responsible_name: string
           state?: string | null
@@ -2412,6 +2438,7 @@ export type Database = {
           city?: string | null
           client_id?: string | null
           cnpj?: string
+          commercial_contact_consent?: boolean
           company_name?: string
           complement?: string | null
           consultant_selected_code?: string | null
@@ -2419,6 +2446,8 @@ export type Database = {
           created_at?: string
           duplicate_reason?: string | null
           email?: string
+          external_registration_id?: string | null
+          form_started_at?: string | null
           form_url?: string | null
           how_did_you_know?: string | null
           id?: string
@@ -2431,6 +2460,7 @@ export type Database = {
           phone?: string
           privacy_consent?: boolean
           raw_payload?: Json | null
+          referrer?: string | null
           registration_status?: string
           responsible_name?: string
           state?: string | null
@@ -3841,6 +3871,10 @@ export type Database = {
       is_support_any: { Args: never; Returns: boolean }
       is_support_manager: { Args: never; Returns: boolean }
       is_support_tech: { Args: never; Returns: boolean }
+      log_reseller_registration_view: {
+        Args: { p_registration_id: string }
+        Returns: undefined
+      }
       process_all_approved_quotes_opportunities: {
         Args: never
         Returns: number
@@ -3856,6 +3890,10 @@ export type Database = {
             }
             Returns: Json
           }
+      reseller_rate_limit_hit: {
+        Args: { p_ip_hash: string; p_max?: number; p_window_seconds?: number }
+        Returns: boolean
+      }
       search_product_candidates:
         | {
             Args: {
@@ -3901,6 +3939,10 @@ export type Database = {
             }[]
           }
       set_default_origin_cep: { Args: { _cep: string }; Returns: string }
+      set_reseller_registration_status: {
+        Args: { p_notes?: string; p_registration_id: string; p_status: string }
+        Returns: Json
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
