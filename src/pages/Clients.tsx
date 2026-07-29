@@ -631,7 +631,14 @@ export default function Clients() {
     <AppLayout>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 md:mb-6">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold font-display">Clientes</h1>
+          <h1 className="text-xl md:text-2xl font-bold font-display flex items-center gap-2">
+            Clientes
+            {resellerNewCount > 0 && (
+              <Badge className="bg-primary/15 text-primary hover:bg-primary/20 border-0">
+                {resellerNewCount} novo{resellerNewCount > 1 ? 's' : ''}
+              </Badge>
+            )}
+          </h1>
           <p className="text-muted-foreground text-sm">Gerencie sua base de clientes</p>
         </div>
         <div className="flex gap-2 flex-wrap">
