@@ -1219,6 +1219,15 @@ export default function Clients() {
           {historyClientId && <ClientHistory360 clientId={historyClientId} />}
         </DialogContent>
       </Dialog>
+
+      <ResellerRegistrationDrawer
+        open={!!resellerClient}
+        onOpenChange={(o) => { if (!o) setResellerClient(null); }}
+        registrations={resellerClient ? (resellerByClient.get(resellerClient.id) || []) : []}
+        clientName={resellerClient?.name}
+        clientSource={resellerClient?.source}
+        onChanged={refreshResellers}
+      />
     </AppLayout>
   );
 }
