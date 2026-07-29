@@ -8,3 +8,7 @@ verify_jwt = false
 
 [functions.reseller-consultants]
 verify_jwt = false
+
+[functions.lookup-cnpj-public]
+verify_jwt = false
+
