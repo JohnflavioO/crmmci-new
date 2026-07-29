@@ -276,6 +276,8 @@ Deno.serve(async (req) => {
         complement: body.complement,
         pipeline_stage: 'lead',
         is_revenda: true,
+        // created_by is the official CRM ownership/wallet field (RLS + "Meus clientes").
+        created_by: assignedUserId,
         salesperson_id: assignedUserId,
         assigned_user_id: assignedUserId,
         assigned_at: assignedUserId ? nowIso : null,
