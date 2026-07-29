@@ -19,6 +19,9 @@ import ClientFilterBar from '@/components/clients/ClientFilterBar';
 import ClientFilterDrawer, { emptyFilters } from '@/components/clients/ClientFilterDrawer';
 import { useClientFilters } from '@/components/clients/useClientFilters';
 import ClientHistory360 from '@/components/clients/ClientHistory360';
+import { Badge } from '@/components/ui/badge';
+import ResellerRegistrationDrawer from '@/components/clients/ResellerRegistrationDrawer';
+import { useResellerRegistrations, RESELLER_STATUS_LABELS, RESELLER_STATUS_OPTIONS } from '@/hooks/useResellerRegistrations';
 
 interface Client {
   id: string;
