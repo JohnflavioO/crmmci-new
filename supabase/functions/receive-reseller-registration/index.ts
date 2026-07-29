@@ -18,9 +18,10 @@ const DEFAULT_ORIGINS = [
 const ALLOWED_ORIGINS = (() => {
   const fromEnv = (Deno.env.get('RESELLER_LANDING_ORIGINS') ?? '')
     .split(',')
-    .map((s) => s.trim())
+    .map((s) => s.trim().replace(/\/+$/, ''))
     .filter(Boolean);
-  return fromEnv.length ? fromEnv : DEFAULT_ORIGINS;
+  // Union of env + defaults, so both transition domains are always accepted.
+  return Array.from(new Set([...DEFAULT_ORIGINS, ...fromEnv]));
 })();
 
 const MIN_FILL_MS = 3000;
