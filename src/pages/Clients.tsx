@@ -209,7 +209,7 @@ export default function Clients() {
         if (error) throw error;
         toast.success('Cliente atualizado!');
       } else {
-        const { error } = await db.from('clients').insert({ ...form, name: form.company_name || '', created_by: user?.id });
+        const { error } = await db.from('clients').insert({ ...form, name: form.company_name || '', source: 'crm_manual', created_by: user?.id });
         if (error) throw error;
         toast.success('Cliente criado!');
       }
@@ -509,7 +509,7 @@ export default function Clients() {
         throw new Error('Nenhum dado válido encontrado para importar com o mapeamento atual.');
       }
 
-      const { data: insertData, error: insertErr } = await db.from('clients').insert(clientsToInsert).select('id');
+      const { data: insertData, error: insertErr } = await db.from('clients').insert(clientsToInsert.map((c: any) => ({ ...c, source: c.source || 'crm_import' }))).select('id');
       
       if (insertErr) throw insertErr;
 
@@ -556,8 +556,9 @@ export default function Clients() {
     const latest = regs[0];
     const src = (c as any).source || '';
 
-    if (originFilter === 'landing' && !regs.length && src !== 'landing_revenda') return false;
-    if (originFilter === 'internal' && (regs.length > 0 || src === 'landing_revenda')) return false;
+    const isLanding = regs.length > 0 || src === 'landing_revenda_mci';
+    if (originFilter === 'landing' && !isLanding) return false;
+    if (originFilter === 'internal' && isLanding) return false;
 
     if (situationFilter !== 'all') {
       if (!regs.length) return false;
@@ -830,7 +831,7 @@ export default function Clients() {
               )}
               {!form.is_revenda && (
                 <div className="space-y-2">
-                  <Label>Contrib. ICMS</Label>
+                  <Label>Inscrição Estadual</Label>
                   <Input value={form.contrib_icms} onChange={e => updateForm('contrib_icms', e.target.value)} />
                 </div>
               )}

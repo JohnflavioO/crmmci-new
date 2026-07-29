@@ -178,7 +178,7 @@ export default function ResellerRegistrationDrawer({
     } finally { setBusy(false); }
   };
 
-  const isLandingClient = (clientSource || '') === 'landing_revenda';
+  const isLandingClient = (clientSource || '') === 'landing_revenda_mci';
   const active = sorted.find(r => r.id === activeId);
 
   return (
