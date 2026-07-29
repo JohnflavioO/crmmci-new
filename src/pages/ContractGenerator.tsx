@@ -140,18 +140,27 @@ export default function ContractGenerator() {
   });
 
 
+  const canSeeAllContracts = isAdmin || isGestor;
+  const [showAllContracts, setShowAllContracts] = useState(false);
+
   useEffect(() => {
     fetchContracts();
     fetchTemplates();
-  }, []);
+  }, [showAllContracts, user?.id]);
 
   const fetchContracts = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('generated_contracts')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (!(canSeeAllContracts && showAllContracts) && user?.id) {
+        query = query.eq('created_by', user.id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       setContracts(data || []);
     } catch (error: any) {
