@@ -11,6 +11,7 @@ import UserProfileEditor from './UserProfileEditor';
 import SidebarVersion from './SidebarVersion';
 import { usePermissions } from '@/hooks/usePermissions';
 import { prefetchRoute } from '@/lib/routePrefetch';
+import { useResellerRegistrations } from '@/hooks/useResellerRegistrations';
 
 
 const commercialItems = [
@@ -59,6 +60,7 @@ interface Props {
 export default function AppSidebar({ onNavigate }: Props) {
   const { isAdmin, isGestor, isFinanceiro, isLogistica, isSupport, isSupportTech, isSupportManager, signOut } = useAuth();
   const { hasPermission } = usePermissions();
+  const { newCount: resellerNewCount } = useResellerRegistrations();
 
   const location = useLocation();
   const [refreshing, setRefreshing] = useState(false);
