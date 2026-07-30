@@ -111,7 +111,7 @@ export default function Pipeline() {
     try {
       setLoading(true);
       let query = supabase.from('quotes')
-        .select('id, quote_number, client_name, status, total_amount, shipping_cost, created_at, created_by, salesperson, salesperson_id');
+        .select('id, quote_number, client_name, status, total_amount, shipping_cost, created_at, created_by, salesperson, salesperson_id, payment_method, payment_terms, payment_date, installments, is_split_payment, split_method_1, split_method_2, split_value_1, split_value_2, split_date_1, split_date_2, split_installments_1, split_installments_2');
 
       // Apply filtering based on role and sellerFilter
       if (isGestor || isAdmin) {
