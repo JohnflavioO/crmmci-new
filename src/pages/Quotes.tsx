@@ -1875,9 +1875,25 @@ export default function Quotes() {
               )}
 
               {/* Payment Block - reorganized */}
-              <div className="space-y-4 p-4 rounded-lg border bg-muted/20">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-semibold">Pagamento</Label>
+              <div
+                ref={paymentSectionRef}
+                className={cn(
+                  'space-y-4 p-4 rounded-lg border bg-muted/20',
+                  paymentErrorFields.length > 0 && 'border-destructive ring-1 ring-destructive/40',
+                )}
+              >
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-semibold">Pagamento <span className="text-destructive">*</span></Label>
+                    <span className={cn(
+                      'text-[11px] px-2 py-0.5 rounded-full border font-medium',
+                      paymentCheck.valid
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                        : 'bg-amber-100 text-amber-800 border-amber-200',
+                    )}>
+                      {paymentCheck.valid ? 'Pagamento completo' : 'Pagamento pendente'}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Label htmlFor="split-payment" className="text-xs text-muted-foreground cursor-pointer">Pagamento em dois métodos</Label>
                     <Switch
@@ -1892,6 +1908,17 @@ export default function Quotes() {
                     />
                   </div>
                 </div>
+
+                {paymentCheck.valid ? (
+                  <p className="text-xs text-muted-foreground">
+                    Revisão — Forma de pagamento: <span className="font-medium text-foreground">{describeQuotePayment(form as any)}</span>
+                  </p>
+                ) : (
+                  <p className="text-xs text-destructive font-medium">
+                    {paymentCheck.message} {paymentCheck.detail}
+                  </p>
+                )}
+
 
                 {!form.is_split_payment ? (
                   /* Single payment mode */
