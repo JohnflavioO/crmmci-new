@@ -132,8 +132,23 @@ export default function Negociacoes() {
   };
 
   const moveQuote = async (quoteId: string, newStatus: string) => {
+    const quote = quotes.find(q => q.id === quoteId) as any;
+    // Validação central de pagamento — mesma regra do formulário e do banco
+    if (quote && paymentRequiredForStatus(newStatus)) {
+      const check = validateQuotePaymentTerms(quote, parseFloat(String(quote.total_amount)) || 0);
+      if (!check.valid) {
+        toast.error(check.message!, { description: check.detail });
+        try {
+          await db.rpc('log_quote_payment_block', {
+            _quote_id: quoteId, _action: 'negociacoes_status_change', _attempted_status: newStatus,
+            _error_code: check.code || null, _missing_fields: check.fields,
+          });
+        } catch { /* auditoria não bloqueia */ }
+        return;
+      }
+    }
     const { error } = await db.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', quoteId);
-    if (error) { toast.error('Erro ao mover negociação'); return; }
+    if (error) { toast.error('Erro ao mover negociação', { description: error.message }); return; }
     setQuotes(prev => prev.map(q => q.id === quoteId ? { ...q, status: newStatus } : q));
     if (selectedQuote?.id === quoteId) setSelectedQuote(prev => prev ? { ...prev, status: newStatus } : null);
     toast.success('Status atualizado');
