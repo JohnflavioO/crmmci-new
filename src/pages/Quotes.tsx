@@ -1924,9 +1924,9 @@ export default function Quotes() {
                   /* Single payment mode */
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-xs">Método de Pagamento</Label>
+                      <Label className="text-xs">Método de Pagamento <span className="text-destructive">*</span></Label>
                       <Select value={form.payment_method} onValueChange={v => setForm(p => ({ ...p, payment_method: v, payment_date: '', installments: 1 }))}>
-                        <SelectTrigger><SelectValue placeholder="Selecionar método" /></SelectTrigger>
+                        <SelectTrigger className={cn(paymentErrorFields.includes('payment_method') && 'border-destructive')}><SelectValue placeholder="Selecionar método" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="pix">PIX</SelectItem>
                           <SelectItem value="cartao">Cartão</SelectItem>
