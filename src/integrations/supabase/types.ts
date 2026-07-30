@@ -1966,6 +1966,45 @@ export type Database = {
           },
         ]
       }
+      quote_payment_audit: {
+        Row: {
+          action: string
+          attempted_status: string | null
+          created_at: string
+          error_code: string | null
+          id: string
+          missing_fields: string[] | null
+          new_value: Json | null
+          old_value: Json | null
+          quote_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          attempted_status?: string | null
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          missing_fields?: string[] | null
+          new_value?: Json | null
+          old_value?: Json | null
+          quote_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          attempted_status?: string | null
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          missing_fields?: string[] | null
+          new_value?: Json | null
+          old_value?: Json | null
+          quote_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       quote_recycle_requests: {
         Row: {
           created_at: string
@@ -3914,6 +3953,16 @@ export type Database = {
           viewed_by_me: boolean
         }[]
       }
+      log_quote_payment_block: {
+        Args: {
+          _action: string
+          _attempted_status: string
+          _error_code: string
+          _missing_fields: string[]
+          _quote_id: string
+        }
+        Returns: undefined
+      }
       log_reseller_registration_view: {
         Args: { p_registration_id: string }
         Returns: undefined
@@ -3933,6 +3982,10 @@ export type Database = {
             }
             Returns: Json
           }
+      quote_payment_problem: {
+        Args: { q: Database["public"]["Tables"]["quotes"]["Row"] }
+        Returns: string
+      }
       reseller_rate_limit_hit: {
         Args: { p_ip_hash: string; p_max?: number; p_window_seconds?: number }
         Returns: boolean

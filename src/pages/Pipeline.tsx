@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { validateQuotePaymentTerms, paymentRequiredForStatus } from '@/lib/quotePaymentValidation';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
 import { Badge } from '@/components/ui/badge';
@@ -111,7 +112,7 @@ export default function Pipeline() {
     try {
       setLoading(true);
       let query = supabase.from('quotes')
-        .select('id, quote_number, client_name, status, total_amount, shipping_cost, created_at, created_by, salesperson, salesperson_id');
+        .select('id, quote_number, client_name, status, total_amount, shipping_cost, created_at, created_by, salesperson, salesperson_id, payment_method, payment_terms, payment_date, installments, is_split_payment, split_method_1, split_method_2, split_value_1, split_value_2, split_date_1, split_date_2, split_installments_1, split_installments_2');
 
       // Apply filtering based on role and sellerFilter
       if (isGestor || isAdmin) {
@@ -167,8 +168,23 @@ export default function Pipeline() {
   }, [isGestor, loadSellers]);
 
   const moveQuote = async (quoteId: string, newStatus: string) => {
+    const quote = quotes.find(q => q.id === quoteId);
+    // Validação central de pagamento — mesma regra do formulário e do banco
+    if (quote && paymentRequiredForStatus(newStatus)) {
+      const check = validateQuotePaymentTerms(quote as any, parseFloat(String((quote as any).total_amount)) || 0);
+      if (!check.valid) {
+        toast.error(check.message!, { description: check.detail });
+        try {
+          await supabase.rpc('log_quote_payment_block' as any, {
+            _quote_id: quoteId, _action: 'kanban_status_change', _attempted_status: newStatus,
+            _error_code: check.code || null, _missing_fields: check.fields,
+          } as any);
+        } catch { /* auditoria não bloqueia */ }
+        return;
+      }
+    }
     const { error } = await supabase.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', quoteId);
-    if (error) { toast.error('Erro ao mover orçamento'); return; }
+    if (error) { toast.error('Erro ao mover orçamento', { description: error.message }); return; }
     setQuotes(prev => prev.map(q => q.id === quoteId ? { ...q, status: newStatus } : q));
     toast.success('Orçamento movido com sucesso');
   };

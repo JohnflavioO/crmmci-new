@@ -1,4 +1,11 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import {
+  validateQuotePaymentTerms,
+  paymentRequiredForStatus,
+  describeQuotePayment,
+  MAX_CARD_INSTALLMENTS,
+  type PaymentValidationResult,
+} from '@/lib/quotePaymentValidation';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -297,6 +304,33 @@ const defaultForm = {
 
 const QUICK_ENTRY_STATUSES = ['contato_feito', 'sent', 'negociacao'];
 
+function PaymentDateField({ date, onDateChange, label }: { date: string; onDateChange: (v: string) => void; label: string }) {
+  const displayDate = date ? safeFormatDate(date) : 'Selecionar data';
+  const selectedDate = date ? new Date(date + 'T12:00:00') : undefined;
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs">{label} <span className="text-destructive">*</span></Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground border-destructive/50")}>
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {displayDate}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : undefined}
+            onSelect={(d) => onDateChange(d ? format(d, 'yyyy-MM-dd') : '')}
+            locale={ptBR}
+            className="p-3 pointer-events-auto"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 function PaymentMethodFields({ method, date, onDateChange, installments, onInstallmentsChange, label }: {
   method: string;
   date: string;
@@ -306,45 +340,27 @@ function PaymentMethodFields({ method, date, onDateChange, installments, onInsta
   label?: string;
 }) {
   if (method === 'pix') {
-    const displayDate = date ? safeFormatDate(date) : 'Selecionar data';
-    const selectedDate = date ? new Date(date + 'T12:00:00') : undefined;
-
-    return (
-      <div className="space-y-2">
-        <Label className="text-xs">{label || 'Data do Pagamento'}</Label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}>
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {displayDate}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : undefined}
-              onSelect={(d) => onDateChange(d ? format(d, 'yyyy-MM-dd') : '')}
-              locale={ptBR}
-              className="p-3 pointer-events-auto"
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-    );
+    return <PaymentDateField date={date} onDateChange={onDateChange} label={label || 'Data do Pagamento'} />;
   }
   if (method === 'boleto' || method === 'cartao') {
+    const max = method === 'cartao' ? MAX_CARD_INSTALLMENTS : installmentOptions.length;
     return (
-      <div className="space-y-2">
-        <Label className="text-xs">Parcelas</Label>
-        <Select value={String(installments)} onValueChange={v => onInstallmentsChange(parseInt(v))}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {installmentOptions.map(n => (
-              <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <>
+        <div className="space-y-2">
+          <Label className="text-xs">Parcelas <span className="text-destructive">*</span></Label>
+          <Select value={String(installments)} onValueChange={v => onInstallmentsChange(parseInt(v))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {installmentOptions.filter(n => n <= max).map(n => (
+                <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {method === 'boleto' && (
+          <PaymentDateField date={date} onDateChange={onDateChange} label="Vencimento inicial" />
+        )}
+      </>
     );
   }
   return null;
@@ -383,6 +399,8 @@ export default function Quotes() {
   const [saving, setSavingFlag] = useState(false);
   const [editingQuote, setEditingQuote] = useState<any | null>(null);
   const [form, setForm] = useState({ ...defaultForm });
+  const [paymentErrorFields, setPaymentErrorFields] = useState<string[]>([]);
+  const paymentSectionRef = useRef<HTMLDivElement | null>(null);
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
   const [salespeople, setSalespeople] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -861,33 +879,42 @@ export default function Quotes() {
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-  // Validate payment fields for approval
-  const validatePaymentForApproval = (): string | null => {
-    if (!form.payment_method && !form.is_split_payment) {
-      return 'Selecione o método de pagamento.';
-    }
+  // ---- Validação central de pagamento (única fonte de verdade) ----
+  const paymentCheck: PaymentValidationResult = useMemo(
+    () => validateQuotePaymentTerms(form as any, grandTotal),
+    [form, grandTotal],
+  );
 
-    if (form.is_split_payment) {
-      if (!form.split_method_1) return 'Selecione o método 1 do pagamento misto.';
-      if (!form.split_method_2) return 'Selecione o método 2 do pagamento misto.';
-      if (Number(form.split_value_1) <= 0) return 'Informe o valor do método 1.';
-      if (Number(form.split_value_2) <= 0) return 'Informe o valor do método 2.';
-
-      const sumSplit = Number(form.split_value_1) + Number(form.split_value_2);
-      if (Math.abs(sumSplit - grandTotal) > 0.01) {
-        return `A soma dos valores do pagamento misto (${formatCurrency(sumSplit)}) não corresponde ao total do orçamento (${formatCurrency(grandTotal)}).`;
-      }
-
-      if (form.split_method_1 === 'pix' && !form.split_date_1) return 'Informe a data do pagamento PIX (método 1).';
-      if (form.split_method_2 === 'pix' && !form.split_date_2) return 'Informe a data do pagamento PIX (método 2).';
-    } else {
-      if (form.payment_method === 'pix' && !form.payment_date) {
-        return 'Informe a data do pagamento PIX.';
-      }
-    }
-
-    return null;
+  const logPaymentBlock = async (quoteId: string | null, action: string, attemptedStatus: string, result: PaymentValidationResult) => {
+    try {
+      await db.rpc('log_quote_payment_block', {
+        _quote_id: quoteId,
+        _action: action,
+        _attempted_status: attemptedStatus,
+        _error_code: result.code || null,
+        _missing_fields: result.fields,
+      });
+    } catch { /* auditoria não bloqueia o fluxo */ }
   };
+
+  const focusPaymentSection = (result: PaymentValidationResult) => {
+    setPaymentErrorFields(result.fields);
+    paymentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  /** Bloqueia a ação quando o pagamento estiver incompleto. Retorna true se pode prosseguir. */
+  const ensurePaymentValid = async (action: string, targetStatus: string): Promise<boolean> => {
+    if (!paymentRequiredForStatus(targetStatus)) return true;
+    if (paymentCheck.valid) {
+      setPaymentErrorFields([]);
+      return true;
+    }
+    focusPaymentSection(paymentCheck);
+    toast.error(paymentCheck.message!, { description: paymentCheck.detail });
+    await logPaymentBlock(editingQuote?.id || null, action, targetStatus, paymentCheck);
+    return false;
+  };
+
 
   const handleSave = async () => {
     if (saving) {
@@ -930,14 +957,14 @@ export default function Quotes() {
         return;
       }
 
-      // Validate payment if approving
-      if (form.status === 'approved') {
-        const paymentError = validatePaymentForApproval();
-        if (paymentError) {
-          toast.error('Para aprovar este orçamento, preencha corretamente os dados de pagamento.', { description: paymentError });
-          return;
-        }
+      // Validação central: obrigatória para qualquer status que não seja rascunho
+      if (!(await ensurePaymentValid('save', form.status))) return;
+      if (form.status === 'draft' && !paymentCheck.valid) {
+        toast.warning('Orçamento salvo como rascunho.', {
+          description: 'Informe a forma de pagamento antes de enviar ou avançar esta proposta.',
+        });
       }
+
 
       setSavingFlag(true);
 
@@ -1276,14 +1303,32 @@ export default function Quotes() {
   };
 
 
-  const handleCopyPublicLink = (quote: any) => {
+  const handleCopyPublicLink = async (quote: any) => {
+    if (!(await guardQuoteAction(quote, 'copy_public_link'))) return;
     const baseUrl = window.location.origin;
     const link = `${baseUrl}/quote/${quote.public_token}`;
     navigator.clipboard.writeText(link);
     toast.success('Link público copiado!');
   };
 
+  /** Bloqueio central para ações sobre um orçamento já salvo (PDF, envio, status). */
+  const guardQuoteAction = async (quote: any, action: string, targetStatus?: string): Promise<boolean> => {
+    const status = targetStatus || quote.status;
+    if (!paymentRequiredForStatus(status)) return true;
+    const result = validateQuotePaymentTerms(quote, parseFloat(String(quote.total_amount)) || 0);
+    if (result.valid) return true;
+    toast.error(result.message!, { description: result.detail });
+    try {
+      await db.rpc('log_quote_payment_block', {
+        _quote_id: quote.id, _action: action, _attempted_status: status,
+        _error_code: result.code || null, _missing_fields: result.fields,
+      });
+    } catch { /* auditoria não bloqueia o fluxo */ }
+    return false;
+  };
+
   const handleExportPdf = async (quote: any) => {
+    if (!(await guardQuoteAction(quote, 'generate_pdf'))) return;
     try {
       const [{ data: qItems }, { data: clientData }] = await Promise.all([
         db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number'),
@@ -1301,6 +1346,7 @@ export default function Quotes() {
 
   const handleWhatsAppWithPdf = async (quote: any) => {
     if (!quote.clients?.phone) return;
+    if (!(await guardQuoteAction(quote, 'send_to_client'))) return;
     setWhatsappLoading(quote.id);
     try {
       const { data: clientData } = await db.from('clients').select('*').eq('id', quote.client_id).maybeSingle();
@@ -1829,9 +1875,25 @@ export default function Quotes() {
               )}
 
               {/* Payment Block - reorganized */}
-              <div className="space-y-4 p-4 rounded-lg border bg-muted/20">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-semibold">Pagamento</Label>
+              <div
+                ref={paymentSectionRef}
+                className={cn(
+                  'space-y-4 p-4 rounded-lg border bg-muted/20',
+                  paymentErrorFields.length > 0 && 'border-destructive ring-1 ring-destructive/40',
+                )}
+              >
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-semibold">Pagamento <span className="text-destructive">*</span></Label>
+                    <span className={cn(
+                      'text-[11px] px-2 py-0.5 rounded-full border font-medium',
+                      paymentCheck.valid
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                        : 'bg-amber-100 text-amber-800 border-amber-200',
+                    )}>
+                      {paymentCheck.valid ? 'Pagamento completo' : 'Pagamento pendente'}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Label htmlFor="split-payment" className="text-xs text-muted-foreground cursor-pointer">Pagamento em dois métodos</Label>
                     <Switch
@@ -1847,13 +1909,24 @@ export default function Quotes() {
                   </div>
                 </div>
 
+                {paymentCheck.valid ? (
+                  <p className="text-xs text-muted-foreground">
+                    Revisão — Forma de pagamento: <span className="font-medium text-foreground">{describeQuotePayment(form as any)}</span>
+                  </p>
+                ) : (
+                  <p className="text-xs text-destructive font-medium">
+                    {paymentCheck.message} {paymentCheck.detail}
+                  </p>
+                )}
+
+
                 {!form.is_split_payment ? (
                   /* Single payment mode */
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-xs">Método de Pagamento</Label>
+                      <Label className="text-xs">Método de Pagamento <span className="text-destructive">*</span></Label>
                       <Select value={form.payment_method} onValueChange={v => setForm(p => ({ ...p, payment_method: v, payment_date: '', installments: 1 }))}>
-                        <SelectTrigger><SelectValue placeholder="Selecionar método" /></SelectTrigger>
+                        <SelectTrigger className={cn(paymentErrorFields.includes('payment_method') && 'border-destructive')}><SelectValue placeholder="Selecionar método" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="pix">PIX</SelectItem>
                           <SelectItem value="cartao">Cartão</SelectItem>
@@ -2001,9 +2074,11 @@ export default function Quotes() {
                   </div>
                 </div>
 
-                {/* Approval warning */}
-                {form.status === 'approved' && !form.is_split_payment && !form.payment_method && (
-                  <p className="text-xs text-destructive font-medium">⚠ Para aprovar, preencha o método de pagamento.</p>
+                {/* Aviso de rascunho incompleto */}
+                {form.status === 'draft' && !paymentCheck.valid && (
+                  <p className="text-xs text-amber-700 font-medium">
+                    Rascunho pode ser salvo sem pagamento. Informe a forma de pagamento antes de enviar ou avançar esta proposta.
+                  </p>
                 )}
               </div>
 
