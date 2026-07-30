@@ -955,14 +955,14 @@ export default function Quotes() {
         return;
       }
 
-      // Validate payment if approving
-      if (form.status === 'approved') {
-        const paymentError = validatePaymentForApproval();
-        if (paymentError) {
-          toast.error('Para aprovar este orçamento, preencha corretamente os dados de pagamento.', { description: paymentError });
-          return;
-        }
+      // Validação central: obrigatória para qualquer status que não seja rascunho
+      if (!(await ensurePaymentValid('save', form.status))) return;
+      if (form.status === 'draft' && !paymentCheck.valid) {
+        toast.warning('Orçamento salvo como rascunho.', {
+          description: 'Informe a forma de pagamento antes de enviar ou avançar esta proposta.',
+        });
       }
+
 
       setSavingFlag(true);
 
