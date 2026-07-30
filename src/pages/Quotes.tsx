@@ -2074,9 +2074,11 @@ export default function Quotes() {
                   </div>
                 </div>
 
-                {/* Approval warning */}
-                {form.status === 'approved' && !form.is_split_payment && !form.payment_method && (
-                  <p className="text-xs text-destructive font-medium">⚠ Para aprovar, preencha o método de pagamento.</p>
+                {/* Aviso de rascunho incompleto */}
+                {form.status === 'draft' && !paymentCheck.valid && (
+                  <p className="text-xs text-amber-700 font-medium">
+                    Rascunho pode ser salvo sem pagamento. Informe a forma de pagamento antes de enviar ou avançar esta proposta.
+                  </p>
                 )}
               </div>
 
