@@ -1310,7 +1310,24 @@ export default function Quotes() {
     toast.success('Link público copiado!');
   };
 
+  /** Bloqueio central para ações sobre um orçamento já salvo (PDF, envio, status). */
+  const guardQuoteAction = async (quote: any, action: string, targetStatus?: string): Promise<boolean> => {
+    const status = targetStatus || quote.status;
+    if (!paymentRequiredForStatus(status)) return true;
+    const result = validateQuotePaymentTerms(quote, parseFloat(String(quote.total_amount)) || 0);
+    if (result.valid) return true;
+    toast.error(result.message!, { description: result.detail });
+    try {
+      await db.rpc('log_quote_payment_block', {
+        _quote_id: quote.id, _action: action, _attempted_status: status,
+        _error_code: result.code || null, _missing_fields: result.fields,
+      });
+    } catch { /* auditoria não bloqueia o fluxo */ }
+    return false;
+  };
+
   const handleExportPdf = async (quote: any) => {
+    if (!(await guardQuoteAction(quote, 'generate_pdf'))) return;
     try {
       const [{ data: qItems }, { data: clientData }] = await Promise.all([
         db.from('quote_items').select('*').eq('quote_id', quote.id).order('item_number'),
