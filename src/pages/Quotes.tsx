@@ -304,6 +304,33 @@ const defaultForm = {
 
 const QUICK_ENTRY_STATUSES = ['contato_feito', 'sent', 'negociacao'];
 
+function PaymentDateField({ date, onDateChange, label }: { date: string; onDateChange: (v: string) => void; label: string }) {
+  const displayDate = date ? safeFormatDate(date) : 'Selecionar data';
+  const selectedDate = date ? new Date(date + 'T12:00:00') : undefined;
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs">{label} <span className="text-destructive">*</span></Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground border-destructive/50")}>
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {displayDate}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : undefined}
+            onSelect={(d) => onDateChange(d ? format(d, 'yyyy-MM-dd') : '')}
+            locale={ptBR}
+            className="p-3 pointer-events-auto"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 function PaymentMethodFields({ method, date, onDateChange, installments, onInstallmentsChange, label }: {
   method: string;
   date: string;
@@ -313,45 +340,27 @@ function PaymentMethodFields({ method, date, onDateChange, installments, onInsta
   label?: string;
 }) {
   if (method === 'pix') {
-    const displayDate = date ? safeFormatDate(date) : 'Selecionar data';
-    const selectedDate = date ? new Date(date + 'T12:00:00') : undefined;
-
-    return (
-      <div className="space-y-2">
-        <Label className="text-xs">{label || 'Data do Pagamento'}</Label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}>
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {displayDate}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : undefined}
-              onSelect={(d) => onDateChange(d ? format(d, 'yyyy-MM-dd') : '')}
-              locale={ptBR}
-              className="p-3 pointer-events-auto"
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-    );
+    return <PaymentDateField date={date} onDateChange={onDateChange} label={label || 'Data do Pagamento'} />;
   }
   if (method === 'boleto' || method === 'cartao') {
+    const max = method === 'cartao' ? MAX_CARD_INSTALLMENTS : installmentOptions.length;
     return (
-      <div className="space-y-2">
-        <Label className="text-xs">Parcelas</Label>
-        <Select value={String(installments)} onValueChange={v => onInstallmentsChange(parseInt(v))}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {installmentOptions.map(n => (
-              <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <>
+        <div className="space-y-2">
+          <Label className="text-xs">Parcelas <span className="text-destructive">*</span></Label>
+          <Select value={String(installments)} onValueChange={v => onInstallmentsChange(parseInt(v))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {installmentOptions.filter(n => n <= max).map(n => (
+                <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {method === 'boleto' && (
+          <PaymentDateField date={date} onDateChange={onDateChange} label="Vencimento inicial" />
+        )}
+      </>
     );
   }
   return null;
