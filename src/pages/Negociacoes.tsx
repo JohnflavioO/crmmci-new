@@ -102,7 +102,7 @@ export default function Negociacoes() {
     setLoading(true);
     const { data } = await db
       .from('quotes')
-      .select('id, quote_number, client_name, client_id, status, total_amount, shipping_cost, created_at, created_by, salesperson, payment_terms, payment_method, payment_status, shipping_method, shipping_deadline, proposal_validity, notes, approved_at, rejected_at, quote_date, clients(name, company_name, cpf_cnpj, phone, email, contact_name, contact_phone, city, state, address, is_whatsapp)')
+      .select('id, quote_number, client_name, client_id, status, total_amount, shipping_cost, created_at, created_by, salesperson, payment_terms, payment_method, payment_status, payment_date, installments, is_split_payment, split_method_1, split_method_2, split_value_1, split_value_2, split_date_1, split_date_2, split_installments_1, split_installments_2, shipping_method, shipping_deadline, proposal_validity, notes, approved_at, rejected_at, quote_date, clients(name, company_name, cpf_cnpj, phone, email, contact_name, contact_phone, city, state, address, is_whatsapp)')
       .eq('created_by', user?.id)
       .order('created_at', { ascending: false });
 
