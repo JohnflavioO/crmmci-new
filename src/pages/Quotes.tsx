@@ -877,33 +877,42 @@ export default function Quotes() {
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-  // Validate payment fields for approval
-  const validatePaymentForApproval = (): string | null => {
-    if (!form.payment_method && !form.is_split_payment) {
-      return 'Selecione o método de pagamento.';
-    }
+  // ---- Validação central de pagamento (única fonte de verdade) ----
+  const paymentCheck: PaymentValidationResult = useMemo(
+    () => validateQuotePaymentTerms(form as any, grandTotal),
+    [form, grandTotal],
+  );
 
-    if (form.is_split_payment) {
-      if (!form.split_method_1) return 'Selecione o método 1 do pagamento misto.';
-      if (!form.split_method_2) return 'Selecione o método 2 do pagamento misto.';
-      if (Number(form.split_value_1) <= 0) return 'Informe o valor do método 1.';
-      if (Number(form.split_value_2) <= 0) return 'Informe o valor do método 2.';
-
-      const sumSplit = Number(form.split_value_1) + Number(form.split_value_2);
-      if (Math.abs(sumSplit - grandTotal) > 0.01) {
-        return `A soma dos valores do pagamento misto (${formatCurrency(sumSplit)}) não corresponde ao total do orçamento (${formatCurrency(grandTotal)}).`;
-      }
-
-      if (form.split_method_1 === 'pix' && !form.split_date_1) return 'Informe a data do pagamento PIX (método 1).';
-      if (form.split_method_2 === 'pix' && !form.split_date_2) return 'Informe a data do pagamento PIX (método 2).';
-    } else {
-      if (form.payment_method === 'pix' && !form.payment_date) {
-        return 'Informe a data do pagamento PIX.';
-      }
-    }
-
-    return null;
+  const logPaymentBlock = async (quoteId: string | null, action: string, attemptedStatus: string, result: PaymentValidationResult) => {
+    try {
+      await db.rpc('log_quote_payment_block', {
+        _quote_id: quoteId,
+        _action: action,
+        _attempted_status: attemptedStatus,
+        _error_code: result.code || null,
+        _missing_fields: result.fields,
+      });
+    } catch { /* auditoria não bloqueia o fluxo */ }
   };
+
+  const focusPaymentSection = (result: PaymentValidationResult) => {
+    setPaymentErrorFields(result.fields);
+    paymentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  /** Bloqueia a ação quando o pagamento estiver incompleto. Retorna true se pode prosseguir. */
+  const ensurePaymentValid = async (action: string, targetStatus: string): Promise<boolean> => {
+    if (!paymentRequiredForStatus(targetStatus)) return true;
+    if (paymentCheck.valid) {
+      setPaymentErrorFields([]);
+      return true;
+    }
+    focusPaymentSection(paymentCheck);
+    toast.error(paymentCheck.message!, { description: paymentCheck.detail });
+    await logPaymentBlock(editingQuote?.id || null, action, targetStatus, paymentCheck);
+    return false;
+  };
+
 
   const handleSave = async () => {
     if (saving) {
