@@ -399,6 +399,8 @@ export default function Quotes() {
   const [saving, setSavingFlag] = useState(false);
   const [editingQuote, setEditingQuote] = useState<any | null>(null);
   const [form, setForm] = useState({ ...defaultForm });
+  const [paymentErrorFields, setPaymentErrorFields] = useState<string[]>([]);
+  const paymentSectionRef = useRef<HTMLDivElement | null>(null);
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
   const [salespeople, setSalespeople] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
