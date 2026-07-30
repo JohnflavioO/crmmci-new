@@ -1303,7 +1303,8 @@ export default function Quotes() {
   };
 
 
-  const handleCopyPublicLink = (quote: any) => {
+  const handleCopyPublicLink = async (quote: any) => {
+    if (!(await guardQuoteAction(quote, 'copy_public_link'))) return;
     const baseUrl = window.location.origin;
     const link = `${baseUrl}/quote/${quote.public_token}`;
     navigator.clipboard.writeText(link);
