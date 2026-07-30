@@ -167,8 +167,23 @@ export default function Pipeline() {
   }, [isGestor, loadSellers]);
 
   const moveQuote = async (quoteId: string, newStatus: string) => {
+    const quote = quotes.find(q => q.id === quoteId);
+    // Validação central de pagamento — mesma regra do formulário e do banco
+    if (quote && paymentRequiredForStatus(newStatus)) {
+      const check = validateQuotePaymentTerms(quote as any, parseFloat(String((quote as any).total_amount)) || 0);
+      if (!check.valid) {
+        toast.error(check.message!, { description: check.detail });
+        try {
+          await supabase.rpc('log_quote_payment_block' as any, {
+            _quote_id: quoteId, _action: 'kanban_status_change', _attempted_status: newStatus,
+            _error_code: check.code || null, _missing_fields: check.fields,
+          } as any);
+        } catch { /* auditoria não bloqueia */ }
+        return;
+      }
+    }
     const { error } = await supabase.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', quoteId);
-    if (error) { toast.error('Erro ao mover orçamento'); return; }
+    if (error) { toast.error('Erro ao mover orçamento', { description: error.message }); return; }
     setQuotes(prev => prev.map(q => q.id === quoteId ? { ...q, status: newStatus } : q));
     toast.success('Orçamento movido com sucesso');
   };
