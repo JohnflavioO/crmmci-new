@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { validateQuotePaymentTerms, paymentRequiredForStatus } from '@/lib/quotePaymentValidation';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
 import { Badge } from '@/components/ui/badge';
