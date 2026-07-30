@@ -1,4 +1,4 @@
-/** Cópia espelhada de src/lib/quotePaymentValidation.ts — NÃO divergir.
+// Cópia espelhada de src/lib/quotePaymentValidation.ts — NÃO divergir.
 /**
  * Validação central de forma de pagamento de orçamentos (CRM MCI).
  *
