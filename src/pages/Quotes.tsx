@@ -1345,6 +1345,7 @@ export default function Quotes() {
 
   const handleWhatsAppWithPdf = async (quote: any) => {
     if (!quote.clients?.phone) return;
+    if (!(await guardQuoteAction(quote, 'send_to_client'))) return;
     setWhatsappLoading(quote.id);
     try {
       const { data: clientData } = await db.from('clients').select('*').eq('id', quote.client_id).maybeSingle();
