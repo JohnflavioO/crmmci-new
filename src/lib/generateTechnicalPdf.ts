@@ -312,7 +312,7 @@ export async function generateTechnicalQuotePdf(
   doc.setFontSize(9.5);
   const defectLines = doc.splitTextToSize(defect, CW - 12);
   const accLines = doc.splitTextToSize(accessories, CW - 12);
-  const eqH = 26 + defectLines.length * 4.8 + accLines.length * 4.4;
+  const eqH = 40 + defectLines.length * 4.8 + accLines.length * 4.4;
   card(doc, M, y, CW, eqH);
 
   let ey = y + 8;
