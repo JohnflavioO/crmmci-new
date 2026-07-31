@@ -128,6 +128,44 @@ function drawFooter(doc: any, technicianName?: string) {
   }
 }
 
+/** Rodapé do orçamento: bloco do técnico responsável (modelo do sistema antigo) */
+function drawQuoteFooter(doc: any, os: any) {
+  const W = 210;
+  const H = 297;
+  const margin = 12;
+  const pageCount = doc.getNumberOfPages();
+  doc.setPage(pageCount);
+  const top = H - 40;
+  doc.setDrawColor(0, 190, 170);
+  doc.setLineWidth(0.5);
+  doc.line(margin, top, W - margin, top);
+  doc.setLineWidth(0.2);
+  doc.setDrawColor(215);
+  doc.rect(margin, top + 4, W - margin * 2, 22);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(70);
+  doc.text('Técnico Responsável', margin + 4, top + 10);
+  doc.setFontSize(10);
+  doc.setTextColor(0, 110, 180);
+  doc.text(os.technician_name || '-', margin + 4, top + 16);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(60);
+  doc.text(os.technician_email || COMPANY.email, W / 2 - 4, top + 14);
+  doc.setTextColor(0, 150, 109);
+  doc.text(os.technician_phone || COMPANY.phone, W - margin - 6, top + 14, { align: 'right' });
+
+  doc.setFontSize(6.5);
+  doc.setTextColor(120);
+  doc.text(`${COMPANY.name} • www.mci.tv`, margin + 4, top + 23);
+  doc.text('Garantia de 1 ano em toda manutenção e peças', W - margin - 4, top + 23, { align: 'right' });
+  doc.setTextColor(0);
+}
+
+
 /**
  * PDF de Orçamento Técnico (espelha o modelo do sistema antigo)
  */
