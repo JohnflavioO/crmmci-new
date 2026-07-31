@@ -595,19 +595,18 @@ export default function SupportBudgets() {
             {/* Envio + Frete + Mão de Obra */}
             <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label className="text-xs">Método de Envio</Label>
-                <Select
+                <Label className="text-xs">Método de Envio (aparece no PDF)</Label>
+                <Input
                   value={selected.shipping_method || ''}
-                  onValueChange={(v) => setSelected({ ...selected, shipping_method: v })}
-                >
-                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent>
-                    {SHIPPING_METHODS.map((m) => (
-                      <SelectItem key={m} value={m}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Ex.: Correios - Sedex"
+                  list="shipping-methods"
+                  onChange={(e) => setSelected({ ...selected, shipping_method: e.target.value })}
+                />
+                <datalist id="shipping-methods">
+                  {SHIPPING_METHODS.map((m) => (<option key={m} value={m} />))}
+                </datalist>
               </div>
+
               <div>
                 <Label className="text-xs">Frete (R$)</Label>
                 <Input
