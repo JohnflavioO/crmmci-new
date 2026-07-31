@@ -642,20 +642,49 @@ export default function SupportBudgets() {
               </p>
             </section>
 
-            {/* Desconto */}
-            <section className="max-w-xs">
-              <Label className="text-xs">Desconto sobre Peças (%)</Label>
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                step="0.01"
-                className="text-right text-destructive font-medium"
-                value={selected.discount_percent || 0}
-                onChange={(e) => setSelected({ ...selected, discount_percent: Number(e.target.value) })}
+            {/* Descrição do Reparo */}
+            <section>
+              <h3 className="text-sm font-semibold mb-2">Descrição do Reparo</h3>
+              <Textarea
+                rows={4}
+                placeholder="Reparo a ser executado / executado no equipamento..."
+                value={selected.repair_description || ''}
+                onChange={(e) => setSelected({ ...selected, repair_description: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground mt-1">Percentual aplicado ao valor das peças</p>
             </section>
+
+            {/* Desconto */}
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl">
+              <div>
+                <Label className="text-xs">Aplicar desconto sobre</Label>
+                <Select
+                  value={selected.discount_scope || 'parts'}
+                  onValueChange={(v) => setSelected({ ...selected, discount_scope: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="parts">Somente peças</SelectItem>
+                    <SelectItem value="total">Total do orçamento</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Desconto (%)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  className="text-right text-destructive font-medium"
+                  value={selected.discount_percent || 0}
+                  onChange={(e) => setSelected({ ...selected, discount_percent: Number(e.target.value) })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Base: {selected.discount_scope === 'total' ? 'peças + mão de obra + frete' : 'valor das peças'}
+                </p>
+              </div>
+            </section>
+
 
             {/* Formas de Pagamento */}
             <section>
