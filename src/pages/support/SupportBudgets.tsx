@@ -114,6 +114,16 @@ export default function SupportBudgets() {
   const loadOrder = async (id: string) => {
     const { data: ord } = await db.from('technical_orders').select('*').eq('id', id).maybeSingle();
     setSelected(ord as Order);
+    if (ord?.client_id) {
+      const { data: cli } = await db
+        .from('technical_clients')
+        .select('name, cpf_cnpj, email, phone, whatsapp, address, city, state, zip_code')
+        .eq('id', ord.client_id)
+        .maybeSingle();
+      setClientData(cli || null);
+    } else {
+      setClientData(null);
+    }
     const { data: prts } = await db
       .from('technical_order_parts')
       .select('*, technical_products(code)')
