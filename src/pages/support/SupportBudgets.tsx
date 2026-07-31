@@ -94,6 +94,7 @@ export default function SupportBudgets() {
   const [productResults, setProductResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [clientData, setClientData] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchOrders = async () => {
