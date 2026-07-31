@@ -315,8 +315,39 @@ export default function SupportBudgets() {
 
   const printPdf = async () => {
     if (!selected) return;
+    const blob = (await generateTechnicalQuotePdf(selected, parts, {
+      client: clientData,
+      returnBlob: true,
+    })) as Blob;
+    const url = URL.createObjectURL(blob);
+    const frame = document.createElement('iframe');
+    frame.style.position = 'fixed';
+    frame.style.right = '0';
+    frame.style.bottom = '0';
+    frame.style.width = '0';
+    frame.style.height = '0';
+    frame.style.border = '0';
+    frame.src = url;
+    frame.onload = () => {
+      try {
+        frame.contentWindow?.focus();
+        frame.contentWindow?.print();
+      } catch {
+        window.open(url, '_blank');
+      }
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+        frame.remove();
+      }, 60000);
+    };
+    document.body.appendChild(frame);
+  };
+
+  const exportPdf = async () => {
+    if (!selected) return;
     await generateTechnicalQuotePdf(selected, parts, { client: clientData });
   };
+
 
   const filteredOrders = orders;
 
