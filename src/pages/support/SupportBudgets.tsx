@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
-  Printer, Save, Send, Trash2, Search, Loader2, Sparkles, FileText,
+  Printer, Save, Send, Trash2, Search, Loader2, Sparkles, FileText, FileDown,
   QrCode, CreditCard, Banknote, ArrowRightLeft, Landmark, Paperclip,
 } from 'lucide-react';
 import { generateTechnicalQuotePdf } from '@/lib/generateTechnicalPdf';
@@ -315,8 +315,39 @@ export default function SupportBudgets() {
 
   const printPdf = async () => {
     if (!selected) return;
+    const blob = (await generateTechnicalQuotePdf(selected, parts, {
+      client: clientData,
+      returnBlob: true,
+    })) as Blob;
+    const url = URL.createObjectURL(blob);
+    const frame = document.createElement('iframe');
+    frame.style.position = 'fixed';
+    frame.style.right = '0';
+    frame.style.bottom = '0';
+    frame.style.width = '0';
+    frame.style.height = '0';
+    frame.style.border = '0';
+    frame.src = url;
+    frame.onload = () => {
+      try {
+        frame.contentWindow?.focus();
+        frame.contentWindow?.print();
+      } catch {
+        window.open(url, '_blank');
+      }
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+        frame.remove();
+      }, 60000);
+    };
+    document.body.appendChild(frame);
+  };
+
+  const exportPdf = async () => {
+    if (!selected) return;
     await generateTechnicalQuotePdf(selected, parts, { client: clientData });
   };
+
 
   const filteredOrders = orders;
 
@@ -406,6 +437,10 @@ export default function SupportBudgets() {
                 <Button variant="outline" size="sm" onClick={printPdf} className="gap-2">
                   <Printer className="h-4 w-4" /> Imprimir
                 </Button>
+                <Button variant="outline" size="sm" onClick={exportPdf} className="gap-2">
+                  <FileDown className="h-4 w-4" /> Exportar PDF
+                </Button>
+
                 <Button variant="outline" size="sm" onClick={clearDuplicates} className="gap-2">
                   <Sparkles className="h-4 w-4" /> Limpar Duplicatas
                 </Button>
