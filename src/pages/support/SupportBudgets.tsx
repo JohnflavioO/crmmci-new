@@ -315,7 +315,7 @@ export default function SupportBudgets() {
 
   const printPdf = async () => {
     if (!selected) return;
-    await generateTechnicalQuotePdf(selected, parts);
+    await generateTechnicalQuotePdf(selected, parts, { client: clientData });
   };
 
   const filteredOrders = orders;
