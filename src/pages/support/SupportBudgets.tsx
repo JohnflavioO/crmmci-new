@@ -767,20 +767,19 @@ export default function SupportBudgets() {
                   <span>{fmtBRL(partsTotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    Desconto ({Number(selected.discount_percent || 0)}%)
-                  </span>
-                  <span className="text-destructive">
-                    - {fmtBRL((partsTotal * Number(selected.discount_percent || 0)) / 100)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-muted-foreground">Mão de obra</span>
                   <span>{fmtBRL(selected.labor_value)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Frete</span>
                   <span>{fmtBRL(selected.shipping_value)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    Desconto ({Number(selected.discount_percent || 0)}% ·{' '}
+                    {selected.discount_scope === 'total' ? 'total' : 'peças'})
+                  </span>
+                  <span className="text-destructive">- {fmtBRL(discountValue)}</span>
                 </div>
                 <div className="flex justify-between pt-2 mt-2 border-t text-base font-bold">
                   <span>Total Geral</span>
