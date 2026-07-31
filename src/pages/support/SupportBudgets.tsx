@@ -437,6 +437,10 @@ export default function SupportBudgets() {
                 <Button variant="outline" size="sm" onClick={printPdf} className="gap-2">
                   <Printer className="h-4 w-4" /> Imprimir
                 </Button>
+                <Button variant="outline" size="sm" onClick={exportPdf} className="gap-2">
+                  <FileDown className="h-4 w-4" /> Exportar PDF
+                </Button>
+
                 <Button variant="outline" size="sm" onClick={clearDuplicates} className="gap-2">
                   <Sparkles className="h-4 w-4" /> Limpar Duplicatas
                 </Button>
