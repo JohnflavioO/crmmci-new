@@ -165,11 +165,23 @@ export default function SupportBudgets() {
     [parts]
   );
 
+  const discountValue = useMemo(() => {
+    if (!selected) return 0;
+    const pct = Number(selected.discount_percent || 0);
+    const base =
+      selected.discount_scope === 'total'
+        ? partsTotal + Number(selected.labor_value || 0) + Number(selected.shipping_value || 0)
+        : partsTotal;
+    return (base * pct) / 100;
+  }, [partsTotal, selected]);
+
   const grandTotal = useMemo(() => {
     if (!selected) return 0;
-    const discount = (partsTotal * Number(selected.discount_percent || 0)) / 100;
-    return Math.max(0, partsTotal - discount + Number(selected.shipping_value || 0) + Number(selected.labor_value || 0));
-  }, [partsTotal, selected]);
+    return Math.max(
+      0,
+      partsTotal + Number(selected.labor_value || 0) + Number(selected.shipping_value || 0) - discountValue
+    );
+  }, [partsTotal, discountValue, selected]);
 
   const addPart = async (product: any) => {
     if (!selectedId) return;
