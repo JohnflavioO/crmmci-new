@@ -30,6 +30,15 @@ const PENDING_STATUSES = [
   'aguardando_diagnostico', 'orcamento_pendente',
 ];
 
+const SERVICE_TYPES = [
+  'Manutenção corretiva',
+  'Manutenção preventiva',
+  'Diagnóstico técnico',
+  'Atualização de firmware',
+  'Instalação / configuração',
+  'Garantia',
+];
+
 interface Order {
   id: string;
   os_number: string;
@@ -38,10 +47,14 @@ interface Order {
   equipment: string | null;
   brand: string | null;
   model: string | null;
+  serial?: string | null;
   status: string;
   reported_defect: string | null;
   technical_diagnosis: string | null;
   technician_notes: string | null;
+  repair_description?: string | null;
+  accessories?: any;
+  service_type?: string | null;
   labor_value: number;
   shipping_value: number;
   parts_value: number;
@@ -50,6 +63,10 @@ interface Order {
   payment_proof_url: string | null;
   shipping_method: string | null;
   discount_percent: number | null;
+  discount_scope?: string | null;
+  budget_valid_days?: number | null;
+  budget_version?: number | null;
+  budget_sent_at?: string | null;
 }
 
 interface Part {
