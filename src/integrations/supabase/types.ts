@@ -3016,6 +3016,71 @@ export type Database = {
         }
         Relationships: []
       }
+      technical_budget_versions: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          discount_percent: number
+          discount_scope: string
+          id: string
+          labor_value: number
+          notes: string | null
+          order_id: string
+          parts_snapshot: Json
+          parts_value: number
+          shipping_value: number
+          snapshot: Json
+          total_value: number
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          discount_percent?: number
+          discount_scope?: string
+          id?: string
+          labor_value?: number
+          notes?: string | null
+          order_id: string
+          parts_snapshot?: Json
+          parts_value?: number
+          shipping_value?: number
+          snapshot?: Json
+          total_value?: number
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          discount_percent?: number
+          discount_scope?: string
+          id?: string
+          labor_value?: number
+          notes?: string | null
+          order_id?: string
+          parts_snapshot?: Json
+          parts_value?: number
+          shipping_value?: number
+          snapshot?: Json
+          total_value?: number
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technical_budget_versions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "technical_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       technical_budgets: {
         Row: {
           client_id: string | null
@@ -3301,12 +3366,16 @@ export type Database = {
           accessories: Json
           attachments: Json | null
           brand: string | null
+          budget_sent_at: string | null
+          budget_valid_days: number
+          budget_version: number
           client_id: string | null
           client_name: string
           company_id: string | null
           created_at: string
           created_by: string | null
           discount_percent: number
+          discount_scope: string
           entry_date: string | null
           equipment: string | null
           estimated_date: string | null
@@ -3323,16 +3392,20 @@ export type Database = {
           photos: Json | null
           physical_condition: string | null
           public_token: string | null
+          repair_description: string | null
           reported_defect: string | null
           serial: string | null
+          service_type: string | null
           services_value: number | null
           shipping_method: string | null
           shipping_value: number
           status: string
           technical_diagnosis: string | null
+          technician_email: string | null
           technician_id: string | null
           technician_name: string | null
           technician_notes: string | null
+          technician_phone: string | null
           total_value: number
           updated_at: string
           warranty: string | null
@@ -3341,12 +3414,16 @@ export type Database = {
           accessories?: Json
           attachments?: Json | null
           brand?: string | null
+          budget_sent_at?: string | null
+          budget_valid_days?: number
+          budget_version?: number
           client_id?: string | null
           client_name?: string
           company_id?: string | null
           created_at?: string
           created_by?: string | null
           discount_percent?: number
+          discount_scope?: string
           entry_date?: string | null
           equipment?: string | null
           estimated_date?: string | null
@@ -3363,16 +3440,20 @@ export type Database = {
           photos?: Json | null
           physical_condition?: string | null
           public_token?: string | null
+          repair_description?: string | null
           reported_defect?: string | null
           serial?: string | null
+          service_type?: string | null
           services_value?: number | null
           shipping_method?: string | null
           shipping_value?: number
           status?: string
           technical_diagnosis?: string | null
+          technician_email?: string | null
           technician_id?: string | null
           technician_name?: string | null
           technician_notes?: string | null
+          technician_phone?: string | null
           total_value?: number
           updated_at?: string
           warranty?: string | null
@@ -3381,12 +3462,16 @@ export type Database = {
           accessories?: Json
           attachments?: Json | null
           brand?: string | null
+          budget_sent_at?: string | null
+          budget_valid_days?: number
+          budget_version?: number
           client_id?: string | null
           client_name?: string
           company_id?: string | null
           created_at?: string
           created_by?: string | null
           discount_percent?: number
+          discount_scope?: string
           entry_date?: string | null
           equipment?: string | null
           estimated_date?: string | null
@@ -3403,16 +3488,20 @@ export type Database = {
           photos?: Json | null
           physical_condition?: string | null
           public_token?: string | null
+          repair_description?: string | null
           reported_defect?: string | null
           serial?: string | null
+          service_type?: string | null
           services_value?: number | null
           shipping_method?: string | null
           shipping_value?: number
           status?: string
           technical_diagnosis?: string | null
+          technician_email?: string | null
           technician_id?: string | null
           technician_name?: string | null
           technician_notes?: string | null
+          technician_phone?: string | null
           total_value?: number
           updated_at?: string
           warranty?: string | null
