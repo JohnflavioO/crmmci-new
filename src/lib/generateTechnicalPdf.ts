@@ -12,7 +12,7 @@ const formatDate = (d?: string | Date) => {
 
 const COMPANY = {
   name: 'MCI Assistência Técnica',
-  legal: 'MCI Câmera e Iluminação',
+  legal: 'Multi Comercial Importadora',
   cnpj: '05.502.390/0003-83',
   address: 'Av. Imperatriz Leopoldina, 1718 - 2º andar - Vila Leopoldina - São Paulo/SP - CEP 05305-003',
   phone: '+55 (11) 3641-9013',
