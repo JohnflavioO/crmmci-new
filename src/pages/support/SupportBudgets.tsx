@@ -381,7 +381,12 @@ export default function SupportBudgets() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-4 border-b">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">Orçamento #{selected.os_number}</h1>
+                <h1 className="text-2xl font-bold tracking-tight">
+                  Orçamento #{selected.os_number}
+                  <span className="ml-2 align-middle text-[11px] font-semibold uppercase tracking-wide text-muted-foreground border rounded px-2 py-0.5">
+                    versão {Number(selected.budget_version || 1)}
+                  </span>
+                </h1>
                 <p className="text-sm text-muted-foreground mt-1">
                   <span className="font-medium text-foreground">Cliente:</span> {selected.client_name || '—'}
                   {selected.model && (
@@ -391,6 +396,11 @@ export default function SupportBudgets() {
                     </>
                   )}
                 </p>
+                {selected.budget_sent_at && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Orçamento já enviado ao cliente — alterações salvas geram uma nova versão.
+                  </p>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={printPdf} className="gap-2">
@@ -409,6 +419,70 @@ export default function SupportBudgets() {
               </div>
             </div>
 
+            {/* Identificação do serviço */}
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label className="text-xs">Tipo de Serviço</Label>
+                <Select
+                  value={selected.service_type || ''}
+                  onValueChange={(v) => setSelected({ ...selected, service_type: v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {SERVICE_TYPES.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Nº de Série</Label>
+                <Input value={selected.serial || ''} readOnly className="bg-muted/40" />
+              </div>
+              <div>
+                <Label className="text-xs">Validade do Orçamento (dias)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={selected.budget_valid_days ?? 10}
+                  onChange={(e) => setSelected({ ...selected, budget_valid_days: Number(e.target.value) })}
+                />
+              </div>
+            </section>
+
+            {/* Defeito relatado */}
+            <section>
+              <h3 className="text-sm font-semibold mb-2">Defeito Relatado pelo Cliente</h3>
+              <Textarea
+                rows={3}
+                placeholder="Defeito informado pelo cliente..."
+                value={selected.reported_defect || ''}
+                onChange={(e) => setSelected({ ...selected, reported_defect: e.target.value })}
+              />
+            </section>
+
+            {/* Acessórios */}
+            <section>
+              <h3 className="text-sm font-semibold mb-2">Acessórios Recebidos</h3>
+              <Input
+                placeholder="Ex.: bateria, carregador, case, cabo"
+                value={
+                  Array.isArray(selected.accessories)
+                    ? selected.accessories.join(', ')
+                    : (selected.accessories || '')
+                }
+                onChange={(e) =>
+                  setSelected({
+                    ...selected,
+                    accessories: e.target.value
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                  })
+                }
+              />
+            </section>
+
             {/* Relatório Técnico */}
             <section>
               <h3 className="text-sm font-semibold mb-2">Relatório Técnico</h3>
@@ -419,6 +493,7 @@ export default function SupportBudgets() {
                 onChange={(e) => setSelected({ ...selected, technical_diagnosis: e.target.value })}
               />
             </section>
+
 
             {/* Peças e Componentes */}
             <section>
