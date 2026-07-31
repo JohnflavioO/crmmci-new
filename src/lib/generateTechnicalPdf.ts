@@ -242,7 +242,7 @@ export async function generateTechnicalQuotePdf(
   y += 4;
 
   const providerLines = [
-    COMPANY.legalName,
+    COMPANY.legal,
     `CNPJ: ${COMPANY.cnpj}`,
     'Av. Imperatriz Leopoldina, 1718 - Vila Leopoldina',
     'São Paulo-SP, 05305-003',
