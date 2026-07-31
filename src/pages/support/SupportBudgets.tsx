@@ -30,6 +30,15 @@ const PENDING_STATUSES = [
   'aguardando_diagnostico', 'orcamento_pendente',
 ];
 
+const SERVICE_TYPES = [
+  'Manutenção corretiva',
+  'Manutenção preventiva',
+  'Diagnóstico técnico',
+  'Atualização de firmware',
+  'Instalação / configuração',
+  'Garantia',
+];
+
 interface Order {
   id: string;
   os_number: string;
@@ -38,10 +47,14 @@ interface Order {
   equipment: string | null;
   brand: string | null;
   model: string | null;
+  serial?: string | null;
   status: string;
   reported_defect: string | null;
   technical_diagnosis: string | null;
   technician_notes: string | null;
+  repair_description?: string | null;
+  accessories?: any;
+  service_type?: string | null;
   labor_value: number;
   shipping_value: number;
   parts_value: number;
@@ -50,6 +63,10 @@ interface Order {
   payment_proof_url: string | null;
   shipping_method: string | null;
   discount_percent: number | null;
+  discount_scope?: string | null;
+  budget_valid_days?: number | null;
+  budget_version?: number | null;
+  budget_sent_at?: string | null;
 }
 
 interface Part {
@@ -77,6 +94,7 @@ export default function SupportBudgets() {
   const [productResults, setProductResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [clientData, setClientData] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchOrders = async () => {
@@ -96,6 +114,16 @@ export default function SupportBudgets() {
   const loadOrder = async (id: string) => {
     const { data: ord } = await db.from('technical_orders').select('*').eq('id', id).maybeSingle();
     setSelected(ord as Order);
+    if (ord?.client_id) {
+      const { data: cli } = await db
+        .from('technical_clients')
+        .select('name, cpf_cnpj, email, phone, whatsapp, address, city, state, zip_code')
+        .eq('id', ord.client_id)
+        .maybeSingle();
+      setClientData(cli || null);
+    } else {
+      setClientData(null);
+    }
     const { data: prts } = await db
       .from('technical_order_parts')
       .select('*, technical_products(code)')
@@ -137,11 +165,23 @@ export default function SupportBudgets() {
     [parts]
   );
 
+  const discountValue = useMemo(() => {
+    if (!selected) return 0;
+    const pct = Number(selected.discount_percent || 0);
+    const base =
+      selected.discount_scope === 'total'
+        ? partsTotal + Number(selected.labor_value || 0) + Number(selected.shipping_value || 0)
+        : partsTotal;
+    return (base * pct) / 100;
+  }, [partsTotal, selected]);
+
   const grandTotal = useMemo(() => {
     if (!selected) return 0;
-    const discount = (partsTotal * Number(selected.discount_percent || 0)) / 100;
-    return Math.max(0, partsTotal - discount + Number(selected.shipping_value || 0) + Number(selected.labor_value || 0));
-  }, [partsTotal, selected]);
+    return Math.max(
+      0,
+      partsTotal + Number(selected.labor_value || 0) + Number(selected.shipping_value || 0) - discountValue
+    );
+  }, [partsTotal, discountValue, selected]);
 
   const addPart = async (product: any) => {
     if (!selectedId) return;
@@ -193,29 +233,70 @@ export default function SupportBudgets() {
     loadOrder(selectedId);
   };
 
+  const snapshotVersion = async (order: Order, version: number) => {
+    await db.from('technical_budget_versions').insert({
+      order_id: order.id,
+      version,
+      parts_value: partsTotal,
+      labor_value: Number(order.labor_value || 0),
+      shipping_value: Number(order.shipping_value || 0),
+      discount_percent: Number(order.discount_percent || 0),
+      discount_scope: order.discount_scope || 'parts',
+      total_value: grandTotal,
+      parts_snapshot: parts.map((p) => ({
+        code: p.code, product_name: p.product_name, quantity: p.quantity,
+        unit_price: p.unit_price, total_price: p.total_price,
+      })),
+      snapshot: {
+        service_type: order.service_type,
+        reported_defect: order.reported_defect,
+        technical_diagnosis: order.technical_diagnosis,
+        repair_description: order.repair_description,
+        accessories: order.accessories,
+        payment_method: order.payment_method,
+        shipping_method: order.shipping_method,
+        budget_valid_days: order.budget_valid_days,
+      },
+    });
+  };
+
   const saveOrder = async (extra: Partial<Order> = {}) => {
     if (!selected) return;
     setSaving(true);
+    // Se o orçamento já foi enviado ao cliente, qualquer alteração gera nova versão
+    const alreadySent = !!selected.budget_sent_at;
+    const nextVersion = Number(selected.budget_version || 1) + (alreadySent ? 1 : 0);
     const payload = {
+      service_type: selected.service_type,
+      reported_defect: selected.reported_defect,
+      accessories: selected.accessories,
       technical_diagnosis: selected.technical_diagnosis,
       technician_notes: selected.technician_notes,
+      repair_description: selected.repair_description,
       labor_value: Number(selected.labor_value || 0),
       shipping_value: Number(selected.shipping_value || 0),
+      parts_value: partsTotal,
+      total_value: grandTotal,
       shipping_method: selected.shipping_method,
       payment_method: selected.payment_method,
       payment_proof_url: selected.payment_proof_url,
       discount_percent: Number(selected.discount_percent || 0),
+      discount_scope: selected.discount_scope || 'parts',
+      budget_valid_days: Number(selected.budget_valid_days || 10),
+      budget_version: nextVersion,
       ...extra,
     };
     const { error } = await db.from('technical_orders').update(payload).eq('id', selected.id);
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success('Orçamento salvo');
+    await snapshotVersion({ ...selected, ...payload } as Order, nextVersion);
+    toast.success(alreadySent ? `Orçamento salvo como versão ${nextVersion}` : 'Orçamento salvo');
     fetchOrders();
-    if (extra.status) loadOrder(selected.id);
+    loadOrder(selected.id);
   };
 
-  const sendForApproval = () => saveOrder({ status: 'aguardando_aprovacao' });
+  const sendForApproval = () =>
+    saveOrder({ status: 'aguardando_aprovacao', budget_sent_at: new Date().toISOString() } as any);
 
   const uploadProof = async (file: File) => {
     if (!selected) return;
@@ -234,7 +315,7 @@ export default function SupportBudgets() {
 
   const printPdf = async () => {
     if (!selected) return;
-    await generateTechnicalQuotePdf(selected, parts);
+    await generateTechnicalQuotePdf(selected, parts, { client: clientData });
   };
 
   const filteredOrders = orders;
@@ -300,7 +381,12 @@ export default function SupportBudgets() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-4 border-b">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">Orçamento #{selected.os_number}</h1>
+                <h1 className="text-2xl font-bold tracking-tight">
+                  Orçamento #{selected.os_number}
+                  <span className="ml-2 align-middle text-[11px] font-semibold uppercase tracking-wide text-muted-foreground border rounded px-2 py-0.5">
+                    versão {Number(selected.budget_version || 1)}
+                  </span>
+                </h1>
                 <p className="text-sm text-muted-foreground mt-1">
                   <span className="font-medium text-foreground">Cliente:</span> {selected.client_name || '—'}
                   {selected.model && (
@@ -310,6 +396,11 @@ export default function SupportBudgets() {
                     </>
                   )}
                 </p>
+                {selected.budget_sent_at && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Orçamento já enviado ao cliente — alterações salvas geram uma nova versão.
+                  </p>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={printPdf} className="gap-2">
@@ -328,6 +419,70 @@ export default function SupportBudgets() {
               </div>
             </div>
 
+            {/* Identificação do serviço */}
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label className="text-xs">Tipo de Serviço</Label>
+                <Select
+                  value={selected.service_type || ''}
+                  onValueChange={(v) => setSelected({ ...selected, service_type: v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {SERVICE_TYPES.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Nº de Série</Label>
+                <Input value={selected.serial || ''} readOnly className="bg-muted/40" />
+              </div>
+              <div>
+                <Label className="text-xs">Validade do Orçamento (dias)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={selected.budget_valid_days ?? 10}
+                  onChange={(e) => setSelected({ ...selected, budget_valid_days: Number(e.target.value) })}
+                />
+              </div>
+            </section>
+
+            {/* Defeito relatado */}
+            <section>
+              <h3 className="text-sm font-semibold mb-2">Defeito Relatado pelo Cliente</h3>
+              <Textarea
+                rows={3}
+                placeholder="Defeito informado pelo cliente..."
+                value={selected.reported_defect || ''}
+                onChange={(e) => setSelected({ ...selected, reported_defect: e.target.value })}
+              />
+            </section>
+
+            {/* Acessórios */}
+            <section>
+              <h3 className="text-sm font-semibold mb-2">Acessórios Recebidos</h3>
+              <Input
+                placeholder="Ex.: bateria, carregador, case, cabo"
+                value={
+                  Array.isArray(selected.accessories)
+                    ? selected.accessories.join(', ')
+                    : (selected.accessories || '')
+                }
+                onChange={(e) =>
+                  setSelected({
+                    ...selected,
+                    accessories: e.target.value
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                  })
+                }
+              />
+            </section>
+
             {/* Relatório Técnico */}
             <section>
               <h3 className="text-sm font-semibold mb-2">Relatório Técnico</h3>
@@ -338,6 +493,7 @@ export default function SupportBudgets() {
                 onChange={(e) => setSelected({ ...selected, technical_diagnosis: e.target.value })}
               />
             </section>
+
 
             {/* Peças e Componentes */}
             <section>
@@ -486,20 +642,49 @@ export default function SupportBudgets() {
               </p>
             </section>
 
-            {/* Desconto */}
-            <section className="max-w-xs">
-              <Label className="text-xs">Desconto sobre Peças (%)</Label>
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                step="0.01"
-                className="text-right text-destructive font-medium"
-                value={selected.discount_percent || 0}
-                onChange={(e) => setSelected({ ...selected, discount_percent: Number(e.target.value) })}
+            {/* Descrição do Reparo */}
+            <section>
+              <h3 className="text-sm font-semibold mb-2">Descrição do Reparo</h3>
+              <Textarea
+                rows={4}
+                placeholder="Reparo a ser executado / executado no equipamento..."
+                value={selected.repair_description || ''}
+                onChange={(e) => setSelected({ ...selected, repair_description: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground mt-1">Percentual aplicado ao valor das peças</p>
             </section>
+
+            {/* Desconto */}
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl">
+              <div>
+                <Label className="text-xs">Aplicar desconto sobre</Label>
+                <Select
+                  value={selected.discount_scope || 'parts'}
+                  onValueChange={(v) => setSelected({ ...selected, discount_scope: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="parts">Somente peças</SelectItem>
+                    <SelectItem value="total">Total do orçamento</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Desconto (%)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  className="text-right text-destructive font-medium"
+                  value={selected.discount_percent || 0}
+                  onChange={(e) => setSelected({ ...selected, discount_percent: Number(e.target.value) })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Base: {selected.discount_scope === 'total' ? 'peças + mão de obra + frete' : 'valor das peças'}
+                </p>
+              </div>
+            </section>
+
 
             {/* Formas de Pagamento */}
             <section>
@@ -582,20 +767,19 @@ export default function SupportBudgets() {
                   <span>{fmtBRL(partsTotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    Desconto ({Number(selected.discount_percent || 0)}%)
-                  </span>
-                  <span className="text-destructive">
-                    - {fmtBRL((partsTotal * Number(selected.discount_percent || 0)) / 100)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-muted-foreground">Mão de obra</span>
                   <span>{fmtBRL(selected.labor_value)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Frete</span>
                   <span>{fmtBRL(selected.shipping_value)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    Desconto ({Number(selected.discount_percent || 0)}% ·{' '}
+                    {selected.discount_scope === 'total' ? 'total' : 'peças'})
+                  </span>
+                  <span className="text-destructive">- {fmtBRL(discountValue)}</span>
                 </div>
                 <div className="flex justify-between pt-2 mt-2 border-t text-base font-bold">
                   <span>Total Geral</span>

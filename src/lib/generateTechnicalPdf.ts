@@ -129,36 +129,56 @@ function drawFooter(doc: any, technicianName?: string) {
 }
 
 /**
- * PDF de Orçamento Técnico (baseado no modelo Lumen Locadora)
+ * PDF de Orçamento Técnico (espelha o modelo do sistema antigo)
  */
 export async function generateTechnicalQuotePdf(
   os: any,
   parts: any[],
-  options?: { returnBlob?: boolean }
+  options?: { returnBlob?: boolean; client?: any }
 ): Promise<Blob | void> {
   const { jsPDF } = await import('jspdf');
   const autoTable = (await import('jspdf-autotable')).default;
   const doc = new jsPDF('p', 'mm', 'a4');
   const W = 210;
   const margin = 12;
+  const client = options?.client || {};
 
-  await drawHeader(doc, 'ORÇAMENTO TÉCNICO');
+  await drawHeader(doc, 'ORÇAMENTO DE SERVIÇO TÉCNICO');
   let y = 44;
 
-  // OS + data
+  // OS + data + versão + validade
+  const validDays = Number(os.budget_valid_days || 10);
+  const version = Number(os.budget_version || 1);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.text(`OS Nº ${os.os_number}`, margin, y);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
-  doc.text(`Data: ${formatDate(os.entry_date || os.created_at)}`, W - margin, y, { align: 'right' });
+  doc.text(
+    `Versão ${version}  ·  Data: ${formatDate(os.entry_date || os.created_at)}  ·  Validade: ${validDays} dias`,
+    W - margin,
+    y,
+    { align: 'right' }
+  );
   y += 6;
 
   // Cliente
   y = drawSectionTitle(doc, y, 'Dados do Cliente');
   y = labelValueGrid(doc, y, [
-    [['Cliente', os.client_name || '-'], ['Telefone', os.client_phone || os.phone || '-']],
-    [['E-mail', os.client_email || os.email || '-'], ['CPF/CNPJ', os.client_document || '-']],
+    [['Cliente', os.client_name || client.name || '-'], ['CPF/CNPJ', client.cpf_cnpj || os.client_document || '-']],
+    [['Telefone', client.phone || client.whatsapp || os.client_phone || '-'], ['E-mail', client.email || os.client_email || '-']],
+    [['Endereço', client.address || '-'], ['Cidade/UF', [client.city, client.state].filter(Boolean).join(' / ') || '-']],
+  ]);
+
+  // Prestador
+  y = drawSectionTitle(doc, y, 'Prestador de Serviço');
+  y = labelValueGrid(doc, y, [
+    [['Empresa', COMPANY.name], ['CNPJ', COMPANY.cnpj]],
+    [['Telefone', COMPANY.phone], ['E-mail', COMPANY.email]],
+    [
+      ['Técnico responsável', os.technician_name || '-'],
+      ['Contato do técnico', os.technician_phone || os.technician_email || COMPANY.phone],
+    ],
   ]);
 
   // Equipamento
@@ -166,29 +186,34 @@ export async function generateTechnicalQuotePdf(
   y = labelValueGrid(doc, y, [
     [['Equipamento', os.equipment || '-'], ['Marca', os.brand || '-']],
     [['Modelo', os.model || '-'], ['Nº de Série', os.serial || '-']],
+    [['Tipo de serviço', os.service_type || os.os_type || '-'], ['Estado físico', os.physical_condition || '-']],
   ]);
-  const accessories = Array.isArray(os.accessories) ? os.accessories.join(', ') : (os.accessories || '-');
-  y = labelValueGrid(doc, y, [
-    [['Acessórios recebidos', accessories || '-'], ['Estado físico', os.physical_condition || '-']],
-  ]);
+  const accessories = Array.isArray(os.accessories)
+    ? os.accessories.join(', ')
+    : (os.accessories || '');
+  y = labelValueGrid(doc, y, [[['Acessórios recebidos', accessories || 'Nenhum']]]);
 
   // Defeito e diagnóstico
-  y = drawSectionTitle(doc, y, 'Defeito Relatado');
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  const defectLines = doc.splitTextToSize(os.reported_defect || '-', W - margin * 2 - 2);
-  doc.text(defectLines, margin + 1, y);
-  y += defectLines.length * 4 + 3;
+  const textBlock = (title: string, content: string) => {
+    y = drawSectionTitle(doc, y, title);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    const lines = doc.splitTextToSize(content || '-', W - margin * 2 - 2);
+    if (y + lines.length * 4 > 250) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.text(lines, margin + 1, y);
+    y += lines.length * 4 + 4;
+  };
 
-  y = drawSectionTitle(doc, y, 'Relatório Técnico / Diagnóstico');
-  const diagLines = doc.splitTextToSize(os.technical_diagnosis || '-', W - margin * 2 - 2);
-  doc.text(diagLines, margin + 1, y);
-  y += diagLines.length * 4 + 4;
+  textBlock('Defeito Relatado pelo Cliente', os.reported_defect || '-');
+  textBlock('Relatório Técnico / Diagnóstico', os.technical_diagnosis || '-');
 
   // Tabela de peças e serviços
   const rows = (parts || []).map((p: any, i: number) => [
     String(i + 1),
-    p.product_code || p.code || '-',
+    p.code || p.product_code || '-',
     p.product_name || '-',
     String(p.quantity ?? 1),
     fmt(Number(p.unit_price || 0)),
@@ -197,7 +222,7 @@ export async function generateTechnicalQuotePdf(
 
   autoTable(doc, {
     startY: y,
-    head: [['#', 'Código', 'Descrição', 'Qtd', 'V. Unit.', 'Total']],
+    head: [['#', 'Código', 'Descrição da peça / componente', 'Qtd', 'V. Unit.', 'Total']],
     body: rows.length ? rows : [['-', '-', 'Nenhuma peça adicionada', '-', '-', '-']],
     theme: 'grid',
     styles: { fontSize: 8, cellPadding: 1.8, textColor: 30 },
@@ -213,17 +238,28 @@ export async function generateTechnicalQuotePdf(
     margin: { left: margin, right: margin },
   });
 
-  y = (doc as any).lastAutoTable.finalY + 4;
+  y = (doc as any).lastAutoTable.finalY + 5;
 
-  // Totais
-  const partsValue = Number(os.parts_value || 0);
+  // Descrição do reparo / mão de obra
+  const repair = os.repair_description || os.technician_notes || '';
+  if (repair) textBlock('Descrição do Reparo / Mão de Obra', repair);
+
+  // Totais (cálculo idêntico ao editor)
+  const partsValue = (parts || []).length
+    ? (parts || []).reduce((s: number, p: any) => s + Number(p.total_price || 0), 0)
+    : Number(os.parts_value || 0);
   const laborValue = Number(os.labor_value || 0);
-  const servicesValue = Number(os.services_value || 0);
   const shippingValue = Number(os.shipping_value || 0);
-  const total = Number(os.total_value || (partsValue + laborValue + servicesValue + shippingValue));
+  const discountPercent = Number(os.discount_percent || 0);
+  const scope = os.discount_scope === 'total' ? 'total' : 'parts';
+  const discountBase = scope === 'total' ? partsValue + laborValue + shippingValue : partsValue;
+  const discountValue = (discountBase * discountPercent) / 100;
+  const total = Math.max(0, partsValue + laborValue + shippingValue - discountValue);
 
-  const totalsX = W - margin - 70;
-  const totalsW = 70;
+  if (y > 235) { doc.addPage(); y = 20; }
+
+  const totalsX = W - margin - 75;
+  const totalsW = 75;
   const drawRow = (label: string, val: string, bold = false) => {
     doc.setFont('helvetica', bold ? 'bold' : 'normal');
     doc.setFontSize(bold ? 9.5 : 8.5);
@@ -233,8 +269,15 @@ export async function generateTechnicalQuotePdf(
   };
   drawRow('Subtotal de peças', fmt(partsValue));
   drawRow('Mão de obra', fmt(laborValue));
-  if (servicesValue) drawRow('Serviços', fmt(servicesValue));
-  if (shippingValue) drawRow('Frete', fmt(shippingValue));
+  drawRow('Frete', fmt(shippingValue));
+  if (discountPercent) {
+    doc.setTextColor(180, 30, 30);
+    drawRow(
+      `Desconto ${discountPercent}% (${scope === 'total' ? 'sobre o total' : 'sobre peças'})`,
+      `- ${fmt(discountValue)}`
+    );
+    doc.setTextColor(0);
+  }
   doc.setDrawColor(0, 150, 136);
   doc.line(totalsX, y - 2, totalsX + totalsW, y - 2);
   doc.setTextColor(0, 110, 100);
@@ -244,11 +287,14 @@ export async function generateTechnicalQuotePdf(
   y += 2;
 
   // Condições
-  y = drawSectionTitle(doc, y, 'Condições');
+  if (y > 240) { doc.addPage(); y = 20; }
+  y = drawSectionTitle(doc, y, 'Condições Comerciais');
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   const conditions = [
-    `Validade do orçamento: 15 dias a partir da data de emissão.`,
+    `Validade do orçamento: ${validDays} dias a partir da data de emissão.`,
+    `Forma de pagamento: ${os.payment_method || 'a combinar'}.`,
+    `Envio: ${os.shipping_method || 'a combinar'}.`,
     `Garantia dos serviços: ${os.warranty || '90 dias'} sobre os itens efetivamente reparados.`,
     `Prazo estimado de execução após aprovação: conforme disponibilidade de peças.`,
     `Equipamentos não retirados em até 90 dias após aviso poderão ser cobrados por armazenagem.`,
@@ -259,7 +305,8 @@ export async function generateTechnicalQuotePdf(
     y += lines.length * 3.8;
   });
 
-  y += 10;
+  y += 12;
+  if (y > 265) { doc.addPage(); y = 40; }
   // Assinatura
   doc.setDrawColor(120);
   doc.line(margin, y, margin + 80, y);
@@ -267,15 +314,22 @@ export async function generateTechnicalQuotePdf(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(80);
-  doc.text('Aprovação do cliente', margin, y + 4);
-  doc.text('Responsável técnico', W - margin, y + 4, { align: 'right' });
+  doc.text(`Aprovação do cliente — ${os.client_name || ''}`, margin, y + 4);
+  doc.text(
+    `Responsável técnico${os.technician_name ? ' — ' + os.technician_name : ''}`,
+    W - margin,
+    y + 4,
+    { align: 'right' }
+  );
+  doc.setTextColor(0);
 
   drawFooter(doc, os.technician_name);
 
   const blob = doc.output('blob');
   if (options?.returnBlob) return blob;
-  doc.save(`orcamento-tecnico-${os.os_number}.pdf`);
+  doc.save(`orcamento-tecnico-${os.os_number}-v${version}.pdf`);
 }
+
 
 /**
  * PDF de Termo de Entrada / Recibo de Equipamento
