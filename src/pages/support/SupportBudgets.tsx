@@ -233,29 +233,70 @@ export default function SupportBudgets() {
     loadOrder(selectedId);
   };
 
+  const snapshotVersion = async (order: Order, version: number) => {
+    await db.from('technical_budget_versions').insert({
+      order_id: order.id,
+      version,
+      parts_value: partsTotal,
+      labor_value: Number(order.labor_value || 0),
+      shipping_value: Number(order.shipping_value || 0),
+      discount_percent: Number(order.discount_percent || 0),
+      discount_scope: order.discount_scope || 'parts',
+      total_value: grandTotal,
+      parts_snapshot: parts.map((p) => ({
+        code: p.code, product_name: p.product_name, quantity: p.quantity,
+        unit_price: p.unit_price, total_price: p.total_price,
+      })),
+      snapshot: {
+        service_type: order.service_type,
+        reported_defect: order.reported_defect,
+        technical_diagnosis: order.technical_diagnosis,
+        repair_description: order.repair_description,
+        accessories: order.accessories,
+        payment_method: order.payment_method,
+        shipping_method: order.shipping_method,
+        budget_valid_days: order.budget_valid_days,
+      },
+    });
+  };
+
   const saveOrder = async (extra: Partial<Order> = {}) => {
     if (!selected) return;
     setSaving(true);
+    // Se o orçamento já foi enviado ao cliente, qualquer alteração gera nova versão
+    const alreadySent = !!selected.budget_sent_at;
+    const nextVersion = Number(selected.budget_version || 1) + (alreadySent ? 1 : 0);
     const payload = {
+      service_type: selected.service_type,
+      reported_defect: selected.reported_defect,
+      accessories: selected.accessories,
       technical_diagnosis: selected.technical_diagnosis,
       technician_notes: selected.technician_notes,
+      repair_description: selected.repair_description,
       labor_value: Number(selected.labor_value || 0),
       shipping_value: Number(selected.shipping_value || 0),
+      parts_value: partsTotal,
+      total_value: grandTotal,
       shipping_method: selected.shipping_method,
       payment_method: selected.payment_method,
       payment_proof_url: selected.payment_proof_url,
       discount_percent: Number(selected.discount_percent || 0),
+      discount_scope: selected.discount_scope || 'parts',
+      budget_valid_days: Number(selected.budget_valid_days || 10),
+      budget_version: nextVersion,
       ...extra,
     };
     const { error } = await db.from('technical_orders').update(payload).eq('id', selected.id);
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success('Orçamento salvo');
+    await snapshotVersion({ ...selected, ...payload } as Order, nextVersion);
+    toast.success(alreadySent ? `Orçamento salvo como versão ${nextVersion}` : 'Orçamento salvo');
     fetchOrders();
-    if (extra.status) loadOrder(selected.id);
+    loadOrder(selected.id);
   };
 
-  const sendForApproval = () => saveOrder({ status: 'aguardando_aprovacao' });
+  const sendForApproval = () =>
+    saveOrder({ status: 'aguardando_aprovacao', budget_sent_at: new Date().toISOString() } as any);
 
   const uploadProof = async (file: File) => {
     if (!selected) return;
