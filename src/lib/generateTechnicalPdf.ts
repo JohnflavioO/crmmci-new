@@ -16,7 +16,7 @@ const COMPANY = {
   cnpj: '05.502.390/0003-83',
   address: 'Av. Imperatriz Leopoldina, 1718 - 2º andar - Vila Leopoldina - São Paulo/SP - CEP 05305-003',
   phone: '+55 (11) 3641-9013',
-  email: 'suporte@mci.com.br',
+  email: 'jonathan@mcistore.com.br',
 };
 
 async function loadLogoDataUrl(): Promise<string | null> {
