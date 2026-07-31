@@ -210,9 +210,21 @@ export async function generateTechnicalQuotePdf(
   textBlock('Defeito Relatado pelo Cliente', os.reported_defect || '-');
   textBlock('Relatório Técnico / Diagnóstico', os.technical_diagnosis || '-');
 
-  // Tabela de peças e serviços
-  const rows = (parts || []).map((p: any, i: number) => [
-    String(i + 1),
+  // Totais (cálculo idêntico ao editor)
+  const partsValue = (parts || []).length
+    ? (parts || []).reduce((s: number, p: any) => s + Number(p.total_price || 0), 0)
+    : Number(os.parts_value || 0);
+  const laborValue = Number(os.labor_value || 0);
+  const shippingValue = Number(os.shipping_value || 0);
+  const shippingLabel = os.shipping_method || 'Frete';
+  const discountPercent = Number(os.discount_percent || 0);
+  const scope = os.discount_scope === 'total' ? 'total' : 'parts';
+  const discountBase = scope === 'total' ? partsValue + laborValue + shippingValue : partsValue;
+  const discountValue = (discountBase * discountPercent) / 100;
+  const total = Math.max(0, partsValue + laborValue + shippingValue - discountValue);
+
+  // Tabela de peças e serviços (peças + mão de obra + frete, como no modelo antigo)
+  const rows: any[] = (parts || []).map((p: any) => [
     p.code || p.product_code || '-',
     p.product_name || '-',
     String(p.quantity ?? 1),
@@ -220,110 +232,105 @@ export async function generateTechnicalQuotePdf(
     fmt(Number(p.total_price || 0)),
   ]);
 
+  const repair = os.repair_description || os.technician_notes || '';
+  if (repair) {
+    rows.push([
+      { content: '', styles: { cellWidth: 22 } },
+      { content: repair, colSpan: 4, styles: { fontStyle: 'italic', textColor: 90 } },
+    ]);
+  }
+  if (laborValue > 0) {
+    rows.push(['', 'Mão de Obra Especializada', '1', fmt(laborValue), fmt(laborValue)]);
+  }
+  if (shippingValue > 0) {
+    rows.push(['', `Frete: ${shippingLabel}`, '1', fmt(shippingValue), fmt(shippingValue)]);
+  }
+
   autoTable(doc, {
     startY: y,
-    head: [['#', 'Código', 'Descrição da peça / componente', 'Qtd', 'V. Unit.', 'Total']],
-    body: rows.length ? rows : [['-', '-', 'Nenhuma peça adicionada', '-', '-', '-']],
-    theme: 'grid',
-    styles: { fontSize: 8, cellPadding: 1.8, textColor: 30 },
-    headStyles: { fillColor: [0, 150, 136], textColor: 255, fontStyle: 'bold', halign: 'left' },
+    head: [['Código', 'Descrição', 'Qtd', 'Unitário', 'Total']],
+    body: rows.length ? rows : [['-', 'Nenhum item lançado', '-', '-', '-']],
+    theme: 'plain',
+    styles: { fontSize: 8, cellPadding: { top: 2, bottom: 2, left: 1.5, right: 1.5 }, textColor: 30 },
+    headStyles: { fontStyle: 'bold', textColor: 40, lineWidth: { bottom: 0.3 }, lineColor: [190, 190, 190] },
+    bodyStyles: { lineWidth: { bottom: 0.1 }, lineColor: [225, 225, 225] },
     columnStyles: {
-      0: { cellWidth: 8, halign: 'center' },
-      1: { cellWidth: 22 },
-      2: { cellWidth: 'auto' },
-      3: { cellWidth: 14, halign: 'center' },
-      4: { cellWidth: 28, halign: 'right' },
-      5: { cellWidth: 30, halign: 'right' },
+      0: { cellWidth: 18, fontSize: 7, textColor: 110 },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 12, halign: 'right' },
+      3: { cellWidth: 26, halign: 'right' },
+      4: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
     },
     margin: { left: margin, right: margin },
   });
 
-  y = (doc as any).lastAutoTable.finalY + 5;
+  y = (doc as any).lastAutoTable.finalY + 6;
 
-  // Descrição do reparo / mão de obra
-  const repair = os.repair_description || os.technician_notes || '';
-  if (repair) textBlock('Descrição do Reparo / Mão de Obra', repair);
+  if (y > 225) { doc.addPage(); y = 24; }
 
-  // Totais (cálculo idêntico ao editor)
-  const partsValue = (parts || []).length
-    ? (parts || []).reduce((s: number, p: any) => s + Number(p.total_price || 0), 0)
-    : Number(os.parts_value || 0);
-  const laborValue = Number(os.labor_value || 0);
-  const shippingValue = Number(os.shipping_value || 0);
-  const discountPercent = Number(os.discount_percent || 0);
-  const scope = os.discount_scope === 'total' ? 'total' : 'parts';
-  const discountBase = scope === 'total' ? partsValue + laborValue + shippingValue : partsValue;
-  const discountValue = (discountBase * discountPercent) / 100;
-  const total = Math.max(0, partsValue + laborValue + shippingValue - discountValue);
-
-  if (y > 235) { doc.addPage(); y = 20; }
-
-  const totalsX = W - margin - 75;
-  const totalsW = 75;
+  const totalsX = W - margin - 80;
+  const totalsW = 80;
   const drawRow = (label: string, val: string, bold = false) => {
     doc.setFont('helvetica', bold ? 'bold' : 'normal');
-    doc.setFontSize(bold ? 9.5 : 8.5);
-    doc.text(label, totalsX + 2, y);
+    doc.setFontSize(bold ? 12 : 8.5);
+    doc.text(label, totalsX + totalsW - 34, y, { align: 'right' });
     doc.text(val, totalsX + totalsW - 2, y, { align: 'right' });
-    y += bold ? 6 : 4.6;
+    y += bold ? 7 : 5.2;
   };
-  drawRow('Subtotal de peças', fmt(partsValue));
-  drawRow('Mão de obra', fmt(laborValue));
-  drawRow('Frete', fmt(shippingValue));
+  drawRow('Subtotal Peças', fmt(partsValue));
   if (discountPercent) {
-    doc.setTextColor(180, 30, 30);
+    doc.setTextColor(200, 60, 60);
     drawRow(
       `Desconto ${discountPercent}% (${scope === 'total' ? 'sobre o total' : 'sobre peças'})`,
       `- ${fmt(discountValue)}`
     );
     doc.setTextColor(0);
   }
-  doc.setDrawColor(0, 150, 136);
-  doc.line(totalsX, y - 2, totalsX + totalsW, y - 2);
-  doc.setTextColor(0, 110, 100);
-  drawRow('TOTAL GERAL', fmt(total), true);
-  doc.setTextColor(0);
-
+  drawRow('Mão de Obra', fmt(laborValue));
+  drawRow(`Frete (${shippingLabel})`, fmt(shippingValue));
+  doc.setDrawColor(60);
+  doc.setLineWidth(0.6);
+  doc.line(totalsX, y - 2.5, totalsX + totalsW, y - 2.5);
+  doc.setLineWidth(0.2);
   y += 2;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(40);
+  doc.text('TOTAL', totalsX + totalsW - 40, y, { align: 'right' });
+  doc.setTextColor(0, 150, 109);
+  doc.text(fmt(total), totalsX + totalsW - 2, y, { align: 'right' });
+  doc.setTextColor(0);
+  y += 14;
 
-  // Condições
-  if (y > 240) { doc.addPage(); y = 20; }
-  y = drawSectionTitle(doc, y, 'Condições Comerciais');
-  doc.setFont('helvetica', 'normal');
+  // Condições + assinatura
+  if (y > 250) { doc.addPage(); y = 30; }
+  doc.setDrawColor(215);
+  doc.line(margin, y - 6, W - margin, y - 6);
+
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
-  const conditions = [
-    `Validade do orçamento: ${validDays} dias a partir da data de emissão.`,
-    `Forma de pagamento: ${os.payment_method || 'a combinar'}.`,
-    `Envio: ${os.shipping_method || 'a combinar'}.`,
-    `Garantia dos serviços: ${os.warranty || '90 dias'} sobre os itens efetivamente reparados.`,
-    `Prazo estimado de execução após aprovação: conforme disponibilidade de peças.`,
-    `Equipamentos não retirados em até 90 dias após aviso poderão ser cobrados por armazenagem.`,
-  ];
-  conditions.forEach((c) => {
-    const lines = doc.splitTextToSize(`• ${c}`, W - margin * 2 - 2);
-    doc.text(lines, margin + 1, y);
-    y += lines.length * 3.8;
-  });
-
-  y += 12;
-  if (y > 265) { doc.addPage(); y = 40; }
-  // Assinatura
-  doc.setDrawColor(120);
-  doc.line(margin, y, margin + 80, y);
-  doc.line(W - margin - 80, y, W - margin, y);
+  doc.setTextColor(40);
+  doc.text('Condições:', margin, y);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(80);
-  doc.text(`Aprovação do cliente — ${os.client_name || ''}`, margin, y + 4);
-  doc.text(
-    `Responsável técnico${os.technician_name ? ' — ' + os.technician_name : ''}`,
-    W - margin,
-    y + 4,
-    { align: 'right' }
-  );
+  doc.setTextColor(110);
+  doc.text(`Validade deste orçamento é de ${validDays} dias.`, margin + 17, y);
+  const warrantyText = os.warranty
+    || 'Toda manutenção e peças possuem garantia de 1 ano, exceto por mau uso.';
+  const wLines = doc.splitTextToSize(warrantyText, 80);
+  doc.text(wLines, margin, y + 5);
   doc.setTextColor(0);
 
-  drawFooter(doc, os.technician_name);
+  // Assinatura (lado direito)
+  const sigX = W - margin - 78;
+  doc.setDrawColor(160);
+  doc.line(sigX, y + 5, W - margin, y + 5);
+  doc.setFontSize(9);
+  doc.setTextColor(50);
+  doc.text('Assinatura do Responsável', sigX + 39, y + 10, { align: 'center' });
+  doc.setTextColor(0);
+
+  drawQuoteFooter(doc, os);
+
 
   const blob = doc.output('blob');
   if (options?.returnBlob) return blob;
