@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
-  Printer, Save, Send, Trash2, Search, Loader2, Sparkles, FileText,
+  Printer, Save, Send, Trash2, Search, Loader2, Sparkles, FileText, FileDown,
   QrCode, CreditCard, Banknote, ArrowRightLeft, Landmark, Paperclip,
 } from 'lucide-react';
 import { generateTechnicalQuotePdf } from '@/lib/generateTechnicalPdf';
