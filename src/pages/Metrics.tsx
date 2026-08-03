@@ -96,7 +96,7 @@ export default function Metrics() {
   useEffect(() => {
     const load = async () => {
       let query = db.from('quotes')
-        .select('id, quote_number, client_name, total, total_amount, status, payment_status, payment_method, quote_date, created_at, created_by, salesperson')
+        .select('id, quote_number, client_name, total, total_amount, status, payment_status, payment_method, is_split_payment, split_method_1, split_method_2, quote_date, created_at, created_by, salesperson')
         .gte('quote_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('quote_date', format(dateRange.to, 'yyyy-MM-dd'));
 
