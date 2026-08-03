@@ -821,7 +821,7 @@ export default function Quotes() {
             `brand.ilike.%${token}%`,
             `code.ilike.%${token}%`,
             `sku.ilike.%${token}%`,
-            `category_principal.ilike.%${token}%`,
+
           ].join(',');
           const { data } = await db.from('products')
             .select(selectCols).or(orF).limit(300);
