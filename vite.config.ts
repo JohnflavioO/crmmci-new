@@ -38,7 +38,8 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     allowedHosts: true,
     hmr: {
-      overlay: false,
+      // Nunca ocultar falhas de compilação/HMR atrás de uma tela branca.
+      overlay: true,
     },
   },
   preview: {
