@@ -22,6 +22,7 @@ import {
   BarChart3, TrendingUp, DollarSign,
   CalendarDays, Target, Grid3X3, BarChart2, Users, Check, ChevronDown
 } from 'lucide-react';
+import { isPartnershipPayment } from '@/lib/quotePaymentValidation';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import SellerComparison from '@/components/SellerComparison';
 

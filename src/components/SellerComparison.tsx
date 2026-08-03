@@ -13,6 +13,7 @@ import {
   LineChart, Line, AreaChart, Area,
 } from 'recharts';
 import { Users, Trophy, TrendingUp, TrendingDown, Target, Clock, Lightbulb, ArrowUpRight, ArrowDownRight, CalendarDays, Medal, BarChart3, Zap } from 'lucide-react';
+import { isPartnershipPayment } from '@/lib/quotePaymentValidation';
 
 const db = supabase as any;
 
@@ -85,7 +86,7 @@ export default function SellerComparison() {
     const load = async () => {
       setLoading(true);
       const { data } = await db.from('quotes')
-        .select('id, total, total_amount, status, created_by, quote_date, created_at')
+        .select('id, total, total_amount, status, created_by, quote_date, created_at, payment_method, is_split_payment, split_method_1, split_method_2')
         .gte('quote_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('quote_date', format(dateRange.to, 'yyyy-MM-dd'))
         .in('created_by', selectedIds);
