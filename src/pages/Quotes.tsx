@@ -803,9 +803,8 @@ export default function Quotes() {
           `brand.ilike.%${phrase}%`,
           `code.ilike.%${phrase}%`,
           `sku.ilike.%${phrase}%`,
-          `category_principal.ilike.%${phrase}%`,
-          `description.ilike.%${phrase}%`,
         ].join(',');
+
         const { data: phraseData } = await db.from('products')
           .select(selectCols).or(phraseFilters).limit(100);
         (phraseData || []).forEach((p: any) => merged.set(p.id, p));
