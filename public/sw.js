@@ -1,38 +1,22 @@
 /* eslint-disable no-restricted-globals */
-// Kill-switch permanente para Service Workers antigos gerados por PWA/app-shell.
-// O CRM MCI não usa SW para servir a interface; isso evita tela branca por cache velho.
+// Kill-switch do antigo app-shell. Não possui fetch handler: toda navegação
+// volta imediatamente para a rede e o worker de mensagens permanece intacto.
+function isLegacyAppCache(name) {
+  return /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-|workbox|vite-pwa|mci.*(?:app|shell|asset)/i.test(name);
+}
 
-self.addEventListener("install", () => {
-  self.skipWaiting();
-});
+self.addEventListener("install", () => self.skipWaiting());
 
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     try {
       const names = await caches.keys();
-      await Promise.all(names.map((name) => caches.delete(name)));
-    } catch (_) {
-      // Cache API indisponível/bloqueada.
-    }
-
-    try {
+      await Promise.allSettled(names.filter(isLegacyAppCache).map((name) => caches.delete(name)));
+      await self.clients.claim();
+      const windows = await self.clients.matchAll({ type: "window" });
+      await Promise.allSettled(windows.map((client) => client.navigate(client.url)));
+    } finally {
       await self.registration.unregister();
-    } catch (_) {
-      // Registro já removido.
-    }
-
-    try {
-      const clientsList = await clients.matchAll({ type: "window", includeUncontrolled: true });
-      await Promise.all(clientsList.map((client) => {
-        if ("navigate" in client) return client.navigate(client.url);
-        return Promise.resolve();
-      }));
-    } catch (_) {
-      // Sem clientes navegáveis.
     }
   })());
-});
-
-self.addEventListener("fetch", (event) => {
-  event.respondWith(fetch(event.request));
 });
