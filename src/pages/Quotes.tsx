@@ -151,39 +151,67 @@ const normalizeProductText = (value: any): string =>
 const tokenizeProductSearch = (value: string): string[] =>
   normalizeProductText(value).split(' ').filter(token => token.length > 0);
 
-const rankProductMatch = (product: any, query: string, tokens: string[]): number => {
-  const fields = [
-    product.name,
-    product.brand,
-    product.code,
-    product.sku,
-    product.category_principal,
-    product.description,
-  ].map(normalizeProductText);
-  const [name, brand, code, sku, category, description] = fields;
-  let score = 0;
+// Match por início de palavra (evita casar "titan" dentro de palavras aleatórias
+// e evita ruído vindo da descrição do produto).
+const wordStartsWith = (haystack: string, token: string): boolean =>
+  haystack === token ||
+  haystack.startsWith(`${token} `) ||
+  haystack.includes(` ${token}`);
 
-  if (query) {
-    if (name === query) score += 1000;
-    else if (name.startsWith(query)) score += 600;
-    else if (name.includes(query)) score += 300;
-    if (code === query || sku === query) score += 500;
-    else if (code.includes(query) || sku.includes(query)) score += 250;
-    if (brand.includes(query)) score += 120;
-    if (category.includes(query)) score += 70;
-    if (description.includes(query)) score += 30;
-  }
+const wordEquals = (haystack: string, token: string): boolean =>
+  haystack.split(' ').includes(token);
+
+/**
+ * Ranking preciso: um produto só é considerado resultado quando TODOS os termos
+ * digitados aparecem em campos fortes (nome, código, sku ou marca), sempre no
+ * início de uma palavra. A descrição e a categoria nunca criam um resultado —
+ * servem apenas como desempate.
+ */
+const rankProductMatch = (product: any, query: string, tokens: string[]): number => {
+  const name = normalizeProductText(product.name);
+  const brand = normalizeProductText(product.brand);
+  const code = normalizeProductText(product.code);
+  const sku = normalizeProductText(product.sku);
+  const category = normalizeProductText(product.category_principal);
+
+  if (tokens.length === 0) return 0;
+
+  let score = 0;
+  let nameHits = 0;
 
   for (const token of tokens) {
-    if (name.includes(token)) score += 40;
-    if (code.includes(token) || sku.includes(token)) score += 35;
-    if (brand.includes(token)) score += 25;
-    if (category.includes(token)) score += 10;
-    if (description.includes(token)) score += 5;
+    const inName = wordStartsWith(name, token);
+    const inCode = wordStartsWith(code, token) || wordStartsWith(sku, token);
+    const inBrand = wordStartsWith(brand, token);
+
+    if (!inName && !inCode && !inBrand) return 0; // termo não encontrado => descarta
+
+    if (inName) {
+      nameHits += 1;
+      score += wordEquals(name, token) ? 60 : 40;
+    }
+    if (inCode) score += 45;
+    if (inBrand) score += 15;
+    if (wordStartsWith(category, token)) score += 5;
   }
+
+  // Bônus de proximidade com a frase completa
+  if (query) {
+    if (name === query) score += 1200;
+    else if (name.startsWith(`${query} `)) score += 800;
+    else if (name.includes(query)) score += 400;
+    if (code === query || sku === query) score += 900;
+    else if (code.startsWith(query) || sku.startsWith(query)) score += 300;
+  }
+
+  // Prioriza quem casa no nome em vez de só na marca
+  if (nameHits === tokens.length) score += 250;
+  // Nomes mais curtos (mais específicos) primeiro em empates
+  score += Math.max(0, 40 - name.length / 4);
 
   return score;
 };
+
 
 // Helper seguro para validar e formatar datas
 const safeFormatDate = (value: any, formatStr: string = 'dd/MM/yyyy') => {
