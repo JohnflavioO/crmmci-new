@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift, Store, CalendarIcon, SplitSquareVertical, ShoppingBag, Truck, RefreshCw, ChevronsUpDown, Check } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift, Store, CalendarIcon, SplitSquareVertical, ShoppingBag, Truck, RefreshCw, ChevronsUpDown, Check, Handshake } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import FreightQuoteDrawer from '@/components/FreightQuoteDrawer';
 import { buildFreightData, type FreightData } from '@/lib/freight';
@@ -217,6 +217,7 @@ const paymentMethodLabels: Record<string, { label: string; icon: any }> = {
   pix: { label: 'PIX', icon: QrCode },
   cartao: { label: 'Cartão', icon: CreditCard },
   boleto: { label: 'Boleto', icon: FileBarChart },
+  parceria: { label: 'Parceria', icon: Handshake },
 };
 
 const paymentStatusLabels: Record<string, { label: string; icon: any; className: string }> = {
@@ -1931,6 +1932,7 @@ export default function Quotes() {
                           <SelectItem value="pix">PIX</SelectItem>
                           <SelectItem value="cartao">Cartão</SelectItem>
                           <SelectItem value="boleto">Boleto</SelectItem>
+                          <SelectItem value="parceria">Parceria (sem financeiro)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

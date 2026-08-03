@@ -46,6 +46,7 @@ const paymentMethodMap: Record<string, { label: string; icon: any }> = {
   pix: { label: 'PIX', icon: QrCode },
   cartao: { label: 'Cartão', icon: CreditCard },
   boleto: { label: 'Boleto', icon: FileBarChart },
+  parceria: { label: 'Parceria', icon: FileBarChart },
 };
 
 interface Props {

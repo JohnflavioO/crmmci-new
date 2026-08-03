@@ -8,7 +8,7 @@
  * trigger de banco public.validate_quote_payment().
  */
 
-export const VALID_PAYMENT_METHODS = ['pix', 'cartao', 'boleto'] as const;
+export const VALID_PAYMENT_METHODS = ['pix', 'cartao', 'boleto', 'parceria'] as const;
 export type PaymentMethod = (typeof VALID_PAYMENT_METHODS)[number];
 
 /** Cópia espelhada de src/lib/quotePaymentValidation.ts — NÃO divergir.
@@ -32,7 +32,11 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   pix: 'PIX',
   cartao: 'Cartão de crédito',
   boleto: 'Boleto',
+  parceria: 'Parceria',
 };
+
+/** Parceria não gera financeiro e não entra no resultado do vendedor. */
+export const NON_FINANCIAL_PAYMENT_METHODS = ['parceria'];
 
 export interface QuotePaymentInput {
   status?: string | null;

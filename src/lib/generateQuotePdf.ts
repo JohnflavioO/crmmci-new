@@ -631,7 +631,7 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     correios: 'Correios', mao_propria: 'Mão Própria', retirada: 'Retirada', transportadora: 'Transportadora',
   };
   const paymentMethodLabels: Record<string, string> = {
-    pix: 'PIX', cartao: 'Cartão de Crédito', boleto: 'Boleto',
+    pix: 'PIX', cartao: 'Cartão de Crédito', boleto: 'Boleto', parceria: 'Parceria',
   };
   const fmtDate = (d?: string | null) => (d ? d.split('-').reverse().join('/') : '');
   const describePayment = (method?: string | null, installments?: number | null, date?: string | null, value?: number | null) => {
