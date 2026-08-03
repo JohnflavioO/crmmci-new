@@ -1,6 +1,5 @@
 import { installBrowserSafetyGuards } from "@/lib/browserRecovery";
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
 import "./index.css";
 
 installBrowserSafetyGuards();
@@ -25,12 +24,19 @@ const renderFatalStartupError = (error: unknown) => {
   document.getElementById("mci-reload")?.addEventListener("click", () => window.location.reload());
 };
 
+const startApplication = async () => {
 try {
   const rootElement = document.getElementById("root");
   if (!rootElement) throw new Error("Elemento #root não encontrado no documento.");
+  // App é carregado dentro do try para que falhas de módulo/importação também
+  // sejam exibidas e nunca deixem o preview em tela branca ou loading eterno.
+  const { default: App } = await import("./App.tsx");
   rootElement.innerHTML = "";
   createRoot(rootElement).render(<App />);
 } catch (error) {
   console.error("[Main] Erro fatal durante a renderização:", error);
   renderFatalStartupError(error);
 }
+};
+
+void startApplication();

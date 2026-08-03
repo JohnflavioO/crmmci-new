@@ -1,12 +1,10 @@
 // Recuperação de browser — simples, previsível e sem app-shell.
 // Regra: o CRM nunca deve depender de Service Worker para carregar a UI.
-// Mantemos apenas o Firebase Messaging SW; qualquer SW legado/cache de app-shell
-// é removido sem bloquear o boot do React e com no máximo UM reload seguro.
+// Mantemos apenas o Firebase Messaging SW. A limpeza automática nunca recarrega
+// a página: reload durante o bootstrap tornava o preview instável em iframes.
 
 const CACHE_VERSION = "v2026-07-28-no-app-shell-sw";
 const CHUNK_RETRY_KEY = "__mci_chunk_retry_done";
-const LEGACY_SW_BOOT_KEY = `__mci_legacy_sw_removed_${CACHE_VERSION}`;
-const WINDOW_NAME_MARKER = `[mci-legacy-sw-removed:${CACHE_VERSION}]`;
 
 const isLovablePreviewRuntime = () => {
   if (typeof window === "undefined") return false;
@@ -68,7 +66,7 @@ export const installBrowserSafetyGuards = () => {
   // caches/SWs antigos são removidos em paralelo.
   if (typeof window !== "undefined") {
     window.setTimeout(() => {
-      void removeLegacyServiceWorkers({ reloadAfterRemoval: true });
+      void removeLegacyServiceWorkers();
     }, 0);
   }
 };
@@ -110,28 +108,7 @@ export const clearBrowserCachesAndWorkers = async () => {
   return { clearedCaches, unregisteredWorkers };
 };
 
-const hasBootRecoveryReloaded = () => {
-  try {
-    if (window.sessionStorage.getItem(LEGACY_SW_BOOT_KEY) === "1") return true;
-  } catch { /* storage bloqueado */ }
-
-  try {
-    return window.name.includes(WINDOW_NAME_MARKER);
-  } catch {
-    return false;
-  }
-};
-
-const markBootRecoveryReloaded = () => {
-  try { window.sessionStorage.setItem(LEGACY_SW_BOOT_KEY, "1"); } catch { /* storage bloqueado */ }
-  try {
-    if (!window.name.includes(WINDOW_NAME_MARKER)) {
-      window.name = `${window.name || ""}${WINDOW_NAME_MARKER}`;
-    }
-  } catch { /* window.name bloqueado */ }
-};
-
-export const removeLegacyServiceWorkers = async (options?: { reloadAfterRemoval?: boolean }) => {
+export const removeLegacyServiceWorkers = async () => {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
     return { removedWorkers: 0, clearedCaches: 0 };
   }
@@ -165,10 +142,6 @@ export const removeLegacyServiceWorkers = async (options?: { reloadAfterRemoval?
       clearedCaches,
     });
 
-    if (options?.reloadAfterRemoval && !hasBootRecoveryReloaded()) {
-      markBootRecoveryReloaded();
-      window.location.reload();
-    }
   } catch (error) {
     console.warn("[Recovery] Falha ao remover Service Worker legado:", error);
   }
