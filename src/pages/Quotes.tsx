@@ -891,11 +891,29 @@ export default function Quotes() {
   const getFilteredProducts = (idx: number) => {
     const dbResults = productSearchResults[idx] || [];
     const localResults = filteredProductsBySearch[idx] || [];
-    const merged = [...dbResults, ...localResults];
-    return merged.filter((product, index, list) =>
+    const tokens = tokenizeProductSearch(productSearch[idx] || '');
+    const merged = [...dbResults, ...localResults].filter((product, index, list) =>
       list.findIndex(item => item.id === product.id) === index
-    ).slice(0, 20);
+    );
+
+    // Se existirem produtos cujo NOME contém todos os termos, mostra somente eles
+    // (evita listar itens que só casaram por marca/código).
+    const nameMatches = merged.filter((p: any) => {
+      const name = normalizeProductText(p.name);
+      return tokens.every(t => wordStartsWith(name, t));
+    });
+    const finalList = nameMatches.length > 0 ? nameMatches : merged;
+
+    return finalList
+      .map((product: any) => ({
+        product,
+        score: rankProductMatch(product, normalizeProductText(productSearch[idx] || ''), tokens),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .map(({ product }) => product)
+      .slice(0, 20);
   };
+
 
   const hasItems = items.some(i => !!i.model);
   
