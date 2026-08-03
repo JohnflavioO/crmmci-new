@@ -3,7 +3,7 @@
 // Mantemos apenas o Firebase Messaging SW. A limpeza automática nunca recarrega
 // a página: reload durante o bootstrap tornava o preview instável em iframes.
 
-const CACHE_VERSION = "v2026-08-03-sw-kill-switch";
+const CACHE_VERSION = "v2026-08-03-no-preview-reload";
 const CHUNK_RETRY_KEY = "__mci_chunk_retry_done";
 
 const isLovablePreviewRuntime = () => {
@@ -135,18 +135,16 @@ export const removeLegacyServiceWorkers = async () => {
       return { removedWorkers, clearedCaches };
     }
 
-    // Não desregistrar primeiro: isso impedia o navegador de baixar o
-    // kill-switch publicado no mesmo caminho do worker antigo. update() faz a
-    // substituição; o novo worker limpa seus caches e se desregistra no activate.
-    const updates = await Promise.allSettled(
-      legacyRegistrations.map((registration) => registration.update()),
+    // Nunca atualizar/ativar um worker legado durante o bootstrap. O antigo
+    // kill-switch navegava novamente para a URL temporária do preview e
+    // reutilizava __lovable_load_id, fazendo o host rejeitar a página.
+    const removals = await Promise.allSettled(
+      legacyRegistrations.map((registration) => registration.unregister()),
     );
-    const failedRegistrations = legacyRegistrations.filter((_, index) => updates[index]?.status === "rejected");
-    await Promise.allSettled(failedRegistrations.map((registration) => registration.unregister()));
-    removedWorkers = failedRegistrations.length;
+    removedWorkers = removals.filter((result) => result.status === "fulfilled" && result.value).length;
     clearedCaches = await clearLegacyAppCaches();
 
-    console.warn("[Recovery] Service Worker legado atualizado para o kill-switch.", {
+    console.warn("[Recovery] Service Worker legado removido sem recarregar a página.", {
       removedWorkers,
       clearedCaches,
     });
@@ -159,9 +157,9 @@ export const removeLegacyServiceWorkers = async () => {
 };
 
 export const reloadWithCacheBust = () => {
-  // No preview da Lovable a URL tem token temporário: nunca reescrever.
+  // O preview usa __lovable_load_id temporário e não pode ser recarregado
+  // automaticamente: repetir essa navegação pode ser rejeitado pelo host.
   if (isLovablePreviewRuntime()) {
-    window.location.reload();
     return;
   }
   const url = new URL(window.location.href);
