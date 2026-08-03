@@ -29,6 +29,24 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   pix: 'PIX',
   cartao: 'Cartão de crédito',
   boleto: 'Boleto',
+  parceria: 'Parceria',
+};
+
+/**
+ * Parceria: permuta/parceria comercial. Não gera financeiro e não entra no
+ * resultado (receita) do vendedor.
+ */
+export const NON_FINANCIAL_PAYMENT_METHODS = ['parceria'];
+
+export const isPartnershipPayment = (quote: QuotePaymentInput | null | undefined): boolean => {
+  if (!quote) return false;
+  const m = (quote.payment_method || '').trim().toLowerCase();
+  if (quote.is_split_payment) {
+    const m1 = (quote.split_method_1 || '').trim().toLowerCase();
+    const m2 = (quote.split_method_2 || '').trim().toLowerCase();
+    return NON_FINANCIAL_PAYMENT_METHODS.includes(m1) && NON_FINANCIAL_PAYMENT_METHODS.includes(m2);
+  }
+  return NON_FINANCIAL_PAYMENT_METHODS.includes(m);
 };
 
 export interface QuotePaymentInput {
