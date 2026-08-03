@@ -217,6 +217,7 @@ const paymentMethodLabels: Record<string, { label: string; icon: any }> = {
   pix: { label: 'PIX', icon: QrCode },
   cartao: { label: 'Cartão', icon: CreditCard },
   boleto: { label: 'Boleto', icon: FileBarChart },
+  parceria: { label: 'Parceria', icon: Handshake },
 };
 
 const paymentStatusLabels: Record<string, { label: string; icon: any; className: string }> = {
@@ -1931,6 +1932,7 @@ export default function Quotes() {
                           <SelectItem value="pix">PIX</SelectItem>
                           <SelectItem value="cartao">Cartão</SelectItem>
                           <SelectItem value="boleto">Boleto</SelectItem>
+                          <SelectItem value="parceria">Parceria (sem financeiro)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

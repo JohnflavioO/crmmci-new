@@ -119,7 +119,7 @@ export default function Metrics() {
 
 
   const totalQuotes = quotes.length;
-  const approved = quotes.filter(q => q.status === 'approved');
+  const approved = quotes.filter(q => q.status === 'approved' && !isPartnershipPayment(q as any));
   const rejected = quotes.filter(q => q.status === 'rejected');
   const inNegotiation = quotes.filter(q => !['approved', 'rejected'].includes(q.status));
   const totalRevenue = approved.reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0);
@@ -200,7 +200,7 @@ export default function Metrics() {
   const paymentData = useMemo(() => {
     const map: Record<string, number> = {};
     approved.forEach(q => {
-      const method = q.payment_method === 'pix' ? 'PIX' : q.payment_method === 'cartao' ? 'Cartão' : q.payment_method === 'boleto' ? 'Boleto' : 'Outros';
+      const method = q.payment_method === 'pix' ? 'PIX' : q.payment_method === 'cartao' ? 'Cartão' : q.payment_method === 'boleto' ? 'Boleto' : q.payment_method === 'parceria' ? 'Parceria' : 'Outros';
       map[method] = (map[method] || 0) + (q.total_amount || q.total || 0);
     });
     return Object.entries(map).map(([name, value]) => ({ name, value }));

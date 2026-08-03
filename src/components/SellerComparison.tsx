@@ -107,7 +107,7 @@ export default function SellerComparison() {
     return selectedIds.map(id => {
       const seller = sellers.find(s => s.user_id === id);
       const sq = allQuotes.filter(q => q.created_by === id);
-      const approved = sq.filter(q => q.status === 'approved');
+      const approved = sq.filter(q => q.status === 'approved' && !isPartnershipPayment(q as any));
       const rejected = sq.filter(q => q.status === 'rejected');
       const inNeg = sq.filter(q => !['approved', 'rejected'].includes(q.status));
       const revenue = approved.reduce((s: number, q: any) => s + (q.total_amount || q.total || 0), 0);
