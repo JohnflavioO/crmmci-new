@@ -42,17 +42,6 @@ export default class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[ErrorBoundary] Uncaught error:', error.message, errorInfo.componentStack);
 
-    // Erro clássico React + Google Translate / extensões: o DOM já foi mutado por terceiros.
-    // Em vez de derrubar a tela, apenas resetamos o boundary — o patch em index.html já evita
-    // que isso volte a acontecer na próxima renderização.
-    const msg = error?.message || '';
-    if (error?.name === 'NotFoundError' && /removeChild|insertBefore/i.test(msg)) {
-      console.warn('[ErrorBoundary] Ignorando NotFoundError de DOM (mutação externa). Recuperando.');
-      // Reseta no próximo tick para permitir o React terminar o ciclo atual.
-      setTimeout(() => this.setState({ hasError: false, error: null }), 0);
-      return;
-    }
-
     if (isLikelyChunkLoadError(error) && shouldRetryChunkLoad()) {
       void clearBrowserCachesAndWorkers().finally(() => reloadWithCacheBust());
     }
