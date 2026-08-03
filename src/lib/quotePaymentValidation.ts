@@ -7,7 +7,7 @@
  * trigger de banco public.validate_quote_payment().
  */
 
-export const VALID_PAYMENT_METHODS = ['pix', 'cartao', 'boleto'] as const;
+export const VALID_PAYMENT_METHODS = ['pix', 'cartao', 'boleto', 'parceria'] as const;
 export type PaymentMethod = (typeof VALID_PAYMENT_METHODS)[number];
 
 /** Status em que o orçamento PODE ficar incompleto. */
