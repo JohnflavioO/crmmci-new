@@ -71,23 +71,6 @@
         };
       })();
 
-      /* Limpeza de Service Workers antigos (app-shell). Nunca bloqueia o boot
-         do React e nunca recarrega/reescreve a URL do preview. */
-      (function () {
-        if (!('serviceWorker' in navigator)) return;
-        try {
-          navigator.serviceWorker.getRegistrations().then(function (regs) {
-            regs.forEach(function (reg) {
-              var worker = reg.active || reg.waiting || reg.installing;
-              var url = worker && worker.scriptURL || '';
-              if (url.indexOf('/firebase-messaging-sw.js') === -1) {
-                try { reg.unregister(); } catch (_) {}
-              }
-            });
-          }).catch(function () {});
-        } catch (_) {}
-      })();
-
     </script>
     <link rel="icon" type="image/png" href="/favicon.png">
     <!-- TODO: Set the document title to the name of your application -->

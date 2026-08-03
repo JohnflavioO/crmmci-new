@@ -3,7 +3,7 @@
 // Mantemos apenas o Firebase Messaging SW. A limpeza automática nunca recarrega
 // a página: reload durante o bootstrap tornava o preview instável em iframes.
 
-const CACHE_VERSION = "v2026-07-28-no-app-shell-sw";
+const CACHE_VERSION = "v2026-08-03-sw-kill-switch";
 const CHUNK_RETRY_KEY = "__mci_chunk_retry_done";
 
 const isLovablePreviewRuntime = () => {
@@ -23,6 +23,17 @@ const isFirebaseMessagingWorker = (scriptURL: string) => {
   } catch {
     return scriptURL.endsWith("/firebase-messaging-sw.js");
   }
+};
+
+const isLegacyAppCache = (name: string) =>
+  /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-|workbox|vite-pwa|mci.*(?:app|shell|asset)/i.test(name);
+
+const clearLegacyAppCaches = async () => {
+  if (!("caches" in window)) return 0;
+  const names = await caches.keys();
+  const legacyNames = names.filter(isLegacyAppCache);
+  await Promise.allSettled(legacyNames.map((name) => caches.delete(name)));
+  return legacyNames.length;
 };
 
 const createMemoryStorage = (): Storage => {
@@ -81,11 +92,7 @@ export const clearBrowserCachesAndWorkers = async () => {
   let unregisteredWorkers = 0;
 
   try {
-    if ("caches" in window) {
-      const names = await caches.keys();
-      await Promise.all(names.map((name) => caches.delete(name)));
-      clearedCaches = names.length;
-    }
+    clearedCaches = await clearLegacyAppCaches();
   } catch (error) {
     console.warn("[Recovery] Não foi possível limpar caches:", error);
   }
@@ -128,16 +135,18 @@ export const removeLegacyServiceWorkers = async () => {
       return { removedWorkers, clearedCaches };
     }
 
-    await Promise.all(legacyRegistrations.map((registration) => registration.unregister()));
-    removedWorkers = legacyRegistrations.length;
+    // Não desregistrar primeiro: isso impedia o navegador de baixar o
+    // kill-switch publicado no mesmo caminho do worker antigo. update() faz a
+    // substituição; o novo worker limpa seus caches e se desregistra no activate.
+    const updates = await Promise.allSettled(
+      legacyRegistrations.map((registration) => registration.update()),
+    );
+    const failedRegistrations = legacyRegistrations.filter((_, index) => updates[index]?.status === "rejected");
+    await Promise.allSettled(failedRegistrations.map((registration) => registration.unregister()));
+    removedWorkers = failedRegistrations.length;
+    clearedCaches = await clearLegacyAppCaches();
 
-    if ("caches" in window) {
-      const names = await caches.keys();
-      await Promise.all(names.map((name) => caches.delete(name)));
-      clearedCaches = names.length;
-    }
-
-    console.warn("[Recovery] Service Worker legado removido; cache antigo limpo.", {
+    console.warn("[Recovery] Service Worker legado atualizado para o kill-switch.", {
       removedWorkers,
       clearedCaches,
     });
