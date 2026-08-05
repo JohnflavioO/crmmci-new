@@ -156,7 +156,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess, editOrde
     if (!clientSearch.trim() || selectedClient) return [];
     const q = clientSearch.toLowerCase();
     return clients
-      .filter(c => c.name.toLowerCase().includes(q) || (c.cpf_cnpj || '').toLowerCase().includes(q) || (c.code || '').toLowerCase().includes(q))
+      .filter(c => c.name.toLowerCase().includes(q) || (c.cpf_cnpj || '').toLowerCase().includes(q))
       .slice(0, 6);
   }, [clientSearch, clients, selectedClient]);
 
