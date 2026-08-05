@@ -39,6 +39,7 @@ interface Client {
 interface Product {
   id: string;
   name: string;
+  code?: string | null;
   price?: number | null;
 }
 
@@ -46,6 +47,7 @@ interface SaleItem {
   id: string;
   product_id: string;
   product_name: string;
+  product_code: string | null;
   quantity: number;
   unit_price: number;
   subtotal: number;
@@ -102,7 +104,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess, editOrde
     (async () => {
       const [{ data: cs }, { data: ps }] = await Promise.all([
         supabase.from('technical_clients').select("id,name,cpf_cnpj").order('name'),
-        supabase.from('technical_products').select('id,name,price').order('name'),
+        supabase.from('technical_products').select('id,name,code,price').order('name'),
       ]);
       const clientList = (cs || []) as Client[];
       const productList = (ps || []) as Product[];
@@ -114,7 +116,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess, editOrde
           supabase.from('technical_purchase_orders').select('*').eq('id', editOrderId).maybeSingle(),
           supabase
             .from('technical_purchase_order_items')
-            .select('*, technical_products(name)')
+            .select('*, technical_products(name, code)')
             .eq('purchase_order_id', editOrderId),
         ]);
         if (order) {
@@ -139,6 +141,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess, editOrde
               id: it.id,
               product_id: it.product_id,
               product_name: it.technical_products?.name || '—',
+              product_code: it.technical_products?.code || null,
               quantity: Number(it.quantity) || 1,
               unit_price: Number(it.unit_price) || 0,
               subtotal: Number(it.total_price) || 0,
@@ -160,7 +163,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess, editOrde
   const filteredProducts = useMemo(() => {
     if (!productSearch.trim()) return [];
     const q = productSearch.toLowerCase();
-    return products.filter(p => p.name.toLowerCase().includes(q)).slice(0, 6);
+    return products.filter(p => p.name.toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q)).slice(0, 6);
   }, [productSearch, products]);
 
   const addProduct = (p: Product) => {
@@ -180,6 +183,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess, editOrde
           id: Math.random().toString(36).slice(2),
           product_id: p.id,
           product_name: p.name,
+          product_code: p.code || null,
           quantity: 1,
           unit_price: price,
           subtotal: price,
@@ -377,7 +381,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess, editOrde
                       className="w-full text-left px-3 py-2 hover:bg-muted text-sm flex justify-between"
                       onClick={() => addProduct(p)}
                     >
-                      <span>{p.name}</span>
+                      <span>{p.name} <span className="text-xs text-muted-foreground ml-2">({p.code || 'S/C'})</span></span>
                       <span className="text-muted-foreground">
                         R$ {(Number(p.price) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
@@ -392,6 +396,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess, editOrde
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
+                  <TableHead className="w-32">Código</TableHead>
                   <TableHead>Item</TableHead>
                   <TableHead className="w-24">Qtd</TableHead>
                   <TableHead className="w-32">Unitário</TableHead>
@@ -409,6 +414,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange, onSuccess, editOrde
                 ) : (
                   items.map(i => (
                     <TableRow key={i.id}>
+                      <TableCell className="font-mono text-xs">{i.product_code || '—'}</TableCell>
                       <TableCell>{i.product_name}</TableCell>
                       <TableCell>
                         <Input
