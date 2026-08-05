@@ -165,7 +165,14 @@ export async function generateQuotePdf(quote: any, items: any[], client: any, op
     doc.text(clientLines, margin, leftY);
     leftY += clientLines.length * 3.5;
     doc.setFont('helvetica', 'normal');
-    if (client.cpf_cnpj) { doc.text(`CPF/CNPJ: ${client.cpf_cnpj}`, margin, leftY); leftY += 3.5; }
+    if (client.cpf_cnpj) { 
+      let idText = `CPF/CNPJ: ${client.cpf_cnpj}`;
+      if (quote.is_reseller && client.contrib_icms) {
+        idText += `  |  IE: ${client.contrib_icms}`;
+      }
+      doc.text(idText, margin, leftY); 
+      leftY += 3.5; 
+    }
     if (client.email) { doc.text(`Email: ${client.email}`, margin, leftY); leftY += 3.5; }
     if (client.phone) { doc.text(`Tel: ${client.phone}`, margin, leftY); leftY += 3.5; }
     
