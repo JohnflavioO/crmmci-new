@@ -62,7 +62,9 @@ const formatBRL = (n: number) =>
 
 const ocNumber = (createdAt: string, index: number) => {
   const year = new Date(createdAt).getFullYear();
-  return `OC-${year}-${String(index).padStart(4, '0')}`;
+  // Começar a partir da OC2026-061 (índice 1 no sistema = 61 no visual)
+  const visualIndex = index + 60;
+  return `OC-${year}-${String(visualIndex).padStart(4, '0')}`;
 };
 
 export default function SupportPurchases() {

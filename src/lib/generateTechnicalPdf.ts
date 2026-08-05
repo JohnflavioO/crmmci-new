@@ -361,7 +361,7 @@ export async function generateTechnicalQuotePdf(
   y += 4;
   doc.setFontSize(9.5);
   const repLines = doc.splitTextToSize(report, CW - 12);
-  const repH = repLines.length * 5 + 10;
+  const repH = PH - y - 30; // Ocupar o restante da primeira página
   card(doc, M, y, CW, repH);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...DARK);
@@ -400,6 +400,11 @@ export async function generateTechnicalQuotePdf(
   }
   if (laborValue > 0) rows.push(['', 'Mão de Obra Especializada', '1', fmt(laborValue), fmt(laborValue)]);
   if (shippingValue > 0) rows.push(['', `Frete: ${shippingLabel}`, '1', fmt(shippingValue), fmt(shippingValue)]);
+
+  /* ---------- Peças e serviços ---------- */
+  // Page 1 ends after technical report. Move parts and services to page 2.
+  doc.addPage();
+  y = 30;
 
   autoTable(doc, {
     startY: y,
