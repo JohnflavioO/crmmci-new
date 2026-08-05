@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { NewPurchaseOrderDialog } from '@/components/support/NewPurchaseOrderDialog';
+import { generatePurchaseOrderPdf } from '@/lib/generatePurchaseOrderPdf';
 
 interface OrderItem {
   id: string;
@@ -404,8 +405,8 @@ export default function SupportPurchases() {
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <Button onClick={() => window.print()} className="gap-2">
-                  <Printer className="h-4 w-4" /> Imprimir Recibo
+                <Button onClick={() => generatePurchaseOrderPdf({ ...detailOrder, ...detailMeta, oc_number: ocMap[detailOrder.id] }, detailItems, detailClient)} className="gap-2">
+                  <Printer className="h-4 w-4" /> Gerar PDF
                 </Button>
                 <Button variant="outline" onClick={() => setDetailId(null)}>Fechar</Button>
               </div>
