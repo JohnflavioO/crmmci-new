@@ -356,7 +356,7 @@ export async function generateTechnicalQuotePdf(
   y += eqH + 8;
 
   /* ---------- Relatório técnico ---------- */
-  const report = os.technical_diagnosis || os.technician_notes || '-';
+  const report = os.technical_diagnosis || '-';
   sectionLabel(doc, M, y, 'Relatório Técnico');
   y += 4;
   doc.setFontSize(9.5);

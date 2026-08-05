@@ -662,19 +662,6 @@ export default function SupportBudgets() {
               </div>
             </section>
 
-            {/* Descrição do Serviço */}
-            <section>
-              <h3 className="text-sm font-semibold mb-2">Descrição do Serviço / Mão de Obra</h3>
-              <Textarea
-                rows={4}
-                placeholder="Detalhe o serviço executado / mão de obra..."
-                value={selected.technician_notes || ''}
-                onChange={(e) => setSelected({ ...selected, technician_notes: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Esta descrição aparecerá no orçamento impresso.
-              </p>
-            </section>
 
             {/* Descrição do Reparo */}
             <section>
@@ -685,6 +672,9 @@ export default function SupportBudgets() {
                 value={selected.repair_description || ''}
                 onChange={(e) => setSelected({ ...selected, repair_description: e.target.value })}
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Esta descrição aparecerá no orçamento impresso.
+              </p>
             </section>
 
             {/* Desconto */}
