@@ -305,7 +305,7 @@ export async function generateTechnicalQuotePdf(
   /* ---------- Equipamento ---------- */
   sectionLabel(doc, M, y, 'Equipamento');
   y += 4;
-  const equipTitle = [os.equipment, os.model].filter(Boolean).join(' ') || os.model || '-';
+  const equipTitle = os.equipment || '-';
   const defect = os.reported_defect || '-';
   const accessories = Array.isArray(os.accessories)
     ? os.accessories.join(', ')
