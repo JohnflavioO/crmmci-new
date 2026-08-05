@@ -22,7 +22,7 @@ interface OrderItem {
   quantity: number;
   unit_price: number;
   total_price: number;
-  technical_products?: { name: string } | null;
+  technical_products?: { name: string; code?: string | null } | null;
 }
 
 interface PurchaseOrder {
@@ -127,7 +127,7 @@ export default function SupportPurchases() {
 
     const { data: items } = await supabase
       .from('technical_purchase_order_items')
-      .select('*, technical_products(name)')
+      .select('*, technical_products(name, code)')
       .eq('purchase_order_id', id);
     setDetailItems((items || []) as any);
 
@@ -380,6 +380,7 @@ export default function SupportPurchases() {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr className="text-left">
+                      <th className="px-3 py-2 font-semibold">Código</th>
                       <th className="px-3 py-2 font-semibold">Item</th>
                       <th className="px-3 py-2 font-semibold w-16 text-center">Qtd</th>
                       <th className="px-3 py-2 font-semibold w-32 text-right">Subtotal</th>
@@ -389,6 +390,7 @@ export default function SupportPurchases() {
                   <tbody className="divide-y">
                     {detailItems.map(it => (
                       <tr key={it.id}>
+                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{it.technical_products?.code || '—'}</td>
                         <td className="px-3 py-2">{it.technical_products?.name || '—'}</td>
                         <td className="px-3 py-2 text-center">{it.quantity}</td>
                         <td className="px-3 py-2 text-right font-medium">{formatBRL(Number(it.total_price))}</td>
