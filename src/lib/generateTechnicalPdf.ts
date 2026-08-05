@@ -251,6 +251,7 @@ export async function generateTechnicalQuotePdf(
   const clientName = client.name || os.client_name || '-';
   const clientContact = [
     client.cpf_cnpj || os.client_document || '',
+    (options?.client?.is_revenda && client.contrib_icms) ? `IE: ${client.contrib_icms}` : '',
     client.email || os.client_email || '',
     client.phone || client.whatsapp || os.client_phone || '',
   ].filter(Boolean);
