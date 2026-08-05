@@ -672,6 +672,9 @@ export default function SupportBudgets() {
                 value={selected.repair_description || ''}
                 onChange={(e) => setSelected({ ...selected, repair_description: e.target.value })}
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Esta descrição aparecerá no orçamento impresso.
+              </p>
             </section>
 
             {/* Desconto */}
