@@ -308,6 +308,9 @@ function buildQuoteData(
   if (orderData.observacao) notesParts.push(`Obs Pedido: ${orderData.observacao}`);
 
   const mappedStatus = mapStatus(situacaoNome);
+  const orderCreatedAt = dataCriacao 
+    ? new Date(new Date(dataCriacao).getTime() - 3 * 60 * 60 * 1000).toISOString().split('T')[0] 
+    : new Date(new Date().getTime() - 3 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   const quoteData: any = {
     quote_number: quoteNumber || `LI-${externalId}`,
@@ -320,10 +323,11 @@ function buildQuoteData(
     total: valorSubtotal,
     shipping_cost: valorFrete,
     discount: valorDesconto,
-    payment_method: isSplitPayment ? null : mapPaymentMethod(pagamentoNome),
+    payment_method: isSplitPayment ? null : (mapPaymentMethod(pagamentoNome) || 'pix'),
     payment_status: mappedStatus === 'approved' ? 'liquidado' : (mappedStatus === 'rejected' ? 'cancelado' : 'pendente'),
-    payment_terms: pagamentoNome || null,
-    installments: isSplitPayment ? 1 : parcelas,
+    payment_terms: pagamentoNome || 'Loja Integrada',
+    installments: isSplitPayment ? 1 : Math.max(1, parcelas),
+    payment_date: orderCreatedAt,
     shipping_method: formaEnvio || null,
     shipping_deadline: prazoEnvio || null,
     notes: notesParts.join('\n'),
@@ -331,9 +335,7 @@ function buildQuoteData(
     external_order_id: externalId,
     external_status: situacaoNome,
     created_by: userId,
-    quote_date: dataCriacao 
-      ? new Date(new Date(dataCriacao).getTime() - 3 * 60 * 60 * 1000).toISOString().split('T')[0] 
-      : new Date(new Date().getTime() - 3 * 60 * 60 * 1000).toISOString().split('T')[0],
+    quote_date: orderCreatedAt,
     is_reseller: false,
     is_split_payment: isSplitPayment,
     
@@ -351,13 +353,15 @@ function buildQuoteData(
   };
 
   if (isSplitPayment) {
-    quoteData.split_method_1 = mapPaymentMethod(pagamentos[0]?.forma_pagamento?.nome);
+    quoteData.split_method_1 = mapPaymentMethod(pagamentos[0]?.forma_pagamento?.nome) || 'pix';
     quoteData.split_value_1 = parseFloat(pagamentos[0]?.valor) || 0;
-    quoteData.split_installments_1 = parseInt(pagamentos[0]?.numero_parcelas) || 1;
+    quoteData.split_date_1 = orderCreatedAt;
+    quoteData.split_installments_1 = Math.max(1, parseInt(pagamentos[0]?.numero_parcelas) || 1);
     
-    quoteData.split_method_2 = mapPaymentMethod(pagamentos[1]?.forma_pagamento?.nome);
+    quoteData.split_method_2 = mapPaymentMethod(pagamentos[1]?.forma_pagamento?.nome) || 'pix';
     quoteData.split_value_2 = parseFloat(pagamentos[1]?.valor) || 0;
-    quoteData.split_installments_2 = parseInt(pagamentos[1]?.numero_parcelas) || 1;
+    quoteData.split_date_2 = orderCreatedAt;
+    quoteData.split_installments_2 = Math.max(1, parseInt(pagamentos[1]?.numero_parcelas) || 1);
   }
 
   return quoteData;
