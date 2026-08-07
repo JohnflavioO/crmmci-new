@@ -408,6 +408,7 @@ function SummaryStat({ label, value, className = '' }: { label: string; value: s
 
 export default function Quotes() {
   const { user, profile, isGestor, isAdmin } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
   const { isHidden: privacyHidden } = usePrivacy();
   const canViewTeamQuotes = isGestor;
@@ -1446,10 +1447,9 @@ export default function Quotes() {
     setItems([emptyItem()]);
   };
 
-  const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     const cid = searchParams.get('client_id');
-    const isNew = searchParams.get('new');
+    const isNew = searchParams.get('new') || searchParams.get('create') === 'true';
     if (isNew && cid && clients.length > 0) {
       const exists = clients.some((c: any) => c.id === cid);
       if (exists) {
@@ -1461,9 +1461,11 @@ export default function Quotes() {
       } else {
         toast.error('Cliente não encontrado ou sem acesso');
       }
-      searchParams.delete('new');
-      searchParams.delete('client_id');
-      setSearchParams(searchParams, { replace: true });
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('new');
+      newParams.delete('create');
+      newParams.delete('client_id');
+      setSearchParams(newParams, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clients]);

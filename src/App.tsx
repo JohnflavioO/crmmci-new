@@ -243,16 +243,24 @@ const AppContent = () => {
   const { theme } = useTheme();
   const location = useLocation();
   
-  // Force light theme on quote pages regardless of provider state
+  // Force light theme on quote pages and creation flows regardless of provider state
   useEffect(() => {
     const isQuotePage = location.pathname.startsWith('/quotes') || 
                        location.pathname.startsWith('/suporte/orcamentos') ||
                        location.pathname.startsWith('/quote/');
     
+    // Check if a modal for creating quote or client is open by inspecting search params or state
+    // We can also check for specific search params used when opening these dialogs
+    const params = new URLSearchParams(location.search);
+    const isCreating = params.get('new') === 'true' || params.get('create') === 'true';
+    
+    // Also check for the specific public quote route which should always be light
+    const isPublicQuote = location.pathname.startsWith('/quote/');
+
     const root = window.document.documentElement;
     root.classList.remove("light", "dark");
     
-    if (isQuotePage) {
+    if (isQuotePage || isPublicQuote || isCreating) {
       root.classList.add("light");
     } else {
       if (theme === "system") {
@@ -262,7 +270,7 @@ const AppContent = () => {
         root.classList.add(theme);
       }
     }
-  }, [theme, location.pathname]);
+  }, [theme, location.pathname, location.search]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -274,7 +282,7 @@ const AppContent = () => {
                 <AppRoutes />
                 <AppVersionBanner />
                 <Toaster />
-                <Sonner position="bottom-right" closeButton theme={location.pathname.includes('quote') ? "light" : (theme === 'system' ? 'system' : theme)} richColors />
+                <Sonner position="bottom-right" closeButton theme={(location.pathname.includes('quote') || location.search.includes('new=true')) ? "light" : (theme === 'system' ? 'system' : theme)} richColors />
               </NotificationsProvider>
             </PrivacyProvider>
           </AuthProvider>
