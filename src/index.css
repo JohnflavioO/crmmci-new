@@ -61,6 +61,52 @@
     --shadow-lg: 0 4px 12px -2px hsl(220 25% 12% / 0.06), 0 2px 4px -2px hsl(220 25% 12% / 0.03);
     --shadow-card: 0 1px 2px hsl(220 25% 12% / 0.04), 0 0 0 1px hsl(220 14% 91% / 0.6);
   }
+
+  .dark {
+    --background: 220 25% 7%;
+    --foreground: 220 10% 95%;
+
+    --card: 220 25% 10%;
+    --card-foreground: 220 10% 95%;
+
+    --popover: 220 25% 10%;
+    --popover-foreground: 220 10% 95%;
+
+    --primary: 220 70% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 20% 15%;
+    --secondary-foreground: 220 10% 90%;
+
+    --muted: 220 20% 15%;
+    --muted-foreground: 220 10% 65%;
+
+    --accent: 160 55% 35%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 70% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 18%;
+    --input: 220 20% 18%;
+    --ring: 220 70% 55%;
+
+    --sidebar-background: 220 30% 6%;
+    --sidebar-foreground: 220 10% 80%;
+    --sidebar-primary: 220 70% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 25% 12%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 20% 15%;
+    --sidebar-ring: 220 70% 55%;
+
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.3), 0 2px 4px -1px hsl(0 0% 0% / 0.2);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.4), 0 4px 6px -2px hsl(0 0% 0% / 0.2);
+    --shadow-card: 0 1px 3px hsl(0 0% 0% / 0.3), 0 0 0 1px hsl(220 20% 18%);
+    
+    --gradient-sidebar: linear-gradient(180deg, hsl(220 30% 5%), hsl(220 30% 8%));
+  }
 }
 
 @layer base {
@@ -174,7 +220,7 @@
 
   .mci-animated-border > * {
     border-color: transparent !important;
-    background: #fff;
+    background: hsl(var(--card));
     border-radius: var(--radius);
   }
 

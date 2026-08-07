@@ -8,6 +8,7 @@ import { PrivacyProvider } from "@/hooks/usePrivacy";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import AppVersionBanner from "./components/AppVersionBanner";
+import { ThemeProvider } from "./components/theme-provider";
 
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
@@ -62,6 +63,7 @@ const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const AssistenteComercial = lazy(() => import("./pages/AssistenteComercial"));
 const AssistantAudit = lazy(() => import("./pages/AssistantAudit"));
 const AssistantSettings = lazy(() => import("./pages/AssistantSettings"));
+const AppearanceSettingsPage = lazy(() => import("./pages/AppearanceSettingsPage"));
 const LogisticsSyncDiagnostic = lazy(() => import("./pages/LogisticsSyncDiagnostic"));
 const ProductMapping = lazy(() => import("./pages/ProductMapping"));
 const PublicSignContract = lazy(() => import("./pages/PublicSignContract"));
@@ -170,6 +172,7 @@ function AppRoutes() {
         <Route path="/ajuda" element={<SafeRoute><Help /></SafeRoute>} />
         <Route path="/sobre" element={<SafeRoute><About /></SafeRoute>} />
         <Route path="/configuracoes/notificacoes" element={<SafeRoute><NotificationSettings /></SafeRoute>} />
+        <Route path="/configuracoes/aparencia" element={<SafeRoute><AppearanceSettingsPage /></SafeRoute>} />
         <Route path="/.lovable/oauth/consent" element={<SafeRoute><OAuthConsent /></SafeRoute>} />
 
 
@@ -237,25 +240,27 @@ function AppRoutes() {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <ErrorBoundary>
-        <BrowserRouter>
-          <AuthProvider>
-            <PrivacyProvider>
-              <NotificationsProvider>
-                <AppRoutes />
-                <AppVersionBanner />
+  <ThemeProvider defaultTheme="system" storageKey="mci-crm-theme">
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <ErrorBoundary>
+          <BrowserRouter>
+            <AuthProvider>
+              <PrivacyProvider>
+                <NotificationsProvider>
+                  <AppRoutes />
+                  <AppVersionBanner />
 
-                <Toaster />
-                <Sonner position="bottom-right" closeButton theme="light" richColors />
-              </NotificationsProvider>
-            </PrivacyProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </ErrorBoundary>
-    </TooltipProvider>
-  </QueryClientProvider>
+                  <Toaster />
+                  <Sonner position="bottom-right" closeButton theme="light" richColors />
+                </NotificationsProvider>
+              </PrivacyProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </ErrorBoundary>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;
