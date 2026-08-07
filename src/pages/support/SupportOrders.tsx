@@ -116,7 +116,11 @@ export default function SupportOrders() {
           <h1 className="text-2xl font-bold">Ordens de Serviço</h1>
           <p className="text-sm text-muted-foreground">{filterStatus ? `Filtro: ${filterStatus}` : 'Todas as OS'}</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => {
+          setOpen(v);
+          if (v) navigate({ search: '?new=true' });
+          else navigate({ search: '' });
+        }}>
           <DialogTrigger asChild><Button className="bg-[#00966d] hover:bg-[#007a58]"><Plus className="h-4 w-4 mr-2" />Nova OS</Button></DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle className="text-lg font-bold">Nova Ordem de Serviço</DialogTitle></DialogHeader>

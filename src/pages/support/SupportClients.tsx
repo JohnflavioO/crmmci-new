@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ import { ActionMenu } from '@/components/ActionMenu';
 
 export default function SupportClients() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [clients, setClients] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
@@ -116,7 +118,19 @@ export default function SupportClients() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold font-display">Clientes</h1>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if(!v) { setStep(1); setEditingClient(null); setLinkedCrmId(null); setCrmSearch(''); setCrmResults([]); setForm(emptyForm); } }}>
+        <Dialog open={open} onOpenChange={(v) => { 
+          setOpen(v); 
+          if(v) setSearchParams({ new: 'true' });
+          if(!v) { 
+            setStep(1); 
+            setEditingClient(null); 
+            setLinkedCrmId(null); 
+            setCrmSearch(''); 
+            setCrmResults([]); 
+            setForm(emptyForm); 
+            setSearchParams({});
+          } 
+        }}>
           <DialogTrigger asChild>
             <Button className="bg-[#00966d] hover:bg-[#007a58]">
               <Plus className="h-4 w-4 mr-2" /> Novo Cliente
@@ -329,6 +343,7 @@ export default function SupportClients() {
                           setEditingClient(c);
                           setForm({ ...emptyForm, ...Object.fromEntries(Object.entries(c).filter(([k]) => k in emptyForm)) });
                           setOpen(true);
+                          setSearchParams({ edit: 'true' });
                         },
                         isSecondary: true
                       },
