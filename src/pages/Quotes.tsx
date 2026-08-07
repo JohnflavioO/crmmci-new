@@ -1215,6 +1215,7 @@ export default function Quotes() {
       setEditingQuote(quote);
       setItems(qItems && qItems.length > 0 ? qItems : [emptyItem()]);
       setForm(formData);
+      setSearchParams({ edit: 'true' });
       setDialogOpen(true);
       
     } catch (err: any) {

@@ -227,6 +227,7 @@ export default function Clients() {
   const handleEdit = (client: Client) => {
     setEditingClient(client);
     setForm(client);
+    setSearchParams({ edit: 'true' });
     setDialogOpen(true);
   };
 

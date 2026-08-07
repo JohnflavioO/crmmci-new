@@ -30,13 +30,15 @@ export function ThemeProvider({
 
   useEffect(() => {
     const root = window.document.documentElement;
-    const isQuotePage = window.location.pathname.startsWith('/quotes') || 
-                       window.location.pathname.startsWith('/suporte/orcamentos') ||
-                       window.location.pathname.startsWith('/quote/');
+    const params = new URLSearchParams(window.location.search);
+    const isCreatingOrEditing = params.get('new') === 'true' || 
+                               params.get('create') === 'true' || 
+                               params.get('edit') === 'true';
 
     root.classList.remove("light", "dark");
 
-    if (isQuotePage) {
+    // If we are creating or editing, we force light mode
+    if (isCreatingOrEditing) {
       root.classList.add("light");
       return;
     }

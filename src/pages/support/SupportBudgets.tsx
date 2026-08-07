@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,6 +88,7 @@ export default function SupportBudgets() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selected, setSelected] = useState<Order | null>(null);
   const [parts, setParts] = useState<Part[]>([]);
   const [saving, setSaving] = useState(false);
@@ -136,8 +138,14 @@ export default function SupportBudgets() {
   };
 
   useEffect(() => {
-    if (selectedId) loadOrder(selectedId);
-    else { setSelected(null); setParts([]); }
+    if (selectedId) {
+      loadOrder(selectedId);
+      setSearchParams({ edit: 'true' });
+    } else { 
+      setSelected(null); 
+      setParts([]); 
+      setSearchParams({});
+    }
   }, [selectedId]);
 
   // Product search
