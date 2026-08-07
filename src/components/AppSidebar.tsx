@@ -12,6 +12,7 @@ import SidebarVersion from './SidebarVersion';
 import { usePermissions } from '@/hooks/usePermissions';
 import { prefetchRoute } from '@/lib/routePrefetch';
 import { useResellerRegistrations } from '@/hooks/useResellerRegistrations';
+import { Settings } from 'lucide-react';
 
 
 const commercialItems = [
@@ -244,6 +245,8 @@ export default function AppSidebar({ onNavigate }: Props) {
             <LogisticsLinkItem key={item.to} {...item} />
           ))}
           <SectionDivider />
+          <SectionLabel>Configurações</SectionLabel>
+          <LinkItem to="/configuracoes/aparencia" icon={Settings} label="Aparência" />
           <LinkItem to="/ajuda" icon={HelpCircle} label="Ajuda" />
         </nav>
         <SidebarFooter />
@@ -263,6 +266,8 @@ export default function AppSidebar({ onNavigate }: Props) {
             <LinkItem key={item.to} {...item} />
           ))}
           <SectionDivider />
+          <SectionLabel>Configurações</SectionLabel>
+          <LinkItem to="/configuracoes/aparencia" icon={Settings} label="Aparência" />
           <LinkItem to="/ajuda" icon={HelpCircle} label="Ajuda" />
         </nav>
         <SidebarFooter />
@@ -339,7 +344,8 @@ export default function AppSidebar({ onNavigate }: Props) {
             )}
 
             <SectionDivider />
-            <SectionLabel>Ajuda</SectionLabel>
+            <SectionLabel>Configurações</SectionLabel>
+            <LinkItem to="/configuracoes/aparencia" icon={Settings} label="Aparência" />
             <LinkItem to="/ajuda" icon={HelpCircle} label="Tutoriais" />
           </>
         )}

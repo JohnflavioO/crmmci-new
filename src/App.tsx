@@ -63,6 +63,7 @@ const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const AssistenteComercial = lazy(() => import("./pages/AssistenteComercial"));
 const AssistantAudit = lazy(() => import("./pages/AssistantAudit"));
 const AssistantSettings = lazy(() => import("./pages/AssistantSettings"));
+const AppearanceSettingsPage = lazy(() => import("./pages/AppearanceSettingsPage"));
 const LogisticsSyncDiagnostic = lazy(() => import("./pages/LogisticsSyncDiagnostic"));
 const ProductMapping = lazy(() => import("./pages/ProductMapping"));
 const PublicSignContract = lazy(() => import("./pages/PublicSignContract"));
@@ -171,6 +172,7 @@ function AppRoutes() {
         <Route path="/ajuda" element={<SafeRoute><Help /></SafeRoute>} />
         <Route path="/sobre" element={<SafeRoute><About /></SafeRoute>} />
         <Route path="/configuracoes/notificacoes" element={<SafeRoute><NotificationSettings /></SafeRoute>} />
+        <Route path="/configuracoes/aparencia" element={<SafeRoute><AppearanceSettingsPage /></SafeRoute>} />
         <Route path="/.lovable/oauth/consent" element={<SafeRoute><OAuthConsent /></SafeRoute>} />
 
 
