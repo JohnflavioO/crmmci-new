@@ -8,7 +8,7 @@ import { PrivacyProvider } from "@/hooks/usePrivacy";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import AppVersionBanner from "./components/AppVersionBanner";
-import { ThemeProvider } from "./components/theme-provider";
+import { ThemeProvider, useTheme } from "./components/theme-provider";
 
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
