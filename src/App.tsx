@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -239,27 +239,56 @@ function AppRoutes() {
   );
 }
 
-const App = () => (
-  <ThemeProvider defaultTheme="system" storageKey="mci-crm-theme">
+const AppContent = () => {
+  const { theme } = useTheme();
+  const location = useLocation();
+  
+  // Force light theme on quote pages regardless of provider state
+  useEffect(() => {
+    const isQuotePage = location.pathname.startsWith('/quotes') || 
+                       location.pathname.startsWith('/suporte/orcamentos') ||
+                       location.pathname.startsWith('/quote/');
+    
+    const root = window.document.documentElement;
+    root.classList.remove("light", "dark");
+    
+    if (isQuotePage) {
+      root.classList.add("light");
+    } else {
+      if (theme === "system") {
+        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        root.classList.add(systemTheme);
+      } else {
+        root.classList.add(theme);
+      }
+    }
+  }, [theme, location.pathname]);
+
+  return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ErrorBoundary>
-          <BrowserRouter>
-            <AuthProvider>
-              <PrivacyProvider>
-                <NotificationsProvider>
-                  <AppRoutes />
-                  <AppVersionBanner />
-
-                  <Toaster />
-                  <Sonner position="bottom-right" closeButton theme="light" richColors />
-                </NotificationsProvider>
-              </PrivacyProvider>
-            </AuthProvider>
-          </BrowserRouter>
+          <AuthProvider>
+            <PrivacyProvider>
+              <NotificationsProvider>
+                <AppRoutes />
+                <AppVersionBanner />
+                <Toaster />
+                <Sonner position="bottom-right" closeButton theme={location.pathname.includes('quote') ? "light" : (theme === 'system' ? 'system' : theme)} richColors />
+              </NotificationsProvider>
+            </PrivacyProvider>
+          </AuthProvider>
         </ErrorBoundary>
       </TooltipProvider>
     </QueryClientProvider>
+  );
+};
+
+const App = () => (
+  <ThemeProvider defaultTheme="system" storageKey="mci-crm-theme">
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   </ThemeProvider>
 );
 

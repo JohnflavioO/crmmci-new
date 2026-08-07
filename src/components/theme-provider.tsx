@@ -30,8 +30,16 @@ export function ThemeProvider({
 
   useEffect(() => {
     const root = window.document.documentElement;
+    const isQuotePage = window.location.pathname.startsWith('/quotes') || 
+                       window.location.pathname.startsWith('/suporte/orcamentos') ||
+                       window.location.pathname.startsWith('/quote/');
 
     root.classList.remove("light", "dark");
+
+    if (isQuotePage) {
+      root.classList.add("light");
+      return;
+    }
 
     if (theme === "system") {
       const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
