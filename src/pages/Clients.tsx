@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -66,6 +67,7 @@ export default function Clients() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [allQuotes, setAllQuotes] = useState<any[]>([]);
   const [search, setSearch] = useState('');

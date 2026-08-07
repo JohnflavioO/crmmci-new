@@ -447,6 +447,29 @@ export default function Quotes() {
   const [cepOrigem, setCepOrigem] = useState<string>(() => {
     try { return localStorage.getItem('mci_cep_origem') || ''; } catch { return ''; }
   });
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('new') === 'true' && !dialogOpen) {
+      setDialogOpen(true);
+      setEditingQuote(null);
+      setForm({ ...defaultForm });
+      setItems([emptyItem()]);
+    }
+  }, [searchParams, dialogOpen]);
+
+  const handleOpenDialog = () => {
+    setSearchParams({ new: 'true' });
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('new');
+    setSearchParams(newParams);
+    setDialogOpen(false);
+  };
+
   // Carrega o CEP padrão de expedição salvo em Configurações do Sistema
   useEffect(() => {
     (async () => {
@@ -1109,7 +1132,7 @@ export default function Quotes() {
       }
 
       toast.success(editingQuote ? 'Orçamento atualizado!' : 'Orçamento criado!');
-      setDialogOpen(false);
+      handleCloseDialog();
       resetForm();
       // Delay reload slightly to allow DB consistency
       setTimeout(() => loadData(), 500);
