@@ -8,6 +8,7 @@ import { PrivacyProvider } from "@/hooks/usePrivacy";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import AppVersionBanner from "./components/AppVersionBanner";
+import { ThemeProvider } from "./components/theme-provider";
 
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { useFollowUpScanner } from "@/hooks/useFollowUpScanner";
@@ -237,25 +238,27 @@ function AppRoutes() {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <ErrorBoundary>
-        <BrowserRouter>
-          <AuthProvider>
-            <PrivacyProvider>
-              <NotificationsProvider>
-                <AppRoutes />
-                <AppVersionBanner />
+  <ThemeProvider defaultTheme="system" storageKey="mci-crm-theme">
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <ErrorBoundary>
+          <BrowserRouter>
+            <AuthProvider>
+              <PrivacyProvider>
+                <NotificationsProvider>
+                  <AppRoutes />
+                  <AppVersionBanner />
 
-                <Toaster />
-                <Sonner position="bottom-right" closeButton theme="light" richColors />
-              </NotificationsProvider>
-            </PrivacyProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </ErrorBoundary>
-    </TooltipProvider>
-  </QueryClientProvider>
+                  <Toaster />
+                  <Sonner position="bottom-right" closeButton theme="light" richColors />
+                </NotificationsProvider>
+              </PrivacyProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </ErrorBoundary>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;
