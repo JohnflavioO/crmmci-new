@@ -243,26 +243,39 @@ const AppContent = () => {
   const { theme } = useTheme();
   const location = useLocation();
   
-  // Force light theme on quote pages and creation flows regardless of provider state
+  // Theme management: determine if we should force light mode or respect user preference
   useEffect(() => {
-    const isQuotePage = location.pathname.startsWith('/quotes') || 
-                       location.pathname.startsWith('/suporte/orcamentos') ||
-                       location.pathname.startsWith('/quote/');
+    const isQuoteRoute = location.pathname.startsWith('/quotes') || 
+                        location.pathname.startsWith('/suporte/orcamentos') ||
+                        location.pathname.startsWith('/quote/');
     
-    // Check if a modal for creating quote or client is open by inspecting search params or state
-    // We can also check for specific search params used when opening these dialogs
+    // Check if we are in a creation/edition flow
     const params = new URLSearchParams(location.search);
-    const isCreating = params.get('new') === 'true' || params.get('create') === 'true';
+    const isCreating = params.get('new') === 'true' || params.get('create') === 'true' || params.get('edit') === 'true';
     
-    // Also check for the specific public quote route which should always be light
-    const isPublicQuote = location.pathname.startsWith('/quote/');
-
+    // Check for client creation/edition specifically if not caught by query params
+    const isClientForm = location.pathname === '/clients' && isCreating;
+    
     const root = window.document.documentElement;
     root.classList.remove("light", "dark");
     
-    if (isQuotePage || isPublicQuote || isCreating) {
+    // FORCE LIGHT MODE for:
+    // 1. Any creation/edition form (isCreating)
+    // 2. Client registration form (isClientForm)
+    // 3. ANY edit flow (even if URL doesn't have ?edit=true, some components might use internal state, 
+    //    but we rely on URL params for global theme switching here)
+    if (isCreating || isClientForm) {
       root.classList.add("light");
+    } else if (isQuoteRoute) {
+      // Quotes screen itself follows the theme
+      if (theme === "system") {
+        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        root.classList.add(systemTheme);
+      } else {
+        root.classList.add(theme);
+      }
     } else {
+      // Normal behavior for other pages
       if (theme === "system") {
         const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
         root.classList.add(systemTheme);
