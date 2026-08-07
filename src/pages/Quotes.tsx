@@ -408,6 +408,7 @@ function SummaryStat({ label, value, className = '' }: { label: string; value: s
 
 export default function Quotes() {
   const { user, profile, isGestor, isAdmin } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
   const { isHidden: privacyHidden } = usePrivacy();
   const canViewTeamQuotes = isGestor;
