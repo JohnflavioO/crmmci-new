@@ -33,11 +33,8 @@ export default function SupportOrders() {
   const [params] = useSearchParams();
   const filterStatus = params.get('status') || '';
   const [orders, setOrders] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [clients, setClients] = useState<any[]>([]);
-  const [open, setOpen] = useState(params.get('new') === 'true');
-  const [detailsId, setDetailsId] = useState<string | null>(null);
-  const DEFAULT_ACCESSORIES = ['Fonte', 'Cabo AC', 'Refletor', 'Case', 'Control Box', 'Head Cable'];
-  const [clientSearch, setClientSearch] = useState('');
   const [accessoryInput, setAccessoryInput] = useState('');
   const [form, setForm] = useState<any>({
     client_id: '', client_name: '', equipment: '', brand: '', model: '', serial: '',
@@ -58,6 +55,17 @@ export default function SupportOrders() {
     const { data } = await supabase.from('technical_clients' as any).select('id,name,cpf_cnpj').order('name');
     setClients((data || []) as any[]);
   })(); }, []);
+
+  const filteredOrders = orders.filter(o => {
+    const search = searchTerm.toLowerCase();
+    return (
+      (o.os_number || '').toLowerCase().includes(search) ||
+      (o.client_name || '').toLowerCase().includes(search) ||
+      (o.equipment || '').toLowerCase().includes(search) ||
+      (o.brand || '').toLowerCase().includes(search) ||
+      (o.model || '').toLowerCase().includes(search)
+    );
+  });
 
   const filteredClients = clientSearch.trim()
     ? clients.filter((c: any) =>
@@ -267,7 +275,17 @@ export default function SupportOrders() {
 
 
       <Card>
-        <CardHeader><CardTitle className="text-base">{orders.length} OS</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="text-base">{filteredOrders.length} OS</CardTitle>
+          <div className="w-full max-w-sm">
+            <Input
+              placeholder="Buscar por OS, Cliente, Equipamento..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-9"
+            />
+          </div>
+        </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
@@ -279,7 +297,7 @@ export default function SupportOrders() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orders.map(o => (
+              {filteredOrders.map(o => (
                 <TableRow key={o.id} className="hover:bg-muted/50 transition-colors">
                   <TableCell><Link to={`/suporte/os/${o.id}`} className="font-medium text-primary hover:underline">{o.os_number}</Link></TableCell>
                   <TableCell>{o.client_name}</TableCell>
@@ -322,7 +340,7 @@ export default function SupportOrders() {
                   </TableCell>
                 </TableRow>
               ))}
-              {orders.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Nenhuma OS</TableCell></TableRow>}
+              {filteredOrders.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Nenhuma OS encontrada</TableCell></TableRow>}
             </TableBody>
           </Table>
         </CardContent>
