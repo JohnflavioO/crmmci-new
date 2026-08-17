@@ -348,6 +348,7 @@ export default function InteligenciaComercial() {
 
   // ---------- Period windows ----------
   const periodDays = period === 'all' ? Infinity : parseInt(period, 10);
+  const toolScope = canSeeAll ? 'team' : 'own';
 
   const filteredQuotes = useMemo(() => {
     const now = Date.now();
