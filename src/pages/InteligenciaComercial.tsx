@@ -1070,25 +1070,27 @@ export default function InteligenciaComercial() {
                 <CardContent className="space-y-3">
                   {top5.length === 0 && <p className="text-xs text-muted-foreground">Sem dados.</p>}
                   {top5.map((a, i) => {
-                    const pct = (a.totalValue / top5Max) * 100;
+                    const pct = (a.total_value / top5Max) * 100;
                     const colors = ['bg-amber-500', 'bg-slate-400', 'bg-orange-400', 'bg-indigo-400', 'bg-emerald-400'];
                     return (
                       <button
-                        key={a.clientId}
-                        onClick={() => setSelectedClient(a.clientId)}
+                        key={a.client_id}
+                        onClick={() => setSelectedClient(a.client_id)}
                         className="w-full text-left group"
                       >
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className={cn('w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0', colors[i])}>{i + 1}</span>
-                            <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">{a.clientName}</span>
+                            <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">{a.client_name}</span>
                           </div>
-                          <span className="text-xs font-bold tabular-nums shrink-0">{fmtCompact(a.totalValue)}</span>
+                          <span className="text-xs font-bold tabular-nums shrink-0">{fmtCompact(a.total_value)}</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                           <div className={cn('h-full rounded-full transition-all', colors[i])} style={{ width: `${pct}%` }} />
                         </div>
-                        <div className="text-[10px] text-muted-foreground mt-1 truncate">{clientLocation(a.client)} • {a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'} • {a.quotesCount} compras</div>
+                        <div className="text-[10px] text-muted-foreground mt-1 truncate">
+                          {[a.city, a.state].filter(Boolean).join('/') || '—'} • {a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'} • {a.quotes_count} compras
+                        </div>
                       </button>
                     );
                   })}
