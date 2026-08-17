@@ -247,6 +247,17 @@ export default function Dashboard() {
   }, [summary, myQuotes, handlerMetrics, teamFilter, isGestor]);
   
   const teamStats = useMemo(() => {
+    if (teamFilter === 'all' && handlerMetrics && canSeeTeam) {
+      return {
+        quotes: handlerMetrics.approved_count,
+        totalValue: handlerMetrics.revenue_total,
+        approved: handlerMetrics.approved_count,
+        pending: summary?.pending_count || 0, // Fallback para RPC se necessário
+        rejected: summary?.rejected_count || 0,
+        avgTicket: handlerMetrics.average_ticket,
+      };
+    }
+
     if (!Array.isArray(selectedTeamSellers)) return { quotes: 0, totalValue: 0, approved: 0, pending: 0, rejected: 0, avgTicket: 0 };
     
     // Se estiver filtrando por 'all' e tivermos o resumo, o resumo é mais confiável/rápido
@@ -275,7 +286,7 @@ export default function Dashboard() {
       rejected,
       avgTicket: quotes > 0 ? totalValue / quotes : 0,
     };
-  }, [selectedTeamSellers, summary, teamFilter, isAdmin]);
+  }, [selectedTeamSellers, summary, teamFilter, isAdmin, handlerMetrics, canSeeTeam]);
 
   const teamClientsCount = useMemo(
     () => {
