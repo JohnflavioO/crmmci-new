@@ -606,9 +606,8 @@ export async function getCommercialOverview(ctx: CrmCtx, args: {
   const role = ctx.profile?.role;
   const canSeeAll = role === "admin" || role === "gestor";
   const wantsTeam = canSeeAll && (args.scope ?? "team") !== "own";
-  const limit = Math.min(args.limit ?? 5000, 10000);
-  
-  const from = args.from ?? (args.days_back ? new Date(Date.now() - args.days_back * 86400000).toISOString() : undefined);
+  const days_back = args.days_back ?? (args.period_days === "all" ? undefined : args.period_days);
+  const from = args.from ?? (days_back ? new Date(Date.now() - days_back * 86400000).toISOString() : undefined);
 
   let qq = ctx.supabase
     .from("quotes")
