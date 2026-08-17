@@ -1395,23 +1395,23 @@ export default function InteligenciaComercial() {
           {detail && (
             <>
               <SheetHeader>
-                <SheetTitle>{detail.clientName}</SheetTitle>
-                <p className="text-xs text-muted-foreground">{clientLocation(detail.client)} • {detail.cnpj ? formatCnpj(detail.cnpj) : 'CNPJ não informado'}</p>
+                <SheetTitle>{detail.client_name}</SheetTitle>
+                <p className="text-xs text-muted-foreground">{[detail.city, detail.state].filter(Boolean).join('/') || '—'} • {detail.cnpj ? formatCnpj(detail.cnpj) : 'CNPJ não informado'}</p>
               </SheetHeader>
               <div className="mt-4 space-y-4 text-sm">
                 <div className="grid grid-cols-2 gap-3">
-                  <Info label="Responsável" value={detail.client?.contact_name || '-'} />
-                  <Info label="Telefone" value={detail.client?.contact_phone || detail.client?.phone || '-'} />
-                  <Info label="Email" value={detail.client?.email || '-'} />
-                  <Info label="Cidade/UF" value={clientLocation(detail.client)} />
+                  <Info label="Responsável" value="—" />
+                  <Info label="Telefone" value="—" />
+                  <Info label="Email" value="—" />
+                  <Info label="Cidade/UF" value={[detail.city, detail.state].filter(Boolean).join('/') || '—'} />
                   <Info label="CNPJ" value={detail.cnpj ? formatCnpj(detail.cnpj) : '—'} />
                   <Info label="Vendedor" value={detail.salesperson || '-'} />
-                  <Info label="Primeira Compra" value={detail.firstPurchase?.toLocaleDateString('pt-BR') || '-'} />
-                  <Info label="Última Compra" value={detail.lastPurchase?.toLocaleDateString('pt-BR') || '-'} />
-                  <Info label="Total de Compras" value={String(detail.quotesCount)} />
-                  <Info label="Valor Total" value={fmtBRLfull(detail.totalValue)} />
-                  <Info label="Recebido" value={fmtBRLfull(detail.receivedValue)} />
-                  <Info label="Ticket Médio" value={fmtBRLfull(detail.ticketMedio)} />
+                  <Info label="Primeira Compra" value={detail.first_purchase ? new Date(detail.first_purchase).toLocaleDateString('pt-BR') : '-'} />
+                  <Info label="Última Compra" value={detail.last_purchase ? new Date(detail.last_purchase).toLocaleDateString('pt-BR') : '-'} />
+                  <Info label="Total de Compras" value={String(detail.quotes_count)} />
+                  <Info label="Valor Total" value={fmtBRLfull(detail.total_value)} />
+                  <Info label="Recebido" value={fmtBRLfull(detail.received_value)} />
+                  <Info label="Ticket Médio" value={fmtBRLfull(detail.ticket_medio)} />
                 </div>
 
                 <div>
