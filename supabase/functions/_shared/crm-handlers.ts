@@ -601,7 +601,7 @@ export async function getCommercialOverview(ctx: CrmCtx, args: {
   from?: string;
   to?: string;
   days_back?: number;
-  period_days?: number | "all"; // Alias for days_back to maintain compatibility with calling contexts
+  period_days?: number | "all";
 } = {}): Promise<CrmEnvelope> {
   const role = ctx.profile?.role;
   const canSeeAll = role === "admin" || role === "gestor";
@@ -609,7 +609,7 @@ export async function getCommercialOverview(ctx: CrmCtx, args: {
   const limit = Math.min(args.limit ?? 5000, 10000);
   
   const days_back = args.days_back ?? (args.period_days === "all" ? undefined : args.period_days);
-  const from = args.from ?? (days_back ? new Date(Date.now() - days_back * 86400000).toISOString() : undefined);
+  const from = args.from ?? (days_back ? new Date(Date.now() - (days_back as number) * 86400000).toISOString() : undefined);
 
   let qq = ctx.supabase
     .from("quotes")
