@@ -469,9 +469,9 @@ async function getCommercialOverview(ctx, args = {}) {
     return COUNTABLE_STATUSES.has(s);
   });
   const [clientsRes, productsRes, profilesRes] = await Promise.all([
-    ctx.supabase.from("clients").select("id, name, company_name, contact_name, email, phone, contact_phone, city, state, cpf_cnpj, created_by"),
-    ctx.supabase.from("products").select("id, name, brand, code, sku"),
-    wantsTeam ? ctx.supabase.from("profiles").select("user_id, full_name, active").eq("active", true) : Promise.resolve({ data: [], error: null })
+    scopeCompany(ctx.supabase.from("clients").select("id, name, company_name, contact_name, email, phone, contact_phone, city, state, cpf_cnpj, created_by"), ctx),
+    scopeCompany(ctx.supabase.from("products").select("id, name, brand, code, sku"), ctx),
+    wantsTeam ? scopeCompany(ctx.supabase.from("profiles").select("user_id, full_name, active").eq("active", true), ctx) : Promise.resolve({ data: [], error: null })
   ]);
   if (clientsRes.error) return errEnv("commercial_overview", clientsRes.error.message);
   if (productsRes.error) return errEnv("commercial_overview", productsRes.error.message);
