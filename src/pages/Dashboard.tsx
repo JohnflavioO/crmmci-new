@@ -108,6 +108,12 @@ export default function Dashboard() {
 
   const { data: summary } = useCommercialSummary(monthStart, monthEnd);
 
+  const { metrics: handlerMetrics, pipeline: handlerPipeline, loading: handlersLoading } = useDashboardHandlers({
+    scope: teamFilter === 'all' ? 'team' : 'own',
+    from: monthStart,
+    to: monthEnd
+  });
+
   const myClientsCount = summary?.clients_count || 0;
   const productsCount = summary?.products_count || 0;
 
