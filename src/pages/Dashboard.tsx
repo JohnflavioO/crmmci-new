@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { usePrivacy } from '@/hooks/usePrivacy';
 import { useCommercialSummary } from '@/hooks/useCommercialSummary';
+import { useDashboardHandlers } from '@/hooks/useDashboardHandlers';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
 import PrivacyToggle from '@/components/PrivacyToggle';
@@ -107,6 +108,12 @@ export default function Dashboard() {
 
   const { data: summary } = useCommercialSummary(monthStart, monthEnd);
 
+  const { metrics: handlerMetrics, pipeline: handlerPipeline, loading: handlersLoading } = useDashboardHandlers({
+    scope: teamFilter === 'all' ? 'team' : 'own',
+    from: monthStart,
+    to: monthEnd
+  });
+
   const myClientsCount = summary?.clients_count || 0;
   const productsCount = summary?.products_count || 0;
 
@@ -193,6 +200,14 @@ export default function Dashboard() {
     else setDataLoading(false);
   }, [canSeeTeam, teamFilter, user?.id]);
 
+  // Sincroniza pipeline do handler para o estado teamRecentQuotes se estiver em modo 'all'
+  useEffect(() => {
+    if (teamFilter === 'all' && handlerPipeline && canSeeTeam) {
+      const allItems = Object.values(handlerPipeline).flatMap(stage => stage.items);
+      setTeamRecentQuotes(allItems);
+    }
+  }, [teamFilter, handlerPipeline, canSeeTeam]);
+
   useEffect(() => {
     if (!authLoading && !canSeeTeam && teamFilter !== 'all') {
       setTeamFilter('all');
@@ -213,6 +228,19 @@ export default function Dashboard() {
   );
 
   const myStats = useMemo(() => {
+    // Se temos dados do handler (sales metrics), priorizamos, 
+    // pois ele unifica a lógica de "Venda Aprovada" com a IA.
+    if (handlerMetrics && teamFilter === 'all' && !isGestor) {
+      return {
+        quotes: handlerMetrics.approved_count, // No Dashboard, muitas vezes focamos em volume de aprovados
+        totalValue: handlerMetrics.revenue_total,
+        approved: handlerMetrics.approved_count,
+        pending: summary?.pending_count || 0,
+        rejected: summary?.rejected_count || 0,
+        avgTicket: handlerMetrics.average_ticket,
+      };
+    }
+    
     if (summary) {
       return {
         quotes: summary.quotes,
@@ -224,9 +252,20 @@ export default function Dashboard() {
       };
     }
     return computeStats(Array.isArray(myQuotes) ? myQuotes : []);
-  }, [summary, myQuotes]);
+  }, [summary, myQuotes, handlerMetrics, teamFilter, isGestor]);
   
   const teamStats = useMemo(() => {
+    if (teamFilter === 'all' && handlerMetrics && canSeeTeam) {
+      return {
+        quotes: handlerMetrics.approved_count,
+        totalValue: handlerMetrics.revenue_total,
+        approved: handlerMetrics.approved_count,
+        pending: summary?.pending_count || 0, // Fallback para RPC se necessário
+        rejected: summary?.rejected_count || 0,
+        avgTicket: handlerMetrics.average_ticket,
+      };
+    }
+
     if (!Array.isArray(selectedTeamSellers)) return { quotes: 0, totalValue: 0, approved: 0, pending: 0, rejected: 0, avgTicket: 0 };
     
     // Se estiver filtrando por 'all' e tivermos o resumo, o resumo é mais confiável/rápido
@@ -255,7 +294,7 @@ export default function Dashboard() {
       rejected,
       avgTicket: quotes > 0 ? totalValue / quotes : 0,
     };
-  }, [selectedTeamSellers, summary, teamFilter, isAdmin]);
+  }, [selectedTeamSellers, summary, teamFilter, isAdmin, handlerMetrics, canSeeTeam]);
 
   const teamClientsCount = useMemo(
     () => {
