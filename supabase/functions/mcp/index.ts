@@ -455,11 +455,13 @@ async function getCommercialOverview(ctx, args = {}) {
   const canSeeAll = role === "admin" || role === "gestor";
   const wantsTeam = canSeeAll && (args.scope ?? "team") !== "own";
   const limit = Math.min(args.limit ?? 5e3, 1e4);
-  const from = args.from ?? (args.days_back ? new Date(Date.now() - args.days_back * 864e5).toISOString() : void 0);
-  let qq = ctx.supabase.from("quotes").select("id, quote_number, client_id, client_name, salesperson, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration").order("created_at", { ascending: false }).limit(limit);
+  const days_back = args.days_back ?? (args.period_days === "all" ? void 0 : args.period_days);
+  const from = args.from ?? (days_back ? new Date(Date.now() - days_back * 864e5).toISOString() : void 0);
+  let qq = ctx.supabase.from("quotes").select("id, client_id, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration").order("created_at", { ascending: false });
   qq = scopeOwn(qq, "created_by", ctx, wantsTeam ? "team" : "own");
   if (from) qq = qq.gte("created_at", from);
   if (args.to) qq = qq.lte("created_at", args.to);
+  qq = qq.limit(limit);
   const { data: quotesRaw, error: qErr } = await qq;
   if (qErr) return errEnv("commercial_overview", qErr.message);
   const validQuotes = (quotesRaw ?? []).filter((q) => {
@@ -468,9 +470,9 @@ async function getCommercialOverview(ctx, args = {}) {
     return COUNTABLE_STATUSES.has(s);
   });
   const [clientsRes, productsRes, profilesRes] = await Promise.all([
-    scopeCompany(ctx.supabase.from("clients").select("id, name, company_name, city, state, cpf_cnpj, created_by"), ctx),
+    scopeCompany(ctx.supabase.from("clients").select("id, name, company_name, city, state, cpf_cnpj"), ctx),
     scopeCompany(ctx.supabase.from("products").select("id, name, brand, code, sku"), ctx),
-    wantsTeam ? scopeCompany(ctx.supabase.from("profiles").select("user_id, full_name, active").eq("active", true), ctx) : Promise.resolve({ data: [], error: null })
+    wantsTeam ? scopeCompany(ctx.supabase.from("profiles").select("user_id, full_name").eq("active", true), ctx) : Promise.resolve({ data: [], error: null })
   ]);
   if (clientsRes.error) return errEnv("commercial_overview", clientsRes.error.message);
   if (productsRes.error) return errEnv("commercial_overview", productsRes.error.message);
@@ -480,9 +482,15 @@ async function getCommercialOverview(ctx, args = {}) {
   const quoteIds = validQuotes.map((q) => q.id);
   const items = [];
   const CHUNK = 200;
+  const chunkedQueries = [];
   for (let i = 0; i < quoteIds.length; i += CHUNK) {
     const slice = quoteIds.slice(i, i + CHUNK);
-    const { data, error } = await ctx.supabase.from("quote_items").select("quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total").in("quote_id", slice);
+    chunkedQueries.push(
+      ctx.supabase.from("quote_items").select("quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total").in("quote_id", slice)
+    );
+  }
+  const itemsResults = await Promise.all(chunkedQueries);
+  for (const { data, error } of itemsResults) {
     if (error) return errEnv("commercial_overview", error.message);
     if (data) items.push(...data);
   }
@@ -511,7 +519,7 @@ async function getCommercialOverview(ctx, args = {}) {
 async function getClientRanking(ctx, args = {}) {
   const overview = await getCommercialOverview(ctx, {
     scope: args.scope,
-    days_back: args.period_days === "all" ? void 0 : typeof args.period_days === "number" ? args.period_days : void 0
+    period_days: args.period_days
   });
   if (!overview.ok) return overview;
   const payload = overview.data ?? {};

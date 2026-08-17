@@ -601,24 +601,29 @@ export async function getCommercialOverview(ctx: CrmCtx, args: {
   from?: string;
   to?: string;
   days_back?: number;
+  period_days?: number | "all";
 } = {}): Promise<CrmEnvelope> {
   const role = ctx.profile?.role;
   const canSeeAll = role === "admin" || role === "gestor";
   const wantsTeam = canSeeAll && (args.scope ?? "team") !== "own";
   const limit = Math.min(args.limit ?? 5000, 10000);
   
-  const from = args.from ?? (args.days_back ? new Date(Date.now() - args.days_back * 86400000).toISOString() : undefined);
+  const days_back = args.days_back ?? (args.period_days === "all" ? undefined : args.period_days);
+  const from = args.from ?? (days_back ? new Date(Date.now() - (days_back as number) * 86400000).toISOString() : undefined);
 
   let qq = ctx.supabase
     .from("quotes")
-    .select("id, quote_number, client_id, client_name, salesperson, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration")
-    .order("created_at", { ascending: false })
-    .limit(limit);
+    .select("id, client_id, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration")
+    .order("created_at", { ascending: false });
   
   qq = scopeOwn(qq, "created_by", ctx, wantsTeam ? "team" : "own");
   
   if (from) qq = qq.gte("created_at", from);
   if (args.to) qq = qq.lte("created_at", args.to);
+  
+  // Otimização: Aplicar limite apenas se não prejudicar métricas agregadas.
+  // Como orçamentos filtrados por data já reduzem o volume, podemos limitar o scan.
+  qq = qq.limit(limit);
   
   const { data: quotesRaw, error: qErr } = await qq;
   if (qErr) return errEnv("commercial_overview", qErr.message);
@@ -626,14 +631,15 @@ export async function getCommercialOverview(ctx: CrmCtx, args: {
   const validQuotes = (quotesRaw ?? []).filter((q: any) => {
     if (q.is_demonstration) return false;
     const s = (q.status ?? "").toLowerCase().trim();
+    // COUNTABLE_STATUSES define o que entra no cálculo comercial
     return COUNTABLE_STATUSES.has(s);
   });
 
   const [clientsRes, productsRes, profilesRes] = await Promise.all([
-    scopeCompany(ctx.supabase.from("clients").select("id, name, company_name, city, state, cpf_cnpj, created_by"), ctx),
+    scopeCompany(ctx.supabase.from("clients").select("id, name, company_name, city, state, cpf_cnpj"), ctx),
     scopeCompany(ctx.supabase.from("products").select("id, name, brand, code, sku"), ctx),
     wantsTeam
-      ? scopeCompany(ctx.supabase.from("profiles").select("user_id, full_name, active").eq("active", true), ctx)
+      ? scopeCompany(ctx.supabase.from("profiles").select("user_id, full_name").eq("active", true), ctx)
       : Promise.resolve({ data: [], error: null }),
   ]);
   if (clientsRes.error) return errEnv("commercial_overview", clientsRes.error.message);
@@ -645,13 +651,21 @@ export async function getCommercialOverview(ctx: CrmCtx, args: {
 
   const quoteIds = validQuotes.map((q: any) => q.id);
   const items: any[] = [];
+  // Fetch items in parallel chunks for better performance
   const CHUNK = 200;
+  const chunkedQueries = [];
   for (let i = 0; i < quoteIds.length; i += CHUNK) {
     const slice = quoteIds.slice(i, i + CHUNK);
-    const { data, error } = await ctx.supabase
-      .from("quote_items")
-      .select("quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total")
-      .in("quote_id", slice);
+    chunkedQueries.push(
+      ctx.supabase
+        .from("quote_items")
+        .select("quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total")
+        .in("quote_id", slice)
+    );
+  }
+  
+  const itemsResults = await Promise.all(chunkedQueries);
+  for (const { data, error } of itemsResults) {
     if (error) return errEnv("commercial_overview", error.message);
     if (data) items.push(...data);
   }
@@ -698,7 +712,7 @@ export async function getClientRanking(
 ): Promise<CrmEnvelope> {
   const overview = await getCommercialOverview(ctx, { 
     scope: args.scope,
-    days_back: args.period_days === "all" ? undefined : (typeof args.period_days === 'number' ? args.period_days : undefined)
+    period_days: args.period_days
   });
   if (!overview.ok) return overview;
 
