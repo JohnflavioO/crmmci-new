@@ -301,8 +301,7 @@ export async function getTopProducts(ctx: CrmCtx, args: {
   const quoteIds = quotes.map((q: any) => q.id);
 
   // 2) aggregate items (quote_items has no product_id → key by code/description)
-  let ii = ctx.supabase
-    .from("quote_items")
+  let ii = scopeCompany(ctx.supabase.from("quote_items"), ctx)
     .select("quote_id,code,product_code,description,brand,quantity,line_total,total_price,unit_total,unit_price,image_url,model")
     .in("quote_id", quoteIds)
     .limit(20000);
@@ -428,7 +427,7 @@ export async function getTopBrands(ctx: CrmCtx, args: {
   if (codes.length) {
     for (let i = 0; i < codes.length; i += 200) {
       const slice = codes.slice(i, i + 200);
-      const { data: prods } = await ctx.supabase.from("products").select("code,sku,brand")
+      const { data: prods } = await scopeCompany(ctx.supabase.from("products").select("code,sku,brand"), ctx)
         .or(`code.in.(${slice.map(c => `"${c.replace(/"/g,"")}"`).join(",")}),sku.in.(${slice.map(c => `"${c.replace(/"/g,"")}"`).join(",")})`);
       for (const p of prods ?? []) {
         if (p.brand) {
@@ -639,9 +638,7 @@ export async function getCommercialOverview(ctx: CrmCtx, args: { scope?: string;
   const CHUNK = 200;
   for (let i = 0; i < quoteIds.length; i += CHUNK) {
     const slice = quoteIds.slice(i, i + CHUNK);
-    const { data, error } = await ctx.supabase
-      .from("quote_items")
-      .select("quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total")
+    const { data, error } = await scopeCompany(ctx.supabase.from("quote_items").select("quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total"), ctx)
       .in("quote_id", slice);
     if (error) return errEnv("commercial_overview", error.message);
     if (data) items.push(...data);
