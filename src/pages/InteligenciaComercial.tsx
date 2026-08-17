@@ -425,8 +425,15 @@ export default function InteligenciaComercial() {
   };
 
   const aggregated: Aggregated[] = useMemo(() => {
+    // Only aggregate locally if we don't have enough data from the server ranking handler
+    // but the dashboard still relies on this local aggregation for some metrics.
     const map = new Map<string, Aggregated>();
-    filteredQuotes.forEach(q => {
+    
+    // Performance: If there are too many quotes, limit the local aggregation
+    // to preserve UI responsiveness. The server-side ranking handles the heavy lifting.
+    const quotesToProcess = filteredQuotes.length > 5000 ? filteredQuotes.slice(0, 5000) : filteredQuotes;
+    
+    quotesToProcess.forEach(q => {
       const cid = q.client_id || `__${q.client_name || 'sem'}`;
       const c = q.client_id ? clients[q.client_id] || null : null;
       if (!map.has(cid)) {
