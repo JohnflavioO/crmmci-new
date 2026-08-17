@@ -4,6 +4,7 @@ import AppLayout from '@/components/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCrmTool } from '@/hooks/useCrmTool';
+import { useClientRanking, ClientRankingRow } from '@/hooks/useClientRanking';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { Button } from '@/components/ui/button';
@@ -484,6 +485,20 @@ export default function InteligenciaComercial() {
       return true;
     });
   }, [aggregated, activeFilter, brandFilter, search]);
+
+  // Ranking Server-Side (Migração Fase 3)
+  const rankingQuery = useClientRanking({
+    scope: toolScope as 'own' | 'team',
+    period_days: periodDays === Infinity ? 'all' : Number(periodDays),
+    seller_id: sellerFilter,
+    state: stateFilter,
+    city: cityFilter,
+    active_filter: activeFilter,
+    only_recurrent: false, // O ranking principal mostra todos, o filtro de recorrência pode ser visual ou específico
+    limit: 500,
+  });
+
+  const rankingRows = rankingQuery.data?.rows || [];
 
   // ---------- Dashboard KPIs ----------
   const kpis = useMemo(() => {
