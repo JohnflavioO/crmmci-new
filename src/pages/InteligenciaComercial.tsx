@@ -1025,7 +1025,7 @@ export default function InteligenciaComercial() {
             <KpiGroup title="Performance" icon={Target} accent="violet">
               <KpiCard icon={TrendingUp} label="Compras / Cliente" value={kpis.avgPerClient.toFixed(1)} accent="violet" />
               <KpiCard icon={Activity} label="Orçamentos no Período" value={String(filteredQuotes.length)} accent="violet" onClick={drillRevenue} />
-              <KpiCard icon={Trophy} label="Top Cliente" value={top5[0] ? fmtCompact(top5[0].totalValue) : '—'} hint={top5[0]?.clientName} accent="violet" onClick={drillTopClient} />
+              <KpiCard icon={Trophy} label="Top Cliente" value={top5[0] ? fmtCompact(top5[0].total_value) : '—'} hint={top5[0]?.client_name} accent="violet" onClick={drillTopClient} />
               <KpiCard
                 icon={Crown}
                 label="Produto Campeão"
