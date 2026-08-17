@@ -210,8 +210,8 @@ export async function getPipeline(ctx: CrmCtx, args: { scope?: string } = {}): P
 
 export async function getDashboard(ctx: CrmCtx): Promise<CrmEnvelope> {
   const [clientsRes, quotesRes] = await Promise.all([
-    ctx.supabase.from("clients").select("id", { count: "exact", head: true }),
-    ctx.supabase.from("quotes").select("status,total,total_amount,created_at").limit(2000),
+    scopeOwn(ctx.supabase.from("clients").select("id", { count: "exact", head: true }), "salesperson_id", ctx),
+    scopeOwn(ctx.supabase.from("quotes").select("status,total,total_amount,created_at"), "created_by", ctx).limit(2000),
   ]);
   if (quotesRes.error) return errEnv("dashboard", quotesRes.error.message);
   const byStatus: Record<string, { count: number; total: number }> = {};
