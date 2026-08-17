@@ -52,7 +52,10 @@ async function listClients(ctx, args = {}) {
 async function searchClients(ctx, args) {
   const limit = Math.min(args.limit ?? 20, 50);
   const like = `%${args.query}%`;
-  const { data, error } = await ctx.supabase.from("clients").select("id,name,company_name,email,phone,city,state,cpf_cnpj,created_at").or(`name.ilike.${like},company_name.ilike.${like},email.ilike.${like},phone.ilike.${like},city.ilike.${like},cpf_cnpj.ilike.${like}`).limit(limit);
+  let q = ctx.supabase.from("clients").select("id,name,company_name,email,phone,city,state,cpf_cnpj,created_at").limit(limit);
+  q = scopeOwn(q, "salesperson_id", ctx);
+  q = q.or(`name.ilike.${like},company_name.ilike.${like},email.ilike.${like},phone.ilike.${like},city.ilike.${like},cpf_cnpj.ilike.${like}`);
+  const { data, error } = await q;
   if (error) return errEnv("clients", error.message);
   return okEnv("clients", { rows: data ?? [], count: data?.length ?? 0 });
 }

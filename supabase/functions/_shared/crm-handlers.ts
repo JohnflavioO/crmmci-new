@@ -79,11 +79,13 @@ export async function listClients(ctx: CrmCtx, args: { search?: string; limit?: 
 export async function searchClients(ctx: CrmCtx, args: { query: string; limit?: number }): Promise<CrmEnvelope> {
   const limit = Math.min(args.limit ?? 20, 50);
   const like = `%${args.query}%`;
-  const { data, error } = await ctx.supabase
+  let q = ctx.supabase
     .from("clients")
     .select("id,name,company_name,email,phone,city,state,cpf_cnpj,created_at")
-    .or(`name.ilike.${like},company_name.ilike.${like},email.ilike.${like},phone.ilike.${like},city.ilike.${like},cpf_cnpj.ilike.${like}`)
     .limit(limit);
+  q = scopeOwn(q, "salesperson_id", ctx); // Por padrão, busca apenas na própria carteira se não for admin
+  q = q.or(`name.ilike.${like},company_name.ilike.${like},email.ilike.${like},phone.ilike.${like},city.ilike.${like},cpf_cnpj.ilike.${like}`);
+  const { data, error } = await q;
   if (error) return errEnv("clients", error.message);
   return okEnv("clients", { rows: data ?? [], count: data?.length ?? 0 });
 }
