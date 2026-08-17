@@ -200,6 +200,14 @@ export default function Dashboard() {
     else setDataLoading(false);
   }, [canSeeTeam, teamFilter, user?.id]);
 
+  // Sincroniza pipeline do handler para o estado teamRecentQuotes se estiver em modo 'all'
+  useEffect(() => {
+    if (teamFilter === 'all' && handlerPipeline && canSeeTeam) {
+      const allItems = Object.values(handlerPipeline).flatMap(stage => stage.items);
+      setTeamRecentQuotes(allItems);
+    }
+  }, [teamFilter, handlerPipeline, canSeeTeam]);
+
   useEffect(() => {
     if (!authLoading && !canSeeTeam && teamFilter !== 'all') {
       setTeamFilter('all');
