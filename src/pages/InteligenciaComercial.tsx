@@ -1430,10 +1430,10 @@ export default function InteligenciaComercial() {
                 <div>
                   <p className="font-semibold mb-2 flex items-center gap-1"><ShoppingCart className="h-4 w-4" />Produtos mais comprados</p>
                   <div className="space-y-1">
-                    {Object.entries(detail.products).sort((a, b) => b[1].value - a[1].value).slice(0, 8).map(([k, v]) => (
-                      <div key={k} className="flex justify-between text-xs border-b py-1">
-                        <span className="truncate flex-1 pr-2">{v.desc} {v.brand && v.brand !== 'Sem marca' ? `• ${v.brand}` : ''}</span>
-                        <span className="font-medium">{v.qty}x — {fmtBRL(v.value)}</span>
+                    {detail.top_products.map((p, i) => (
+                      <div key={i} className="flex justify-between text-xs border-b py-1">
+                        <span className="truncate flex-1 pr-2">{p.name} {p.brand && p.brand !== 'Sem marca' ? `• ${p.brand}` : ''}</span>
+                        <span className="font-medium">{p.qty}x — {fmtBRL(p.value)}</span>
                       </div>
                     ))}
                   </div>
@@ -1448,22 +1448,22 @@ export default function InteligenciaComercial() {
                   </div>
                 </div>
 
-                {detail.intervalAvgDays != null && (
+                {detail.interval_avg_days != null && (
                   <div className="p-3 rounded-lg bg-muted/50 text-xs">
                     <Calendar className="h-4 w-4 inline mr-1" />
-                    Intervalo médio entre compras: <strong>{detail.intervalAvgDays} dias</strong>.
-                    {detail.lastPurchase && (
+                    Intervalo médio entre compras: <strong>{detail.interval_avg_days} dias</strong>.
+                    {detail.last_purchase && (
                       <> Próxima compra estimada: <strong>
-                        {new Date(detail.lastPurchase.getTime() + detail.intervalAvgDays * 86400000).toLocaleDateString('pt-BR')}
+                        {new Date(new Date(detail.last_purchase).getTime() + detail.interval_avg_days * 86400000).toLocaleDateString('pt-BR')}
                       </strong>.</>
                     )}
                   </div>
                 )}
 
                 <div className="flex gap-2 pt-2">
-                  {detail.client?.id && (
+                  {detail.client_id && !detail.client_id.startsWith('__') && (
                     <Button asChild variant="outline" size="sm" className="flex-1">
-                      <a href={`/clients?open=${detail.client.id}`}><UsersIcon className="h-4 w-4 mr-1" /> Abrir cliente</a>
+                      <a href={`/clients?open=${detail.client_id}`}><UsersIcon className="h-4 w-4 mr-1" /> Abrir cliente</a>
                     </Button>
                   )}
                 </div>
