@@ -641,7 +641,6 @@ export default function InteligenciaComercial() {
   // days_back derivado do filtro atual de período (Infinity → sem filtro)
   const daysBackArg = periodDays === Infinity ? undefined : Number(periodDays);
   const canSeeTeam = canSeeAll; // admin/gestor
-  const toolScope = canSeeTeam ? 'team' : undefined;
 
   const topProductsQuery = useCrmTool('get_top_products',
     { days_back: daysBackArg, metric: 'revenue', limit: 5, scope: toolScope },
