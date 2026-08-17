@@ -95,6 +95,7 @@ export default function Dashboard() {
   const canSeeTeam = isGestor;
 
   const [allQuotes, setAllQuotes] = useState<any[]>([]);
+  const [sellers, setSellers] = useState<SellerInfo[]>([]);
   const [teamFilter, setTeamFilter] = useState('all');
   const [teamRecentQuotes, setTeamRecentQuotes] = useState<any[]>([]);
   const [teamTopClients, setTeamTopClients] = useState<TopClientInfo[]>([]);
@@ -105,6 +106,9 @@ export default function Dashboard() {
   const monthEnd = useMemo(() => endOfMonth(new Date()).toISOString(), []);
 
   const { data: summary } = useCommercialSummary(monthStart, monthEnd);
+
+  const myClientsCount = summary?.clients_count || 0;
+  const productsCount = summary?.products_count || 0;
 
   const [detailsModal, setDetailsModal] = useState<{
     open: boolean;
