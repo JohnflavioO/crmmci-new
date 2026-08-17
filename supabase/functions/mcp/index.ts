@@ -34,8 +34,8 @@ function scopeOwn(query, column, ctx, scope) {
   return query.eq(column, ctx.userId);
 }
 async function listClients(ctx, args = {}) {
-  const limit2 = Math.min(args.limit ?? 25, 200);
-  let q = ctx.supabase.from("clients").select("id,name,company_name,email,phone,city,state,salesperson_id,created_by,last_interaction_at,created_at").order("company_name", { ascending: true }).limit(limit2);
+  const limit = Math.min(args.limit ?? 25, 200);
+  let q = ctx.supabase.from("clients").select("id,name,company_name,email,phone,city,state,salesperson_id,created_by,last_interaction_at,created_at").order("company_name", { ascending: true }).limit(limit);
   q = scopeOwn(q, "salesperson_id", ctx, args.scope);
   if (args.search) {
     const like = `%${args.search}%`;
@@ -50,9 +50,9 @@ async function listClients(ctx, args = {}) {
   });
 }
 async function searchClients(ctx, args) {
-  const limit2 = Math.min(args.limit ?? 20, 50);
+  const limit = Math.min(args.limit ?? 20, 50);
   const like = `%${args.query}%`;
-  let q = ctx.supabase.from("clients").select("id,name,company_name,email,phone,city,state,cpf_cnpj,created_at").limit(limit2);
+  let q = ctx.supabase.from("clients").select("id,name,company_name,email,phone,city,state,cpf_cnpj,created_at").limit(limit);
   q = scopeOwn(q, "salesperson_id", ctx);
   q = q.or(`name.ilike.${like},company_name.ilike.${like},email.ilike.${like},phone.ilike.${like},city.ilike.${like},cpf_cnpj.ilike.${like}`);
   const { data, error } = await q;
@@ -81,8 +81,8 @@ async function getCustomerHistory(ctx, args) {
 }
 async function searchProducts(ctx, args = {}) {
   const term = args.query ?? args.search;
-  const limit2 = Math.min(args.limit ?? 25, 200);
-  let q = ctx.supabase.from("products").select("id,name,code,sku,brand,category_principal,price,level").order("name", { ascending: true }).limit(limit2);
+  const limit = Math.min(args.limit ?? 25, 200);
+  let q = ctx.supabase.from("products").select("id,name,code,sku,brand,category_principal,price,level").order("name", { ascending: true }).limit(limit);
   q = scopeCompany(q, ctx);
   if (term) {
     const like = `%${term}%`;
@@ -105,8 +105,8 @@ async function getProductDetails(ctx, args) {
   return okEnv("product", { data });
 }
 async function listQuotes(ctx, args = {}) {
-  const limit2 = Math.min(args.limit ?? 25, 200);
-  let q = ctx.supabase.from("quotes").select("id,quote_number,client_name,status,total,total_amount,created_at,created_by").order("quote_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(limit2);
+  const limit = Math.min(args.limit ?? 25, 200);
+  let q = ctx.supabase.from("quotes").select("id,quote_number,client_name,status,total,total_amount,created_at,created_by").order("quote_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(limit);
   q = scopeOwn(q, "created_by", ctx, args.scope);
   if (args.status) q = q.eq("status", args.status);
   const { data, error } = await q;
@@ -118,8 +118,8 @@ async function listQuotes(ctx, args = {}) {
   });
 }
 async function searchQuotes(ctx, args) {
-  const limit2 = Math.min(args.limit ?? 25, 200);
-  let q = ctx.supabase.from("quotes").select("id,quote_number,client_name,status,total,total_amount,created_at,created_by").order("created_at", { ascending: false }).limit(limit2);
+  const limit = Math.min(args.limit ?? 25, 200);
+  let q = ctx.supabase.from("quotes").select("id,quote_number,client_name,status,total,total_amount,created_at,created_by").order("created_at", { ascending: false }).limit(limit);
   q = scopeOwn(q, "created_by", ctx, args.scope);
   if (args.client_name) q = q.ilike("client_name", `%${args.client_name}%`);
   if (args.status) q = q.eq("status", args.status);
@@ -189,7 +189,7 @@ async function getSalesMetrics(ctx, args = {}) {
   });
 }
 async function getTopProducts(ctx, args = {}) {
-  const limit2 = Math.min(args.limit ?? 10, 50);
+  const limit = Math.min(args.limit ?? 10, 50);
   const metric = args.metric ?? "revenue";
   const from = args.from ?? (args.days_back ? new Date(Date.now() - args.days_back * 864e5).toISOString() : void 0);
   const fmtDate = (iso) => {
@@ -275,7 +275,7 @@ async function getTopProducts(ctx, args = {}) {
       average_price: avg,
       share_pct: Number(share.toFixed(2))
     };
-  }).sort((a, b) => metric === "quantity" ? b.quantity_sold - a.quantity_sold : b.revenue - a.revenue).slice(0, limit2).map((r, idx) => ({ ranking_position: idx + 1, ...r }));
+  }).sort((a, b) => metric === "quantity" ? b.quantity_sold - a.quantity_sold : b.revenue - a.revenue).slice(0, limit).map((r, idx) => ({ ranking_position: idx + 1, ...r }));
   return okEnv("top_products", {
     columns: ["ranking_position", "image_url", "product_name", "brand", "sku", "quantity_sold", "revenue", "approved_quotes_count", "average_price", "share_pct"],
     rows,
@@ -284,7 +284,7 @@ async function getTopProducts(ctx, args = {}) {
   });
 }
 async function getTopBrands(ctx, args = {}) {
-  const limit2 = Math.min(args.limit ?? 10, 50);
+  const limit = Math.min(args.limit ?? 10, 50);
   const from = args.from ?? (args.days_back ? new Date(Date.now() - args.days_back * 864e5).toISOString() : void 0);
   const fmtDate = (iso) => {
     try {
@@ -348,7 +348,7 @@ async function getTopBrands(ctx, args = {}) {
     approved_quotes_count: r.quotes.size,
     customer_count: r.clients.size,
     participation_percentage: totalRev > 0 ? Number((r.revenue / totalRev * 100).toFixed(2)) : 0
-  })).sort((a, b) => b.revenue - a.revenue).slice(0, limit2);
+  })).sort((a, b) => b.revenue - a.revenue).slice(0, limit);
   return okEnv("top_brands", {
     columns: ["brand", "quantity_sold", "revenue", "customer_count", "approved_quotes_count", "participation_percentage"],
     rows,
@@ -359,7 +359,7 @@ async function getTopBrands(ctx, args = {}) {
 async function getInactiveClients(ctx, args = {}) {
   const inactiveDays = args.inactive_days ?? 90;
   const minRevenue = args.minimum_revenue ?? 0;
-  const limit2 = Math.min(args.limit ?? 20, 100);
+  const limit = Math.min(args.limit ?? 20, 100);
   const cutoff = new Date(Date.now() - inactiveDays * 864e5);
   let qq = scopeOwn(ctx.supabase.from("quotes").select("id,client_id,client_name,total,total_amount,approved_at,created_at,created_by,salesperson,status"), "created_by", ctx, args.scope).in("status", APPROVED_STATUSES).limit(1e4);
   if (args.period_start) qq = qq.gte("created_at", args.period_start);
@@ -380,7 +380,7 @@ async function getInactiveClients(ctx, args = {}) {
       if (d > cur.last) cur.last = d;
     }
   }
-  const rows = Array.from(map.values()).filter((r) => r.last < cutoff && r.revenue >= minRevenue).sort((a, b) => b.revenue - a.revenue).slice(0, limit2).map((r) => {
+  const rows = Array.from(map.values()).filter((r) => r.last < cutoff && r.revenue >= minRevenue).sort((a, b) => b.revenue - a.revenue).slice(0, limit).map((r) => {
     const days = Math.floor((Date.now() - r.last.getTime()) / 864e5);
     return {
       client_id: r.client_id,
@@ -403,7 +403,7 @@ async function getInactiveClients(ctx, args = {}) {
 async function getRepurchaseWindow(ctx, args = {}) {
   const minPurchases = Math.max(args.min_purchases ?? 2, 2);
   const tol = args.tolerance_pct ?? 0.3;
-  const limit2 = Math.min(args.limit ?? 20, 100);
+  const limit = Math.min(args.limit ?? 20, 100);
   let qq = scopeOwn(ctx.supabase.from("quotes").select("id,client_id,client_name,total,total_amount,approved_at,created_at,created_by,status"), "created_by", ctx, args.scope).in("status", APPROVED_STATUSES).limit(1e4);
   const { data: quotes, error } = await qq;
   if (error) return errEnv("repurchase_window", error.message);
@@ -444,8 +444,8 @@ async function getRepurchaseWindow(ctx, args = {}) {
   rows.sort((a, b) => a.days_until_repurchase - b.days_until_repurchase);
   return okEnv("repurchase_window", {
     columns: ["client_name", "last_purchase_date", "average_purchase_interval_days", "expected_repurchase_date", "days_until_repurchase", "confidence", "recommended_action"],
-    rows: rows.slice(0, limit2),
-    count: Math.min(rows.length, limit2),
+    rows: rows.slice(0, limit),
+    count: Math.min(rows.length, limit),
     summary: { min_purchases: minPurchases, tolerance_pct: tol }
   });
 }
@@ -454,6 +454,7 @@ async function getCommercialOverview(ctx, args = {}) {
   const role = ctx.profile?.role;
   const canSeeAll = role === "admin" || role === "gestor";
   const wantsTeam = canSeeAll && (args.scope ?? "team") !== "own";
+  const limit = Math.min(args.limit ?? 5e3, 1e4);
   const days_back = args.days_back ?? (args.period_days === "all" ? void 0 : args.period_days);
   const from = args.from ?? (days_back ? new Date(Date.now() - days_back * 864e5).toISOString() : void 0);
   let qq = ctx.supabase.from("quotes").select("id, quote_number, client_id, client_name, salesperson, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration").order("created_at", { ascending: false }).limit(limit);
@@ -636,8 +637,8 @@ async function getClientRanking(ctx, args = {}) {
     if (args.active_filter === "inactive" && a.is_active) return false;
     return true;
   }).sort((x, y) => y.total_value - x.total_value);
-  const limit2 = Math.min(args.limit ?? 500, 2e3);
-  const trimmed = rows.slice(0, limit2);
+  const limit = Math.min(args.limit ?? 500, 2e3);
+  const trimmed = rows.slice(0, limit);
   return okEnv("client_ranking", {
     rows: trimmed,
     count: trimmed.length,
@@ -653,9 +654,9 @@ async function getClientRanking(ctx, args = {}) {
 }
 async function getFollowups(ctx, args = {}) {
   const days = args.days_without_contact ?? 30;
-  const limit2 = Math.min(args.limit ?? 25, 200);
+  const limit = Math.min(args.limit ?? 25, 200);
   const cutoff = new Date(Date.now() - days * 864e5).toISOString();
-  const { data, error } = await ctx.supabase.from("clients").select("id,name,company_name,email,phone,last_interaction_at").or(`last_interaction_at.lt.${cutoff},last_interaction_at.is.null`).order("last_interaction_at", { ascending: true, nullsFirst: true }).limit(limit2);
+  const { data, error } = await ctx.supabase.from("clients").select("id,name,company_name,email,phone,last_interaction_at").or(`last_interaction_at.lt.${cutoff},last_interaction_at.is.null`).order("last_interaction_at", { ascending: true, nullsFirst: true }).limit(limit);
   if (error) return errEnv("followups", error.message);
   return okEnv("followups", {
     columns: ["company_name", "name", "phone", "last_interaction_at"],
@@ -664,8 +665,8 @@ async function getFollowups(ctx, args = {}) {
   });
 }
 async function getTasks(ctx, args = {}) {
-  const limit2 = Math.min(args.limit ?? 25, 200);
-  let q = ctx.supabase.from("tasks").select("id,title,description,status,priority,due_date,client_id,user_id,created_at").order("due_date", { ascending: true, nullsFirst: false }).limit(limit2);
+  const limit = Math.min(args.limit ?? 25, 200);
+  let q = ctx.supabase.from("tasks").select("id,title,description,status,priority,due_date,client_id,user_id,created_at").order("due_date", { ascending: true, nullsFirst: false }).limit(limit);
   if (args.status) q = q.eq("status", args.status);
   if (args.overdue_only) q = q.lt("due_date", (/* @__PURE__ */ new Date()).toISOString()).neq("status", "done");
   const { data, error } = await q;
@@ -677,8 +678,8 @@ async function getTasks(ctx, args = {}) {
   });
 }
 async function getContracts(ctx, args = {}) {
-  const limit2 = Math.min(args.limit ?? 25, 200);
-  let q = ctx.supabase.from("generated_contracts").select("*").order("created_at", { ascending: false }).limit(limit2);
+  const limit = Math.min(args.limit ?? 25, 200);
+  let q = ctx.supabase.from("generated_contracts").select("*").order("created_at", { ascending: false }).limit(limit);
   if (args.status) q = q.eq("status", args.status);
   const { data, error } = await q;
   if (error) return errEnv("contracts", error.message);
