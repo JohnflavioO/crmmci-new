@@ -139,7 +139,7 @@ export async function searchProducts(ctx: CrmCtx, args: { query?: string; search
 }
 
 export async function getProductDetails(ctx: CrmCtx, args: { id: string }): Promise<CrmEnvelope> {
-  const { data, error } = await ctx.supabase.from("products").select("*").eq("id", args.id).maybeSingle();
+  const { data, error } = await scopeCompany(ctx.supabase.from("products").select("*"), ctx).eq("id", args.id).maybeSingle();
   if (error) return errEnv("product", error.message);
   if (!data) return errEnv("product", "Produto não encontrado");
   return okEnv("product", { data });

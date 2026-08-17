@@ -99,7 +99,7 @@ async function searchProducts(ctx, args = {}) {
   });
 }
 async function getProductDetails(ctx, args) {
-  const { data, error } = await ctx.supabase.from("products").select("*").eq("id", args.id).maybeSingle();
+  const { data, error } = await scopeCompany(ctx.supabase.from("products").select("*"), ctx).eq("id", args.id).maybeSingle();
   if (error) return errEnv("product", error.message);
   if (!data) return errEnv("product", "Produto n\xE3o encontrado");
   return okEnv("product", { data });
