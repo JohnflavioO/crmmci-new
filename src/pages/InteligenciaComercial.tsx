@@ -836,7 +836,7 @@ export default function InteligenciaComercial() {
   };
   const drillTopClient = () => {
     if (!top5[0]) return;
-    openDrill(`Top Cliente: ${top5[0].clientName}`, `${clientLocation(top5[0].client)} • ${clientCnpjLabel(top5[0].client)}`, filteredQuotes.filter(q => top5[0].quoteIds.includes(q.id)));
+    openDrill(`Top Cliente: ${top5[0].client_name}`, `${[top5[0].city, top5[0].state].filter(Boolean).join('/') || '—'} • ${top5[0].cnpj ? formatCnpj(top5[0].cnpj) : 'CNPJ —'}`, filteredQuotes.filter(q => q.client_id === top5[0].client_id || `__${q.client_name}` === top5[0].client_id));
   };
   const drillBrand = (brand: string) => {
     const norm = (brand || '').trim().toLowerCase();
