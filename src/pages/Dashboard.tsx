@@ -220,6 +220,19 @@ export default function Dashboard() {
   );
 
   const myStats = useMemo(() => {
+    // Se temos dados do handler (sales metrics), priorizamos, 
+    // pois ele unifica a lógica de "Venda Aprovada" com a IA.
+    if (handlerMetrics && teamFilter === 'all' && !isGestor) {
+      return {
+        quotes: handlerMetrics.approved_count, // No Dashboard, muitas vezes focamos em volume de aprovados
+        totalValue: handlerMetrics.revenue_total,
+        approved: handlerMetrics.approved_count,
+        pending: summary?.pending_count || 0,
+        rejected: summary?.rejected_count || 0,
+        avgTicket: handlerMetrics.average_ticket,
+      };
+    }
+    
     if (summary) {
       return {
         quotes: summary.quotes,
@@ -231,7 +244,7 @@ export default function Dashboard() {
       };
     }
     return computeStats(Array.isArray(myQuotes) ? myQuotes : []);
-  }, [summary, myQuotes]);
+  }, [summary, myQuotes, handlerMetrics, teamFilter, isGestor]);
   
   const teamStats = useMemo(() => {
     if (!Array.isArray(selectedTeamSellers)) return { quotes: 0, totalValue: 0, approved: 0, pending: 0, rejected: 0, avgTicket: 0 };
