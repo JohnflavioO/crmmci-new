@@ -786,9 +786,9 @@ export default function InteligenciaComercial() {
     autoTable(doc, {
       startY: 18,
       head: [['#', 'Empresa', 'Cidade', 'Compras', 'Valor', 'Última', 'Status']],
-      body: filteredAggregated.slice(0, 100).map((a, i) => [
-        i + 1, a.clientName, a.city, a.quotesCount, fmtBRL(a.totalValue),
-        a.lastPurchase?.toLocaleDateString('pt-BR') || '-', a.status,
+      body: rankingRows.slice(0, 100).map((a, i) => [
+        i + 1, a.client_name, a.city, a.quotes_count, fmtBRL(a.total_value),
+        a.last_purchase ? new Date(a.last_purchase).toLocaleDateString('pt-BR') : '-', a.status,
       ]),
       styles: { fontSize: 8 },
     });
@@ -796,10 +796,14 @@ export default function InteligenciaComercial() {
   };
 
   // ---------- Selected client detail ----------
-  const detail = useMemo(() => aggregated.find(a => a.clientId === selectedClient) || null, [aggregated, selectedClient]);
-  const detailQuotes = useMemo(() => detail ? quotes.filter(q => detail.quoteIds.includes(q.id)).sort((a, b) => new Date(b.approved_at || b.created_at).getTime() - new Date(a.approved_at || a.created_at).getTime()) : [], [detail, quotes]);
-  const top5 = filteredAggregated.slice(0, 5);
-  const top5Max = top5[0]?.totalValue || 1;
+  const detail = useMemo(() => rankingRows.find(a => a.client_id === selectedClient) || null, [rankingRows, selectedClient]);
+  const detailQuotes = useMemo(() => {
+    if (!detail) return [];
+    return quotes.filter(q => q.client_id === detail.client_id || `__${q.client_name}` === detail.client_id)
+                 .sort((a, b) => new Date(b.approved_at || b.created_at).getTime() - new Date(a.approved_at || a.created_at).getTime());
+  }, [detail, quotes]);
+  const top5 = rankingRows.slice(0, 5);
+  const top5Max = top5[0]?.total_value || 1;
 
   // ---------- Drill-down helpers ----------
   const openDrill = (title: string, subtitle: string, qs: QuoteRow[]) => {
