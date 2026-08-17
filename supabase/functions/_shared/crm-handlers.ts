@@ -285,12 +285,9 @@ export async function getTopProducts(ctx: CrmCtx, args: {
   } else if (args.to) periodLabel = `Até ${fmtDate(args.to)}`;
 
   // 1) approved quotes (RLS-scoped) matching filters
-  let qq = ctx.supabase
-    .from("quotes")
-    .select("id,created_by,created_at,status")
+  let qq = scopeOwn(ctx.supabase.from("quotes").select("id,created_by,created_at,status"), "created_by", ctx, args.scope)
     .in("status", APPROVED_STATUSES)
     .limit(5000);
-  qq = scopeOwn(qq, "created_by", ctx, args.scope);
   if (from) qq = qq.gte("created_at", from);
   if (args.to) qq = qq.lte("created_at", args.to);
   const { data: quotes, error: qErr } = await qq;
@@ -405,8 +402,9 @@ export async function getTopBrands(ctx: CrmCtx, args: {
   else if (from && args.to) periodLabel = `${fmtDate(from)} até ${fmtDate(args.to)}`;
   else if (from) periodLabel = `A partir de ${fmtDate(from)}`;
 
-  let qq = ctx.supabase.from("quotes").select("id,client_id,created_by,created_at,status").in("status", APPROVED_STATUSES).limit(5000);
-  qq = scopeOwn(qq, "created_by", ctx, args.scope);
+  let qq = scopeOwn(ctx.supabase.from("quotes").select("id,client_id,created_by,created_at,status"), "created_by", ctx, args.scope)
+    .in("status", APPROVED_STATUSES)
+    .limit(5000);
   if (from) qq = qq.gte("created_at", from);
   if (args.to) qq = qq.lte("created_at", args.to);
   const { data: quotes, error: qErr } = await qq;
@@ -487,10 +485,9 @@ export async function getInactiveClients(ctx: CrmCtx, args: {
   const limit = Math.min(args.limit ?? 20, 100);
   const cutoff = new Date(Date.now() - inactiveDays * 86400000);
 
-  let qq = ctx.supabase.from("quotes")
-    .select("id,client_id,client_name,total,total_amount,approved_at,created_at,created_by,salesperson,status")
+  let qq = scopeOwn(ctx.supabase.from("quotes")
+    .select("id,client_id,client_name,total,total_amount,approved_at,created_at,created_by,salesperson,status"), "created_by", ctx, args.scope)
     .in("status", APPROVED_STATUSES).limit(10000);
-  qq = scopeOwn(qq, "created_by", ctx, args.scope);
   if (args.period_start) qq = qq.gte("created_at", args.period_start);
   if (args.period_end) qq = qq.lte("created_at", args.period_end);
   const { data: quotes, error } = await qq;
@@ -542,10 +539,9 @@ export async function getRepurchaseWindow(ctx: CrmCtx, args: {
   const tol = args.tolerance_pct ?? 0.3;
   const limit = Math.min(args.limit ?? 20, 100);
 
-  let qq = ctx.supabase.from("quotes")
-    .select("id,client_id,client_name,total,total_amount,approved_at,created_at,created_by,status")
+  let qq = scopeOwn(ctx.supabase.from("quotes")
+    .select("id,client_id,client_name,total,total_amount,approved_at,created_at,created_by,status"), "created_by", ctx, args.scope)
     .in("status", APPROVED_STATUSES).limit(10000);
-  qq = scopeOwn(qq, "created_by", ctx, args.scope);
   const { data: quotes, error } = await qq;
   if (error) return errEnv("repurchase_window", error.message);
 
