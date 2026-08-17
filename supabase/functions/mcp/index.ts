@@ -83,6 +83,7 @@ async function searchProducts(ctx, args = {}) {
   const term = args.query ?? args.search;
   const limit = Math.min(args.limit ?? 25, 200);
   let q = ctx.supabase.from("products").select("id,name,code,sku,brand,category_principal,price,level").order("name", { ascending: true }).limit(limit);
+  q = scopeCompany(q, ctx);
   if (term) {
     const like = `%${term}%`;
     q = q.or(`name.ilike.${like},code.ilike.${like},sku.ilike.${like},brand.ilike.${like},description.ilike.${like}`);
