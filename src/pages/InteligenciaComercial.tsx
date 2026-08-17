@@ -1345,7 +1345,7 @@ export default function InteligenciaComercial() {
                           { label: 'get_top_brands', q: topBrandsQuery, diag: topBrandsQuery.data?.diagnostics, rows: topBrandsQuery.data?.count, err: topBrandsQuery.data?.error },
                           { label: 'get_inactive_clients', q: inactiveClientsQuery, diag: inactiveClientsQuery.data?.diagnostics, rows: inactiveClientsQuery.data?.count, err: inactiveClientsQuery.data?.error },
                           { label: 'get_repurchase_window', q: repurchaseQuery, diag: repurchaseQuery.data?.diagnostics, rows: repurchaseQuery.data?.count, err: repurchaseQuery.data?.error },
-                          { label: 'get_client_ranking', q: clientRankingQuery, diag: clientRankingQuery.data?.diagnostics, rows: clientRankingQuery.data?.count, err: clientRankingQuery.data?.error },
+                          { label: 'get_client_ranking', q: rankingQuery, diag: (rankingQuery.data as any)?.diagnostics, rows: rankingQuery.data?.rows?.length, err: (rankingQuery.error as any)?.message },
                         ].map((row, i) => {
                           const loading = row.q.isFetching;
                           const ok = !row.err && !row.q.isError;
