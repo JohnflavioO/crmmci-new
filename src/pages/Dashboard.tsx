@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { usePrivacy } from '@/hooks/usePrivacy';
 import { useCommercialSummary } from '@/hooks/useCommercialSummary';
+import { useDashboardHandlers } from '@/hooks/useDashboardHandlers';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
 import PrivacyToggle from '@/components/PrivacyToggle';
