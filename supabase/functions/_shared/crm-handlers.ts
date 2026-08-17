@@ -613,7 +613,7 @@ export async function getCommercialOverview(ctx: CrmCtx, args: {
 
   let qq = ctx.supabase
     .from("quotes")
-    .select("id, quote_number, client_id, client_name, salesperson, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration")
+    .select("id, client_id, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration")
     .order("created_at", { ascending: false })
     .limit(limit);
   

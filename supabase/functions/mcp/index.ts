@@ -457,7 +457,7 @@ async function getCommercialOverview(ctx, args = {}) {
   const limit = Math.min(args.limit ?? 5e3, 1e4);
   const days_back = args.days_back ?? (args.period_days === "all" ? void 0 : args.period_days);
   const from = args.from ?? (days_back ? new Date(Date.now() - days_back * 864e5).toISOString() : void 0);
-  let qq = ctx.supabase.from("quotes").select("id, quote_number, client_id, client_name, salesperson, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration").order("created_at", { ascending: false }).limit(limit);
+  let qq = ctx.supabase.from("quotes").select("id, client_id, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration").order("created_at", { ascending: false }).limit(limit);
   qq = scopeOwn(qq, "created_by", ctx, wantsTeam ? "team" : "own");
   if (from) qq = qq.gte("created_at", from);
   if (args.to) qq = qq.lte("created_at", args.to);
