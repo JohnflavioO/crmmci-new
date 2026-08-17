@@ -303,8 +303,8 @@ export default function InteligenciaComercial() {
   const dataScopeKey = canSeeAll ? 'all-company' : 'own-quotes';
   const dataCacheKey = user?.id ? `${user.id}:${dataScopeKey}` : undefined;
   const commercialQuery = useQuery({
-    queryKey: ['inteligencia-comercial', user?.id || 'anonymous', dataScopeKey],
-    queryFn: () => loadCommercialData(user?.id, canSeeAll),
+    queryKey: ['inteligencia-comercial', user?.id || 'anonymous', dataScopeKey, period],
+    queryFn: () => loadCommercialData(user?.id, canSeeAll, period),
     enabled: !!user?.id,
     staleTime: 10 * 60 * 1000, // Increased for Commercial Intelligence (Reports/Metrics type)
     gcTime: INTELLIGENCE_GC_TIME,
