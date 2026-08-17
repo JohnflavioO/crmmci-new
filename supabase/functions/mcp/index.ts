@@ -460,7 +460,7 @@ async function getCommercialOverview(ctx, args = {}) {
   const wantsTeam = canSeeAll && (args.scope ?? "team") !== "own";
   const limit = Math.min(args.limit ?? 5e3, 1e4);
   let qq = ctx.supabase.from("quotes").select("id, quote_number, client_id, client_name, salesperson, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration").order("created_at", { ascending: false }).limit(limit);
-  if (!wantsTeam) qq = qq.eq("created_by", ctx.userId);
+  qq = scopeOwn(qq, "created_by", ctx, wantsTeam ? "team" : "own");
   const { data: quotesRaw, error: qErr } = await qq;
   if (qErr) return errEnv("commercial_overview", qErr.message);
   const validQuotes = (quotesRaw ?? []).filter((q) => {
