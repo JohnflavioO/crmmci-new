@@ -95,14 +95,17 @@ export default function Dashboard() {
   const canSeeTeam = isGestor;
 
   const [allQuotes, setAllQuotes] = useState<any[]>([]);
-  const [myClientsCount, setMyClientsCount] = useState(0);
-  const [productsCount, setProductsCount] = useState(0);
-  const [sellers, setSellers] = useState<SellerInfo[]>([]);
   const [teamFilter, setTeamFilter] = useState('all');
   const [teamRecentQuotes, setTeamRecentQuotes] = useState<any[]>([]);
   const [teamTopClients, setTeamTopClients] = useState<TopClientInfo[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
+
+  const monthStart = useMemo(() => startOfMonth(new Date()).toISOString(), []);
+  const monthEnd = useMemo(() => endOfMonth(new Date()).toISOString(), []);
+
+  const { data: summary } = useCommercialSummary(monthStart, monthEnd);
+
   const [detailsModal, setDetailsModal] = useState<{
     open: boolean;
     title: string;
