@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { isToday, isBefore, startOfDay } from 'date-fns';
+import { isToday, isBefore, startOfDay, startOfMonth, endOfMonth } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { usePrivacy } from '@/hooks/usePrivacy';
+import { useCommercialSummary } from '@/hooks/useCommercialSummary';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
 import PrivacyToggle from '@/components/PrivacyToggle';
