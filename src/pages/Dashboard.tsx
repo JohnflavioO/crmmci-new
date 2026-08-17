@@ -133,6 +133,7 @@ export default function Dashboard() {
           db.from('products').select('id', { count: 'exact', head: true }),
         ]);
 
+
         if (quotesRes.data) setAllQuotes(quotesRes.data);
         if (clientsRes.count !== null) setMyClientsCount(clientsRes.count);
         if (productsRes.count !== null) setProductsCount(productsRes.count);

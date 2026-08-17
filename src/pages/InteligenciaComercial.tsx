@@ -296,10 +296,12 @@ export default function InteligenciaComercial() {
     queryKey: ['inteligencia-comercial', user?.id || 'anonymous', dataScopeKey],
     queryFn: () => loadCommercialData(user?.id, canSeeAll),
     enabled: !!user?.id,
-    staleTime: INTELLIGENCE_STALE_TIME,
+    staleTime: 10 * 60 * 1000, // Increased for Commercial Intelligence (Reports/Metrics type)
     gcTime: INTELLIGENCE_GC_TIME,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
     initialData: () => readCachedCommercialData(dataCacheKey),
+
     initialDataUpdatedAt: () => readCachedCommercialData(dataCacheKey)?.loadedAt,
     placeholderData: previousData => previousData,
   });

@@ -118,6 +118,7 @@ export default function Products() {
     // Sem busca: paginação normal
     if (!isSearching) {
       let q = db.from('products').select('*', { count: 'exact' }).order('name');
+
       if (noLogisticFilter) {
         q = q.or('peso_kg.is.null,altura_cm.is.null,largura_cm.is.null,comprimento_cm.is.null,peso_kg.eq.0,altura_cm.eq.0,largura_cm.eq.0,comprimento_cm.eq.0');
       }

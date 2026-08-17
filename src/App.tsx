@@ -79,9 +79,11 @@ const queryClient = new QueryClient({
       gcTime: 30 * 60_000,
       refetchOnWindowFocus: false,
       refetchOnReconnect: 'always',
+      refetchOnMount: false, // Prevents refetching data that was recently loaded when re-mounting
     },
   },
 });
+
 
 function LoadingScreen() {
   return (
