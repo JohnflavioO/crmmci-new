@@ -220,7 +220,7 @@ async function getTopProducts(ctx, args = {}) {
     return okEnv("top_products", { rows: [], count: 0, summary: { metric, period_label: periodLabel, approved_quotes_scanned: 0 } });
   }
   const quoteIds = quotes.map((q) => q.id);
-  let ii = scopeCompany(ctx.supabase.from("quote_items"), ctx).select("quote_id,code,product_code,description,brand,quantity,line_total,total_price,unit_total,unit_price,image_url,model").in("quote_id", quoteIds).limit(2e4);
+  let ii = ctx.supabase.from("quote_items").select("quote_id,code,product_code,description,brand,quantity,line_total,total_price,unit_total,unit_price,image_url,model").in("quote_id", quoteIds).limit(2e4);
   if (args.brand) ii = ii.ilike("brand", `%${args.brand}%`);
   const { data: items, error: iErr } = await ii;
   if (iErr) return errEnv("top_products", iErr.message);
@@ -483,7 +483,7 @@ async function getCommercialOverview(ctx, args = {}) {
   const CHUNK = 200;
   for (let i = 0; i < quoteIds.length; i += CHUNK) {
     const slice = quoteIds.slice(i, i + CHUNK);
-    const { data, error } = await scopeCompany(ctx.supabase.from("quote_items").select("quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total"), ctx).in("quote_id", slice);
+    const { data, error } = await ctx.supabase.from("quote_items").select("quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total").in("quote_id", slice);
     if (error) return errEnv("commercial_overview", error.message);
     if (data) items.push(...data);
   }
