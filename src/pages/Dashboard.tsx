@@ -135,16 +135,12 @@ export default function Dashboard() {
       if (!user?.id) return;
 
       try {
-        const [quotesRes, clientsRes, productsRes] = await Promise.all([
+        const [quotesRes] = await Promise.all([
           db.from('quotes').select('id, quote_number, status, client_name, total_amount, shipping_cost, payment_method, payment_status, created_at, created_by, clients(company_name)').eq('created_by', user.id).order('created_at', { ascending: false }).limit(50),
-          db.from('clients').select('id', { count: 'exact', head: true }).eq('created_by', user.id),
-          db.from('products').select('id', { count: 'exact', head: true }),
         ]);
 
 
         if (quotesRes.data) setAllQuotes(quotesRes.data);
-        if (clientsRes.count !== null) setMyClientsCount(clientsRes.count);
-        if (productsRes.count !== null) setProductsCount(productsRes.count);
       } catch (err) {
         console.error('[Dashboard] loadOwnData error:', err);
       }
