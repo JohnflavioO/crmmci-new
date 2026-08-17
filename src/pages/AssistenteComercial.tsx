@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useCommercialSummary } from '@/hooks/useCommercialSummary';
+import { startOfMonth, endOfMonth } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
