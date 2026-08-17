@@ -481,9 +481,15 @@ async function getCommercialOverview(ctx, args = {}) {
   const quoteIds = validQuotes.map((q) => q.id);
   const items = [];
   const CHUNK = 200;
+  const chunkedQueries = [];
   for (let i = 0; i < quoteIds.length; i += CHUNK) {
     const slice = quoteIds.slice(i, i + CHUNK);
-    const { data, error } = await ctx.supabase.from("quote_items").select("quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total").in("quote_id", slice);
+    chunkedQueries.push(
+      ctx.supabase.from("quote_items").select("quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total").in("quote_id", slice)
+    );
+  }
+  const itemsResults = await Promise.all(chunkedQueries);
+  for (const { data, error } of itemsResults) {
     if (error) return errEnv("commercial_overview", error.message);
     if (data) items.push(...data);
   }
