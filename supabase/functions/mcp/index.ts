@@ -71,9 +71,9 @@ async function getCustomerHistory(ctx, args) {
   }
   if (!client) return errEnv("client_history", "Cliente n\xE3o encontrado");
   const [q, c, f] = await Promise.all([
-    ctx.supabase.from("quotes").select("id,quote_number,status,total,total_amount,created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(50),
-    ctx.supabase.from("generated_contracts").select("id,status,created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(20),
-    ctx.supabase.from("financial_records").select("id,status,amount,due_date").eq("client_id", client.id).order("due_date", { ascending: false }).limit(50)
+    scopeCompany(ctx.supabase.from("quotes").select("id,quote_number,status,total,total_amount,created_at"), ctx).eq("client_id", client.id).order("created_at", { ascending: false }).limit(50),
+    scopeCompany(ctx.supabase.from("generated_contracts").select("id,status,created_at"), ctx).eq("client_id", client.id).order("created_at", { ascending: false }).limit(20),
+    scopeCompany(ctx.supabase.from("financial_records").select("id,status,amount,due_date"), ctx).eq("client_id", client.id).order("due_date", { ascending: false }).limit(50)
   ]);
   return okEnv("client_history", {
     data: { client, quotes: q.data ?? [], contracts: c.data ?? [], financial: f.data ?? [] }
