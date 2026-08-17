@@ -601,6 +601,7 @@ export async function getCommercialOverview(ctx: CrmCtx, args: {
   from?: string;
   to?: string;
   days_back?: number;
+  period_days?: number | "all"; // Alias for days_back to maintain compatibility with calling contexts
 } = {}): Promise<CrmEnvelope> {
   const role = ctx.profile?.role;
   const canSeeAll = role === "admin" || role === "gestor";
