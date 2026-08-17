@@ -212,11 +212,35 @@ export default function Dashboard() {
     [sellers, teamFilter],
   );
 
-  const myStats = useMemo(() => computeStats(Array.isArray(myQuotes) ? myQuotes : []), [myQuotes]);
+  const myStats = useMemo(() => {
+    if (summary) {
+      return {
+        quotes: summary.quotes,
+        totalValue: summary.approved_revenue,
+        approved: summary.approved_count,
+        pending: summary.pending_count,
+        rejected: summary.rejected_count,
+        avgTicket: summary.avg_ticket,
+      };
+    }
+    return computeStats(Array.isArray(myQuotes) ? myQuotes : []);
+  }, [summary, myQuotes]);
   
   const teamStats = useMemo(() => {
     if (!Array.isArray(selectedTeamSellers)) return { quotes: 0, totalValue: 0, approved: 0, pending: 0, rejected: 0, avgTicket: 0 };
     
+    // Se estiver filtrando por 'all' e tivermos o resumo, o resumo é mais confiável/rápido
+    if (teamFilter === 'all' && summary && isAdmin) {
+       return {
+          quotes: summary.quotes,
+          totalValue: summary.approved_revenue,
+          approved: summary.approved_count,
+          pending: summary.pending_count,
+          rejected: summary.rejected_count,
+          avgTicket: summary.avg_ticket,
+       };
+    }
+
     const quotes = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller?.quotes_count || 0), 0);
     const totalValue = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller?.total_value || 0), 0);
     const approved = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller?.approved_count || 0), 0);
@@ -231,14 +255,15 @@ export default function Dashboard() {
       rejected,
       avgTicket: quotes > 0 ? totalValue / quotes : 0,
     };
-  }, [selectedTeamSellers]);
+  }, [selectedTeamSellers, summary, teamFilter, isAdmin]);
 
   const teamClientsCount = useMemo(
     () => {
+      if (teamFilter === 'all' && summary && isAdmin) return summary.clients_count;
       if (!Array.isArray(selectedTeamSellers)) return 0;
       return selectedTeamSellers.reduce((sum, seller) => sum + Number(seller?.clients_count || 0), 0);
     },
-    [selectedTeamSellers],
+    [selectedTeamSellers, summary, teamFilter, isAdmin],
   );
   const teamQuotes = teamRecentQuotes;
   const teamRecent = teamRecentQuotes.slice(0, 8);
