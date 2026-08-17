@@ -4,6 +4,7 @@ import AppLayout from '@/components/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCrmTool } from '@/hooks/useCrmTool';
+import { useClientRanking, ClientRankingRow } from '@/hooks/useClientRanking';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { Button } from '@/components/ui/button';
@@ -312,6 +313,10 @@ export default function InteligenciaComercial() {
   const items = data.items;
   const products = data.products;
   const sellerProfiles = data.sellerProfiles;
+  
+  // O rankingRows migrado agora é a fonte principal para a aba de Ranking e Top Lists
+  // mas o aggregated ainda é usado para KPIs do Dashboard e Alertas locais (Fase 3 Parte 1)
+  
   const isInitialLoading = commercialQuery.isLoading && !commercialQuery.data;
   const isBackgroundUpdating = commercialQuery.isFetching && !!commercialQuery.data;
 
@@ -347,6 +352,7 @@ export default function InteligenciaComercial() {
 
   // ---------- Period windows ----------
   const periodDays = period === 'all' ? Infinity : parseInt(period, 10);
+  const toolScope = canSeeAll ? 'team' : 'own';
 
   const filteredQuotes = useMemo(() => {
     const now = Date.now();
@@ -484,6 +490,20 @@ export default function InteligenciaComercial() {
       return true;
     });
   }, [aggregated, activeFilter, brandFilter, search]);
+
+  // Ranking Server-Side (Migração Fase 3)
+  const rankingQuery = useClientRanking({
+    scope: toolScope as 'own' | 'team',
+    period_days: periodDays === Infinity ? 'all' : Number(periodDays),
+    seller_id: sellerFilter,
+    state: stateFilter,
+    city: cityFilter,
+    active_filter: activeFilter,
+    only_recurrent: false, // O ranking principal mostra todos, o filtro de recorrência pode ser visual ou específico
+    limit: 500,
+  });
+
+  const rankingRows = rankingQuery.data?.rows || [];
 
   // ---------- Dashboard KPIs ----------
   const kpis = useMemo(() => {
@@ -625,7 +645,6 @@ export default function InteligenciaComercial() {
   // days_back derivado do filtro atual de período (Infinity → sem filtro)
   const daysBackArg = periodDays === Infinity ? undefined : Number(periodDays);
   const canSeeTeam = canSeeAll; // admin/gestor
-  const toolScope = canSeeTeam ? 'team' : undefined;
 
   const topProductsQuery = useCrmTool('get_top_products',
     { days_back: daysBackArg, metric: 'revenue', limit: 5, scope: toolScope },
@@ -639,17 +658,17 @@ export default function InteligenciaComercial() {
   const repurchaseQuery = useCrmTool('get_repurchase_window',
     { min_purchases: 2, tolerance_pct: 0.3, limit: 10, scope: toolScope },
     { enabled: !!user?.id });
-  const clientRankingQuery = useCrmTool('get_client_ranking',
+  const clientRankingInsightsQuery = useCrmTool('get_client_ranking',
     {
-      scope: toolScope,
+      scope: toolScope as 'own' | 'team',
       period_days: periodDays === Infinity ? 'all' : Number(periodDays),
       seller_id: sellerFilter !== 'all' ? sellerFilter : undefined,
       state: stateFilter !== 'all' ? stateFilter : undefined,
       city: cityFilter !== 'all' ? cityFilter : undefined,
       active_filter: activeFilter,
-      limit: 300,
+      limit: 10,
     },
-    { enabled: !!user?.id && canSeeAll });
+    { enabled: !!user?.id });
 
   const insights = useMemo<Insight[]>(() => {
     const items: Insight[] = [];
@@ -736,18 +755,17 @@ export default function InteligenciaComercial() {
 
 
   // ---------- Export ----------
-  const exportRows = () => filteredAggregated.map((a, i) => ({
+  const exportRows = () => rankingRows.map((a, i) => ({
     'Posição': i + 1,
-    'Empresa': a.clientName,
-    'Responsável': a.client?.contact_name || '',
+    'Empresa': a.client_name,
     'Cidade': a.city,
     'Estado': a.state,
-    'Compras': a.quotesCount,
-    'Valor Total': a.totalValue,
-    'Recebido': a.receivedValue,
-    'Ticket Médio': a.ticketMedio,
-    'Última Compra': a.lastPurchase?.toLocaleDateString('pt-BR') || '',
-    'Dias sem Comprar': a.daysSinceLast ?? '',
+    'Compras': a.quotes_count,
+    'Valor Total': a.total_value,
+    'Recebido': a.received_value,
+    'Ticket Médio': a.ticket_medio,
+    'Última Compra': a.last_purchase ? new Date(a.last_purchase).toLocaleDateString('pt-BR') : '',
+    'Dias sem Comprar': a.days_since_last ?? '',
     'Status': a.status,
   }));
 
@@ -772,9 +790,9 @@ export default function InteligenciaComercial() {
     autoTable(doc, {
       startY: 18,
       head: [['#', 'Empresa', 'Cidade', 'Compras', 'Valor', 'Última', 'Status']],
-      body: filteredAggregated.slice(0, 100).map((a, i) => [
-        i + 1, a.clientName, a.city, a.quotesCount, fmtBRL(a.totalValue),
-        a.lastPurchase?.toLocaleDateString('pt-BR') || '-', a.status,
+      body: rankingRows.slice(0, 100).map((a, i) => [
+        i + 1, a.client_name, a.city, a.quotes_count, fmtBRL(a.total_value),
+        a.last_purchase ? new Date(a.last_purchase).toLocaleDateString('pt-BR') : '-', a.status,
       ]),
       styles: { fontSize: 8 },
     });
@@ -782,10 +800,14 @@ export default function InteligenciaComercial() {
   };
 
   // ---------- Selected client detail ----------
-  const detail = useMemo(() => aggregated.find(a => a.clientId === selectedClient) || null, [aggregated, selectedClient]);
-  const detailQuotes = useMemo(() => detail ? quotes.filter(q => detail.quoteIds.includes(q.id)).sort((a, b) => new Date(b.approved_at || b.created_at).getTime() - new Date(a.approved_at || a.created_at).getTime()) : [], [detail, quotes]);
-  const top5 = filteredAggregated.slice(0, 5);
-  const top5Max = top5[0]?.totalValue || 1;
+  const detail = useMemo(() => rankingRows.find(a => a.client_id === selectedClient) || null, [rankingRows, selectedClient]);
+  const detailQuotes = useMemo(() => {
+    if (!detail) return [];
+    return quotes.filter(q => q.client_id === detail.client_id || `__${q.client_name}` === detail.client_id)
+                 .sort((a, b) => new Date(b.approved_at || b.created_at).getTime() - new Date(a.approved_at || a.created_at).getTime());
+  }, [detail, quotes]);
+  const top5 = rankingRows.slice(0, 5);
+  const top5Max = top5[0]?.total_value || 1;
 
   // ---------- Drill-down helpers ----------
   const openDrill = (title: string, subtitle: string, qs: QuoteRow[]) => {
@@ -818,7 +840,7 @@ export default function InteligenciaComercial() {
   };
   const drillTopClient = () => {
     if (!top5[0]) return;
-    openDrill(`Top Cliente: ${top5[0].clientName}`, `${clientLocation(top5[0].client)} • ${clientCnpjLabel(top5[0].client)}`, filteredQuotes.filter(q => top5[0].quoteIds.includes(q.id)));
+    openDrill(`Top Cliente: ${top5[0].client_name}`, `${[top5[0].city, top5[0].state].filter(Boolean).join('/') || '—'} • ${top5[0].cnpj ? formatCnpj(top5[0].cnpj) : 'CNPJ —'}`, filteredQuotes.filter(q => q.client_id === top5[0].client_id || `__${q.client_name}` === top5[0].client_id));
   };
   const drillBrand = (brand: string) => {
     const norm = (brand || '').trim().toLowerCase();
@@ -1007,7 +1029,7 @@ export default function InteligenciaComercial() {
             <KpiGroup title="Performance" icon={Target} accent="violet">
               <KpiCard icon={TrendingUp} label="Compras / Cliente" value={kpis.avgPerClient.toFixed(1)} accent="violet" />
               <KpiCard icon={Activity} label="Orçamentos no Período" value={String(filteredQuotes.length)} accent="violet" onClick={drillRevenue} />
-              <KpiCard icon={Trophy} label="Top Cliente" value={top5[0] ? fmtCompact(top5[0].totalValue) : '—'} hint={top5[0]?.clientName} accent="violet" onClick={drillTopClient} />
+              <KpiCard icon={Trophy} label="Top Cliente" value={top5[0] ? fmtCompact(top5[0].total_value) : '—'} hint={top5[0]?.client_name} accent="violet" onClick={drillTopClient} />
               <KpiCard
                 icon={Crown}
                 label="Produto Campeão"
@@ -1052,25 +1074,27 @@ export default function InteligenciaComercial() {
                 <CardContent className="space-y-3">
                   {top5.length === 0 && <p className="text-xs text-muted-foreground">Sem dados.</p>}
                   {top5.map((a, i) => {
-                    const pct = (a.totalValue / top5Max) * 100;
+                    const pct = (a.total_value / top5Max) * 100;
                     const colors = ['bg-amber-500', 'bg-slate-400', 'bg-orange-400', 'bg-indigo-400', 'bg-emerald-400'];
                     return (
                       <button
-                        key={a.clientId}
-                        onClick={() => setSelectedClient(a.clientId)}
+                        key={a.client_id}
+                        onClick={() => setSelectedClient(a.client_id)}
                         className="w-full text-left group"
                       >
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className={cn('w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0', colors[i])}>{i + 1}</span>
-                            <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">{a.clientName}</span>
+                            <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">{a.client_name}</span>
                           </div>
-                          <span className="text-xs font-bold tabular-nums shrink-0">{fmtCompact(a.totalValue)}</span>
+                          <span className="text-xs font-bold tabular-nums shrink-0">{fmtCompact(a.total_value)}</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                           <div className={cn('h-full rounded-full transition-all', colors[i])} style={{ width: `${pct}%` }} />
                         </div>
-                        <div className="text-[10px] text-muted-foreground mt-1 truncate">{clientLocation(a.client)} • {a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'} • {a.quotesCount} compras</div>
+                        <div className="text-[10px] text-muted-foreground mt-1 truncate">
+                          {[a.city, a.state].filter(Boolean).join('/') || '—'} • {a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'} • {a.quotes_count} compras
+                        </div>
                       </button>
                     );
                   })}
@@ -1138,7 +1162,10 @@ export default function InteligenciaComercial() {
           {/* Ranking */}
           <TabsContent value="ranking">
             <Card>
-              <CardHeader><CardTitle className="text-base">Ranking de Clientes ({filteredAggregated.length})</CardTitle></CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">Ranking de Clientes ({rankingRows.length})</CardTitle>
+                {rankingQuery.isFetching && <Badge variant="outline" className="animate-pulse">Atualizando...</Badge>}
+              </CardHeader>
               <CardContent className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -1156,26 +1183,35 @@ export default function InteligenciaComercial() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredAggregated.slice(0, 300).map((a, i) => (
-                      <TableRow key={a.clientId} className="cursor-pointer" onClick={() => setSelectedClient(a.clientId)}>
+                    {rankingQuery.isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">Carregando ranking do servidor...</TableCell>
+                      </TableRow>
+                    ) : rankingRows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">Nenhum dado encontrado para os filtros selecionados.</TableCell>
+                      </TableRow>
+                    ) : rankingRows.map((a, i) => (
+                      <TableRow key={a.client_id} className="cursor-pointer" onClick={() => setSelectedClient(a.client_id)}>
                         <TableCell className="font-bold">{i + 1}</TableCell>
                         <TableCell className="font-medium">
                           <div className="leading-tight">
-                            <div>{a.clientName}</div>
-                            <div className="text-[10px] text-muted-foreground">{a.client?.contact_name || ''}</div>
+                            <div>{a.client_name}</div>
+                            {/* O rankingRows do servidor traz dados agregados, o frontend pode precisar buscar o profile se necessário para o contact_name, 
+                                mas mantemos simples conforme o handler getClientRanking */}
                           </div>
                         </TableCell>
-                        <TableCell className="text-xs">{clientLocation(a.client)}</TableCell>
+                        <TableCell className="text-xs">{[a.city, a.state].filter(Boolean).join('/') || '—'}</TableCell>
                         <TableCell className="text-xs font-mono">{a.cnpj ? formatCnpj(a.cnpj) : '—'}</TableCell>
                         <TableCell className="text-xs">{a.salesperson || '—'}</TableCell>
-                        <TableCell className="text-right">{a.quotesCount}</TableCell>
-                        <TableCell className="text-right font-semibold">{fmtBRL(a.totalValue)}</TableCell>
-                        <TableCell className="text-right">{fmtBRL(a.ticketMedio)}</TableCell>
+                        <TableCell className="text-right">{a.quotes_count}</TableCell>
+                        <TableCell className="text-right font-semibold">{fmtBRL(a.total_value)}</TableCell>
+                        <TableCell className="text-right">{fmtBRL(a.ticket_medio)}</TableCell>
                         <TableCell>
-                          {a.lastPurchase ? (
+                          {a.last_purchase ? (
                             <div className="leading-tight">
-                              <div className="text-sm">{a.lastPurchase.toLocaleDateString('pt-BR')}</div>
-                              <div className="text-[10px] text-muted-foreground">Há {a.daysSinceLast} dias</div>
+                              <div className="text-sm">{new Date(a.last_purchase).toLocaleDateString('pt-BR')}</div>
+                              <div className="text-[10px] text-muted-foreground">Há {a.days_since_last} dias</div>
                             </div>
                           ) : '—'}
                         </TableCell>
@@ -1190,10 +1226,10 @@ export default function InteligenciaComercial() {
 
           {/* Clientes (top) */}
           <TabsContent value="top" className="grid md:grid-cols-2 gap-4">
-            <TopList title="Top 10 — Faturamento" items={[...filteredAggregated].slice(0, 10).map(a => ({ name: a.clientName, sub: `${clientLocation(a.client)} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: fmtBRL(a.totalValue), id: a.clientId }))} onClick={id => setSelectedClient(id)} />
-            <TopList title="Top 10 — Quantidade de Compras" items={[...filteredAggregated].sort((a, b) => b.quotesCount - a.quotesCount).slice(0, 10).map(a => ({ name: a.clientName, sub: `${clientLocation(a.client)} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: `${a.quotesCount} compras`, id: a.clientId }))} onClick={id => setSelectedClient(id)} />
-            <TopList title="Top 10 — Maior Ticket Médio" items={[...filteredAggregated].sort((a, b) => b.ticketMedio - a.ticketMedio).slice(0, 10).map(a => ({ name: a.clientName, sub: `${clientLocation(a.client)} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: fmtBRL(a.ticketMedio), id: a.clientId }))} onClick={id => setSelectedClient(id)} />
-            <TopList title="Top 10 — Recorrentes" items={[...filteredAggregated].filter(a => a.isRecurrent).sort((a, b) => b.quotesCount - a.quotesCount).slice(0, 10).map(a => ({ name: a.clientName, sub: `${clientLocation(a.client)} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: `${a.quotesCount}x — ${fmtBRL(a.totalValue)}`, id: a.clientId }))} onClick={id => setSelectedClient(id)} />
+            <TopList title="Top 10 — Faturamento" items={[...rankingRows].slice(0, 10).map(a => ({ name: a.client_name, sub: `${[a.city, a.state].filter(Boolean).join('/') || '—'} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: fmtBRL(a.total_value), id: a.client_id }))} onClick={id => setSelectedClient(id)} />
+            <TopList title="Top 10 — Quantidade de Compras" items={[...rankingRows].sort((a, b) => b.quotes_count - a.quotes_count).slice(0, 10).map(a => ({ name: a.client_name, sub: `${[a.city, a.state].filter(Boolean).join('/') || '—'} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: `${a.quotes_count} compras`, id: a.client_id }))} onClick={id => setSelectedClient(id)} />
+            <TopList title="Top 10 — Maior Ticket Médio" items={[...rankingRows].sort((a, b) => b.ticket_medio - a.ticket_medio).slice(0, 10).map(a => ({ name: a.client_name, sub: `${[a.city, a.state].filter(Boolean).join('/') || '—'} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: fmtBRL(a.ticket_medio), id: a.client_id }))} onClick={id => setSelectedClient(id)} />
+            <TopList title="Top 10 — Recorrentes" items={[...rankingRows].filter(a => a.is_recurrent).sort((a, b) => b.quotes_count - a.quotes_count).slice(0, 10).map(a => ({ name: a.client_name, sub: `${[a.city, a.state].filter(Boolean).join('/') || '—'} • ${a.cnpj ? formatCnpj(a.cnpj) : 'CNPJ —'}`, value: `${a.quotes_count}x — ${fmtBRL(a.total_value)}`, id: a.client_id }))} onClick={id => setSelectedClient(id)} />
           </TabsContent>
 
           {/* Products */}
@@ -1313,7 +1349,7 @@ export default function InteligenciaComercial() {
                           { label: 'get_top_brands', q: topBrandsQuery, diag: topBrandsQuery.data?.diagnostics, rows: topBrandsQuery.data?.count, err: topBrandsQuery.data?.error },
                           { label: 'get_inactive_clients', q: inactiveClientsQuery, diag: inactiveClientsQuery.data?.diagnostics, rows: inactiveClientsQuery.data?.count, err: inactiveClientsQuery.data?.error },
                           { label: 'get_repurchase_window', q: repurchaseQuery, diag: repurchaseQuery.data?.diagnostics, rows: repurchaseQuery.data?.count, err: repurchaseQuery.data?.error },
-                          { label: 'get_client_ranking', q: clientRankingQuery, diag: clientRankingQuery.data?.diagnostics, rows: clientRankingQuery.data?.count, err: clientRankingQuery.data?.error },
+                          { label: 'get_client_ranking', q: rankingQuery, diag: (rankingQuery.data as any)?.diagnostics, rows: rankingQuery.data?.rows?.length, err: (rankingQuery.error as any)?.message },
                         ].map((row, i) => {
                           const loading = row.q.isFetching;
                           const ok = !row.err && !row.q.isError;
@@ -1342,11 +1378,11 @@ export default function InteligenciaComercial() {
                     </Table>
                   </div>
 
-                  {clientRankingQuery.data?.summary && (
+                  {rankingQuery.data?.summary && (
                     <div className="rounded-lg border bg-muted/30 p-3">
                       <p className="text-xs font-semibold mb-1">Preview: get_client_ranking</p>
                       <p className="text-[11px] text-muted-foreground font-mono">
-                        {JSON.stringify(clientRankingQuery.data.summary)}
+                        {JSON.stringify(rankingQuery.data.summary)}
                       </p>
                     </div>
                   )}
@@ -1363,23 +1399,23 @@ export default function InteligenciaComercial() {
           {detail && (
             <>
               <SheetHeader>
-                <SheetTitle>{detail.clientName}</SheetTitle>
-                <p className="text-xs text-muted-foreground">{clientLocation(detail.client)} • {detail.cnpj ? formatCnpj(detail.cnpj) : 'CNPJ não informado'}</p>
+                <SheetTitle>{detail.client_name}</SheetTitle>
+                <p className="text-xs text-muted-foreground">{[detail.city, detail.state].filter(Boolean).join('/') || '—'} • {detail.cnpj ? formatCnpj(detail.cnpj) : 'CNPJ não informado'}</p>
               </SheetHeader>
               <div className="mt-4 space-y-4 text-sm">
                 <div className="grid grid-cols-2 gap-3">
-                  <Info label="Responsável" value={detail.client?.contact_name || '-'} />
-                  <Info label="Telefone" value={detail.client?.contact_phone || detail.client?.phone || '-'} />
-                  <Info label="Email" value={detail.client?.email || '-'} />
-                  <Info label="Cidade/UF" value={clientLocation(detail.client)} />
+                  <Info label="Responsável" value="—" />
+                  <Info label="Telefone" value="—" />
+                  <Info label="Email" value="—" />
+                  <Info label="Cidade/UF" value={[detail.city, detail.state].filter(Boolean).join('/') || '—'} />
                   <Info label="CNPJ" value={detail.cnpj ? formatCnpj(detail.cnpj) : '—'} />
                   <Info label="Vendedor" value={detail.salesperson || '-'} />
-                  <Info label="Primeira Compra" value={detail.firstPurchase?.toLocaleDateString('pt-BR') || '-'} />
-                  <Info label="Última Compra" value={detail.lastPurchase?.toLocaleDateString('pt-BR') || '-'} />
-                  <Info label="Total de Compras" value={String(detail.quotesCount)} />
-                  <Info label="Valor Total" value={fmtBRLfull(detail.totalValue)} />
-                  <Info label="Recebido" value={fmtBRLfull(detail.receivedValue)} />
-                  <Info label="Ticket Médio" value={fmtBRLfull(detail.ticketMedio)} />
+                  <Info label="Primeira Compra" value={detail.first_purchase ? new Date(detail.first_purchase).toLocaleDateString('pt-BR') : '-'} />
+                  <Info label="Última Compra" value={detail.last_purchase ? new Date(detail.last_purchase).toLocaleDateString('pt-BR') : '-'} />
+                  <Info label="Total de Compras" value={String(detail.quotes_count)} />
+                  <Info label="Valor Total" value={fmtBRLfull(detail.total_value)} />
+                  <Info label="Recebido" value={fmtBRLfull(detail.received_value)} />
+                  <Info label="Ticket Médio" value={fmtBRLfull(detail.ticket_medio)} />
                 </div>
 
                 <div>
@@ -1398,10 +1434,10 @@ export default function InteligenciaComercial() {
                 <div>
                   <p className="font-semibold mb-2 flex items-center gap-1"><ShoppingCart className="h-4 w-4" />Produtos mais comprados</p>
                   <div className="space-y-1">
-                    {Object.entries(detail.products).sort((a, b) => b[1].value - a[1].value).slice(0, 8).map(([k, v]) => (
-                      <div key={k} className="flex justify-between text-xs border-b py-1">
-                        <span className="truncate flex-1 pr-2">{v.desc} {v.brand && v.brand !== 'Sem marca' ? `• ${v.brand}` : ''}</span>
-                        <span className="font-medium">{v.qty}x — {fmtBRL(v.value)}</span>
+                    {detail.top_products.map((p, i) => (
+                      <div key={i} className="flex justify-between text-xs border-b py-1">
+                        <span className="truncate flex-1 pr-2">{p.name} {p.brand && p.brand !== 'Sem marca' ? `• ${p.brand}` : ''}</span>
+                        <span className="font-medium">{p.qty}x — {fmtBRL(p.value)}</span>
                       </div>
                     ))}
                   </div>
@@ -1416,22 +1452,22 @@ export default function InteligenciaComercial() {
                   </div>
                 </div>
 
-                {detail.intervalAvgDays != null && (
+                {detail.interval_avg_days != null && (
                   <div className="p-3 rounded-lg bg-muted/50 text-xs">
                     <Calendar className="h-4 w-4 inline mr-1" />
-                    Intervalo médio entre compras: <strong>{detail.intervalAvgDays} dias</strong>.
-                    {detail.lastPurchase && (
+                    Intervalo médio entre compras: <strong>{detail.interval_avg_days} dias</strong>.
+                    {detail.last_purchase && (
                       <> Próxima compra estimada: <strong>
-                        {new Date(detail.lastPurchase.getTime() + detail.intervalAvgDays * 86400000).toLocaleDateString('pt-BR')}
+                        {new Date(new Date(detail.last_purchase).getTime() + detail.interval_avg_days * 86400000).toLocaleDateString('pt-BR')}
                       </strong>.</>
                     )}
                   </div>
                 )}
 
                 <div className="flex gap-2 pt-2">
-                  {detail.client?.id && (
+                  {detail.client_id && !detail.client_id.startsWith('__') && (
                     <Button asChild variant="outline" size="sm" className="flex-1">
-                      <a href={`/clients?open=${detail.client.id}`}><UsersIcon className="h-4 w-4 mr-1" /> Abrir cliente</a>
+                      <a href={`/clients?open=${detail.client_id}`}><UsersIcon className="h-4 w-4 mr-1" /> Abrir cliente</a>
                     </Button>
                   )}
                 </div>
