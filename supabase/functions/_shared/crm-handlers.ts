@@ -700,7 +700,7 @@ export async function getClientRanking(
 ): Promise<CrmEnvelope> {
   const overview = await getCommercialOverview(ctx, { 
     scope: args.scope,
-    days_back: args.period_days === "all" ? undefined : (typeof args.period_days === 'number' ? args.period_days : undefined)
+    period_days: args.period_days
   });
   if (!overview.ok) return overview;
 

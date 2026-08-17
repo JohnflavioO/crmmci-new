@@ -512,7 +512,7 @@ async function getCommercialOverview(ctx, args = {}) {
 async function getClientRanking(ctx, args = {}) {
   const overview = await getCommercialOverview(ctx, {
     scope: args.scope,
-    days_back: args.period_days === "all" ? void 0 : typeof args.period_days === "number" ? args.period_days : void 0
+    period_days: args.period_days
   });
   if (!overview.ok) return overview;
   const payload = overview.data ?? {};
