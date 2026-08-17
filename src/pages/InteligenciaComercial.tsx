@@ -313,6 +313,10 @@ export default function InteligenciaComercial() {
   const items = data.items;
   const products = data.products;
   const sellerProfiles = data.sellerProfiles;
+  
+  // O rankingRows migrado agora é a fonte principal para a aba de Ranking e Top Lists
+  // mas o aggregated ainda é usado para KPIs do Dashboard e Alertas locais (Fase 3 Parte 1)
+  
   const isInitialLoading = commercialQuery.isLoading && !commercialQuery.data;
   const isBackgroundUpdating = commercialQuery.isFetching && !!commercialQuery.data;
 
