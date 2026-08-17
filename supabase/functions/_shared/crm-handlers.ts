@@ -595,18 +595,31 @@ export async function getRepurchaseWindow(ctx: CrmCtx, args: {
 // -----------------------------------------------------------------
 const COUNTABLE_STATUSES = new Set(APPROVED_STATUSES);
 
-export async function getCommercialOverview(ctx: CrmCtx, args: { scope?: string; limit?: number } = {}): Promise<CrmEnvelope> {
+export async function getCommercialOverview(ctx: CrmCtx, args: { 
+  scope?: string; 
+  limit?: number;
+  from?: string;
+  to?: string;
+  days_back?: number;
+} = {}): Promise<CrmEnvelope> {
   const role = ctx.profile?.role;
   const canSeeAll = role === "admin" || role === "gestor";
   const wantsTeam = canSeeAll && (args.scope ?? "team") !== "own";
   const limit = Math.min(args.limit ?? 5000, 10000);
+  
+  const from = args.from ?? (args.days_back ? new Date(Date.now() - args.days_back * 86400000).toISOString() : undefined);
 
   let qq = ctx.supabase
     .from("quotes")
     .select("id, quote_number, client_id, client_name, salesperson, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration")
     .order("created_at", { ascending: false })
     .limit(limit);
+  
   qq = scopeOwn(qq, "created_by", ctx, wantsTeam ? "team" : "own");
+  
+  if (from) qq = qq.gte("created_at", from);
+  if (args.to) qq = qq.lte("created_at", args.to);
+  
   const { data: quotesRaw, error: qErr } = await qq;
   if (qErr) return errEnv("commercial_overview", qErr.message);
 
@@ -617,7 +630,7 @@ export async function getCommercialOverview(ctx: CrmCtx, args: { scope?: string;
   });
 
   const [clientsRes, productsRes, profilesRes] = await Promise.all([
-    scopeCompany(ctx.supabase.from("clients").select("id, name, company_name, contact_name, email, phone, contact_phone, city, state, cpf_cnpj, created_by"), ctx),
+    scopeCompany(ctx.supabase.from("clients").select("id, name, company_name, city, state, cpf_cnpj, created_by"), ctx),
     scopeCompany(ctx.supabase.from("products").select("id, name, brand, code, sku"), ctx),
     wantsTeam
       ? scopeCompany(ctx.supabase.from("profiles").select("user_id, full_name, active").eq("active", true), ctx)
