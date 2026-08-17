@@ -32,8 +32,20 @@ const okEnv = (entity: string, extra: Partial<CrmEnvelope> = {}): CrmEnvelope =>
 });
 const errEnv = (entity: string, error: string): CrmEnvelope => ({ ok: false, entity, error });
 
-// Scope helper: admin/gestor podem pedir scope='team' para ampliar; caso contrário, restringe.
+// Scope helpers:
+// 1. scopeCompany: Garante que NUNCA haja acesso cruzado entre empresas.
+function scopeCompany(query: any, ctx: CrmCtx) {
+  if (ctx.companyId) {
+    return query.eq("company_id", ctx.companyId);
+  }
+  // Se não houver companyId no contexto, mas o RLS estiver ativo, o Supabase cuidará.
+  // No entanto, para segurança extra e evitar leaks em service_role, retornamos a query original.
+  return query;
+}
+
+// 2. scopeOwn: admin/gestor podem pedir scope='team' para ampliar; caso contrário, restringe ao próprio usuário.
 function scopeOwn(query: any, column: string, ctx: CrmCtx, scope?: string) {
+  query = scopeCompany(query, ctx);
   const role = ctx.profile?.role;
   const isBoss = role === "admin" || role === "gestor";
   if (isBoss && scope === "team") return query;

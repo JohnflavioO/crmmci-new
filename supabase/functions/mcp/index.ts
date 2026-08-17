@@ -20,7 +20,14 @@ var okEnv = (entity, extra = {}) => ({
   ...extra
 });
 var errEnv = (entity, error) => ({ ok: false, entity, error });
+function scopeCompany(query, ctx) {
+  if (ctx.companyId) {
+    return query.eq("company_id", ctx.companyId);
+  }
+  return query;
+}
 function scopeOwn(query, column, ctx, scope) {
+  query = scopeCompany(query, ctx);
   const role = ctx.profile?.role;
   const isBoss = role === "admin" || role === "gestor";
   if (isBoss && scope === "team") return query;
