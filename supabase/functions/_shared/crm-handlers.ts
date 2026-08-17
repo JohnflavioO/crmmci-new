@@ -94,10 +94,10 @@ export async function getCustomerHistory(ctx: CrmCtx, args: { client_id?: string
   if (!args.client_id && !args.client_name) return errEnv("client_history", "Informe client_id ou client_name");
   let client: any = null;
   if (args.client_id) {
-    const { data } = await ctx.supabase.from("clients").select("*").eq("id", args.client_id).maybeSingle();
+    const { data } = await scopeCompany(ctx.supabase.from("clients").select("*"), ctx).eq("id", args.client_id).maybeSingle();
     client = data;
   } else {
-    const { data } = await ctx.supabase.from("clients").select("*").ilike("name", `%${args.client_name}%`).limit(1).maybeSingle();
+    const { data } = await scopeCompany(ctx.supabase.from("clients").select("*"), ctx).ilike("name", `%${args.client_name}%`).limit(1).maybeSingle();
     client = data;
   }
   if (!client) return errEnv("client_history", "Cliente não encontrado");
