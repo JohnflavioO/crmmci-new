@@ -751,18 +751,17 @@ export default function InteligenciaComercial() {
 
 
   // ---------- Export ----------
-  const exportRows = () => filteredAggregated.map((a, i) => ({
+  const exportRows = () => rankingRows.map((a, i) => ({
     'Posição': i + 1,
-    'Empresa': a.clientName,
-    'Responsável': a.client?.contact_name || '',
+    'Empresa': a.client_name,
     'Cidade': a.city,
     'Estado': a.state,
-    'Compras': a.quotesCount,
-    'Valor Total': a.totalValue,
-    'Recebido': a.receivedValue,
-    'Ticket Médio': a.ticketMedio,
-    'Última Compra': a.lastPurchase?.toLocaleDateString('pt-BR') || '',
-    'Dias sem Comprar': a.daysSinceLast ?? '',
+    'Compras': a.quotes_count,
+    'Valor Total': a.total_value,
+    'Recebido': a.received_value,
+    'Ticket Médio': a.ticket_medio,
+    'Última Compra': a.last_purchase ? new Date(a.last_purchase).toLocaleDateString('pt-BR') : '',
+    'Dias sem Comprar': a.days_since_last ?? '',
     'Status': a.status,
   }));
 
