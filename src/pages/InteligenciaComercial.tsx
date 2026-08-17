@@ -190,10 +190,19 @@ const writeCachedCommercialData = (cacheKey: string | undefined, data: Commercia
   }
 };
 
-const loadCommercialData = async (userId: string | undefined, canSeeAll: boolean): Promise<CommercialData> => {
+const loadCommercialData = async (userId: string | undefined, canSeeAll: boolean, period: string): Promise<CommercialData> => {
   if (!userId) return emptyCommercialData;
+  
+  const days_back = period === 'all' ? undefined : parseInt(period, 10);
+  
   const { data, error } = await supabase.functions.invoke('crm-tools', {
-    body: { tool: 'get_commercial_overview', args: { scope: canSeeAll ? 'team' : 'own' } },
+    body: { 
+      tool: 'get_commercial_overview', 
+      args: { 
+        scope: canSeeAll ? 'team' : 'own',
+        days_back: days_back
+      } 
+    },
   });
   if (error) throw new Error(error.message);
   if (!data?.ok) throw new Error(data?.error || 'Falha ao carregar overview comercial');
