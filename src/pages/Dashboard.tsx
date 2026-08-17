@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { isToday, isBefore, startOfDay, startOfMonth, endOfMonth } from 'date-fns';
+import { isToday, isBefore, startOfDay } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { usePrivacy } from '@/hooks/usePrivacy';
-import { useCommercialSummary } from '@/hooks/useCommercialSummary';
-import { useDashboardHandlers } from '@/hooks/useDashboardHandlers';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
 import PrivacyToggle from '@/components/PrivacyToggle';
@@ -96,27 +94,14 @@ export default function Dashboard() {
   const canSeeTeam = isGestor;
 
   const [allQuotes, setAllQuotes] = useState<any[]>([]);
+  const [myClientsCount, setMyClientsCount] = useState(0);
+  const [productsCount, setProductsCount] = useState(0);
   const [sellers, setSellers] = useState<SellerInfo[]>([]);
   const [teamFilter, setTeamFilter] = useState('all');
   const [teamRecentQuotes, setTeamRecentQuotes] = useState<any[]>([]);
   const [teamTopClients, setTeamTopClients] = useState<TopClientInfo[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
-
-  const monthStart = useMemo(() => startOfMonth(new Date()).toISOString(), []);
-  const monthEnd = useMemo(() => endOfMonth(new Date()).toISOString(), []);
-
-  const { data: summary } = useCommercialSummary(monthStart, monthEnd);
-
-  const { metrics: handlerMetrics, pipeline: handlerPipeline, loading: handlersLoading } = useDashboardHandlers({
-    scope: teamFilter === 'all' ? 'team' : 'own',
-    from: monthStart,
-    to: monthEnd
-  });
-
-  const myClientsCount = summary?.clients_count || 0;
-  const productsCount = summary?.products_count || 0;
-
   const [detailsModal, setDetailsModal] = useState<{
     open: boolean;
     title: string;
@@ -142,12 +127,15 @@ export default function Dashboard() {
       if (!user?.id) return;
 
       try {
-        const [quotesRes] = await Promise.all([
+        const [quotesRes, clientsRes, productsRes] = await Promise.all([
           db.from('quotes').select('id, quote_number, status, client_name, total_amount, shipping_cost, payment_method, payment_status, created_at, created_by, clients(company_name)').eq('created_by', user.id).order('created_at', { ascending: false }).limit(50),
+          db.from('clients').select('id', { count: 'exact', head: true }).eq('created_by', user.id),
+          db.from('products').select('id', { count: 'exact', head: true }),
         ]);
 
-
         if (quotesRes.data) setAllQuotes(quotesRes.data);
+        if (clientsRes.count !== null) setMyClientsCount(clientsRes.count);
+        if (productsRes.count !== null) setProductsCount(productsRes.count);
       } catch (err) {
         console.error('[Dashboard] loadOwnData error:', err);
       }
@@ -200,14 +188,6 @@ export default function Dashboard() {
     else setDataLoading(false);
   }, [canSeeTeam, teamFilter, user?.id]);
 
-  // Sincroniza pipeline do handler para o estado teamRecentQuotes se estiver em modo 'all'
-  useEffect(() => {
-    if (teamFilter === 'all' && handlerPipeline && canSeeTeam) {
-      const allItems = Object.values(handlerPipeline).flatMap(stage => stage.items);
-      setTeamRecentQuotes(allItems);
-    }
-  }, [teamFilter, handlerPipeline, canSeeTeam]);
-
   useEffect(() => {
     if (!authLoading && !canSeeTeam && teamFilter !== 'all') {
       setTeamFilter('all');
@@ -227,59 +207,11 @@ export default function Dashboard() {
     [sellers, teamFilter],
   );
 
-  const myStats = useMemo(() => {
-    // Se temos dados do handler (sales metrics), priorizamos, 
-    // pois ele unifica a lógica de "Venda Aprovada" com a IA.
-    if (handlerMetrics && teamFilter === 'all' && !isGestor) {
-      return {
-        quotes: handlerMetrics.approved_count, // No Dashboard, muitas vezes focamos em volume de aprovados
-        totalValue: handlerMetrics.revenue_total,
-        approved: handlerMetrics.approved_count,
-        pending: summary?.pending_count || 0,
-        rejected: summary?.rejected_count || 0,
-        avgTicket: handlerMetrics.average_ticket,
-      };
-    }
-    
-    if (summary) {
-      return {
-        quotes: summary.quotes,
-        totalValue: summary.approved_revenue,
-        approved: summary.approved_count,
-        pending: summary.pending_count,
-        rejected: summary.rejected_count,
-        avgTicket: summary.avg_ticket,
-      };
-    }
-    return computeStats(Array.isArray(myQuotes) ? myQuotes : []);
-  }, [summary, myQuotes, handlerMetrics, teamFilter, isGestor]);
+  const myStats = useMemo(() => computeStats(Array.isArray(myQuotes) ? myQuotes : []), [myQuotes]);
   
   const teamStats = useMemo(() => {
-    if (teamFilter === 'all' && handlerMetrics && canSeeTeam) {
-      return {
-        quotes: handlerMetrics.approved_count,
-        totalValue: handlerMetrics.revenue_total,
-        approved: handlerMetrics.approved_count,
-        pending: summary?.pending_count || 0, // Fallback para RPC se necessário
-        rejected: summary?.rejected_count || 0,
-        avgTicket: handlerMetrics.average_ticket,
-      };
-    }
-
     if (!Array.isArray(selectedTeamSellers)) return { quotes: 0, totalValue: 0, approved: 0, pending: 0, rejected: 0, avgTicket: 0 };
     
-    // Se estiver filtrando por 'all' e tivermos o resumo, o resumo é mais confiável/rápido
-    if (teamFilter === 'all' && summary && isAdmin) {
-       return {
-          quotes: summary.quotes,
-          totalValue: summary.approved_revenue,
-          approved: summary.approved_count,
-          pending: summary.pending_count,
-          rejected: summary.rejected_count,
-          avgTicket: summary.avg_ticket,
-       };
-    }
-
     const quotes = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller?.quotes_count || 0), 0);
     const totalValue = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller?.total_value || 0), 0);
     const approved = selectedTeamSellers.reduce((sum, seller) => sum + Number(seller?.approved_count || 0), 0);
@@ -294,15 +226,14 @@ export default function Dashboard() {
       rejected,
       avgTicket: quotes > 0 ? totalValue / quotes : 0,
     };
-  }, [selectedTeamSellers, summary, teamFilter, isAdmin, handlerMetrics, canSeeTeam]);
+  }, [selectedTeamSellers]);
 
   const teamClientsCount = useMemo(
     () => {
-      if (teamFilter === 'all' && summary && isAdmin) return summary.clients_count;
       if (!Array.isArray(selectedTeamSellers)) return 0;
       return selectedTeamSellers.reduce((sum, seller) => sum + Number(seller?.clients_count || 0), 0);
     },
-    [selectedTeamSellers, summary, teamFilter, isAdmin],
+    [selectedTeamSellers],
   );
   const teamQuotes = teamRecentQuotes;
   const teamRecent = teamRecentQuotes.slice(0, 8);

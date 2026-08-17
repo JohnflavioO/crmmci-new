@@ -32,20 +32,8 @@ const okEnv = (entity: string, extra: Partial<CrmEnvelope> = {}): CrmEnvelope =>
 });
 const errEnv = (entity: string, error: string): CrmEnvelope => ({ ok: false, entity, error });
 
-// Scope helpers:
-// 1. scopeCompany: Garante que NUNCA haja acesso cruzado entre empresas.
-function scopeCompany(query: any, ctx: CrmCtx) {
-  if (ctx.companyId) {
-    return query.eq("company_id", ctx.companyId);
-  }
-  // Se não houver companyId no contexto, mas o RLS estiver ativo, o Supabase cuidará.
-  // No entanto, para segurança extra e evitar leaks em service_role, retornamos a query original.
-  return query;
-}
-
-// 2. scopeOwn: admin/gestor podem pedir scope='team' para ampliar; caso contrário, restringe ao próprio usuário.
+// Scope helper: admin/gestor podem pedir scope='team' para ampliar; caso contrário, restringe.
 function scopeOwn(query: any, column: string, ctx: CrmCtx, scope?: string) {
-  query = scopeCompany(query, ctx);
   const role = ctx.profile?.role;
   const isBoss = role === "admin" || role === "gestor";
   if (isBoss && scope === "team") return query;
@@ -79,13 +67,11 @@ export async function listClients(ctx: CrmCtx, args: { search?: string; limit?: 
 export async function searchClients(ctx: CrmCtx, args: { query: string; limit?: number }): Promise<CrmEnvelope> {
   const limit = Math.min(args.limit ?? 20, 50);
   const like = `%${args.query}%`;
-  let q = ctx.supabase
+  const { data, error } = await ctx.supabase
     .from("clients")
     .select("id,name,company_name,email,phone,city,state,cpf_cnpj,created_at")
+    .or(`name.ilike.${like},company_name.ilike.${like},email.ilike.${like},phone.ilike.${like},city.ilike.${like},cpf_cnpj.ilike.${like}`)
     .limit(limit);
-  q = scopeOwn(q, "salesperson_id", ctx); // Por padrão, busca apenas na própria carteira se não for admin
-  q = q.or(`name.ilike.${like},company_name.ilike.${like},email.ilike.${like},phone.ilike.${like},city.ilike.${like},cpf_cnpj.ilike.${like}`);
-  const { data, error } = await q;
   if (error) return errEnv("clients", error.message);
   return okEnv("clients", { rows: data ?? [], count: data?.length ?? 0 });
 }
@@ -94,17 +80,17 @@ export async function getCustomerHistory(ctx: CrmCtx, args: { client_id?: string
   if (!args.client_id && !args.client_name) return errEnv("client_history", "Informe client_id ou client_name");
   let client: any = null;
   if (args.client_id) {
-    const { data } = await scopeCompany(ctx.supabase.from("clients").select("*"), ctx).eq("id", args.client_id).maybeSingle();
+    const { data } = await ctx.supabase.from("clients").select("*").eq("id", args.client_id).maybeSingle();
     client = data;
   } else {
-    const { data } = await scopeCompany(ctx.supabase.from("clients").select("*"), ctx).ilike("name", `%${args.client_name}%`).limit(1).maybeSingle();
+    const { data } = await ctx.supabase.from("clients").select("*").ilike("name", `%${args.client_name}%`).limit(1).maybeSingle();
     client = data;
   }
   if (!client) return errEnv("client_history", "Cliente não encontrado");
   const [q, c, f] = await Promise.all([
-    scopeCompany(ctx.supabase.from("quotes").select("id,quote_number,status,total,total_amount,created_at"), ctx).eq("client_id", client.id).order("created_at", { ascending: false }).limit(50),
-    scopeCompany(ctx.supabase.from("generated_contracts").select("id,status,created_at"), ctx).eq("client_id", client.id).order("created_at", { ascending: false }).limit(20),
-    scopeCompany(ctx.supabase.from("financial_records").select("id,status,amount,due_date"), ctx).eq("client_id", client.id).order("due_date", { ascending: false }).limit(50),
+    ctx.supabase.from("quotes").select("id,quote_number,status,total,total_amount,created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(50),
+    ctx.supabase.from("generated_contracts").select("id,status,created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(20),
+    ctx.supabase.from("financial_records").select("id,status,amount,due_date").eq("client_id", client.id).order("due_date", { ascending: false }).limit(50),
   ]);
   return okEnv("client_history", {
     data: { client, quotes: q.data ?? [], contracts: c.data ?? [], financial: f.data ?? [] },
@@ -122,7 +108,6 @@ export async function searchProducts(ctx: CrmCtx, args: { query?: string; search
     .select("id,name,code,sku,brand,category_principal,price,level")
     .order("name", { ascending: true })
     .limit(limit);
-  q = scopeCompany(q, ctx);
   if (term) {
     const like = `%${term}%`;
     q = q.or(`name.ilike.${like},code.ilike.${like},sku.ilike.${like},brand.ilike.${like},description.ilike.${like}`);
@@ -139,7 +124,7 @@ export async function searchProducts(ctx: CrmCtx, args: { query?: string; search
 }
 
 export async function getProductDetails(ctx: CrmCtx, args: { id: string }): Promise<CrmEnvelope> {
-  const { data, error } = await scopeCompany(ctx.supabase.from("products").select("*"), ctx).eq("id", args.id).maybeSingle();
+  const { data, error } = await ctx.supabase.from("products").select("*").eq("id", args.id).maybeSingle();
   if (error) return errEnv("product", error.message);
   if (!data) return errEnv("product", "Produto não encontrado");
   return okEnv("product", { data });
@@ -210,8 +195,8 @@ export async function getPipeline(ctx: CrmCtx, args: { scope?: string } = {}): P
 
 export async function getDashboard(ctx: CrmCtx): Promise<CrmEnvelope> {
   const [clientsRes, quotesRes] = await Promise.all([
-    scopeOwn(ctx.supabase.from("clients").select("id", { count: "exact", head: true }), "salesperson_id", ctx),
-    scopeOwn(ctx.supabase.from("quotes").select("status,total,total_amount,created_at"), "created_by", ctx).limit(2000),
+    ctx.supabase.from("clients").select("id", { count: "exact", head: true }),
+    ctx.supabase.from("quotes").select("status,total,total_amount,created_at").limit(2000),
   ]);
   if (quotesRes.error) return errEnv("dashboard", quotesRes.error.message);
   const byStatus: Record<string, { count: number; total: number }> = {};
@@ -285,9 +270,12 @@ export async function getTopProducts(ctx: CrmCtx, args: {
   } else if (args.to) periodLabel = `Até ${fmtDate(args.to)}`;
 
   // 1) approved quotes (RLS-scoped) matching filters
-  let qq = scopeOwn(ctx.supabase.from("quotes").select("id,created_by,created_at,status"), "created_by", ctx, args.scope)
+  let qq = ctx.supabase
+    .from("quotes")
+    .select("id,created_by,created_at,status")
     .in("status", APPROVED_STATUSES)
     .limit(5000);
+  qq = scopeOwn(qq, "created_by", ctx, args.scope);
   if (from) qq = qq.gte("created_at", from);
   if (args.to) qq = qq.lte("created_at", args.to);
   const { data: quotes, error: qErr } = await qq;
@@ -402,9 +390,8 @@ export async function getTopBrands(ctx: CrmCtx, args: {
   else if (from && args.to) periodLabel = `${fmtDate(from)} até ${fmtDate(args.to)}`;
   else if (from) periodLabel = `A partir de ${fmtDate(from)}`;
 
-  let qq = scopeOwn(ctx.supabase.from("quotes").select("id,client_id,created_by,created_at,status"), "created_by", ctx, args.scope)
-    .in("status", APPROVED_STATUSES)
-    .limit(5000);
+  let qq = ctx.supabase.from("quotes").select("id,client_id,created_by,created_at,status").in("status", APPROVED_STATUSES).limit(5000);
+  qq = scopeOwn(qq, "created_by", ctx, args.scope);
   if (from) qq = qq.gte("created_at", from);
   if (args.to) qq = qq.lte("created_at", args.to);
   const { data: quotes, error: qErr } = await qq;
@@ -426,7 +413,7 @@ export async function getTopBrands(ctx: CrmCtx, args: {
   if (codes.length) {
     for (let i = 0; i < codes.length; i += 200) {
       const slice = codes.slice(i, i + 200);
-      const { data: prods } = await scopeCompany(ctx.supabase.from("products").select("code,sku,brand"), ctx)
+      const { data: prods } = await ctx.supabase.from("products").select("code,sku,brand")
         .or(`code.in.(${slice.map(c => `"${c.replace(/"/g,"")}"`).join(",")}),sku.in.(${slice.map(c => `"${c.replace(/"/g,"")}"`).join(",")})`);
       for (const p of prods ?? []) {
         if (p.brand) {
@@ -485,9 +472,10 @@ export async function getInactiveClients(ctx: CrmCtx, args: {
   const limit = Math.min(args.limit ?? 20, 100);
   const cutoff = new Date(Date.now() - inactiveDays * 86400000);
 
-  let qq = scopeOwn(ctx.supabase.from("quotes")
-    .select("id,client_id,client_name,total,total_amount,approved_at,created_at,created_by,salesperson,status"), "created_by", ctx, args.scope)
+  let qq = ctx.supabase.from("quotes")
+    .select("id,client_id,client_name,total,total_amount,approved_at,created_at,created_by,salesperson,status")
     .in("status", APPROVED_STATUSES).limit(10000);
+  qq = scopeOwn(qq, "created_by", ctx, args.scope);
   if (args.period_start) qq = qq.gte("created_at", args.period_start);
   if (args.period_end) qq = qq.lte("created_at", args.period_end);
   const { data: quotes, error } = await qq;
@@ -539,9 +527,10 @@ export async function getRepurchaseWindow(ctx: CrmCtx, args: {
   const tol = args.tolerance_pct ?? 0.3;
   const limit = Math.min(args.limit ?? 20, 100);
 
-  let qq = scopeOwn(ctx.supabase.from("quotes")
-    .select("id,client_id,client_name,total,total_amount,approved_at,created_at,created_by,status"), "created_by", ctx, args.scope)
+  let qq = ctx.supabase.from("quotes")
+    .select("id,client_id,client_name,total,total_amount,approved_at,created_at,created_by,status")
     .in("status", APPROVED_STATUSES).limit(10000);
+  qq = scopeOwn(qq, "created_by", ctx, args.scope);
   const { data: quotes, error } = await qq;
   if (error) return errEnv("repurchase_window", error.message);
 
@@ -595,51 +584,32 @@ export async function getRepurchaseWindow(ctx: CrmCtx, args: {
 // -----------------------------------------------------------------
 const COUNTABLE_STATUSES = new Set(APPROVED_STATUSES);
 
-export async function getCommercialOverview(ctx: CrmCtx, args: { 
-  scope?: string; 
-  limit?: number;
-  from?: string;
-  to?: string;
-  days_back?: number;
-  period_days?: number | "all";
-} = {}): Promise<CrmEnvelope> {
+export async function getCommercialOverview(ctx: CrmCtx, args: { scope?: string; limit?: number } = {}): Promise<CrmEnvelope> {
   const role = ctx.profile?.role;
   const canSeeAll = role === "admin" || role === "gestor";
   const wantsTeam = canSeeAll && (args.scope ?? "team") !== "own";
   const limit = Math.min(args.limit ?? 5000, 10000);
-  
-  const days_back = args.days_back ?? (args.period_days === "all" ? undefined : args.period_days);
-  const from = args.from ?? (days_back ? new Date(Date.now() - (days_back as number) * 86400000).toISOString() : undefined);
 
   let qq = ctx.supabase
     .from("quotes")
-    .select("id, client_id, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration")
-    .order("created_at", { ascending: false });
-  
-  qq = scopeOwn(qq, "created_by", ctx, wantsTeam ? "team" : "own");
-  
-  if (from) qq = qq.gte("created_at", from);
-  if (args.to) qq = qq.lte("created_at", args.to);
-  
-  // Otimização: Aplicar limite apenas se não prejudicar métricas agregadas.
-  // Como orçamentos filtrados por data já reduzem o volume, podemos limitar o scan.
-  qq = qq.limit(limit);
-  
+    .select("id, quote_number, client_id, client_name, salesperson, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (!wantsTeam) qq = qq.eq("created_by", ctx.userId);
   const { data: quotesRaw, error: qErr } = await qq;
   if (qErr) return errEnv("commercial_overview", qErr.message);
 
   const validQuotes = (quotesRaw ?? []).filter((q: any) => {
     if (q.is_demonstration) return false;
     const s = (q.status ?? "").toLowerCase().trim();
-    // COUNTABLE_STATUSES define o que entra no cálculo comercial
     return COUNTABLE_STATUSES.has(s);
   });
 
   const [clientsRes, productsRes, profilesRes] = await Promise.all([
-    scopeCompany(ctx.supabase.from("clients").select("id, name, company_name, city, state, cpf_cnpj"), ctx),
-    scopeCompany(ctx.supabase.from("products").select("id, name, brand, code, sku"), ctx),
+    ctx.supabase.from("clients").select("id, name, company_name, contact_name, email, phone, contact_phone, city, state, cpf_cnpj, created_by"),
+    ctx.supabase.from("products").select("id, name, brand, code, sku"),
     wantsTeam
-      ? scopeCompany(ctx.supabase.from("profiles").select("user_id, full_name").eq("active", true), ctx)
+      ? ctx.supabase.from("profiles").select("user_id, full_name, active").eq("active", true)
       : Promise.resolve({ data: [], error: null }),
   ]);
   if (clientsRes.error) return errEnv("commercial_overview", clientsRes.error.message);
@@ -651,21 +621,13 @@ export async function getCommercialOverview(ctx: CrmCtx, args: {
 
   const quoteIds = validQuotes.map((q: any) => q.id);
   const items: any[] = [];
-  // Fetch items in parallel chunks for better performance
   const CHUNK = 200;
-  const chunkedQueries = [];
   for (let i = 0; i < quoteIds.length; i += CHUNK) {
     const slice = quoteIds.slice(i, i + CHUNK);
-    chunkedQueries.push(
-      ctx.supabase
-        .from("quote_items")
-        .select("quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total")
-        .in("quote_id", slice)
-    );
-  }
-  
-  const itemsResults = await Promise.all(chunkedQueries);
-  for (const { data, error } of itemsResults) {
+    const { data, error } = await ctx.supabase
+      .from("quote_items")
+      .select("quote_id, code, product_code, description, brand, model, quantity, unit_price, total_price, line_total, unit_total")
+      .in("quote_id", slice);
     if (error) return errEnv("commercial_overview", error.message);
     if (data) items.push(...data);
   }
@@ -710,10 +672,7 @@ export async function getClientRanking(
     limit?: number;
   } = {},
 ): Promise<CrmEnvelope> {
-  const overview = await getCommercialOverview(ctx, { 
-    scope: args.scope,
-    period_days: args.period_days
-  });
+  const overview = await getCommercialOverview(ctx, { scope: args.scope });
   if (!overview.ok) return overview;
 
   const payload: any = overview.data ?? {};

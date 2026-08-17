@@ -36,10 +36,9 @@ export function useCrmTool<T = any>(
   return useQuery<CrmToolResponse<T>, Error>({
     queryKey: ["crm-tool", tool, args],
     queryFn: () => callTool<T>(tool, args),
-    staleTime: 5 * 60 * 1000, // Phase 1: Default staleTime for CRM tools
+    staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
     ...options,
   });
 }

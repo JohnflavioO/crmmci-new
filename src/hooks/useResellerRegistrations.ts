@@ -88,7 +88,7 @@ export function useResellerRegistrations() {
       channel = supabase
         .channel(topic)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'reseller_registrations' }, () => loadRef.current())
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reseller_registration_history' }, () => loadRef.current())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reseller_registration_history' }, () => loadRef.current())
         .subscribe((status) => {
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             console.warn('[reseller] realtime indisponível:', status);

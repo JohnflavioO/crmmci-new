@@ -3976,15 +3976,6 @@ export type Database = {
       }
       generate_quote_number: { Args: never; Returns: string }
       generate_technical_os_number: { Args: never; Returns: string }
-      get_commercial_summary: {
-        Args: {
-          p_company_id?: string
-          p_end_date?: string
-          p_start_date?: string
-          p_user_id?: string
-        }
-        Returns: Json
-      }
       get_current_user_access: {
         Args: never
         Returns: {

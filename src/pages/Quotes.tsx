@@ -664,11 +664,10 @@ export default function Quotes() {
       }
 
       let quotesQuery = db.from('quotes')
-        .select('id, quote_number, status, client_name, total, total_amount, quote_date, payment_method, payment_status, shipping_cost, is_demonstration, demonstration_end_date, created_at, created_by, salesperson, clients(company_name, name, phone, is_revenda), quote_items(transfer_status, quantity, is_presale)')
+        .select('*, clients(company_name, name, phone, is_revenda), quote_items(transfer_status, quantity, is_presale)')
         .order('quote_date', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
         .limit(1000);
-
       
       const params = new URLSearchParams(window.location.search);
       const statusFilter = params.get('status');
@@ -697,7 +696,6 @@ export default function Quotes() {
         db.from('salespeople').select('id, name, code, active').eq('active', true).order('name'),
         db.from('products').select('id, name, brand, code, sku, category_principal, price, description, image_url, peso_kg, altura_cm, largura_cm, comprimento_cm, peso_cubado, volume_m3, origem_cep, embalagem_tipo').order('name').limit(5000),
         db.from('product_external_links').select('product_id, external_product_id, external_sku, external_code, external_name'),
-
       ]);
       setQuotes(q.data || []);
       setClients(c.data || []);
@@ -726,13 +724,7 @@ export default function Quotes() {
     }
   }, [canViewTeamQuotes, responsibleFilter, user?.id]);
 
-  useEffect(() => { 
-    const timer = setTimeout(() => {
-      loadData(); 
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [loadData]);
-
+  useEffect(() => { loadData(); }, [loadData]);
 
   const calcItem = (item: QuoteItem): QuoteItem => {
     if (item.is_gift) {
