@@ -36,7 +36,7 @@ export function useCommercialSummary(startDate?: string, endDate?: string) {
         throw error;
       }
 
-      return data as CommercialSummary;
+      return (data as unknown) as CommercialSummary;
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 2, // 2 minutes (as per cache policy for quotes/metrics)
