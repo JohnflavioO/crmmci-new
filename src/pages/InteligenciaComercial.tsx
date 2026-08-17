@@ -1153,7 +1153,10 @@ export default function InteligenciaComercial() {
           {/* Ranking */}
           <TabsContent value="ranking">
             <Card>
-              <CardHeader><CardTitle className="text-base">Ranking de Clientes ({filteredAggregated.length})</CardTitle></CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">Ranking de Clientes ({rankingRows.length})</CardTitle>
+                {rankingQuery.isFetching && <Badge variant="outline" className="animate-pulse">Atualizando...</Badge>}
+              </CardHeader>
               <CardContent className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -1171,26 +1174,35 @@ export default function InteligenciaComercial() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredAggregated.slice(0, 300).map((a, i) => (
-                      <TableRow key={a.clientId} className="cursor-pointer" onClick={() => setSelectedClient(a.clientId)}>
+                    {rankingQuery.isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">Carregando ranking do servidor...</TableCell>
+                      </TableRow>
+                    ) : rankingRows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">Nenhum dado encontrado para os filtros selecionados.</TableCell>
+                      </TableRow>
+                    ) : rankingRows.map((a, i) => (
+                      <TableRow key={a.client_id} className="cursor-pointer" onClick={() => setSelectedClient(a.client_id)}>
                         <TableCell className="font-bold">{i + 1}</TableCell>
                         <TableCell className="font-medium">
                           <div className="leading-tight">
-                            <div>{a.clientName}</div>
-                            <div className="text-[10px] text-muted-foreground">{a.client?.contact_name || ''}</div>
+                            <div>{a.client_name}</div>
+                            {/* O rankingRows do servidor traz dados agregados, o frontend pode precisar buscar o profile se necessário para o contact_name, 
+                                mas mantemos simples conforme o handler getClientRanking */}
                           </div>
                         </TableCell>
-                        <TableCell className="text-xs">{clientLocation(a.client)}</TableCell>
+                        <TableCell className="text-xs">{[a.city, a.state].filter(Boolean).join('/') || '—'}</TableCell>
                         <TableCell className="text-xs font-mono">{a.cnpj ? formatCnpj(a.cnpj) : '—'}</TableCell>
                         <TableCell className="text-xs">{a.salesperson || '—'}</TableCell>
-                        <TableCell className="text-right">{a.quotesCount}</TableCell>
-                        <TableCell className="text-right font-semibold">{fmtBRL(a.totalValue)}</TableCell>
-                        <TableCell className="text-right">{fmtBRL(a.ticketMedio)}</TableCell>
+                        <TableCell className="text-right">{a.quotes_count}</TableCell>
+                        <TableCell className="text-right font-semibold">{fmtBRL(a.total_value)}</TableCell>
+                        <TableCell className="text-right">{fmtBRL(a.ticket_medio)}</TableCell>
                         <TableCell>
-                          {a.lastPurchase ? (
+                          {a.last_purchase ? (
                             <div className="leading-tight">
-                              <div className="text-sm">{a.lastPurchase.toLocaleDateString('pt-BR')}</div>
-                              <div className="text-[10px] text-muted-foreground">Há {a.daysSinceLast} dias</div>
+                              <div className="text-sm">{new Date(a.last_purchase).toLocaleDateString('pt-BR')}</div>
+                              <div className="text-[10px] text-muted-foreground">Há {a.days_since_last} dias</div>
                             </div>
                           ) : '—'}
                         </TableCell>
