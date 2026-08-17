@@ -175,73 +175,74 @@ export default function AssistenteComercial() {
   );
 
   // ----- Load KPIs + build insights -----
+  const monthStart = useMemo(() => startOfMonth(new Date()).toISOString(), []);
+  const monthEnd = useMemo(() => endOfMonth(new Date()).toISOString(), []);
+
+  const { data: summary, isLoading: summaryLoading } = useCommercialSummary(monthStart, monthEnd);
+
+  useEffect(() => {
+    if (!summary) return;
+
+    setKpis({
+      overdueFollowups: summary.overdue_tasks,
+      inactiveClients: summary.inactive_clients,
+      negotiating: summary.pending_count,
+      forecastRevenue: summary.forecast_revenue,
+      approvedMonth: summary.approved_count,
+      conversion: summary.conversion_rate,
+      demoExpiring: summary.demo_expiring,
+    });
+  }, [summary]);
+
   useEffect(() => {
     (async () => {
-      const now = new Date();
-      const startMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const cutoff180 = new Date(Date.now() - 180 * 86400000).toISOString();
-      const in7days = new Date(Date.now() + 7 * 86400000).toISOString();
+      // Big deals ainda precisa de uma consulta específica se não quisermos carregar todas as propostas
+      // Mas podemos simplificar buscando apenas o que falta para os insights que não estão no summary
+      const { data: bigDealsRes } = await supabase.from('quotes')
+        .select('id, total_amount, total')
+        .in('status', ['negotiation', 'negociacao', 'sent'])
+        .or('total_amount.gte.50000,total.gte.50000')
+        .limit(10);
 
-      const [tasksRes, inactiveRes, negRes, apprRes, monthRes, demoRes] = await Promise.all([
-        supabase.from('tasks').select('id', { head: false }).lt('due_date', now.toISOString()).neq('status', 'done').limit(1000),
-        supabase.from('clients').select('id').or(`last_purchase_date.lt.${cutoff180},last_purchase_date.is.null`).limit(1000),
-        supabase.from('quotes').select('id, total_amount, total, client_name').in('status', ['negotiation', 'negociacao', 'sent']).limit(1000),
-        supabase.from('quotes').select('id').eq('status', 'approved').gte('created_at', startMonth).limit(1000),
-        supabase.from('quotes').select('id, status').gte('created_at', startMonth).limit(2000),
-        supabase.from('quotes').select('id, client_name, demonstration_end_date').eq('is_demonstration', true).not('demonstration_end_date', 'is', null).lte('demonstration_end_date', in7days).limit(500),
-      ]);
-
-      const forecast = (negRes.data || []).reduce((s: number, q: any) => s + Number(q.total_amount || q.total || 0), 0);
-      const totalMonth = monthRes.data?.length || 0;
-      const approvedMonth = apprRes.data?.length || 0;
-      const bigDeals = (negRes.data || []).filter((q: any) => Number(q.total_amount || q.total || 0) >= 50000);
-
-      setKpis({
-        overdueFollowups: tasksRes.data?.length || 0,
-        inactiveClients: inactiveRes.data?.length || 0,
-        negotiating: negRes.data?.length || 0,
-        forecastRevenue: forecast,
-        approvedMonth,
-        conversion: totalMonth ? Math.round((approvedMonth / totalMonth) * 1000) / 10 : 0,
-        demoExpiring: demoRes.data?.length || 0,
-      });
+      const bigDealsCount = bigDealsRes?.length || 0;
 
       const built: Array<{ id: string; label: string; description: string; action?: () => void }> = [];
-      if (bigDeals.length > 0) {
+      if (bigDealsCount > 0) {
         built.push({
           id: 'big-deals',
-          label: `${bigDeals.length} oportunidade${bigDeals.length === 1 ? '' : 's'} acima de R$ 50 mil`,
+          label: `${bigDealsCount} oportunidade${bigDealsCount === 1 ? '' : 's'} acima de R$ 50 mil`,
           description: 'Propostas em negociação com alto ticket para priorizar contato.',
           action: () => askDirect('Propostas em negociação acima de R$ 50 mil'),
         });
       }
-      if ((tasksRes.data?.length || 0) > 0) {
+      
+      if ((summary?.overdue_tasks || 0) > 0) {
         built.push({
           id: 'followups',
-          label: `${tasksRes.data!.length} follow-up${tasksRes.data!.length === 1 ? '' : 's'} atrasado${tasksRes.data!.length === 1 ? '' : 's'}`,
+          label: `${summary!.overdue_tasks} follow-up${summary!.overdue_tasks === 1 ? '' : 's'} atrasado${summary!.overdue_tasks === 1 ? '' : 's'}`,
           description: 'Tarefas comerciais vencidas que precisam de retomada.',
           action: () => askDirect('Follow-ups atrasados'),
         });
       }
-      if ((demoRes.data?.length || 0) > 0) {
+      if ((summary?.demo_expiring || 0) > 0) {
         built.push({
           id: 'demos',
-          label: `${demoRes.data!.length} demonstração${demoRes.data!.length === 1 ? '' : 'ões'} vencendo em 7 dias`,
+          label: `${summary!.demo_expiring} demonstração${summary!.demo_expiring === 1 ? '' : 'ões'} vencendo em 7 dias`,
           description: 'Equipamentos em demonstração aproximando-se do prazo — hora de negociar a venda.',
           action: () => askDirect('Demonstrações vencendo esta semana'),
         });
       }
-      if ((inactiveRes.data?.length || 0) > 0) {
+      if ((summary?.inactive_clients || 0) > 0) {
         built.push({
           id: 'inactive',
-          label: `${inactiveRes.data!.length} clientes sem compra há +180 dias`,
+          label: `${summary!.inactive_clients} clientes sem compra há +180 dias`,
           description: 'Base fria pronta para reativação com campanha ou visita comercial.',
           action: () => askDirect('Clientes há mais de 180 dias sem comprar'),
         });
       }
       setInsights(built.slice(0, 4));
     })();
-  }, []);
+  }, [summary]);
 
   // ----- Conversations & messages -----
   const loadConversations = useCallback(async () => {
