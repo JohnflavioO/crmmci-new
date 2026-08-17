@@ -1374,11 +1374,11 @@ export default function InteligenciaComercial() {
                     </Table>
                   </div>
 
-                  {clientRankingQuery.data?.summary && (
+                  {rankingQuery.data?.summary && (
                     <div className="rounded-lg border bg-muted/30 p-3">
                       <p className="text-xs font-semibold mb-1">Preview: get_client_ranking</p>
                       <p className="text-[11px] text-muted-foreground font-mono">
-                        {JSON.stringify(clientRankingQuery.data.summary)}
+                        {JSON.stringify(rankingQuery.data.summary)}
                       </p>
                     </div>
                   )}
