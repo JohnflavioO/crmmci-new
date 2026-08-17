@@ -632,10 +632,10 @@ export async function getCommercialOverview(ctx: CrmCtx, args: {
   });
 
   const [clientsRes, productsRes, profilesRes] = await Promise.all([
-    scopeCompany(ctx.supabase.from("clients").select("id, name, company_name, city, state, cpf_cnpj, created_by"), ctx),
+    scopeCompany(ctx.supabase.from("clients").select("id, name, company_name, city, state, cpf_cnpj"), ctx),
     scopeCompany(ctx.supabase.from("products").select("id, name, brand, code, sku"), ctx),
     wantsTeam
-      ? scopeCompany(ctx.supabase.from("profiles").select("user_id, full_name, active").eq("active", true), ctx)
+      ? scopeCompany(ctx.supabase.from("profiles").select("user_id, full_name").eq("active", true), ctx)
       : Promise.resolve({ data: [], error: null }),
   ]);
   if (clientsRes.error) return errEnv("commercial_overview", clientsRes.error.message);
