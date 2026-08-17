@@ -696,7 +696,10 @@ export async function getClientRanking(
     limit?: number;
   } = {},
 ): Promise<CrmEnvelope> {
-  const overview = await getCommercialOverview(ctx, { scope: args.scope });
+  const overview = await getCommercialOverview(ctx, { 
+    scope: args.scope,
+    days_back: args.period_days === "all" ? undefined : (typeof args.period_days === 'number' ? args.period_days : undefined)
+  });
   if (!overview.ok) return overview;
 
   const payload: any = overview.data ?? {};
