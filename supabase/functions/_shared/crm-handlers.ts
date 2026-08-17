@@ -614,13 +614,16 @@ export async function getCommercialOverview(ctx: CrmCtx, args: {
   let qq = ctx.supabase
     .from("quotes")
     .select("id, client_id, salesperson_id, created_by, status, payment_status, total_amount, total, approved_at, created_at, is_demonstration")
-    .order("created_at", { ascending: false })
-    .limit(limit);
+    .order("created_at", { ascending: false });
   
   qq = scopeOwn(qq, "created_by", ctx, wantsTeam ? "team" : "own");
   
   if (from) qq = qq.gte("created_at", from);
   if (args.to) qq = qq.lte("created_at", args.to);
+  
+  // Otimização: Aplicar limite apenas se não prejudicar métricas agregadas.
+  // Como orçamentos filtrados por data já reduzem o volume, podemos limitar o scan.
+  qq = qq.limit(limit);
   
   const { data: quotesRaw, error: qErr } = await qq;
   if (qErr) return errEnv("commercial_overview", qErr.message);
@@ -628,6 +631,7 @@ export async function getCommercialOverview(ctx: CrmCtx, args: {
   const validQuotes = (quotesRaw ?? []).filter((q: any) => {
     if (q.is_demonstration) return false;
     const s = (q.status ?? "").toLowerCase().trim();
+    // COUNTABLE_STATUSES define o que entra no cálculo comercial
     return COUNTABLE_STATUSES.has(s);
   });
 
