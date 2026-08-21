@@ -368,28 +368,23 @@ function PaymentMethodFields({ method, date, onDateChange, installments, onInsta
   onInstallmentsChange: (v: number) => void;
   label?: string;
 }) {
-  if (method === 'pix') {
-    return <PaymentDateField date={date} onDateChange={onDateChange} label={label || 'Data do Pagamento'} />;
+  if (method === 'pix' || method === 'boleto') {
+    return <PaymentDateField date={date} onDateChange={onDateChange} label={method === 'pix' ? (label || 'Data do Pagamento') : 'Vencimento inicial'} />;
   }
-  if (method === 'boleto' || method === 'cartao') {
-    const max = method === 'cartao' ? MAX_CARD_INSTALLMENTS : installmentOptions.length;
+  if (method === 'cartao') {
+    const max = MAX_CARD_INSTALLMENTS;
     return (
-      <>
-        <div className="space-y-2">
-          <Label className="text-xs">Parcelas <span className="text-destructive">*</span></Label>
-          <Select value={String(installments)} onValueChange={v => onInstallmentsChange(parseInt(v))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {installmentOptions.filter(n => n <= max).map(n => (
-                <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {method === 'boleto' && (
-          <PaymentDateField date={date} onDateChange={onDateChange} label="Vencimento inicial" />
-        )}
-      </>
+      <div className="space-y-2">
+        <Label className="text-xs">Parcelas <span className="text-destructive">*</span></Label>
+        <Select value={String(installments)} onValueChange={v => onInstallmentsChange(parseInt(v))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {installmentOptions.filter(n => n <= max).map(n => (
+              <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     );
   }
   return null;
@@ -1029,16 +1024,16 @@ export default function Quotes() {
         payment_method: form.is_split_payment ? null : (form.payment_method || null),
         payment_status: form.payment_status,
         is_reseller: form.is_reseller,
-        payment_date: (!form.is_split_payment && form.payment_method === 'pix' && form.payment_date) ? form.payment_date : null,
+        payment_date: (!form.is_split_payment && (form.payment_method === 'pix' || form.payment_method === 'boleto') && form.payment_date) ? form.payment_date : null,
         installments: (!form.is_split_payment && (form.payment_method === 'boleto' || form.payment_method === 'cartao')) ? form.installments : 1,
         is_split_payment: form.is_split_payment,
         split_method_1: form.is_split_payment ? (form.split_method_1 || null) : null,
         split_value_1: form.is_split_payment ? (Number(form.split_value_1) || 0) : 0,
-        split_date_1: form.is_split_payment && form.split_method_1 === 'pix' && form.split_date_1 ? form.split_date_1 : null,
+        split_date_1: form.is_split_payment && (form.split_method_1 === 'pix' || form.split_method_1 === 'boleto') && form.split_date_1 ? form.split_date_1 : null,
         split_installments_1: form.is_split_payment && (form.split_method_1 === 'boleto' || form.split_method_1 === 'cartao') ? form.split_installments_1 : 1,
         split_method_2: form.is_split_payment ? (form.split_method_2 || null) : null,
         split_value_2: form.is_split_payment ? (Number(form.split_value_2) || 0) : 0,
-        split_date_2: form.is_split_payment && form.split_method_2 === 'pix' && form.split_date_2 ? form.split_date_2 : null,
+        split_date_2: form.is_split_payment && (form.split_method_2 === 'pix' || form.split_method_2 === 'boleto') && form.split_date_2 ? form.split_date_2 : null,
         split_installments_2: form.is_split_payment && (form.split_method_2 === 'boleto' || form.split_method_2 === 'cartao') ? form.split_installments_2 : 1,
         use_alt_shipping_address: form.use_alt_shipping_address,
         shipping_recipient: form.use_alt_shipping_address ? (form.shipping_recipient || null) : null,
