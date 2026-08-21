@@ -41,11 +41,16 @@ export const NON_FINANCIAL_PAYMENT_METHODS = ['parceria'];
 export const isPartnershipPayment = (quote: QuotePaymentInput | null | undefined): boolean => {
   if (!quote) return false;
   const m = (quote.payment_method || '').trim().toLowerCase();
+  
+  // Se for pagamento dividido, é considerado parceria apenas se AMBOS forem parceria.
+  // (Embora na prática não faça sentido dividir parceria com outro método financeiro
+  // para fins de exclusão de métricas, tratamos assim por segurança).
   if (quote.is_split_payment) {
     const m1 = (quote.split_method_1 || '').trim().toLowerCase();
     const m2 = (quote.split_method_2 || '').trim().toLowerCase();
     return NON_FINANCIAL_PAYMENT_METHODS.includes(m1) && NON_FINANCIAL_PAYMENT_METHODS.includes(m2);
   }
+  
   return NON_FINANCIAL_PAYMENT_METHODS.includes(m);
 };
 
