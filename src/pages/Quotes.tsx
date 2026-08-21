@@ -368,28 +368,23 @@ function PaymentMethodFields({ method, date, onDateChange, installments, onInsta
   onInstallmentsChange: (v: number) => void;
   label?: string;
 }) {
-  if (method === 'pix') {
-    return <PaymentDateField date={date} onDateChange={onDateChange} label={label || 'Data do Pagamento'} />;
+  if (method === 'pix' || method === 'boleto') {
+    return <PaymentDateField date={date} onDateChange={onDateChange} label={method === 'pix' ? (label || 'Data do Pagamento') : 'Vencimento inicial'} />;
   }
-  if (method === 'boleto' || method === 'cartao') {
-    const max = method === 'cartao' ? MAX_CARD_INSTALLMENTS : installmentOptions.length;
+  if (method === 'cartao') {
+    const max = MAX_CARD_INSTALLMENTS;
     return (
-      <>
-        <div className="space-y-2">
-          <Label className="text-xs">Parcelas <span className="text-destructive">*</span></Label>
-          <Select value={String(installments)} onValueChange={v => onInstallmentsChange(parseInt(v))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {installmentOptions.filter(n => n <= max).map(n => (
-                <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {method === 'boleto' && (
-          <PaymentDateField date={date} onDateChange={onDateChange} label="Vencimento inicial" />
-        )}
-      </>
+      <div className="space-y-2">
+        <Label className="text-xs">Parcelas <span className="text-destructive">*</span></Label>
+        <Select value={String(installments)} onValueChange={v => onInstallmentsChange(parseInt(v))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {installmentOptions.filter(n => n <= max).map(n => (
+              <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     );
   }
   return null;
