@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift, Store, CalendarIcon, SplitSquareVertical, ShoppingBag, Truck, RefreshCw, ChevronsUpDown, Check, Handshake } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, FileText, X, Download, MessageCircle, CreditCard, QrCode, FileBarChart, CheckCircle2, Clock, CircleDot, Copy, Loader2, Link2, Gift, Store, CalendarIcon, SplitSquareVertical, ShoppingBag, Truck, RefreshCw, ChevronsUpDown, ChevronUp, ChevronDown, Check, Handshake } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import FreightQuoteDrawer from '@/components/FreightQuoteDrawer';
 import { buildFreightData, type FreightData } from '@/lib/freight';
@@ -744,6 +744,31 @@ export default function Quotes() {
 
   const addItem = () => setItems(prev => [...prev, emptyItem()]);
   const removeItem = (i: number) => setItems(prev => prev.filter((_, idx) => idx !== i));
+
+  const moveItem = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= items.length) return;
+
+    setItems(prev => {
+      const reordered = [...prev];
+      [reordered[fromIndex], reordered[toIndex]] = [reordered[toIndex], reordered[fromIndex]];
+      return reordered.map((item, index) => ({ ...item, item_number: index + 1 }));
+    });
+
+    const swapIndexedValues = <T,>(values: Record<number, T>) => {
+      const reordered = { ...values };
+      const fromValue = reordered[fromIndex];
+      const toValue = reordered[toIndex];
+      if (toValue === undefined) delete reordered[fromIndex];
+      else reordered[fromIndex] = toValue;
+      if (fromValue === undefined) delete reordered[toIndex];
+      else reordered[toIndex] = fromValue;
+      return reordered;
+    };
+
+    setProductSearch(swapIndexedValues);
+    setProductSearchResults(swapIndexedValues);
+    setShowProductDropdown(current => current === fromIndex ? toIndex : current === toIndex ? fromIndex : current);
+  };
 
   const selectProduct = (idx: number, product: any) => {
     setItems(prev => {
@@ -2307,8 +2332,8 @@ export default function Quotes() {
                       "p-4 rounded-lg border bg-muted/30 space-y-3 transition-all",
                       item.transfer_status && "border-2 border-orange-500 bg-orange-50/60 ring-2 ring-orange-200"
                     )}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
                           {item.image_url ? (
                             <img src={item.image_url} alt={item.model} className="w-12 h-12 object-contain rounded border" onError={e => (e.currentTarget.style.display = 'none')} />
                           ) : (
@@ -2329,9 +2354,34 @@ export default function Quotes() {
                           )}
                         </div>
                         {items.length > 1 && (
-                          <Button type="button" size="icon" variant="ghost" onClick={() => removeItem(idx)}>
-                            <X className="h-4 w-4" />
-                          </Button>
+                          <TooltipProvider delayDuration={300}>
+                            <div className="flex shrink-0 items-center gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button type="button" size="icon" variant="outline" className="h-8 w-8" disabled={idx === 0} onClick={() => moveItem(idx, idx - 1)} aria-label={`Mover item ${idx + 1} para cima`}>
+                                    <ChevronUp className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Mover para cima</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button type="button" size="icon" variant="outline" className="h-8 w-8" disabled={idx === items.length - 1} onClick={() => moveItem(idx, idx + 1)} aria-label={`Mover item ${idx + 1} para baixo`}>
+                                    <ChevronDown className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Mover para baixo</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => removeItem(idx)} aria-label={`Remover item ${idx + 1}`}>
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Remover item</TooltipContent>
+                              </Tooltip>
+                            </div>
+                          </TooltipProvider>
                         )}
                       </div>
                       {/* Product Search */}
