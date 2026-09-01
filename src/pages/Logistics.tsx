@@ -1542,10 +1542,11 @@ function ProgressStepper({ status }: { status: string }) {
 }
 
 // ===== Visão operacional simplificada (lista/tabela) =====
-function StageBadge({ status }: { status: string }) {
-  const g = getStage(status);
+function StageBadge({ status, presale }: { status: string; presale?: boolean }) {
+  const g = getStage(status, presale);
   return <Badge variant="outline" className={cn('text-xs font-medium', g.color)}>{g.label}</Badge>;
 }
+
 
 function OperationalList({
   records, loading, isMobile, canOperate, fmt, onViewDetail, onEdit,
