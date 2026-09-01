@@ -4110,6 +4110,7 @@ export type Database = {
             }
             Returns: Json
           }
+      quote_has_presale_item: { Args: { _quote_id: string }; Returns: boolean }
       quote_payment_problem: {
         Args: { q: Database["public"]["Tables"]["quotes"]["Row"] }
         Returns: string
@@ -4169,6 +4170,7 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      start_presale_logistics: { Args: { p_quote_id: string }; Returns: string }
       transfer_reseller_registration_portfolio: {
         Args: {
           p_new_assigned_user_id: string
