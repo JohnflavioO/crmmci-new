@@ -283,7 +283,13 @@ export default function Logistics() {
 
   const filtered = useMemo(() => {
     let list = records;
-    if (statusFilter !== 'all') list = list.filter(r => r.logistics_status === statusFilter);
+    if (statusFilter.startsWith('stage:')) {
+      const stage = STAGE_GROUPS.find(g => g.key === statusFilter.slice(6));
+      if (stage) list = list.filter(r => stage.statuses.includes(r.logistics_status));
+    } else if (statusFilter !== 'all') {
+      list = list.filter(r => r.logistics_status === statusFilter);
+    }
+
     if (sellerFilter !== 'all') list = list.filter(r => r.created_by === sellerFilter);
     if (search) {
       const s = search.toLowerCase();
