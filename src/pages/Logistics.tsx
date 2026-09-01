@@ -274,6 +274,8 @@ export default function Logistics() {
           client_id: q.client_id || '',
           quote_status: q.status || '',
           payment_method: q.payment_method || null,
+          is_presale: presaleQuoteIds.has(r.quote_id) || PRESALE_QUOTE_STATUSES.includes(q.status || ''),
+
 
         };
       });
