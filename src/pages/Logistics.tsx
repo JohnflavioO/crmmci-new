@@ -1574,7 +1574,7 @@ function OperationalList({
                 <p className="font-medium text-sm">{r.quote_number}</p>
                 <p className="text-xs text-muted-foreground truncate">{r.client_name}</p>
               </div>
-              <StageBadge status={r.logistics_status} />
+              <StageBadge status={r.logistics_status} presale={r.is_presale} />
             </div>
             <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
               <span>Vendedor: {r.salesperson || '-'}</span>
@@ -1616,7 +1616,7 @@ function OperationalList({
               <TableCell className="max-w-[200px] truncate">{r.client_name}</TableCell>
               <TableCell className="max-w-[140px] truncate">{r.salesperson || '-'}</TableCell>
               <TableCell className="text-right whitespace-nowrap">{fmt(r.total_amount || 0)}</TableCell>
-              <TableCell><StageBadge status={r.logistics_status} /></TableCell>
+              <TableCell><StageBadge status={r.logistics_status} presale={r.is_presale} /></TableCell>
               <TableCell className="text-xs">{pay(r)}</TableCell>
               <TableCell className="text-xs">{r.nf_numero || '-'}</TableCell>
               <TableCell className="text-xs max-w-[130px] truncate">{r.transportadora || '-'}</TableCell>
