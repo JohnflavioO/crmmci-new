@@ -114,8 +114,7 @@ interface LogisticsRecord {
   payment_method?: string | null;
   is_presale?: boolean;
   is_virtual?: boolean;
-
-
+  presale_items?: QuoteItem[];
 }
 
 interface QuoteItem {
@@ -124,6 +123,14 @@ interface QuoteItem {
   product_code: string | null;
   description: string | null;
   quantity: number | null;
+  code?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  is_presale?: boolean | null;
+}
+
+function quoteItemLabel(item: QuoteItem) {
+  return item.description?.trim() || [item.brand, item.model].filter(Boolean).join(' ').trim() || 'Produto sem descrição';
 }
 
 const STATUS_PROGRESS: Record<string, number> = {
@@ -240,11 +247,15 @@ export default function Logistics() {
 
       // Itens marcados como pré-venda na proposta (regra de item)
       const presaleQuoteIds = new Set<string>();
+      const presaleItemsMap: Record<string, QuoteItem[]> = {};
       const { data: presaleItemsAll } = await db
         .from('quote_items')
-        .select('quote_id')
+        .select('id, quote_id, item_number, code, product_code, description, brand, model, quantity, is_presale')
         .eq('is_presale', true);
-      (presaleItemsAll || []).forEach((i: any) => presaleQuoteIds.add(i.quote_id));
+      (presaleItemsAll || []).forEach((i: any) => {
+        presaleQuoteIds.add(i.quote_id);
+        (presaleItemsMap[i.quote_id] ||= []).push(i as QuoteItem);
+      });
 
       // Pré-vendas que ainda NÃO possuem registro de logística (não entraram no fluxo)
       const existingQuoteIds = new Set(quoteIds);
@@ -267,6 +278,23 @@ export default function Logistics() {
         (itemPresaleQuotes || [])
           .filter((q: any) => !seen.has(q.id) && !['rejeitado', 'rejected', 'cancelado', 'cancelled'].includes(q.status || ''))
           .forEach((q: any) => extraPresaleQuotes.push(q));
+      }
+
+
+      // Quando a proposta inteira está em Pré-venda, todos os itens precisam ficar visíveis.
+      const wholePresaleIds = extraPresaleQuotes
+        .filter((q: any) => PRESALE_QUOTE_STATUSES.includes(q.status || ''))
+        .map((q: any) => q.id);
+      if (wholePresaleIds.length > 0) {
+        const { data: wholePresaleItems } = await db
+          .from('quote_items')
+          .select('id, quote_id, item_number, code, product_code, description, brand, model, quantity, is_presale')
+          .in('quote_id', wholePresaleIds)
+          .order('item_number');
+        (wholePresaleItems || []).forEach((i: any) => {
+          (presaleItemsMap[i.quote_id] ||= []);
+          if (!presaleItemsMap[i.quote_id].some(item => item.id === i.id)) presaleItemsMap[i.quote_id].push(i as QuoteItem);
+        });
       }
 
       const sellerIds = [...new Set([
@@ -300,8 +328,7 @@ export default function Logistics() {
           quote_status: q.status || '',
           payment_method: q.payment_method || null,
           is_presale: presaleQuoteIds.has(r.quote_id) || PRESALE_QUOTE_STATUSES.includes(q.status || ''),
-
-
+          presale_items: presaleItemsMap[r.quote_id] || [],
         };
       });
 
@@ -334,6 +361,7 @@ export default function Logistics() {
         payment_method: q.payment_method || null,
         is_presale: true,
         is_virtual: true,
+        presale_items: presaleItemsMap[q.id] || [],
       }));
 
       // Show all logistics records + pré-vendas ainda fora do fluxo
@@ -408,6 +436,7 @@ export default function Logistics() {
         (r.quote_number || '').toLowerCase().includes(s) ||
         (r.client_name || '').toLowerCase().includes(s) ||
         (r.salesperson || '').toLowerCase().includes(s) ||
+        (r.presale_items || []).some(item => `${item.product_code || item.code || ''} ${quoteItemLabel(item)}`.toLowerCase().includes(s)) ||
         (r.nf_numero || '').toLowerCase().includes(s) ||
         (r.codigo_rastreio || '').toLowerCase().includes(s)
       );
@@ -491,8 +520,9 @@ export default function Logistics() {
     setDetailItemStatus({});
     setDetailTimeline([]);
     try {
-      const { data: items } = await db.from('quote_items').select('id, item_number, product_code, description, quantity').eq('quote_id', r.quote_id).order('item_number');
+      const { data: items } = await db.from('quote_items').select('id, item_number, code, product_code, description, brand, model, quantity, is_presale').eq('quote_id', r.quote_id).order('item_number');
       setDetailItems((items || []) as QuoteItem[]);
+      if (r.is_virtual) return;
       const { data: statuses } = await db.from('logistics_item_status').select('quote_item_id, item_status').eq('logistics_record_id', r.id);
       const map: Record<string, string> = {};
       (statuses || []).forEach((s: any) => { map[s.quote_item_id] = s.item_status; });
@@ -1671,6 +1701,19 @@ function OperationalList({
                 <span>Data: {format(new Date(r.created_at), 'dd/MM/yyyy')}</span>
               </div>
             </button>
+            <div className="mt-3 border-t pt-2">
+              <p className="mb-1 text-xs font-medium text-foreground">Produtos da pré-venda</p>
+              {(r.presale_items || []).length > 0 ? (
+                <div className="space-y-1">
+                  {(r.presale_items || []).map(item => (
+                    <div key={item.id} className="flex gap-2 text-xs text-muted-foreground">
+                      <span className="shrink-0 font-semibold text-foreground">{item.quantity || 0}×</span>
+                      <span>{item.product_code || item.code ? `${item.product_code || item.code} — ` : ''}{quoteItemLabel(item)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-xs text-muted-foreground">Nenhum item cadastrado na ORC.</p>}
+            </div>
             {canOperate && r.is_virtual && (
               <Button
                 size="sm"
@@ -1695,6 +1738,7 @@ function OperationalList({
           <TableRow>
             <TableHead>Pedido</TableHead>
             <TableHead>Cliente</TableHead>
+            <TableHead className="min-w-[280px]">Produtos da pré-venda</TableHead>
             <TableHead>Vendedor</TableHead>
             <TableHead className="text-right">Valor</TableHead>
             <TableHead>Status</TableHead>
@@ -1711,6 +1755,18 @@ function OperationalList({
             <TableRow key={r.id} className="cursor-pointer" onClick={() => onViewDetail(r)}>
               <TableCell className="font-medium whitespace-nowrap">{r.quote_number}</TableCell>
               <TableCell className="max-w-[200px] truncate">{r.client_name}</TableCell>
+              <TableCell className="min-w-[280px] max-w-[360px]">
+                {(r.presale_items || []).length > 0 ? (
+                  <div className="space-y-1">
+                    {(r.presale_items || []).map(item => (
+                      <div key={item.id} className="text-xs leading-4">
+                        <span className="font-semibold">{item.quantity || 0}×</span>{' '}
+                        <span className="text-muted-foreground">{item.product_code || item.code ? `${item.product_code || item.code} — ` : ''}{quoteItemLabel(item)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : <span className="text-xs text-muted-foreground">Nenhum item cadastrado</span>}
+              </TableCell>
               <TableCell className="max-w-[140px] truncate">{r.salesperson || '-'}</TableCell>
               <TableCell className="text-right whitespace-nowrap">{fmt(r.total_amount || 0)}</TableCell>
               <TableCell><StageBadge status={r.logistics_status} presale={r.is_presale} /></TableCell>
