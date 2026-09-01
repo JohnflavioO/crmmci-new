@@ -236,6 +236,17 @@ export default function Logistics() {
         });
       }
 
+      // Itens marcados como pré-venda na proposta (regra de item)
+      const presaleQuoteIds = new Set<string>();
+      if (quoteIds.length > 0) {
+        const { data: presaleItems } = await db
+          .from('quote_items')
+          .select('quote_id')
+          .eq('is_presale', true)
+          .in('quote_id', quoteIds);
+        (presaleItems || []).forEach((i: any) => presaleQuoteIds.add(i.quote_id));
+      }
+
       const sellerIds = [...new Set((Object.values(quotesMap) as any[]).map((q: any) => q.created_by).filter(Boolean))];
       let profilesMap: Record<string, string> = {};
       if (sellerIds.length > 0) {
@@ -247,6 +258,7 @@ export default function Logistics() {
           profilesMap[p.user_id] = p.full_name;
         });
       }
+
 
       const merged = (logData || []).map((r: any) => {
         const q = quotesMap[r.quote_id] || {};
