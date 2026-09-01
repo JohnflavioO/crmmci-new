@@ -48,6 +48,32 @@ const logisticsStatusLabels: Record<string, { label: string; color: string }> = 
 
 const allStatuses = Object.keys(logisticsStatusLabels);
 
+// Estágios operacionais consolidados (apenas agrupamento visual — não altera regras)
+const STAGE_GROUPS: { key: string; label: string; statuses: string[]; color: string }[] = [
+  { key: 'prevenda', label: 'Pré-venda', statuses: ['aguardando_entrada', 'entrada_realizada'], color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  { key: 'aguardando_nf', label: 'Aguardando NF', statuses: ['emitindo_nf'], color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
+  { key: 'nf_emitida', label: 'NF emitida', statuses: ['nf_emitida'], color: 'bg-purple-100 text-purple-800 border-purple-200' },
+  { key: 'aguardando_envio', label: 'Aguardando envio', statuses: ['em_separacao', 'pronto_envio'], color: 'bg-teal-100 text-teal-800 border-teal-200' },
+  { key: 'enviado', label: 'Enviado', statuses: ['enviado', 'em_transporte'], color: 'bg-sky-100 text-sky-800 border-sky-200' },
+  { key: 'concluido', label: 'Concluído', statuses: ['entregue'], color: 'bg-green-100 text-green-800 border-green-200' },
+  { key: 'problema', label: 'Problema', statuses: ['problema_logistico'], color: 'bg-red-100 text-red-800 border-red-200' },
+];
+
+function getStage(status: string) {
+  return STAGE_GROUPS.find(g => g.statuses.includes(status)) || STAGE_GROUPS[0];
+}
+
+const paymentMethodLabels: Record<string, string> = {
+  pix: 'PIX',
+  cartao: 'Cartão',
+  cartao_credito: 'Cartão',
+  boleto: 'Boleto',
+  parceria: 'Parceria',
+  transferencia: 'Transferência',
+  dinheiro: 'Dinheiro',
+};
+
+
 interface LogisticsRecord {
   id: string;
   quote_id: string;
@@ -76,6 +102,8 @@ interface LogisticsRecord {
   created_by?: string;
   client_id?: string;
   quote_status?: string;
+  payment_method?: string | null;
+
 }
 
 interface QuoteItem {
@@ -133,7 +161,7 @@ type DateFilter = 'all' | 'today' | '7d' | 'month' | 'custom';
 export default function Logistics() {
   const { user, isLogistica, profile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || 'dashboard';
+  const tab = searchParams.get('tab') || 'prevendas';
   const isMobile = useIsMobile();
 
   const [records, setRecords] = useState<LogisticsRecord[]>([]);
@@ -190,7 +218,7 @@ export default function Logistics() {
       if (quoteIds.length > 0) {
         const { data: quotes } = await db
           .from('quotes')
-          .select('id, quote_number, client_name, salesperson, total_amount, total, approved_at, created_by, client_id, status')
+          .select('id, quote_number, client_name, salesperson, total_amount, total, approved_at, created_by, client_id, status, payment_method')
           .in('id', quoteIds);
         (quotes || []).forEach((q: any) => {
           quotesMap[q.id] = q;
@@ -222,6 +250,8 @@ export default function Logistics() {
           created_by: q.created_by || '',
           client_id: q.client_id || '',
           quote_status: q.status || '',
+          payment_method: q.payment_method || null,
+
         };
       });
 
@@ -253,7 +283,13 @@ export default function Logistics() {
 
   const filtered = useMemo(() => {
     let list = records;
-    if (statusFilter !== 'all') list = list.filter(r => r.logistics_status === statusFilter);
+    if (statusFilter.startsWith('stage:')) {
+      const stage = STAGE_GROUPS.find(g => g.key === statusFilter.slice(6));
+      if (stage) list = list.filter(r => stage.statuses.includes(r.logistics_status));
+    } else if (statusFilter !== 'all') {
+      list = list.filter(r => r.logistics_status === statusFilter);
+    }
+
     if (sellerFilter !== 'all') list = list.filter(r => r.created_by === sellerFilter);
     if (search) {
       const s = search.toLowerCase();
@@ -703,9 +739,100 @@ export default function Logistics() {
           </div>
         </div>
 
+        {/* ===== Filtro Master de Pré-vendas ===== */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 text-primary" />
+                <span className="font-semibold text-sm">Pré-vendas</span>
+                <Badge variant="secondary" className="text-xs">{filtered.length}</Badge>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button size="sm" variant={tab === 'prevendas' ? 'default' : 'ghost'} className="h-8 text-xs" onClick={() => setTab('prevendas')}>Visão operacional</Button>
+                <Button size="sm" variant={tab === 'dashboard' ? 'default' : 'ghost'} className="h-8 text-xs" onClick={() => setTab('dashboard')}>Dashboard</Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="relative flex-1 min-w-[220px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Buscar pedido, cliente, vendedor, NF ou rastreio..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Vendedor</Label>
+                <Select value={sellerFilter} onValueChange={setSellerFilter}>
+                  <SelectTrigger className="w-[190px] h-9"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os vendedores</SelectItem>
+                    {sellers.map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Status</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[190px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    {STAGE_GROUPS.map(g => (
+                      <SelectItem key={g.key} value={`stage:${g.key}`}>{g.label}</SelectItem>
+                    ))}
+                    {allStatuses.map(s => (
+                      <SelectItem key={s} value={s}>· {logisticsStatusLabels[s].label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {(search || sellerFilter !== 'all' || statusFilter !== 'all' || dateFilter !== 'all') && (
+                <Button variant="ghost" size="sm" className="h-9 text-xs text-muted-foreground"
+                  onClick={() => { setSearch(''); setSellerFilter('all'); setStatusFilter('all'); setDateFilter('all'); setDateFrom(''); setDateTo(''); }}>
+                  <X className="h-3.5 w-3.5 mr-1" /> Limpar filtros
+                </Button>
+              )}
+            </div>
+            {/* Atalhos por estágio */}
+            <div className="flex flex-wrap gap-1.5">
+              {STAGE_GROUPS.map(g => {
+                const count = records.filter(r => g.statuses.includes(r.logistics_status)).length;
+                const active = statusFilter === `stage:${g.key}`;
+                return (
+                  <button key={g.key}
+                    onClick={() => { setStatusFilter(active ? 'all' : `stage:${g.key}`); setTab('prevendas'); }}
+                    className={cn(
+                      'px-2.5 py-1 rounded-full text-xs border transition-colors',
+                      active ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted text-muted-foreground'
+                    )}>
+                    {g.label} <span className="font-semibold">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ===== Visão operacional (lista simplificada) ===== */}
+        {tab === 'prevendas' && (
+          <Card>
+            <CardContent className="p-0 sm:p-2">
+              <OperationalList
+                records={filtered}
+                loading={loading}
+                isMobile={isMobile}
+                canOperate={canOperate}
+                fmt={fmt}
+                onViewDetail={openDetail}
+                onEdit={openEdit}
+              />
+            </CardContent>
+          </Card>
+        )}
+
         {/* Dashboard Tab */}
         {tab === 'dashboard' && (
           <>
+
             {/* Alertas Inteligentes */}
             <LogisticsSmartAlerts records={records} onSelectRecord={(r) => {
               const full = records.find(rec => rec.id === r.id);
@@ -804,33 +931,11 @@ export default function Logistics() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Últimos Pedidos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <RecordsList
-                  records={records.filter(r => r.logistics_status !== 'entregue').slice(0, 10)}
-                  canOperate={canOperate}
-                  isMobile={isMobile}
-                  onEdit={openEdit}
-                  onDownloadPdf={downloadPdf}
-                  onViewDetail={openDetail}
-                  onViewHistory={viewHistory}
-                  onQuickStatus={quickStatusChange}
-                  onRegisterNf={openNfRegistration}
-                  onDownloadNfPdf={downloadNfPdf}
-                  getNextStatus={getNextStatus}
-                  fmt={fmt}
-                  StatusBadge={StatusBadge}
-                />
-              </CardContent>
-            </Card>
           </>
         )}
 
         {/* Pedidos / NF / Envios / Rastreamento / Problemas tabs */}
-        {tab !== 'dashboard' && (
+        {tab !== 'dashboard' && tab !== 'prevendas' && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base capitalize">
@@ -842,38 +947,7 @@ export default function Logistics() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap items-end gap-3 mb-4">
-                <div className="relative flex-1 min-w-[200px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-                </div>
-                {tab === 'pedidos' && (
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-muted-foreground">Status</Label>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
-                        {allStatuses.map(s => (
-                          <SelectItem key={s} value={s}>{logisticsStatusLabels[s].label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium text-muted-foreground">Vendedor</Label>
-                  <Select value={sellerFilter} onValueChange={setSellerFilter}>
-                    <SelectTrigger className="w-[180px]"><SelectValue placeholder="Vendedor" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      {sellers.map(s => (
-                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+
 
               <RecordsList
                 records={filtered}
@@ -1426,6 +1500,106 @@ function ProgressStepper({ status }: { status: string }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ===== Visão operacional simplificada (lista/tabela) =====
+function StageBadge({ status }: { status: string }) {
+  const g = getStage(status);
+  return <Badge variant="outline" className={cn('text-xs font-medium', g.color)}>{g.label}</Badge>;
+}
+
+function OperationalList({
+  records, loading, isMobile, canOperate, fmt, onViewDetail, onEdit,
+}: {
+  records: LogisticsRecord[];
+  loading: boolean;
+  isMobile: boolean;
+  canOperate: boolean;
+  fmt: (v: number) => string;
+  onViewDetail: (r: LogisticsRecord) => void;
+  onEdit: (r: LogisticsRecord) => void;
+}) {
+  if (loading) return <p className="text-sm text-muted-foreground text-center py-10">Carregando pré-vendas...</p>;
+  if (records.length === 0) return <p className="text-sm text-muted-foreground text-center py-10">Nenhuma pré-venda encontrada com os filtros atuais</p>;
+
+  const pay = (r: LogisticsRecord) => (r.payment_method ? (paymentMethodLabels[r.payment_method] || r.payment_method) : '-');
+
+  if (isMobile) {
+    return (
+      <div className="space-y-2 p-2">
+        {records.map(r => (
+          <button key={r.id} onClick={() => onViewDetail(r)} className="w-full text-left p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-medium text-sm">{r.quote_number}</p>
+                <p className="text-xs text-muted-foreground truncate">{r.client_name}</p>
+              </div>
+              <StageBadge status={r.logistics_status} />
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+              <span>Vendedor: {r.salesperson || '-'}</span>
+              <span>Valor: {fmt(r.total_amount || 0)}</span>
+              <span>Pgto: {pay(r)}</span>
+              <span>NF: {r.nf_numero || '-'}</span>
+              <span>Transp.: {r.transportadora || '-'}</span>
+              <span>Rastreio: {r.codigo_rastreio || '-'}</span>
+              <span>Data: {format(new Date(r.created_at), 'dd/MM/yyyy')}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Pedido</TableHead>
+            <TableHead>Cliente</TableHead>
+            <TableHead>Vendedor</TableHead>
+            <TableHead className="text-right">Valor</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Pagamento</TableHead>
+            <TableHead>NF</TableHead>
+            <TableHead>Transportadora</TableHead>
+            <TableHead>Rastreio</TableHead>
+            <TableHead>Data</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {records.map(r => (
+            <TableRow key={r.id} className="cursor-pointer" onClick={() => onViewDetail(r)}>
+              <TableCell className="font-medium whitespace-nowrap">{r.quote_number}</TableCell>
+              <TableCell className="max-w-[200px] truncate">{r.client_name}</TableCell>
+              <TableCell className="max-w-[140px] truncate">{r.salesperson || '-'}</TableCell>
+              <TableCell className="text-right whitespace-nowrap">{fmt(r.total_amount || 0)}</TableCell>
+              <TableCell><StageBadge status={r.logistics_status} /></TableCell>
+              <TableCell className="text-xs">{pay(r)}</TableCell>
+              <TableCell className="text-xs">{r.nf_numero || '-'}</TableCell>
+              <TableCell className="text-xs max-w-[130px] truncate">{r.transportadora || '-'}</TableCell>
+              <TableCell className="text-xs max-w-[130px] truncate">{r.codigo_rastreio || '-'}</TableCell>
+              <TableCell className="text-xs whitespace-nowrap">{format(new Date(r.created_at), 'dd/MM/yyyy')}</TableCell>
+              <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-end gap-1">
+                  <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver detalhes" onClick={() => onViewDetail(r)}>
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
+                  {canOperate && (
+                    <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => onEdit(r)}>
+                      <ClipboardList className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
