@@ -178,6 +178,7 @@ export default function Logistics() {
 
   const [records, setRecords] = useState<LogisticsRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [startingQuoteIds, setStartingQuoteIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sellerFilter, setSellerFilter] = useState('all');
@@ -363,6 +364,27 @@ export default function Logistics() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const startPresaleLogistics = async (record: LogisticsRecord) => {
+    if (!record.is_virtual || startingQuoteIds.has(record.quote_id)) return;
+
+    setStartingQuoteIds(current => new Set(current).add(record.quote_id));
+    try {
+      const { error } = await db.rpc('start_presale_logistics', { p_quote_id: record.quote_id });
+      if (error) throw error;
+
+      toast.success(`${record.quote_number} baixado para a Logística`);
+      await fetchData();
+    } catch (e: any) {
+      toast.error('Erro ao baixar pedido: ' + (e.message || ''));
+    } finally {
+      setStartingQuoteIds(current => {
+        const next = new Set(current);
+        next.delete(record.quote_id);
+        return next;
+      });
+    }
+  };
 
   const filtered = useMemo(() => {
     let list = records;
@@ -919,6 +941,8 @@ export default function Logistics() {
                 fmt={fmt}
                 onViewDetail={openDetail}
                 onEdit={openEdit}
+                onStart={startPresaleLogistics}
+                startingQuoteIds={startingQuoteIds}
               />
             </CardContent>
           </Card>
@@ -1607,7 +1631,7 @@ function StageBadge({ status, presale }: { status: string; presale?: boolean }) 
 
 
 function OperationalList({
-  records, loading, isMobile, canOperate, fmt, onViewDetail, onEdit,
+  records, loading, isMobile, canOperate, fmt, onViewDetail, onEdit, onStart, startingQuoteIds,
 }: {
   records: LogisticsRecord[];
   loading: boolean;
@@ -1616,6 +1640,8 @@ function OperationalList({
   fmt: (v: number) => string;
   onViewDetail: (r: LogisticsRecord) => void;
   onEdit: (r: LogisticsRecord) => void;
+  onStart: (r: LogisticsRecord) => void;
+  startingQuoteIds: Set<string>;
 }) {
   if (loading) return <p className="text-sm text-muted-foreground text-center py-10">Carregando pré-vendas...</p>;
   if (records.length === 0) return <p className="text-sm text-muted-foreground text-center py-10">Nenhuma pré-venda encontrada com os filtros atuais</p>;
@@ -1626,24 +1652,37 @@ function OperationalList({
     return (
       <div className="space-y-2 p-2">
         {records.map(r => (
-          <button key={r.id} onClick={() => onViewDetail(r)} className="w-full text-left p-3 rounded-lg border hover:bg-muted/50 transition-colors">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="font-medium text-sm">{r.quote_number}</p>
-                <p className="text-xs text-muted-foreground truncate">{r.client_name}</p>
+          <div key={r.id} className="w-full p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+            <button onClick={() => onViewDetail(r)} className="w-full text-left">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm">{r.quote_number}</p>
+                  <p className="text-xs text-muted-foreground truncate">{r.client_name}</p>
+                </div>
+                <StageBadge status={r.logistics_status} presale={r.is_presale} />
               </div>
-              <StageBadge status={r.logistics_status} presale={r.is_presale} />
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-              <span>Vendedor: {r.salesperson || '-'}</span>
-              <span>Valor: {fmt(r.total_amount || 0)}</span>
-              <span>Pgto: {pay(r)}</span>
-              <span>NF: {r.nf_numero || '-'}</span>
-              <span>Transp.: {r.transportadora || '-'}</span>
-              <span>Rastreio: {r.codigo_rastreio || '-'}</span>
-              <span>Data: {format(new Date(r.created_at), 'dd/MM/yyyy')}</span>
-            </div>
-          </button>
+              <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                <span>Vendedor: {r.salesperson || '-'}</span>
+                <span>Valor: {fmt(r.total_amount || 0)}</span>
+                <span>Pgto: {pay(r)}</span>
+                <span>NF: {r.nf_numero || '-'}</span>
+                <span>Transp.: {r.transportadora || '-'}</span>
+                <span>Rastreio: {r.codigo_rastreio || '-'}</span>
+                <span>Data: {format(new Date(r.created_at), 'dd/MM/yyyy')}</span>
+              </div>
+            </button>
+            {canOperate && r.is_virtual && (
+              <Button
+                size="sm"
+                className="mt-3 w-full"
+                disabled={startingQuoteIds.has(r.quote_id)}
+                onClick={() => onStart(r)}
+              >
+                <PackageCheck className="h-4 w-4" />
+                {startingQuoteIds.has(r.quote_id) ? 'Baixando...' : 'Baixar pedido'}
+              </Button>
+            )}
+          </div>
         ))}
       </div>
     );
@@ -1688,6 +1727,17 @@ function OperationalList({
                   {canOperate && !r.is_virtual && (
                     <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => onEdit(r)}>
                       <ClipboardList className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  {canOperate && r.is_virtual && (
+                    <Button
+                      size="sm"
+                      className="h-8 whitespace-nowrap"
+                      disabled={startingQuoteIds.has(r.quote_id)}
+                      onClick={() => onStart(r)}
+                    >
+                      <PackageCheck className="h-3.5 w-3.5" />
+                      {startingQuoteIds.has(r.quote_id) ? 'Baixando...' : 'Baixar pedido'}
                     </Button>
                   )}
                 </div>
