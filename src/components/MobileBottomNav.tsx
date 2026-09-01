@@ -18,10 +18,11 @@ const financialItems = [
 ];
 
 const logisticsItems = [
+  { to: '/logistics?tab=prevendas', icon: ClipboardList, label: 'Pré-vendas' },
   { to: '/logistics?tab=dashboard', icon: Truck, label: 'Dashboard' },
-  { to: '/logistics?tab=pedidos', icon: ClipboardList, label: 'Pedidos' },
   { to: '/logistics?tab=envios', icon: MapPin, label: 'Envios' },
 ];
+
 
 export default function MobileBottomNav() {
   const location = useLocation();
