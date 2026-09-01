@@ -142,7 +142,9 @@ export default function AppSidebar({ onNavigate }: Props) {
   ];
 
   const logisticsMenuItems = [
+    { to: '/logistics?tab=prevendas', icon: ClipboardList, label: 'Pré-vendas' },
     { to: '/logistics?tab=dashboard', icon: LayoutDashboard, label: 'Dashboard Logística' },
+
     { to: '/logistics?tab=pedidos', icon: ClipboardList, label: 'Pedidos' },
     { to: '/logistics?tab=nf', icon: FileText, label: 'NF / Emissão' },
     { to: '/logistics?tab=envios', icon: Truck, label: 'Envios' },
