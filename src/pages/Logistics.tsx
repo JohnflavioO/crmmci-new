@@ -113,6 +113,7 @@ interface LogisticsRecord {
   quote_status?: string;
   payment_method?: string | null;
   is_presale?: boolean;
+  is_virtual?: boolean;
 
 
 }
@@ -1684,7 +1685,7 @@ function OperationalList({
                   <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver detalhes" onClick={() => onViewDetail(r)}>
                     <Eye className="h-3.5 w-3.5" />
                   </Button>
-                  {canOperate && (
+                  {canOperate && !r.is_virtual && (
                     <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => onEdit(r)}>
                       <ClipboardList className="h-3.5 w-3.5" />
                     </Button>
