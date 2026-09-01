@@ -161,7 +161,7 @@ type DateFilter = 'all' | 'today' | '7d' | 'month' | 'custom';
 export default function Logistics() {
   const { user, isLogistica, profile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || 'dashboard';
+  const tab = searchParams.get('tab') || 'prevendas';
   const isMobile = useIsMobile();
 
   const [records, setRecords] = useState<LogisticsRecord[]>([]);
