@@ -60,7 +60,7 @@ const STAGE_GROUPS: { key: string; label: string; statuses: string[]; color: str
   { key: 'problema', label: 'Problema', statuses: ['problema_logistico'], color: 'bg-red-100 text-red-800 border-red-200' },
 ];
 
-const PRESALE_QUOTE_STATUSES = ['pre_venda', 'pre_sale'];
+const PRESALE_QUOTE_STATUSES = ['pre_venda', 'pre-venda', 'pre_sale'];
 
 function isPresaleRecord(r: { quote_status?: string; is_presale?: boolean }) {
   return !!r.is_presale || PRESALE_QUOTE_STATUSES.includes(r.quote_status || '');
@@ -265,7 +265,7 @@ export default function Logistics() {
           .in('id', candidateIds);
         const seen = new Set(extraPresaleQuotes.map((q: any) => q.id));
         (itemPresaleQuotes || [])
-          .filter((q: any) => !seen.has(q.id) && !['draft', 'rejeitado', 'rejected', 'cancelado'].includes(q.status || ''))
+          .filter((q: any) => !seen.has(q.id) && !['rejeitado', 'rejected', 'cancelado', 'cancelled'].includes(q.status || ''))
           .forEach((q: any) => extraPresaleQuotes.push(q));
       }
 
