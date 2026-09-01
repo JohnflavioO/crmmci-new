@@ -48,6 +48,32 @@ const logisticsStatusLabels: Record<string, { label: string; color: string }> = 
 
 const allStatuses = Object.keys(logisticsStatusLabels);
 
+// Estágios operacionais consolidados (apenas agrupamento visual — não altera regras)
+const STAGE_GROUPS: { key: string; label: string; statuses: string[]; color: string }[] = [
+  { key: 'prevenda', label: 'Pré-venda', statuses: ['aguardando_entrada', 'entrada_realizada'], color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  { key: 'aguardando_nf', label: 'Aguardando NF', statuses: ['emitindo_nf'], color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
+  { key: 'nf_emitida', label: 'NF emitida', statuses: ['nf_emitida'], color: 'bg-purple-100 text-purple-800 border-purple-200' },
+  { key: 'aguardando_envio', label: 'Aguardando envio', statuses: ['em_separacao', 'pronto_envio'], color: 'bg-teal-100 text-teal-800 border-teal-200' },
+  { key: 'enviado', label: 'Enviado', statuses: ['enviado', 'em_transporte'], color: 'bg-sky-100 text-sky-800 border-sky-200' },
+  { key: 'concluido', label: 'Concluído', statuses: ['entregue'], color: 'bg-green-100 text-green-800 border-green-200' },
+  { key: 'problema', label: 'Problema', statuses: ['problema_logistico'], color: 'bg-red-100 text-red-800 border-red-200' },
+];
+
+function getStage(status: string) {
+  return STAGE_GROUPS.find(g => g.statuses.includes(status)) || STAGE_GROUPS[0];
+}
+
+const paymentMethodLabels: Record<string, string> = {
+  pix: 'PIX',
+  cartao: 'Cartão',
+  cartao_credito: 'Cartão',
+  boleto: 'Boleto',
+  parceria: 'Parceria',
+  transferencia: 'Transferência',
+  dinheiro: 'Dinheiro',
+};
+
+
 interface LogisticsRecord {
   id: string;
   quote_id: string;
