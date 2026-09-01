@@ -261,10 +261,11 @@ function buildQuoteData(
   const clienteTelefone = cliente.telefone_principal || cliente.telefone_celular || '';
   const clienteCpfCnpj = cliente.cpf || cliente.cnpj || '';
   
-  const valorTotal = parseFloat(orderData.valor_total) || 0;
-  const valorFrete = parseFloat(orderData.valor_envio) || 0;
-  const valorDesconto = parseFloat(orderData.valor_desconto) || 0;
-  const valorSubtotal = parseFloat(orderData.valor_subtotal) || (valorTotal - valorFrete + valorDesconto);
+  const money = (v: any) => Math.round(((parseFloat(v) || 0) + Number.EPSILON) * 100) / 100;
+  const valorTotal = money(orderData.valor_total);
+  const valorFrete = money(orderData.valor_envio);
+  const valorDesconto = money(orderData.valor_desconto);
+  const valorSubtotal = money(orderData.valor_subtotal) || money(valorTotal - valorFrete + valorDesconto);
   
   const dataCriacao = orderData.data_criacao;
   
