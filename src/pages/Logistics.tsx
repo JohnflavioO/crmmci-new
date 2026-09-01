@@ -931,33 +931,11 @@ export default function Logistics() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Últimos Pedidos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <RecordsList
-                  records={records.filter(r => r.logistics_status !== 'entregue').slice(0, 10)}
-                  canOperate={canOperate}
-                  isMobile={isMobile}
-                  onEdit={openEdit}
-                  onDownloadPdf={downloadPdf}
-                  onViewDetail={openDetail}
-                  onViewHistory={viewHistory}
-                  onQuickStatus={quickStatusChange}
-                  onRegisterNf={openNfRegistration}
-                  onDownloadNfPdf={downloadNfPdf}
-                  getNextStatus={getNextStatus}
-                  fmt={fmt}
-                  StatusBadge={StatusBadge}
-                />
-              </CardContent>
-            </Card>
           </>
         )}
 
         {/* Pedidos / NF / Envios / Rastreamento / Problemas tabs */}
-        {tab !== 'dashboard' && (
+        {tab !== 'dashboard' && tab !== 'prevendas' && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base capitalize">
@@ -969,38 +947,7 @@ export default function Logistics() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap items-end gap-3 mb-4">
-                <div className="relative flex-1 min-w-[200px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-                </div>
-                {tab === 'pedidos' && (
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-muted-foreground">Status</Label>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
-                        {allStatuses.map(s => (
-                          <SelectItem key={s} value={s}>{logisticsStatusLabels[s].label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium text-muted-foreground">Vendedor</Label>
-                  <Select value={sellerFilter} onValueChange={setSellerFilter}>
-                    <SelectTrigger className="w-[180px]"><SelectValue placeholder="Vendedor" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      {sellers.map(s => (
-                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+
 
               <RecordsList
                 records={filtered}
