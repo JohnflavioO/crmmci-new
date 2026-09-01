@@ -218,7 +218,7 @@ export default function Logistics() {
       if (quoteIds.length > 0) {
         const { data: quotes } = await db
           .from('quotes')
-          .select('id, quote_number, client_name, salesperson, total_amount, total, approved_at, created_by, client_id, status')
+          .select('id, quote_number, client_name, salesperson, total_amount, total, approved_at, created_by, client_id, status, payment_method')
           .in('id', quoteIds);
         (quotes || []).forEach((q: any) => {
           quotesMap[q.id] = q;
