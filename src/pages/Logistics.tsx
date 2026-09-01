@@ -250,6 +250,8 @@ export default function Logistics() {
           created_by: q.created_by || '',
           client_id: q.client_id || '',
           quote_status: q.status || '',
+          payment_method: q.payment_method || null,
+
         };
       });
 
