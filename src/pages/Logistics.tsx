@@ -1701,6 +1701,19 @@ function OperationalList({
                 <span>Data: {format(new Date(r.created_at), 'dd/MM/yyyy')}</span>
               </div>
             </button>
+            <div className="mt-3 border-t pt-2">
+              <p className="mb-1 text-xs font-medium text-foreground">Produtos da pré-venda</p>
+              {(r.presale_items || []).length > 0 ? (
+                <div className="space-y-1">
+                  {(r.presale_items || []).map(item => (
+                    <div key={item.id} className="flex gap-2 text-xs text-muted-foreground">
+                      <span className="shrink-0 font-semibold text-foreground">{item.quantity || 0}×</span>
+                      <span>{item.product_code || item.code ? `${item.product_code || item.code} — ` : ''}{quoteItemLabel(item)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-xs text-muted-foreground">Nenhum item cadastrado na ORC.</p>}
+            </div>
             {canOperate && r.is_virtual && (
               <Button
                 size="sm"
@@ -1725,6 +1738,7 @@ function OperationalList({
           <TableRow>
             <TableHead>Pedido</TableHead>
             <TableHead>Cliente</TableHead>
+            <TableHead className="min-w-[280px]">Produtos da pré-venda</TableHead>
             <TableHead>Vendedor</TableHead>
             <TableHead className="text-right">Valor</TableHead>
             <TableHead>Status</TableHead>
@@ -1741,6 +1755,18 @@ function OperationalList({
             <TableRow key={r.id} className="cursor-pointer" onClick={() => onViewDetail(r)}>
               <TableCell className="font-medium whitespace-nowrap">{r.quote_number}</TableCell>
               <TableCell className="max-w-[200px] truncate">{r.client_name}</TableCell>
+              <TableCell className="min-w-[280px] max-w-[360px]">
+                {(r.presale_items || []).length > 0 ? (
+                  <div className="space-y-1">
+                    {(r.presale_items || []).map(item => (
+                      <div key={item.id} className="text-xs leading-4">
+                        <span className="font-semibold">{item.quantity || 0}×</span>{' '}
+                        <span className="text-muted-foreground">{item.product_code || item.code ? `${item.product_code || item.code} — ` : ''}{quoteItemLabel(item)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : <span className="text-xs text-muted-foreground">Nenhum item cadastrado</span>}
+              </TableCell>
               <TableCell className="max-w-[140px] truncate">{r.salesperson || '-'}</TableCell>
               <TableCell className="text-right whitespace-nowrap">{fmt(r.total_amount || 0)}</TableCell>
               <TableCell><StageBadge status={r.logistics_status} presale={r.is_presale} /></TableCell>
