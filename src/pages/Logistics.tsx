@@ -1503,3 +1503,103 @@ function ProgressStepper({ status }: { status: string }) {
     </div>
   );
 }
+
+// ===== Visão operacional simplificada (lista/tabela) =====
+function StageBadge({ status }: { status: string }) {
+  const g = getStage(status);
+  return <Badge variant="outline" className={cn('text-xs font-medium', g.color)}>{g.label}</Badge>;
+}
+
+function OperationalList({
+  records, loading, isMobile, canOperate, fmt, onViewDetail, onEdit,
+}: {
+  records: LogisticsRecord[];
+  loading: boolean;
+  isMobile: boolean;
+  canOperate: boolean;
+  fmt: (v: number) => string;
+  onViewDetail: (r: LogisticsRecord) => void;
+  onEdit: (r: LogisticsRecord) => void;
+}) {
+  if (loading) return <p className="text-sm text-muted-foreground text-center py-10">Carregando pré-vendas...</p>;
+  if (records.length === 0) return <p className="text-sm text-muted-foreground text-center py-10">Nenhuma pré-venda encontrada com os filtros atuais</p>;
+
+  const pay = (r: LogisticsRecord) => (r.payment_method ? (paymentMethodLabels[r.payment_method] || r.payment_method) : '-');
+
+  if (isMobile) {
+    return (
+      <div className="space-y-2 p-2">
+        {records.map(r => (
+          <button key={r.id} onClick={() => onViewDetail(r)} className="w-full text-left p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-medium text-sm">{r.quote_number}</p>
+                <p className="text-xs text-muted-foreground truncate">{r.client_name}</p>
+              </div>
+              <StageBadge status={r.logistics_status} />
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+              <span>Vendedor: {r.salesperson || '-'}</span>
+              <span>Valor: {fmt(r.total_amount || 0)}</span>
+              <span>Pgto: {pay(r)}</span>
+              <span>NF: {r.nf_numero || '-'}</span>
+              <span>Transp.: {r.transportadora || '-'}</span>
+              <span>Rastreio: {r.codigo_rastreio || '-'}</span>
+              <span>Data: {format(new Date(r.created_at), 'dd/MM/yyyy')}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Pedido</TableHead>
+            <TableHead>Cliente</TableHead>
+            <TableHead>Vendedor</TableHead>
+            <TableHead className="text-right">Valor</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Pagamento</TableHead>
+            <TableHead>NF</TableHead>
+            <TableHead>Transportadora</TableHead>
+            <TableHead>Rastreio</TableHead>
+            <TableHead>Data</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {records.map(r => (
+            <TableRow key={r.id} className="cursor-pointer" onClick={() => onViewDetail(r)}>
+              <TableCell className="font-medium whitespace-nowrap">{r.quote_number}</TableCell>
+              <TableCell className="max-w-[200px] truncate">{r.client_name}</TableCell>
+              <TableCell className="max-w-[140px] truncate">{r.salesperson || '-'}</TableCell>
+              <TableCell className="text-right whitespace-nowrap">{fmt(r.total_amount || 0)}</TableCell>
+              <TableCell><StageBadge status={r.logistics_status} /></TableCell>
+              <TableCell className="text-xs">{pay(r)}</TableCell>
+              <TableCell className="text-xs">{r.nf_numero || '-'}</TableCell>
+              <TableCell className="text-xs max-w-[130px] truncate">{r.transportadora || '-'}</TableCell>
+              <TableCell className="text-xs max-w-[130px] truncate">{r.codigo_rastreio || '-'}</TableCell>
+              <TableCell className="text-xs whitespace-nowrap">{format(new Date(r.created_at), 'dd/MM/yyyy')}</TableCell>
+              <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-end gap-1">
+                  <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver detalhes" onClick={() => onViewDetail(r)}>
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
+                  {canOperate && (
+                    <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => onEdit(r)}>
+                      <ClipboardList className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
