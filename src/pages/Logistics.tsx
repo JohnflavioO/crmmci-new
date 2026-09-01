@@ -49,9 +49,10 @@ const logisticsStatusLabels: Record<string, { label: string; color: string }> = 
 const allStatuses = Object.keys(logisticsStatusLabels);
 
 // Estágios operacionais consolidados (apenas agrupamento visual — não altera regras)
+// Pré-venda NÃO é um logistics_status: vem da proposta (status pre_venda) ou de itens marcados como pré-venda.
 const STAGE_GROUPS: { key: string; label: string; statuses: string[]; color: string }[] = [
-  { key: 'prevenda', label: 'Pré-venda', statuses: ['aguardando_entrada', 'entrada_realizada'], color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-  { key: 'aguardando_nf', label: 'Aguardando NF', statuses: ['emitindo_nf'], color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
+  { key: 'prevenda', label: 'Pré-venda', statuses: [], color: 'bg-purple-100 text-purple-800 border-purple-200' },
+  { key: 'aguardando_nf', label: 'Aguardando NF', statuses: ['aguardando_entrada', 'entrada_realizada', 'emitindo_nf'], color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
   { key: 'nf_emitida', label: 'NF emitida', statuses: ['nf_emitida'], color: 'bg-purple-100 text-purple-800 border-purple-200' },
   { key: 'aguardando_envio', label: 'Aguardando envio', statuses: ['em_separacao', 'pronto_envio'], color: 'bg-teal-100 text-teal-800 border-teal-200' },
   { key: 'enviado', label: 'Enviado', statuses: ['enviado', 'em_transporte'], color: 'bg-sky-100 text-sky-800 border-sky-200' },
@@ -59,9 +60,17 @@ const STAGE_GROUPS: { key: string; label: string; statuses: string[]; color: str
   { key: 'problema', label: 'Problema', statuses: ['problema_logistico'], color: 'bg-red-100 text-red-800 border-red-200' },
 ];
 
-function getStage(status: string) {
-  return STAGE_GROUPS.find(g => g.statuses.includes(status)) || STAGE_GROUPS[0];
+const PRESALE_QUOTE_STATUSES = ['pre_venda', 'pre_sale'];
+
+function isPresaleRecord(r: { quote_status?: string; is_presale?: boolean }) {
+  return !!r.is_presale || PRESALE_QUOTE_STATUSES.includes(r.quote_status || '');
 }
+
+function getStage(status: string, presale = false) {
+  if (presale) return STAGE_GROUPS[0];
+  return STAGE_GROUPS.find(g => g.statuses.includes(status)) || STAGE_GROUPS[1];
+}
+
 
 const paymentMethodLabels: Record<string, string> = {
   pix: 'PIX',
@@ -103,6 +112,8 @@ interface LogisticsRecord {
   client_id?: string;
   quote_status?: string;
   payment_method?: string | null;
+  is_presale?: boolean;
+
 
 }
 
@@ -225,6 +236,17 @@ export default function Logistics() {
         });
       }
 
+      // Itens marcados como pré-venda na proposta (regra de item)
+      const presaleQuoteIds = new Set<string>();
+      if (quoteIds.length > 0) {
+        const { data: presaleItems } = await db
+          .from('quote_items')
+          .select('quote_id')
+          .eq('is_presale', true)
+          .in('quote_id', quoteIds);
+        (presaleItems || []).forEach((i: any) => presaleQuoteIds.add(i.quote_id));
+      }
+
       const sellerIds = [...new Set((Object.values(quotesMap) as any[]).map((q: any) => q.created_by).filter(Boolean))];
       let profilesMap: Record<string, string> = {};
       if (sellerIds.length > 0) {
@@ -236,6 +258,7 @@ export default function Logistics() {
           profilesMap[p.user_id] = p.full_name;
         });
       }
+
 
       const merged = (logData || []).map((r: any) => {
         const q = quotesMap[r.quote_id] || {};
@@ -251,6 +274,8 @@ export default function Logistics() {
           client_id: q.client_id || '',
           quote_status: q.status || '',
           payment_method: q.payment_method || null,
+          is_presale: presaleQuoteIds.has(r.quote_id) || PRESALE_QUOTE_STATUSES.includes(q.status || ''),
+
 
         };
       });
@@ -284,11 +309,17 @@ export default function Logistics() {
   const filtered = useMemo(() => {
     let list = records;
     if (statusFilter.startsWith('stage:')) {
-      const stage = STAGE_GROUPS.find(g => g.key === statusFilter.slice(6));
-      if (stage) list = list.filter(r => stage.statuses.includes(r.logistics_status));
+      const key = statusFilter.slice(6);
+      if (key === 'prevenda') {
+        list = list.filter(r => isPresaleRecord(r));
+      } else {
+        const stage = STAGE_GROUPS.find(g => g.key === key);
+        if (stage) list = list.filter(r => !isPresaleRecord(r) && stage.statuses.includes(r.logistics_status));
+      }
     } else if (statusFilter !== 'all') {
       list = list.filter(r => r.logistics_status === statusFilter);
     }
+
 
     if (sellerFilter !== 'all') list = list.filter(r => r.created_by === sellerFilter);
     if (search) {
@@ -325,7 +356,10 @@ export default function Logistics() {
       });
     }
 
+    // Pré-vendas: apenas propostas com status Pré-venda ou com pelo menos um item marcado como pré-venda
+    if (tab === 'prevendas') list = list.filter(r => isPresaleRecord(r));
     if (tab === 'nf') list = list.filter(r => ['aguardando_entrada', 'entrada_realizada', 'emitindo_nf'].includes(r.logistics_status) || (!r.nf_numero && !['nf_emitida', 'pronto_envio', 'enviado', 'em_transporte', 'entregue'].includes(r.logistics_status)));
+
     if (tab === 'envios') list = list.filter(r => ['pronto_envio', 'enviado', 'em_transporte'].includes(r.logistics_status));
     if (tab === 'rastreamento') list = list.filter(r => r.logistics_status === 'enviado' || r.logistics_status === 'em_transporte' || r.codigo_rastreio);
     if (tab === 'problemas') list = list.filter(r => r.logistics_status === 'problema_logistico');
@@ -795,7 +829,10 @@ export default function Logistics() {
             {/* Atalhos por estágio */}
             <div className="flex flex-wrap gap-1.5">
               {STAGE_GROUPS.map(g => {
-                const count = records.filter(r => g.statuses.includes(r.logistics_status)).length;
+                const count = g.key === 'prevenda'
+                  ? records.filter(r => isPresaleRecord(r)).length
+                  : records.filter(r => !isPresaleRecord(r) && g.statuses.includes(r.logistics_status)).length;
+
                 const active = statusFilter === `stage:${g.key}`;
                 return (
                   <button key={g.key}
@@ -1505,10 +1542,11 @@ function ProgressStepper({ status }: { status: string }) {
 }
 
 // ===== Visão operacional simplificada (lista/tabela) =====
-function StageBadge({ status }: { status: string }) {
-  const g = getStage(status);
+function StageBadge({ status, presale }: { status: string; presale?: boolean }) {
+  const g = getStage(status, presale);
   return <Badge variant="outline" className={cn('text-xs font-medium', g.color)}>{g.label}</Badge>;
 }
+
 
 function OperationalList({
   records, loading, isMobile, canOperate, fmt, onViewDetail, onEdit,
@@ -1536,7 +1574,7 @@ function OperationalList({
                 <p className="font-medium text-sm">{r.quote_number}</p>
                 <p className="text-xs text-muted-foreground truncate">{r.client_name}</p>
               </div>
-              <StageBadge status={r.logistics_status} />
+              <StageBadge status={r.logistics_status} presale={r.is_presale} />
             </div>
             <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
               <span>Vendedor: {r.salesperson || '-'}</span>
@@ -1578,7 +1616,7 @@ function OperationalList({
               <TableCell className="max-w-[200px] truncate">{r.client_name}</TableCell>
               <TableCell className="max-w-[140px] truncate">{r.salesperson || '-'}</TableCell>
               <TableCell className="text-right whitespace-nowrap">{fmt(r.total_amount || 0)}</TableCell>
-              <TableCell><StageBadge status={r.logistics_status} /></TableCell>
+              <TableCell><StageBadge status={r.logistics_status} presale={r.is_presale} /></TableCell>
               <TableCell className="text-xs">{pay(r)}</TableCell>
               <TableCell className="text-xs">{r.nf_numero || '-'}</TableCell>
               <TableCell className="text-xs max-w-[130px] truncate">{r.transportadora || '-'}</TableCell>
