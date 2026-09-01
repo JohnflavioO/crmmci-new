@@ -739,9 +739,100 @@ export default function Logistics() {
           </div>
         </div>
 
+        {/* ===== Filtro Master de Pré-vendas ===== */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 text-primary" />
+                <span className="font-semibold text-sm">Pré-vendas</span>
+                <Badge variant="secondary" className="text-xs">{filtered.length}</Badge>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button size="sm" variant={tab === 'prevendas' ? 'default' : 'ghost'} className="h-8 text-xs" onClick={() => setTab('prevendas')}>Visão operacional</Button>
+                <Button size="sm" variant={tab === 'dashboard' ? 'default' : 'ghost'} className="h-8 text-xs" onClick={() => setTab('dashboard')}>Dashboard</Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="relative flex-1 min-w-[220px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Buscar pedido, cliente, vendedor, NF ou rastreio..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Vendedor</Label>
+                <Select value={sellerFilter} onValueChange={setSellerFilter}>
+                  <SelectTrigger className="w-[190px] h-9"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os vendedores</SelectItem>
+                    {sellers.map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Status</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[190px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    {STAGE_GROUPS.map(g => (
+                      <SelectItem key={g.key} value={`stage:${g.key}`}>{g.label}</SelectItem>
+                    ))}
+                    {allStatuses.map(s => (
+                      <SelectItem key={s} value={s}>· {logisticsStatusLabels[s].label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {(search || sellerFilter !== 'all' || statusFilter !== 'all' || dateFilter !== 'all') && (
+                <Button variant="ghost" size="sm" className="h-9 text-xs text-muted-foreground"
+                  onClick={() => { setSearch(''); setSellerFilter('all'); setStatusFilter('all'); setDateFilter('all'); setDateFrom(''); setDateTo(''); }}>
+                  <X className="h-3.5 w-3.5 mr-1" /> Limpar filtros
+                </Button>
+              )}
+            </div>
+            {/* Atalhos por estágio */}
+            <div className="flex flex-wrap gap-1.5">
+              {STAGE_GROUPS.map(g => {
+                const count = records.filter(r => g.statuses.includes(r.logistics_status)).length;
+                const active = statusFilter === `stage:${g.key}`;
+                return (
+                  <button key={g.key}
+                    onClick={() => { setStatusFilter(active ? 'all' : `stage:${g.key}`); setTab('prevendas'); }}
+                    className={cn(
+                      'px-2.5 py-1 rounded-full text-xs border transition-colors',
+                      active ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted text-muted-foreground'
+                    )}>
+                    {g.label} <span className="font-semibold">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ===== Visão operacional (lista simplificada) ===== */}
+        {tab === 'prevendas' && (
+          <Card>
+            <CardContent className="p-0 sm:p-2">
+              <OperationalList
+                records={filtered}
+                loading={loading}
+                isMobile={isMobile}
+                canOperate={canOperate}
+                fmt={fmt}
+                onViewDetail={openDetail}
+                onEdit={openEdit}
+              />
+            </CardContent>
+          </Card>
+        )}
+
         {/* Dashboard Tab */}
         {tab === 'dashboard' && (
           <>
+
             {/* Alertas Inteligentes */}
             <LogisticsSmartAlerts records={records} onSelectRecord={(r) => {
               const full = records.find(rec => rec.id === r.id);
