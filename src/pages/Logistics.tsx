@@ -829,7 +829,10 @@ export default function Logistics() {
             {/* Atalhos por estágio */}
             <div className="flex flex-wrap gap-1.5">
               {STAGE_GROUPS.map(g => {
-                const count = records.filter(r => g.statuses.includes(r.logistics_status)).length;
+                const count = g.key === 'prevenda'
+                  ? records.filter(r => isPresaleRecord(r)).length
+                  : records.filter(r => !isPresaleRecord(r) && g.statuses.includes(r.logistics_status)).length;
+
                 const active = statusFilter === `stage:${g.key}`;
                 return (
                   <button key={g.key}
