@@ -238,16 +238,39 @@ export default function Logistics() {
 
       // Itens marcados como pré-venda na proposta (regra de item)
       const presaleQuoteIds = new Set<string>();
-      if (quoteIds.length > 0) {
-        const { data: presaleItems } = await db
-          .from('quote_items')
-          .select('quote_id')
-          .eq('is_presale', true)
-          .in('quote_id', quoteIds);
-        (presaleItems || []).forEach((i: any) => presaleQuoteIds.add(i.quote_id));
+      const { data: presaleItemsAll } = await db
+        .from('quote_items')
+        .select('quote_id')
+        .eq('is_presale', true);
+      (presaleItemsAll || []).forEach((i: any) => presaleQuoteIds.add(i.quote_id));
+
+      // Pré-vendas que ainda NÃO possuem registro de logística (não entraram no fluxo)
+      const existingQuoteIds = new Set(quoteIds);
+      const candidateIds = [...presaleQuoteIds].filter(id => !existingQuoteIds.has(id));
+      let extraPresaleQuotes: any[] = [];
+      const quoteCols = 'id, quote_number, client_name, salesperson, total_amount, total, approved_at, created_by, client_id, status, payment_method, created_at, updated_at';
+
+      const { data: statusPresaleQuotes } = await db
+        .from('quotes')
+        .select(quoteCols)
+        .in('status', PRESALE_QUOTE_STATUSES);
+      extraPresaleQuotes = (statusPresaleQuotes || []).filter((q: any) => !existingQuoteIds.has(q.id));
+
+      if (candidateIds.length > 0) {
+        const { data: itemPresaleQuotes } = await db
+          .from('quotes')
+          .select(quoteCols)
+          .in('id', candidateIds);
+        const seen = new Set(extraPresaleQuotes.map((q: any) => q.id));
+        (itemPresaleQuotes || [])
+          .filter((q: any) => !seen.has(q.id) && !['draft', 'rejeitado', 'rejected', 'cancelado'].includes(q.status || ''))
+          .forEach((q: any) => extraPresaleQuotes.push(q));
       }
 
-      const sellerIds = [...new Set((Object.values(quotesMap) as any[]).map((q: any) => q.created_by).filter(Boolean))];
+      const sellerIds = [...new Set([
+        ...(Object.values(quotesMap) as any[]).map((q: any) => q.created_by),
+        ...extraPresaleQuotes.map((q: any) => q.created_by),
+      ].filter(Boolean))];
       let profilesMap: Record<string, string> = {};
       if (sellerIds.length > 0) {
         const { data: profiles } = await db
@@ -280,8 +303,42 @@ export default function Logistics() {
         };
       });
 
-      // Show all logistics records (logistics records are created for quotes that entered the logistics flow)
-      setRecords(merged);
+      // Registros virtuais (somente leitura) das pré-vendas sem logística
+      const virtuals: LogisticsRecord[] = extraPresaleQuotes.map((q: any) => ({
+        id: `presale-${q.id}`,
+        quote_id: q.id,
+        logistics_status: 'aguardando_entrada',
+        nf_numero: null,
+        nf_data: null,
+        nf_pdf_url: null,
+        codigo_rastreio: null,
+        transportadora: null,
+        observacao_logistica: null,
+        data_envio: null,
+        data_entrega: null,
+        entrada_by: null,
+        entrada_at: null,
+        created_at: q.created_at,
+        updated_at: q.updated_at || q.created_at,
+        quote_number: q.quote_number || '',
+        client_name: q.client_name || '',
+        salesperson: q.salesperson || profilesMap[q.created_by] || '',
+        total_amount: q.total_amount || q.total || 0,
+        total: q.total || 0,
+        approved_at: q.approved_at || '',
+        created_by: q.created_by || '',
+        client_id: q.client_id || '',
+        quote_status: q.status || '',
+        payment_method: q.payment_method || null,
+        is_presale: true,
+        is_virtual: true,
+      }));
+
+      // Show all logistics records + pré-vendas ainda fora do fluxo
+      setRecords([...merged, ...virtuals].sort((a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      ));
+
 
       // Fetch active sellers (comercial, gestor, admin) excluding test accounts
       const { data: activeSellers } = await db
