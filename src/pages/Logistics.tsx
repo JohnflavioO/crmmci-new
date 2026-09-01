@@ -102,6 +102,8 @@ interface LogisticsRecord {
   created_by?: string;
   client_id?: string;
   quote_status?: string;
+  payment_method?: string | null;
+
 }
 
 interface QuoteItem {
