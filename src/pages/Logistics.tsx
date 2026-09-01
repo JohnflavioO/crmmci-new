@@ -49,9 +49,10 @@ const logisticsStatusLabels: Record<string, { label: string; color: string }> = 
 const allStatuses = Object.keys(logisticsStatusLabels);
 
 // Estágios operacionais consolidados (apenas agrupamento visual — não altera regras)
+// Pré-venda NÃO é um logistics_status: vem da proposta (status pre_venda) ou de itens marcados como pré-venda.
 const STAGE_GROUPS: { key: string; label: string; statuses: string[]; color: string }[] = [
-  { key: 'prevenda', label: 'Pré-venda', statuses: ['aguardando_entrada', 'entrada_realizada'], color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-  { key: 'aguardando_nf', label: 'Aguardando NF', statuses: ['emitindo_nf'], color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
+  { key: 'prevenda', label: 'Pré-venda', statuses: [], color: 'bg-purple-100 text-purple-800 border-purple-200' },
+  { key: 'aguardando_nf', label: 'Aguardando NF', statuses: ['aguardando_entrada', 'entrada_realizada', 'emitindo_nf'], color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
   { key: 'nf_emitida', label: 'NF emitida', statuses: ['nf_emitida'], color: 'bg-purple-100 text-purple-800 border-purple-200' },
   { key: 'aguardando_envio', label: 'Aguardando envio', statuses: ['em_separacao', 'pronto_envio'], color: 'bg-teal-100 text-teal-800 border-teal-200' },
   { key: 'enviado', label: 'Enviado', statuses: ['enviado', 'em_transporte'], color: 'bg-sky-100 text-sky-800 border-sky-200' },
@@ -59,9 +60,17 @@ const STAGE_GROUPS: { key: string; label: string; statuses: string[]; color: str
   { key: 'problema', label: 'Problema', statuses: ['problema_logistico'], color: 'bg-red-100 text-red-800 border-red-200' },
 ];
 
-function getStage(status: string) {
-  return STAGE_GROUPS.find(g => g.statuses.includes(status)) || STAGE_GROUPS[0];
+const PRESALE_QUOTE_STATUSES = ['pre_venda', 'pre_sale'];
+
+function isPresaleRecord(r: { quote_status?: string; is_presale?: boolean }) {
+  return !!r.is_presale || PRESALE_QUOTE_STATUSES.includes(r.quote_status || '');
 }
+
+function getStage(status: string, presale = false) {
+  if (presale) return STAGE_GROUPS[0];
+  return STAGE_GROUPS.find(g => g.statuses.includes(status)) || STAGE_GROUPS[1];
+}
+
 
 const paymentMethodLabels: Record<string, string> = {
   pix: 'PIX',
