@@ -112,6 +112,8 @@ interface LogisticsRecord {
   client_id?: string;
   quote_status?: string;
   payment_method?: string | null;
+  is_presale?: boolean;
+
 
 }
 
