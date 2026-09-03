@@ -204,9 +204,46 @@ export default function Products() {
     return Number.isFinite(n) ? n : null;
   };
 
+  // Verifica duplicidade antes de salvar (código, SKU ou nome+marca)
+  const findDuplicate = async (): Promise<string | null> => {
+    const norm = (v: string) => (v || '').trim();
+    const code = norm(form.code);
+    const sku = norm(form.sku);
+    const name = norm(form.name);
+    const brand = norm(form.brand);
+
+    const check = async (filters: (q: any) => any, label: string) => {
+      let q = db.from('products').select('id, name, code, sku, brand').limit(5);
+      q = filters(q);
+      if (editing?.id) q = q.neq('id', editing.id);
+      const { data } = await q;
+      return data && data.length > 0 ? label : null;
+    };
+
+    if (code) {
+      const r = await check((q: any) => q.ilike('code', code), `Já existe um produto com o código "${code}".`);
+      if (r) return r;
+    }
+    if (sku) {
+      const r = await check((q: any) => q.ilike('sku', sku), `Já existe um produto com o SKU "${sku}".`);
+      if (r) return r;
+    }
+    if (name) {
+      const r = await check(
+        (q: any) => (brand ? q.ilike('name', name).ilike('brand', brand) : q.ilike('name', name)),
+        `Já existe um produto com o nome "${name}"${brand ? ` da marca ${brand}` : ''}.`
+      );
+      if (r) return r;
+    }
+    return null;
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Nome é obrigatório'); return; }
     try {
+      const dup = await findDuplicate();
+      if (dup) { toast.error(`Produto duplicado. ${dup}`); return; }
+
       const payload: any = {
         name: form.name, sku: form.sku, code: form.code, brand: form.brand,
         description: form.description, price: parseMoneyBR(form.price), image_url: form.image_url,
