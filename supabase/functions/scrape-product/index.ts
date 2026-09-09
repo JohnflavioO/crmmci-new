@@ -64,58 +64,76 @@ Deno.serve(async (req) => {
     const domain = new URL(formattedUrl).hostname;
     console.log(`[scrape] URL: ${formattedUrl} | domain: ${domain}`);
 
-    // Fetch page
-    let response: Response;
-    try {
+    // Fetch page (direct, then via reader proxy if blocked)
+    const browserHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+      'Cache-Control': 'no-cache',
+    };
+
+    const tryFetch = async (target: string, headers: Record<string, string>) => {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      response = await fetch(formattedUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml',
-        },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-    } catch (fetchErr: any) {
-      const elapsed = Date.now() - startTime;
-      console.error(`[scrape] Fetch failed after ${elapsed}ms:`, fetchErr.message);
-      if (fetchErr.name === 'AbortError') {
-        return respond(false, {
-          error: 'O site demorou muito para responder. Tente novamente mais tarde.',
-          diagnostics: { domain, error_stage: 'timeout', processing_time_ms: elapsed },
-        });
+      const timeout = setTimeout(() => controller.abort(), 20000);
+      try {
+        return await fetch(target, { headers, signal: controller.signal, redirect: 'follow' });
+      } finally {
+        clearTimeout(timeout);
       }
-      return respond(false, {
-        error: 'Não foi possível acessar o site. Verifique a URL e tente novamente.',
-        diagnostics: { domain, error_stage: 'fetch_error', processing_time_ms: elapsed },
-      });
+    };
+
+    let html = '';
+    let lastStatus = 0;
+    let fetchErrName = '';
+
+    const attempts: Array<{ url: string; headers: Record<string, string> }> = [
+      { url: formattedUrl, headers: browserHeaders },
+      { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(formattedUrl)}`, headers: browserHeaders },
+      { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(formattedUrl)}`, headers: browserHeaders },
+      { url: `https://r.jina.ai/${formattedUrl}`, headers: { ...browserHeaders, 'x-return-format': 'html' } },
+    ];
+
+
+    for (const attempt of attempts) {
+      try {
+        const response = await tryFetch(attempt.url, attempt.headers);
+        lastStatus = response.status;
+        console.log(`[scrape] HTTP ${response.status} via ${new URL(attempt.url).hostname} (${Date.now() - startTime}ms)`);
+        if (!response.ok) continue;
+        const text = await response.text();
+        if (text.length < 500) continue;
+        html = text;
+        break;
+      } catch (fetchErr: any) {
+        fetchErrName = fetchErr?.name ?? 'FetchError';
+        console.error(`[scrape] Fetch failed (${attempt.url}):`, fetchErr?.message);
+      }
     }
 
-    console.log(`[scrape] HTTP ${response.status} from ${domain} (${Date.now() - startTime}ms)`);
-
-    if (!response.ok) {
-      if (response.status === 403 || response.status === 401) {
+    if (!html) {
+      const elapsed = Date.now() - startTime;
+      if (lastStatus === 403 || lastStatus === 401) {
         return respond(false, {
           error: 'O site bloqueou a leitura externa. Tente preencher manualmente.',
-          diagnostics: { domain, error_stage: 'blocked', http_status: response.status },
+          diagnostics: { domain, error_stage: 'blocked', http_status: lastStatus, processing_time_ms: elapsed },
+        });
+      }
+      if (lastStatus >= 400) {
+        return respond(false, {
+          error: `O site retornou erro (${lastStatus}). Verifique a URL.`,
+          diagnostics: { domain, error_stage: 'http_error', http_status: lastStatus, processing_time_ms: elapsed },
         });
       }
       return respond(false, {
-        error: `O site retornou erro (${response.status}). Verifique a URL.`,
-        diagnostics: { domain, error_stage: 'http_error', http_status: response.status },
+        error: fetchErrName === 'AbortError'
+          ? 'O site demorou muito para responder. Tente novamente mais tarde.'
+          : 'Não foi possível acessar o site. Verifique a URL e tente novamente.',
+        diagnostics: { domain, error_stage: fetchErrName === 'AbortError' ? 'timeout' : 'fetch_error', processing_time_ms: elapsed },
       });
     }
 
-    const html = await response.text();
     console.log(`[scrape] HTML length: ${html.length} chars`);
 
-    if (html.length < 500) {
-      return respond(false, {
-        error: 'A página retornou conteúdo vazio ou insuficiente.',
-        diagnostics: { domain, error_stage: 'empty_page', html_length: html.length },
-      });
-    }
 
     // --- Extraction helpers ---
     const getMeta = (property: string): string => {
