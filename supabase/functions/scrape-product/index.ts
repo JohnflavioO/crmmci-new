@@ -229,6 +229,29 @@ Deno.serve(async (req) => {
     const domain = new URL(formattedUrl).hostname;
     console.log(`[scrape] URL: ${formattedUrl} | domain: ${domain}`);
 
+    // Loja própria (Loja Integrada): usa a API oficial em vez de scraping
+    if (OWN_STORE_HOSTS.includes(domain.toLowerCase())) {
+      const slug = normalizeSlug(new URL(formattedUrl).pathname.split('/').filter(Boolean).pop() || '');
+      if (slug) {
+        try {
+          const liData = await importFromLojaIntegrada(slug);
+          if (liData?.name) {
+            const found = [liData.name, liData.description, liData.image_url, liData.brand, liData.sku]
+              .filter(Boolean).length + (liData.price > 0 ? 1 : 0);
+            console.log(`[scrape] LI import OK: ${found}/6 campos em ${Date.now() - startTime}ms`);
+            return respond(true, {
+              success: true,
+              data: liData,
+              diagnostics: { domain, source: 'loja_integrada_api', fields_found: found, processing_time_ms: Date.now() - startTime },
+            });
+          }
+        } catch (e: any) {
+          console.error('[scrape] LI import failed:', e?.message);
+        }
+      }
+    }
+
+
     // Fetch page (direct, then via reader proxy if blocked)
     const browserHeaders = {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
