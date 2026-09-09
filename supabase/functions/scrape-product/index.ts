@@ -153,7 +153,7 @@ async function importFromLojaIntegrada(slug: string) {
   if (!price) {
     const precos = await liGET(`/produto_preco/${product.id}`, apiKey, applicationKey);
     price = toNumber(precos?.promocional) || toNumber(precos?.cheio);
-    price = toNumber(precos?.promocional) || toNumber(precos?.cheio);
+
   }
 
 
