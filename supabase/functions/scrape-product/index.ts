@@ -119,14 +119,16 @@ async function importFromLojaIntegrada(slug: string) {
 
   let product: any = null;
 
-  const direct = await liGET(`/produto?apelido=${encodeURIComponent(slug)}&limit=5`, apiKey, applicationKey);
+  const direct = await liGET(`/produto?apelido=${encodeURIComponent(slug)}&limit=20`, apiKey, applicationKey);
   const directObjs: any[] = direct?.objects || [];
-  product = directObjs.find((p) => normalizeSlug(p?.apelido || '') === slug) || directObjs[0] || null;
+  product = directObjs.find((p) => normalizeSlug(p?.apelido || '') === slug)
+    || directObjs.find((p) => normalizeSlug(p?.nome || '') === slug)
+    || null;
 
   if (!product) {
-    // Fallback: paginate and match slug against apelido / nome
+    // Fallback: paginate and match slug against apelido / nome (nunca aceita produto errado)
     const limit = 100;
-    for (let offset = 0; offset < 5000; offset += limit) {
+    for (let offset = 0; offset < 20000; offset += limit) {
       const page = await liGET(`/produto?limit=${limit}&offset=${offset}`, apiKey, applicationKey);
       const items: any[] = page?.objects || [];
       if (!items.length) break;
@@ -144,12 +146,16 @@ async function importFromLojaIntegrada(slug: string) {
   }
 
   const detail = (await liGET(`/produto/${product.id}`, apiKey, applicationKey)) || product;
+  console.log(`[scrape] LI match id=${product.id} apelido=${product?.apelido} keys=${Object.keys(detail || {}).join(',')}`);
 
-  let price = toNumber(detail?.preco?.preco_promocional) || toNumber(detail?.preco?.preco_venda);
+  let price = toNumber(detail?.preco?.promocional) || toNumber(detail?.preco?.cheio)
+    || toNumber(detail?.preco?.preco_promocional) || toNumber(detail?.preco?.preco_venda);
   if (!price) {
     const precos = await liGET(`/produto_preco/${product.id}`, apiKey, applicationKey);
+    console.log(`[scrape] LI preco payload: ${JSON.stringify(precos)?.slice(0, 300)}`);
     price = toNumber(precos?.promocional) || toNumber(precos?.cheio);
   }
+
 
   let image = '';
   const imgs = await liGET(`/produto_imagem?produto=${product.id}&limit=5`, apiKey, applicationKey);
