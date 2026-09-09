@@ -88,9 +88,11 @@ Deno.serve(async (req) => {
 
     const attempts: Array<{ url: string; headers: Record<string, string> }> = [
       { url: formattedUrl, headers: browserHeaders },
-      { url: `https://r.jina.ai/${formattedUrl}`, headers: { ...browserHeaders, 'x-return-format': 'html' } },
       { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(formattedUrl)}`, headers: browserHeaders },
+      { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(formattedUrl)}`, headers: browserHeaders },
+      { url: `https://r.jina.ai/${formattedUrl}`, headers: { ...browserHeaders, 'x-return-format': 'html' } },
     ];
+
 
     for (const attempt of attempts) {
       try {
