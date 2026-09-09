@@ -12,6 +12,177 @@ function respond(ok: boolean, payload: Record<string, unknown>, status = 200): R
   });
 }
 
+// ---------- Loja Integrada (loja própria) ----------
+const LOJA_INTEGRADA_API = 'https://api.awsli.com.br/v1';
+const OWN_STORE_HOSTS = ['mci.tv', 'www.mci.tv', 'mcistore.com.br', 'www.mcistore.com.br'];
+
+function base64ToBytes(value: string): Uint8Array {
+  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+}
+
+async function getEncryptionKey(): Promise<CryptoKey> {
+  const secret = Deno.env.get('LOVABLE_API_KEY');
+  if (!secret) throw new Error('Encryption key is not configured');
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret));
+  return crypto.subtle.importKey('raw', digest, 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+
+async function decryptText(payload: { iv: string; data: string }): Promise<string> {
+  const key = await getEncryptionKey();
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: base64ToBytes(payload.iv) },
+    key,
+    base64ToBytes(payload.data),
+  );
+  return new TextDecoder().decode(decrypted);
+}
+
+async function getLojaIntegradaCredentials(): Promise<{ apiKey: string; applicationKey: string } | null> {
+  try {
+    const service = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const { data } = await service
+      .from('integrations')
+      .select('config, api_key, application_key')
+      .eq('integration_name', 'loja_integrada')
+      .maybeSingle();
+    if (!data) return null;
+    const enc = (data.config as any)?.encrypted_credentials;
+    if (enc?.api_key?.data && enc?.application_key?.data) {
+      return {
+        apiKey: await decryptText(enc.api_key),
+        applicationKey: await decryptText(enc.application_key),
+      };
+    }
+    if (data.api_key && data.application_key) {
+      return { apiKey: data.api_key, applicationKey: data.application_key };
+    }
+    return null;
+  } catch (e: any) {
+    console.error('[scrape] LI credentials error:', e?.message);
+    return null;
+  }
+}
+
+async function liGET(path: string, apiKey: string, applicationKey: string): Promise<any> {
+  try {
+    const r = await fetch(`${LOJA_INTEGRADA_API}${path}`, {
+      headers: {
+        'Authorization': `chave_api ${apiKey} aplicacao ${applicationKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!r.ok) {
+      console.log(`[scrape] LI ${path} -> HTTP ${r.status}`);
+      return null;
+    }
+    return await r.json();
+  } catch (e: any) {
+    console.error(`[scrape] LI ${path} failed:`, e?.message);
+    return null;
+  }
+}
+
+function normalizeSlug(value: string): string {
+  return (value || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function toNumber(value: unknown): number {
+  const n = parseFloat(String(value ?? '').replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function stripHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+async function importFromLojaIntegrada(slug: string) {
+  const creds = await getLojaIntegradaCredentials();
+  if (!creds) {
+    console.log('[scrape] LI credentials not configured');
+    return null;
+  }
+  const { apiKey, applicationKey } = creds;
+
+  let product: any = null;
+
+  const direct = await liGET(`/produto?apelido=${encodeURIComponent(slug)}&limit=20`, apiKey, applicationKey);
+  const directObjs: any[] = direct?.objects || [];
+  product = directObjs.find((p) => normalizeSlug(p?.apelido || '') === slug)
+    || directObjs.find((p) => normalizeSlug(p?.nome || '') === slug)
+    || null;
+
+  if (!product) {
+    // Fallback: paginate and match slug against apelido / nome (nunca aceita produto errado)
+    const limit = 100;
+    for (let offset = 0; offset < 20000; offset += limit) {
+      const page = await liGET(`/produto?limit=${limit}&offset=${offset}`, apiKey, applicationKey);
+      const items: any[] = page?.objects || [];
+      if (!items.length) break;
+      product = items.find((p) => normalizeSlug(p?.apelido || '') === slug)
+        || items.find((p) => normalizeSlug(p?.nome || '') === slug)
+        || null;
+      if (product) break;
+      if (items.length < limit) break;
+    }
+  }
+
+  if (!product) {
+    console.log(`[scrape] LI: produto não encontrado para slug ${slug}`);
+    return null;
+  }
+
+  const detail = (await liGET(`/produto/${product.id}`, apiKey, applicationKey)) || product;
+  console.log(`[scrape] LI match id=${product.id}`);
+
+  let price = toNumber(detail?.preco?.promocional) || toNumber(detail?.preco?.cheio)
+    || toNumber(detail?.preco?.preco_promocional) || toNumber(detail?.preco?.preco_venda);
+  if (!price) {
+    const precos = await liGET(`/produto_preco/${product.id}`, apiKey, applicationKey);
+    price = toNumber(precos?.promocional) || toNumber(precos?.cheio);
+
+  }
+
+
+  let image = '';
+  const imgs = await liGET(`/produto_imagem?produto=${product.id}&limit=5`, apiKey, applicationKey);
+  const imgObjs: any[] = imgs?.objects || [];
+  image = imgObjs[0]?.grande || imgObjs[0]?.media || imgObjs[0]?.url || detail?.imagem_principal?.grande || '';
+
+  let brand = '';
+  const rawBrand = detail?.marca;
+  if (rawBrand && typeof rawBrand === 'object') brand = String(rawBrand.nome || '');
+  else if (typeof rawBrand === 'string' && rawBrand.startsWith('/')) {
+    const m = await liGET(rawBrand.replace('/api/v1', ''), apiKey, applicationKey);
+    brand = String(m?.nome || '');
+  } else if (typeof rawBrand === 'string') brand = rawBrand;
+  if (!brand) brand = String(detail?.marca_nome || '');
+
+
+  return {
+    name: String(detail?.nome || product?.nome || '').trim(),
+    description: stripHtml(detail?.descricao_completa || detail?.descricao_curta || ''),
+    image_url: image || '',
+    price: price || 0,
+    brand: typeof brand === 'string' ? brand : '',
+    sku: String(detail?.sku || detail?.codigo || product?.sku || '').trim(),
+  };
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -63,6 +234,29 @@ Deno.serve(async (req) => {
 
     const domain = new URL(formattedUrl).hostname;
     console.log(`[scrape] URL: ${formattedUrl} | domain: ${domain}`);
+
+    // Loja própria (Loja Integrada): usa a API oficial em vez de scraping
+    if (OWN_STORE_HOSTS.includes(domain.toLowerCase())) {
+      const slug = normalizeSlug(new URL(formattedUrl).pathname.split('/').filter(Boolean).pop() || '');
+      if (slug) {
+        try {
+          const liData = await importFromLojaIntegrada(slug);
+          if (liData?.name) {
+            const found = [liData.name, liData.description, liData.image_url, liData.brand, liData.sku]
+              .filter(Boolean).length + (liData.price > 0 ? 1 : 0);
+            console.log(`[scrape] LI import OK: ${found}/6 campos em ${Date.now() - startTime}ms`);
+            return respond(true, {
+              success: true,
+              data: liData,
+              diagnostics: { domain, source: 'loja_integrada_api', fields_found: found, processing_time_ms: Date.now() - startTime },
+            });
+          }
+        } catch (e: any) {
+          console.error('[scrape] LI import failed:', e?.message);
+        }
+      }
+    }
+
 
     // Fetch page (direct, then via reader proxy if blocked)
     const browserHeaders = {
