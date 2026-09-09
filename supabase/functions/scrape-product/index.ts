@@ -146,7 +146,7 @@ async function importFromLojaIntegrada(slug: string) {
   }
 
   const detail = (await liGET(`/produto/${product.id}`, apiKey, applicationKey)) || product;
-  console.log(`[scrape] LI match id=${product.id} marca=${JSON.stringify(detail?.marca)} sob_consulta_detail=${JSON.stringify(detail?.preco)?.slice(0, 200)}`);
+  console.log(`[scrape] LI match id=${product.id}`);
 
   let price = toNumber(detail?.preco?.promocional) || toNumber(detail?.preco?.cheio)
     || toNumber(detail?.preco?.preco_promocional) || toNumber(detail?.preco?.preco_venda);
