@@ -156,8 +156,15 @@ async function importFromLojaIntegrada(slug: string) {
   const imgObjs: any[] = imgs?.objects || [];
   image = imgObjs[0]?.grande || imgObjs[0]?.media || imgObjs[0]?.url || detail?.imagem_principal?.grande || '';
 
-  const brand = detail?.marca?.nome || detail?.marca_nome
-    || (typeof detail?.marca === 'string' ? '' : '') || '';
+  let brand = '';
+  const rawBrand = detail?.marca;
+  if (rawBrand && typeof rawBrand === 'object') brand = String(rawBrand.nome || '');
+  else if (typeof rawBrand === 'string' && rawBrand.startsWith('/')) {
+    const m = await liGET(rawBrand.replace('/api/v1', ''), apiKey, applicationKey);
+    brand = String(m?.nome || '');
+  } else if (typeof rawBrand === 'string') brand = rawBrand;
+  if (!brand) brand = String(detail?.marca_nome || '');
+
 
   return {
     name: String(detail?.nome || product?.nome || '').trim(),
