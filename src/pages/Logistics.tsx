@@ -972,6 +972,7 @@ export default function Logistics() {
                 onViewDetail={openDetail}
                 onEdit={openEdit}
                 onStart={startPresaleLogistics}
+                onDownloadPdf={downloadPdf}
                 startingQuoteIds={startingQuoteIds}
               />
             </CardContent>
@@ -1149,6 +1150,10 @@ export default function Logistics() {
                   <div><span className="text-muted-foreground">Aprovado em:</span> <strong>{detailRecord.approved_at ? format(new Date(detailRecord.approved_at), 'dd/MM/yyyy') : '-'}</strong></div>
                   <div><span className="text-muted-foreground">Status:</span> <StatusBadge status={detailRecord.logistics_status} /></div>
                 </div>
+
+                <Button size="sm" variant="outline" onClick={() => downloadPdf(detailRecord)}>
+                  <Download className="h-4 w-4 mr-1.5" /> Baixar proposta PDF
+                </Button>
                 <hr />
                 <div className="grid grid-cols-2 gap-2">
                   <div><span className="text-muted-foreground">NF:</span> <strong>{detailRecord.nf_numero || '-'}</strong></div>
@@ -1661,7 +1666,7 @@ function StageBadge({ status, presale }: { status: string; presale?: boolean }) 
 
 
 function OperationalList({
-  records, loading, isMobile, canOperate, fmt, onViewDetail, onEdit, onStart, startingQuoteIds,
+  records, loading, isMobile, canOperate, fmt, onViewDetail, onEdit, onStart, onDownloadPdf, startingQuoteIds,
 }: {
   records: LogisticsRecord[];
   loading: boolean;
@@ -1671,6 +1676,7 @@ function OperationalList({
   onViewDetail: (r: LogisticsRecord) => void;
   onEdit: (r: LogisticsRecord) => void;
   onStart: (r: LogisticsRecord) => void;
+  onDownloadPdf: (r: LogisticsRecord) => void;
   startingQuoteIds: Set<string>;
 }) {
   if (loading) return <p className="text-sm text-muted-foreground text-center py-10">Carregando pré-vendas...</p>;
@@ -1714,17 +1720,22 @@ function OperationalList({
                 </div>
               ) : <p className="text-xs text-muted-foreground">Nenhum item cadastrado na ORC.</p>}
             </div>
-            {canOperate && r.is_virtual && (
-              <Button
-                size="sm"
-                className="mt-3 w-full"
-                disabled={startingQuoteIds.has(r.quote_id)}
-                onClick={() => onStart(r)}
-              >
-                <PackageCheck className="h-4 w-4" />
-                {startingQuoteIds.has(r.quote_id) ? 'Baixando...' : 'Baixar pedido'}
+            <div className="mt-3 flex gap-2">
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => onDownloadPdf(r)}>
+                <Download className="h-4 w-4" /> Baixar proposta
               </Button>
-            )}
+              {canOperate && r.is_virtual && (
+                <Button
+                  size="sm"
+                  className="flex-1"
+                  disabled={startingQuoteIds.has(r.quote_id)}
+                  onClick={() => onStart(r)}
+                >
+                  <PackageCheck className="h-4 w-4" />
+                  {startingQuoteIds.has(r.quote_id) ? 'Baixando...' : 'Baixar pedido'}
+                </Button>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -1779,6 +1790,9 @@ function OperationalList({
                 <div className="flex items-center justify-end gap-1">
                   <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver detalhes" onClick={() => onViewDetail(r)}>
                     <Eye className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" title="Baixar proposta PDF" onClick={() => onDownloadPdf(r)}>
+                    <Download className="h-3.5 w-3.5" />
                   </Button>
                   {canOperate && !r.is_virtual && (
                     <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => onEdit(r)}>
