@@ -14,7 +14,6 @@ const BACKUP_TABLES = [
   { name: 'clients', label: 'Clientes' },
   { name: 'products', label: 'Produtos' },
   { name: 'profiles', label: 'Vendedores' },
-  { name: 'salespeople', label: 'Cadastro comercial' },
 ] as const;
 
 const PAGE_SIZE = 500;
