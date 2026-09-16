@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, UserCheck, LogOut, Package, Calculator, ListChecks, BarChart3, Filter, Handshake, Plug,
   Clock, ArrowDownCircle, AlertTriangle, FileBarChart, Truck, ClipboardList, TriangleAlert, MapPin, RefreshCw, Warehouse, Target, Sparkles,
-  Wrench, Zap, HelpCircle, Brain, Compass, PackageSearch, Link2
+  Wrench, Zap, HelpCircle, Brain, Compass, PackageSearch, Link2, Database
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -332,7 +332,7 @@ export default function AppSidebar({ onNavigate }: Props) {
               <>
                 <SectionDivider />
                 <SectionLabel>Administrativo</SectionLabel>
-                {[{ to: '/approvals', icon: UserCheck, label: 'Aprovações' }, { to: '/aprovacoes/reciclagem', icon: RefreshCw, label: 'Reciclagem de Ciclo' }, { to: '/assistente/auditoria', icon: Compass, label: 'Auditoria do Assistente' }, { to: '/diagnostico/logistica', icon: Truck, label: 'Diagnóstico Logístico' }, { to: '/mapeamento-produtos', icon: Link2, label: 'Mapeamento de Produtos' }].map(item => <LinkItem key={item.to} {...item} />)}
+                {[{ to: '/approvals', icon: UserCheck, label: 'Aprovações' }, { to: '/aprovacoes/reciclagem', icon: RefreshCw, label: 'Reciclagem de Ciclo' }, { to: '/assistente/auditoria', icon: Compass, label: 'Auditoria do Assistente' }, { to: '/diagnostico/logistica', icon: Truck, label: 'Diagnóstico Logístico' }, { to: '/mapeamento-produtos', icon: Link2, label: 'Mapeamento de Produtos' }, { to: '/backup', icon: Database, label: 'Backup de Dados' }].map(item => <LinkItem key={item.to} {...item} />)}
                 {isAdmin && [{ to: '/integrations', icon: Plug, label: 'Integrações' }].map(item => <LinkItem key={item.to} {...item} />)}
               </>
             )}
