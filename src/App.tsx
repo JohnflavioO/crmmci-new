@@ -69,6 +69,7 @@ const ProductMapping = lazy(() => import("./pages/ProductMapping"));
 const PublicSignContract = lazy(() => import("./pages/PublicSignContract"));
 const PublicValidateSignature = lazy(() => import("./pages/PublicValidateSignature"));
 const EquipmentComparator = lazy(() => import("./pages/EquipmentComparator"));
+const DataBackup = lazy(() => import("./pages/DataBackup"));
 
 
 const queryClient = new QueryClient({
@@ -229,6 +230,7 @@ function AppRoutes() {
             {isAdmin && <Route path="/integrations" element={<SafeRoute><Integrations /></SafeRoute>} />}
             {(isAdmin || isGestor) && <Route path="/diagnostico/logistica" element={<SafeRoute><LogisticsSyncDiagnostic /></SafeRoute>} />}
             {(isAdmin || isGestor) && <Route path="/mapeamento-produtos" element={<SafeRoute><ProductMapping /></SafeRoute>} />}
+            {(isAdmin || isGestor) && <Route path="/backup" element={<SafeRoute><DataBackup /></SafeRoute>} />}
           </>
         )}
 
