@@ -4004,6 +4004,10 @@ export type Database = {
         Args: { _permissions: Json; _user_id: string }
         Returns: undefined
       }
+      backup_export_count: {
+        Args: { p_company_id?: string; p_table: string }
+        Returns: number
+      }
       backup_export_page: {
         Args: {
           p_company_id?: string
