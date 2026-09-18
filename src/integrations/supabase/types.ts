@@ -241,6 +241,57 @@ export type Database = {
           },
         ]
       }
+      backup_audit_log: {
+        Row: {
+          company_id: string | null
+          completed_at: string | null
+          counts: Json
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          requested_by: string
+          requester_email: string | null
+          requester_role: string
+          scope_type: string
+          status: string
+          verification: Json
+          warnings: Json
+        }
+        Insert: {
+          company_id?: string | null
+          completed_at?: string | null
+          counts?: Json
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          requested_by: string
+          requester_email?: string | null
+          requester_role: string
+          scope_type: string
+          status?: string
+          verification?: Json
+          warnings?: Json
+        }
+        Update: {
+          company_id?: string | null
+          completed_at?: string | null
+          counts?: Json
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          requested_by?: string
+          requester_email?: string | null
+          requester_role?: string
+          scope_type?: string
+          status?: string
+          verification?: Json
+          warnings?: Json
+        }
+        Relationships: []
+      }
       bank_slip_history: {
         Row: {
           action: string
@@ -3952,6 +4003,24 @@ export type Database = {
       admin_set_user_permissions: {
         Args: { _permissions: Json; _user_id: string }
         Returns: undefined
+      }
+      backup_export_page: {
+        Args: {
+          p_company_id?: string
+          p_cursor_created?: string
+          p_cursor_key?: string
+          p_limit?: number
+          p_table: string
+        }
+        Returns: Json
+      }
+      backup_list_public_tables: {
+        Args: never
+        Returns: {
+          has_created_at: boolean
+          key_column: string
+          table_name: string
+        }[]
       }
       can_view_company_profile: {
         Args: { _target_company_id: string; _target_user_id: string }
