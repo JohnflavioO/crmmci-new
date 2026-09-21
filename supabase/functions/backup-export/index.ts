@@ -3,7 +3,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { z } from 'npm:zod@3.25.76';
 import { EXCLUDED_TABLES, GLOBAL_TABLES, STORAGE_BUCKETS, assertKnownTable, normalizeLimit } from './scope-map.ts';
 
-const Body=z.object({action:z.enum(['init','page','accounts','storage','storage-url','finish','history']),scope:z.enum(['company','all']).optional(),company_id:z.string().uuid().nullable().optional(),table:z.string().regex(/^[a-z][a-z0-9_]*$/).optional(),cursor:z.object({created_at:z.string().nullable(),key:z.string()}).nullable().optional(),limit:z.number().optional(),page:z.number().int().positive().optional(),bucket:z.enum(STORAGE_BUCKETS).optional(),path:z.string().max(1024).optional(),audit_id:z.string().uuid().optional(),counts:z.record(z.number()).optional(),verification:z.record(z.unknown()).optional(),warnings:z.array(z.string()).optional(),status:z.enum(['completed','failed']).optional(),duration_ms:z.number().int().nonnegative().optional(),error_message:z.string().max(500).optional()});
+const Body=z.object({action:z.enum(['init','companies','page','accounts','storage','storage-url','finish','history']),scope:z.enum(['company','all']).optional(),company_id:z.string().uuid().nullable().optional(),table:z.string().regex(/^[a-z][a-z0-9_]*$/).optional(),cursor:z.object({created_at:z.string().nullable(),key:z.string()}).nullable().optional(),limit:z.number().optional(),page:z.number().int().positive().optional(),bucket:z.enum(STORAGE_BUCKETS).optional(),path:z.string().max(1024).optional(),audit_id:z.string().uuid().optional(),counts:z.record(z.number()).optional(),verification:z.record(z.unknown()).optional(),warnings:z.array(z.string()).optional(),status:z.enum(['completed','failed']).optional(),duration_ms:z.number().int().nonnegative().optional(),error_message:z.string().max(500).optional()});
 function json(body:unknown,status=200){return new Response(JSON.stringify(body),{status,headers:{...corsHeaders,'Content-Type':'application/json'}})}
 function safeUser(u:any){return {id:u.id,email:u.email??null,phone:u.phone??null,created_at:u.created_at??null,last_sign_in_at:u.last_sign_in_at??null,email_confirmed_at:u.email_confirmed_at??null,banned_until:u.banned_until??null,user_metadata:u.user_metadata??{},app_metadata:u.app_metadata??{}}}
 Deno.serve(async(req)=>{
@@ -24,6 +24,9 @@ Deno.serve(async(req)=>{
  try{
   const {data:tableMeta,error:te}=await svc.rpc('backup_list_public_tables'); if(te) throw te;
   const tables=(tableMeta??[]).map((x:any)=>String(x.table_name));
+  if(b.action==='companies'){
+   if(!isAdmin)return json({rows:[]});const {data,error}=await svc.from('profiles').select('company_id').not('company_id','is',null);if(error)throw error;const ids=[...new Set((data??[]).map((p:any)=>String(p.company_id)))];return json({rows:ids.map(id=>({id,name:id}))});
+  }
   if(b.action==='init'){
    const role=isAdmin?'admin':'gestor'; const {data:audit,error:ae}=await svc.from('backup_audit_log').insert({requested_by:ud.user.id,requester_email:ud.user.email??null,requester_role:role,scope_type:scopeType,company_id:companyId,status:'running'}).select('id').single(); if(ae) throw ae;
    const eligible=tables.filter((t:string)=>!EXCLUDED_TABLES.has(t)&&!(scopeType==='company'&&GLOBAL_TABLES.has(t)));
