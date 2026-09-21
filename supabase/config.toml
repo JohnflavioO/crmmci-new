@@ -12,3 +12,6 @@ verify_jwt = false
 [functions.lookup-cnpj-public]
 verify_jwt = false
 
+[functions.backup-export]
+verify_jwt = true
+
