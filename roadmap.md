@@ -1,6 +1,6 @@
 # Roadmap
-- [ ] Criar migração de auditoria, escopo e policies de itens
-- [ ] Criar e testar função protegida de exportação
-- [ ] Substituir interface por ZIP completo e verificado
-- [ ] Adicionar testes de mapa, cursor e autorização
+- [x] Criar migração de auditoria, escopo e policies de itens
+- [x] Criar e testar função protegida de exportação
+- [x] Substituir interface por ZIP completo e verificado
+- [x] Adicionar testes de mapa, cursor e autorização
 - [ ] Validar compilação e fluxo visual
