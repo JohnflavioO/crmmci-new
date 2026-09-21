@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
-import { AlertTriangle, Archive, CheckCircle2, Database, Download, FileArchive, Loader2, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Archive, CheckCircle2, Database, Download, Loader2, ShieldCheck } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
