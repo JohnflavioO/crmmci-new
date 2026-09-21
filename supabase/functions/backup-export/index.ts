@@ -37,8 +37,9 @@ Deno.serve(async(req)=>{
   if(b.action==='page'){
    const table=b.table??''; assertKnownTable(table,tables); if(scopeType==='company'&&GLOBAL_TABLES.has(table)) return json({rows:[],next_cursor:null,count:0,global_skipped:true});
    const args={p_table:table,p_company_id:companyId,p_cursor_created:b.cursor?.created_at??null,p_cursor_key:b.cursor?.key??null,p_limit:normalizeLimit(b.limit)};
-   const [{data,error},{data:count,error:ce}]=await Promise.all([svc.rpc('backup_export_page',args),svc.rpc('backup_export_count',{p_table:table,p_company_id:companyId})]); if(error) throw error;if(ce)throw ce;
-   return json({...data,count:Number(count??0)});
+   const {data,error}=await svc.rpc('backup_export_page',args);if(error)throw error;
+   let count:number|null=null;if(!b.cursor){const {data:exact,error:ce}=await svc.rpc('backup_export_count',{p_table:table,p_company_id:companyId});if(ce)throw ce;count=Number(exact??0)}
+   return json({...data,count});
   }
   if(b.action==='accounts'){
    const perPage=normalizeLimit(b.limit); const pg=b.page??1; const {data,error}=await svc.auth.admin.listUsers({page:pg,perPage}); if(error)throw error;
