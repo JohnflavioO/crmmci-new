@@ -1,199 +1,67 @@
-import { useState } from 'react';
-import { Archive, CheckCircle2, Database, Download, Loader2, ShieldCheck } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import JSZip from 'jszip';
+import { AlertTriangle, Archive, CheckCircle2, Database, Download, FileArchive, Loader2, ShieldCheck } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { supabase } from '@/integrations/supabase/client';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/useAuth';
+import { backupCall, fetchTable, safeEmail, sha256, type BackupInit } from '@/lib/backup';
 import { toast } from 'sonner';
 
-const BACKUP_TABLES = [
-  { name: 'quotes', label: 'Propostas' },
-  { name: 'quote_items', label: 'Itens das propostas' },
-  { name: 'clients', label: 'Clientes' },
-  { name: 'products', label: 'Produtos' },
-  { name: 'profiles', label: 'Vendedores' },
-] as const;
+type Step={label:string;count:number;status:'waiting'|'running'|'done'};
+type Audit={id:string;created_at:string;requester_email:string|null;scope_type:string;status:string;counts:Record<string,number>};
+type Section={file:string;table:string;rows:number;sha256:string};
+type ReadyBackup={blob:Blob;filename:string;total:number;warnings:string[];checks:string[]};
+const PAGE=500;
+const STEP_LABELS=['Contas','Admins','Usuários','Por usuário','Pedidos','Itens','Demais tabelas','Storage'];
+const jsonText=(value:unknown)=>JSON.stringify(value,null,2);
 
-const PAGE_SIZE = 500;
-const PRIVATE_FIELD = /(password|secret|token|credential|api[_-]?key)/i;
+export default function DataBackup(){
+ const {isAdmin,isGestor,isApproved,profile}=useAuth();
+ const [scope,setScope]=useState('mine'); const [includeFiles,setIncludeFiles]=useState(false); const [running,setRunning]=useState(false); const [progress,setProgress]=useState(0); const [steps,setSteps]=useState<Step[]>(STEP_LABELS.map(label=>({label,count:0,status:'waiting'}))); const [ready,setReady]=useState<ReadyBackup|null>(null); const [history,setHistory]=useState<Audit[]>([]); const cancelled=useRef(false);
+ const companyId=scope==='all'?null:(scope==='mine'?profile?.company_id??null:scope);
+ const scopeType=scope==='all'?'all':'company';
+ const setStep=(index:number,count:number,status:Step['status'])=>setSteps(old=>old.map((s,i)=>i===index?{...s,count,status}:s));
+ useEffect(()=>{if(!isAdmin)return;backupCall<{rows:Audit[]}>({action:'history'}).then(r=>setHistory(r.rows)).catch(()=>setHistory([]))},[isAdmin]);
+ const canUse=isApproved&&(isAdmin||isGestor);
+ const download=()=>{if(!ready)return;const url=URL.createObjectURL(ready.blob);const a=document.createElement('a');a.href=url;a.download=ready.filename;document.body.appendChild(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000)};
 
-function removePrivateFields(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(removePrivateFields);
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
-        .filter(([key]) => !PRIVATE_FIELD.test(key))
-        .map(([key, nestedValue]) => [key, removePrivateFields(nestedValue)]),
-    );
-  }
-  return value;
-}
-
-async function fetchAllRows(table: string) {
-  const rows: unknown[] = [];
-  let from = 0;
-
-  while (true) {
-    const { data, error } = await (supabase as any)
-      .from(table)
-      .select('*')
-      .range(from, from + PAGE_SIZE - 1);
-
-    if (error) throw new Error(`${table}: ${error.message}`);
-    const page = (data ?? []) as unknown[];
-    rows.push(...page);
-    if (page.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
-  }
-
-  return removePrivateFields(rows);
-}
-
-export default function DataBackup() {
-  const { isAdmin, isGestor, profile } = useAuth();
-  const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [currentTable, setCurrentTable] = useState('');
-  const [lastBackup, setLastBackup] = useState<{ date: Date; total: number } | null>(null);
-
-  if (!isAdmin && !isGestor) return null;
-
-  const createBackup = async () => {
-    setRunning(true);
-    setProgress(0);
-    setLastBackup(null);
-
-    try {
-      const exportedAt = new Date();
-      const tables: Record<string, unknown> = {};
-      const counts: Record<string, number> = {};
-      let total = 0;
-
-      for (let index = 0; index < BACKUP_TABLES.length; index += 1) {
-        const table = BACKUP_TABLES[index];
-        setCurrentTable(table.label);
-        const rows = await fetchAllRows(table.name);
-        tables[table.name] = rows;
-        const count = Array.isArray(rows) ? rows.length : 0;
-        counts[table.name] = count;
-        total += count;
-        setProgress(Math.round(((index + 1) / BACKUP_TABLES.length) * 100));
-      }
-
-      const backup = {
-        format: 'mci-crm-backup',
-        version: 1,
-        exported_at: exportedAt.toISOString(),
-        company_id: profile?.company_id ?? null,
-        counts,
-        tables,
-      };
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `backup-mci-${exportedAt.toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-      setLastBackup({ date: exportedAt, total });
-      toast.success(`Backup concluído com ${total.toLocaleString('pt-BR')} registros`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Não foi possível gerar o backup';
-      toast.error(message);
-      setProgress(0);
-    } finally {
-      setRunning(false);
-      setCurrentTable('');
-    }
-  };
-
-  return (
-    <AppLayout>
-      <main className="mx-auto max-w-5xl space-y-6">
-        <header>
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <Database className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">Backup de dados</h1>
-              <p className="text-sm text-muted-foreground">Exporte uma cópia segura dos dados comerciais da empresa.</p>
-            </div>
-          </div>
-        </header>
-
-        <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-md border bg-card p-4">
-            <FileSummary icon={Archive} title="Conteúdo" text="Propostas, clientes e produtos" />
-          </div>
-          <div className="rounded-md border bg-card p-4">
-            <FileSummary icon={ShieldCheck} title="Segurança" text="Sem senhas, tokens ou credenciais" />
-          </div>
-          <div className="rounded-md border bg-card p-4">
-            <FileSummary icon={Download} title="Destino" text="Arquivo salvo somente neste dispositivo" />
-          </div>
-        </section>
-
-        <section className="rounded-md border bg-card p-5 md:p-6">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold">Backup comercial completo</h2>
-              <p className="max-w-2xl text-sm text-muted-foreground">
-                Inclui propostas e seus itens, clientes dos vendedores, produtos e cadastros comerciais visíveis para sua empresa.
-              </p>
-            </div>
-            <Button onClick={createBackup} disabled={running} className="shrink-0 gap-2">
-              {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              {running ? 'Gerando backup' : 'Baixar backup'}
-            </Button>
-          </div>
-
-          {running && (
-            <div className="mt-6 space-y-2" aria-live="polite">
-              <div className="flex justify-between text-sm">
-                <span>Exportando {currentTable}</span>
-                <span className="font-medium">{progress}%</span>
-              </div>
-              <Progress value={progress} />
-            </div>
-          )}
-
-          {lastBackup && (
-            <Alert className="mt-6 border-primary/30 bg-primary/5">
-              <CheckCircle2 className="h-4 w-4" />
-              <AlertTitle>Backup concluído</AlertTitle>
-              <AlertDescription>
-                {lastBackup.total.toLocaleString('pt-BR')} registros exportados em {lastBackup.date.toLocaleString('pt-BR')}.
-              </AlertDescription>
-            </Alert>
-          )}
-        </section>
-
-        <Alert>
-          <ShieldCheck className="h-4 w-4" />
-          <AlertTitle>Uso econômico e seguro</AlertTitle>
-          <AlertDescription>
-            Esta função não usa inteligência artificial nem mantém cópias extras na nuvem. O custo ocorre apenas durante a leitura solicitada.
-          </AlertDescription>
-        </Alert>
-      </main>
-    </AppLayout>
-  );
-}
-
-function FileSummary({ icon: Icon, title, text }: { icon: typeof Archive; title: string; text: string }) {
-  return (
-    <div className="flex items-start gap-3">
-      <Icon className="mt-0.5 h-5 w-5 text-primary" />
-      <div>
-        <p className="font-medium">{title}</p>
-        <p className="text-xs text-muted-foreground">{text}</p>
-      </div>
-    </div>
-  );
+ const run=async()=>{
+  setRunning(true);setReady(null);setProgress(0);setSteps(STEP_LABELS.map(label=>({label,count:0,status:'waiting'})));cancelled.current=false;const started=Date.now();let auditId:string|undefined;
+  try{
+   const init=await backupCall<BackupInit&{companies:{id:string;name:string}[]}>({action:'init',scope:scopeType,company_id:companyId});auditId=init.audit_id;
+   const zip=new JSZip();const sections:Section[]=[];const counts:Record<string,number>={};const addJson=async(file:string,table:string,value:unknown,rows:number)=>{const text=jsonText(value);zip.file(file,text);sections.push({file,table,rows,sha256:await sha256(text)});counts[table]=(counts[table]??0)+rows};
+   if(cancelled.current)throw new Error('Backup cancelado');
+   setStep(0,0,'running');const accounts:Record<string,unknown>[]=[];for(let page=1;;page++){const r=await backupCall<{rows:Record<string,unknown>[];has_more:boolean}>({action:'accounts',scope:init.scope.type,company_id:init.scope.company_id,page,limit:PAGE});accounts.push(...r.rows);setStep(0,accounts.length,'running');if(!r.has_more)break}await addJson('01_contas.json','auth.users',accounts,accounts.length);setStep(0,accounts.length,'done');setProgress(10);
+   setStep(1,0,'running');const [roles,profiles,approvals,permissions,preferences]=await Promise.all(['user_roles','profiles','user_approvals','user_permissions','user_preferences'].map(t=>fetchTable(t,init.scope.type,init.scope.company_id)));
+   const emailById=new Map(accounts.map(a=>[String(a.id),String(a.email??'')]));const profileById=new Map(profiles.map(p=>[String(p.user_id),p]));const admins=roles.filter(r=>r.role==='admin').map(r=>({user_id:r.user_id,email:emailById.get(String(r.user_id))??null,name:(profileById.get(String(r.user_id)) as Record<string,unknown>|undefined)?.full_name??null}));await addJson('02_admins.json','admins',admins,admins.length);setStep(1,admins.length,'done');setProgress(18);
+   setStep(2,0,'running');const users=accounts.map(account=>{const id=String(account.id);return {...account,profile:profileById.get(id)??null,roles:roles.filter(r=>r.user_id===id).map(r=>r.role),approval:approvals.find(r=>r.user_id===id)??null,permissions:permissions.filter(r=>r.user_id===id),preferences:preferences.filter(r=>r.user_id===id),company_id:(profileById.get(id) as Record<string,unknown>|undefined)?.company_id??null}});await addJson('03_usuarios.json','users',users,users.length);setStep(2,users.length,'done');setProgress(25);
+   setStep(4,0,'running');const quotes=await fetchTable('quotes',init.scope.type,init.scope.company_id,n=>setStep(4,n,'running'));await addJson('05_pedidos.json','quotes',quotes,quotes.length);setStep(4,quotes.length,'done');setProgress(35);
+   setStep(5,0,'running');const items=await fetchTable('quote_items',init.scope.type,init.scope.company_id,n=>setStep(5,n,'running'));await addJson('06_itens.json','quote_items',items,items.length);setStep(5,items.length,'done');setProgress(43);
+   const clients=await fetchTable('clients',init.scope.type,init.scope.company_id);setStep(3,0,'running');let personalFiles=0;for(const user of accounts){const id=String(user.id),folder=safeEmail(String(user.email??''),id);const ownQuotes=quotes.filter(q=>q.created_by===id).map(q=>({...q,itens:items.filter(i=>i.quote_id===q.id)}));const ownClients=clients.filter(c=>c.created_by===id||c.salesperson_id===id);await addJson(`04_por_usuario/${folder}/pedidos.json`,'quotes_by_user',ownQuotes,ownQuotes.length);await addJson(`04_por_usuario/${folder}/clientes.json`,'clients_by_user',ownClients,ownClients.length);personalFiles+=ownQuotes.length+ownClients.length}setStep(3,personalFiles,'done');setProgress(52);
+   setStep(6,0,'running');const reserved=new Set(['quotes','quote_items','user_roles','profiles','user_approvals','user_permissions','user_preferences']);let other=0;for(const table of init.tables.filter(t=>!reserved.has(t)).sort()){if(cancelled.current)throw new Error('Backup cancelado');const rows=table==='clients'?clients:await fetchTable(table,init.scope.type,init.scope.company_id);await addJson(`07_tabelas/${table}.json`,table,rows,rows.length);other+=rows.length;setStep(6,other,'running')}setStep(6,other,'done');setProgress(77);
+   setStep(7,0,'running');const storageList:Record<string,unknown>[]=[];for(const bucket of ['avatars','quote-pdfs','nf-pdfs','contracts','technical-cloud','budget-proofs','help-thumbnails','contract-signed','contract-evidence']){for(let page=1;;page++){const r=await backupCall<{rows:(Record<string,unknown>&{path:string;is_folder:boolean})[];has_more:boolean}>({action:'storage',scope:init.scope.type,company_id:init.scope.company_id,bucket,page,limit:PAGE,path:''});storageList.push(...r.rows.filter(x=>!x.is_folder));if(!r.has_more)break}}await addJson('08_storage/arquivos.json','storage.objects',storageList,storageList.length);
+   if(includeFiles){for(const file of storageList){const bucket=String(file.bucket),path=String(file.path);const u=await backupCall<{signed_url:string}>({action:'storage-url',scope:init.scope.type,company_id:init.scope.company_id,bucket,path});const response=await fetch(u.signed_url);if(!response.ok)throw new Error(`Falha ao baixar ${bucket}/${path}`);const buffer=await response.arrayBuffer();zip.file(`08_storage/${bucket}/${path}`,buffer);sections.push({file:`08_storage/${bucket}/${path}`,table:'storage.file',rows:1,sha256:await sha256(buffer)})}}setStep(7,storageList.length,'done');setProgress(88);
+   const quoteIds=new Set(quotes.map(q=>q.id));const clientIds=new Set(clients.map(c=>c.id));const orphanItems=items.filter(i=>!quoteIds.has(i.quote_id));const orphanClients=quotes.filter(q=>q.client_id&&!clientIds.has(q.client_id));if(orphanItems.length)throw new Error(`${orphanItems.length} itens sem pedido no backup`);if(orphanClients.length)throw new Error(`${orphanClients.length} pedidos referenciam clientes ausentes`);
+   const itemQuoteIds=new Set(items.map(i=>i.quote_id));const positiveWithoutItems=quotes.filter(q=>Number(q.total_amount??q.total??0)>0&&!itemQuoteIds.has(q.id)).length;const warnings=positiveWithoutItems?[`${positiveWithoutItems} pedidos com valor maior que zero estão sem itens.`]:[];const checks=['Contagens conferidas no servidor','Todos os itens possuem pedido','Todos os clientes referenciados foram incluídos'];
+   const manifest={format:'mci-crm-backup',version:2,exported_at:new Date().toISOString(),exported_by:init.exported_by,scope:init.scope,sections,global_tables_skipped:init.global_tables_skipped,notes:[init.integration_note],verification:{ok:true,checks,warnings}};const manifestText=jsonText(manifest);zip.file('manifest.json',manifestText);const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});const now=new Date(),stamp=`${now.toISOString().slice(0,10)}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;const label=init.scope.type==='all'?'todas':(init.scope.company_id??'empresa').slice(0,8);const total=Object.values(counts).reduce((a,b)=>a+b,0);await backupCall({action:'finish',audit_id:auditId,scope:init.scope.type,company_id:init.scope.company_id,status:'completed',counts,verification:{ok:true,checks},warnings,duration_ms:Date.now()-started});setReady({blob,filename:`backup-${label}-${stamp}.zip`,total,warnings,checks});setProgress(100);toast.success('Backup verificado e pronto para baixar');if(isAdmin){const h=await backupCall<{rows:Audit[]}>({action:'history'});setHistory(h.rows)}
+  }catch(error){const message=error instanceof Error?error.message:'Não foi possível gerar o backup';if(auditId)await backupCall({action:'finish',audit_id:auditId,scope:scopeType,company_id:companyId,status:'failed',error_message:message,duration_ms:Date.now()-started}).catch(()=>null);toast.error(message);setProgress(0)
+  }finally{setRunning(false)}
+ };
+ const totalProgress=useMemo(()=>steps.reduce((n,s)=>n+s.count,0),[steps]);
+ if(!canUse)return null;
+ return <AppLayout><main className="mx-auto max-w-6xl space-y-6">
+  <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-md bg-primary/10 text-primary"><Database className="h-5 w-5"/></div><div><h1 className="text-2xl font-bold">Backup completo</h1><p className="text-sm text-muted-foreground">Cópia segura, multiempresa e conferida antes do download.</p></div></div>{ready&&<Button onClick={download} className="gap-2"><Download className="h-4 w-4"/>Baixar ZIP verificado</Button>}</header>
+  <section className="grid gap-4 lg:grid-cols-[1fr_1fr_auto]"><div><label className="mb-2 block text-sm font-medium">Escopo</label><Select value={scope} onValueChange={setScope} disabled={running||!isAdmin}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="mine">Minha empresa</SelectItem>{isAdmin&&<SelectItem value="all">Todas as empresas</SelectItem>}</SelectContent></Select></div><div className="flex items-end gap-3 rounded-md border p-3"><Switch id="storage" checked={includeFiles} onCheckedChange={setIncludeFiles} disabled={running}/><label htmlFor="storage" className="text-sm"><span className="block font-medium">Incluir arquivos do Storage</span><span className="text-xs text-muted-foreground">Pode aumentar muito o tamanho e o tempo.</span></label></div><Button onClick={run} disabled={running} className="self-end gap-2">{running?<Loader2 className="h-4 w-4 animate-spin"/>:<Archive className="h-4 w-4"/>}{running?'Exportando':'Gerar backup'}</Button></section>
+  {(running||ready)&&<section className="space-y-4 rounded-md border bg-card p-5"><div className="flex items-center justify-between"><h2 className="font-semibold">Progresso da exportação</h2><span className="text-sm font-medium">{progress}%</span></div><Progress value={progress}/><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{steps.map(s=><div key={s.label} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"><span>{s.label}</span><span className="flex items-center gap-2 text-muted-foreground">{s.count.toLocaleString('pt-BR')}{s.status==='running'?<Loader2 className="h-3.5 w-3.5 animate-spin"/>:s.status==='done'?<CheckCircle2 className="h-3.5 w-3.5 text-primary"/>:null}</span></div>)}</div>{running&&<Button variant="outline" onClick={()=>{cancelled.current=true}} size="sm">Cancelar após a etapa atual</Button>}</section>}
+  {ready&&<section className="space-y-3"><Alert className="border-primary/30 bg-primary/5"><CheckCircle2 className="h-4 w-4"/><AlertTitle>Backup conferido</AlertTitle><AlertDescription>{ready.total.toLocaleString('pt-BR')} registros preparados. {ready.checks.join(' · ')}</AlertDescription></Alert>{ready.warnings.map(w=><Alert key={w}><AlertTriangle className="h-4 w-4"/><AlertTitle>Aviso de consistência</AlertTitle><AlertDescription>{w}</AlertDescription></Alert>)}</section>}
+  <Alert><ShieldCheck className="h-4 w-4"/><AlertTitle>Segurança e economia</AlertTitle><AlertDescription>As leituras são isoladas por empresa, não dependem das permissões de visualização e não usam inteligência artificial.</AlertDescription></Alert>
+  {isAdmin&&<section className="rounded-md border bg-card"><div className="border-b p-4"><h2 className="font-semibold">Últimas exportações</h2></div><Table><TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Usuário</TableHead><TableHead>Escopo</TableHead><TableHead>Status</TableHead></TableRow></TableHeader><TableBody>{history.length?history.map(h=><TableRow key={h.id}><TableCell>{new Date(h.created_at).toLocaleString('pt-BR')}</TableCell><TableCell>{h.requester_email??'—'}</TableCell><TableCell>{h.scope_type==='all'?'Todas as empresas':'Empresa'}</TableCell><TableCell><Badge variant={h.status==='completed'?'default':h.status==='failed'?'destructive':'secondary'}>{h.status==='completed'?'Concluído':h.status==='failed'?'Falhou':'Em andamento'}</Badge></TableCell></TableRow>):<TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Nenhuma exportação registrada.</TableCell></TableRow>}</TableBody></Table></section>}
+  <p className="sr-only">{totalProgress} registros processados</p>
+ </main></AppLayout>
 }
