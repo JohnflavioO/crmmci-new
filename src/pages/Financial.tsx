@@ -101,11 +101,22 @@ function FinancialContent() {
   const loadRecords = useCallback(async () => {
     setLoading(true);
     try {
-      const [recordsRes, profilesRes, quotesRes] = await Promise.all([
+      const [recordsRes, profilesRes] = await Promise.all([
         db.from('financial_records').select('id, quote_id, client_id, client_name, created_by, due_date, external_order_id, financial_notes, financial_status, payment_method, total_amount, amount_paid, paid_date, baixa_at').order('due_date', { ascending: true }),
         db.from('profiles').select('user_id, full_name').eq('active', true),
-        db.from('quotes').select('id, quote_number, client_name, salesperson, created_by, client_id, payment_status, clients(company_name, name)').eq('status', 'approved'),
       ]);
+
+      if (recordsRes.error) {
+        toast.error('Erro ao carregar registros financeiros');
+        return;
+      }
+
+      const quoteIds = [...new Set((recordsRes.data || []).map((record: any) => record.quote_id).filter(Boolean))];
+      const quotesRes = quoteIds.length > 0
+        ? await db.from('quotes')
+            .select('id, quote_number, client_name, salesperson, created_by, client_id, payment_status, clients(company_name, name)')
+            .in('id', quoteIds)
+        : { data: [], error: null };
 
       const profileMap: Record<string, string> = {};
       if (profilesRes.data) {
@@ -129,8 +140,8 @@ function FinancialContent() {
         });
       }
 
-    if (recordsRes.error) {
-      toast.error('Erro ao carregar registros financeiros');
+    if (quotesRes.error) {
+      toast.error('Erro ao carregar dados dos orçamentos');
     } else {
       const today = startOfDay(new Date());
       const updated = (recordsRes.data || []).map((r: any) => {
