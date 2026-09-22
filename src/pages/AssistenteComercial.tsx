@@ -181,27 +181,27 @@ export default function AssistenteComercial() {
       const in7days = new Date(Date.now() + 7 * 86400000).toISOString();
 
       const [tasksRes, inactiveRes, negRes, apprRes, monthRes, demoRes] = await Promise.all([
-        supabase.from('tasks').select('id', { head: false }).lt('due_date', now.toISOString()).neq('status', 'done').limit(1000),
-        supabase.from('clients').select('id').or(`last_purchase_date.lt.${cutoff180},last_purchase_date.is.null`).limit(1000),
+        supabase.from('tasks').select('id', { count: 'exact', head: true }).lt('due_date', now.toISOString()).neq('status', 'done'),
+        supabase.from('clients').select('id', { count: 'exact', head: true }).or(`last_purchase_date.lt.${cutoff180},last_purchase_date.is.null`),
         supabase.from('quotes').select('id, total_amount, total, client_name').in('status', ['negotiation', 'negociacao', 'sent']).limit(1000),
-        supabase.from('quotes').select('id').eq('status', 'approved').gte('created_at', startMonth).limit(1000),
-        supabase.from('quotes').select('id, status').gte('created_at', startMonth).limit(2000),
-        supabase.from('quotes').select('id, client_name, demonstration_end_date').eq('is_demonstration', true).not('demonstration_end_date', 'is', null).lte('demonstration_end_date', in7days).limit(500),
+        supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('status', 'approved').gte('created_at', startMonth),
+        supabase.from('quotes').select('id', { count: 'exact', head: true }).gte('created_at', startMonth),
+        supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('is_demonstration', true).not('demonstration_end_date', 'is', null).lte('demonstration_end_date', in7days),
       ]);
 
       const forecast = (negRes.data || []).reduce((s: number, q: any) => s + Number(q.total_amount || q.total || 0), 0);
-      const totalMonth = monthRes.data?.length || 0;
-      const approvedMonth = apprRes.data?.length || 0;
+      const totalMonth = monthRes.count || 0;
+      const approvedMonth = apprRes.count || 0;
       const bigDeals = (negRes.data || []).filter((q: any) => Number(q.total_amount || q.total || 0) >= 50000);
 
       setKpis({
-        overdueFollowups: tasksRes.data?.length || 0,
-        inactiveClients: inactiveRes.data?.length || 0,
+        overdueFollowups: tasksRes.count || 0,
+        inactiveClients: inactiveRes.count || 0,
         negotiating: negRes.data?.length || 0,
         forecastRevenue: forecast,
         approvedMonth,
         conversion: totalMonth ? Math.round((approvedMonth / totalMonth) * 1000) / 10 : 0,
-        demoExpiring: demoRes.data?.length || 0,
+        demoExpiring: demoRes.count || 0,
       });
 
       const built: Array<{ id: string; label: string; description: string; action?: () => void }> = [];
@@ -213,18 +213,18 @@ export default function AssistenteComercial() {
           action: () => askDirect('Propostas em negociação acima de R$ 50 mil'),
         });
       }
-      if ((tasksRes.data?.length || 0) > 0) {
+      if ((tasksRes.count || 0) > 0) {
         built.push({
           id: 'followups',
-          label: `${tasksRes.data!.length} follow-up${tasksRes.data!.length === 1 ? '' : 's'} atrasado${tasksRes.data!.length === 1 ? '' : 's'}`,
+          label: `${tasksRes.count} follow-up${tasksRes.count === 1 ? '' : 's'} atrasado${tasksRes.count === 1 ? '' : 's'}`,
           description: 'Tarefas comerciais vencidas que precisam de retomada.',
           action: () => askDirect('Follow-ups atrasados'),
         });
       }
-      if ((demoRes.data?.length || 0) > 0) {
+      if ((demoRes.count || 0) > 0) {
         built.push({
           id: 'demos',
-          label: `${demoRes.data!.length} demonstração${demoRes.data!.length === 1 ? '' : 'ões'} vencendo em 7 dias`,
+          label: `${demoRes.count} demonstração${demoRes.count === 1 ? '' : 'ões'} vencendo em 7 dias`,
           description: 'Equipamentos em demonstração aproximando-se do prazo — hora de negociar a venda.',
           action: () => askDirect('Demonstrações vencendo esta semana'),
         });

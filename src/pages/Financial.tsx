@@ -102,7 +102,7 @@ function FinancialContent() {
     setLoading(true);
     try {
       const [recordsRes, profilesRes, quotesRes] = await Promise.all([
-        db.from('financial_records').select('*').order('due_date', { ascending: true }),
+        db.from('financial_records').select('id, quote_id, client_id, client_name, created_by, due_date, external_order_id, financial_notes, financial_status, payment_method, total_amount, amount_paid, paid_date, baixa_at').order('due_date', { ascending: true }),
         db.from('profiles').select('user_id, full_name').eq('active', true),
         db.from('quotes').select('id, quote_number, client_name, salesperson, created_by, client_id, payment_status, clients(company_name, name)').eq('status', 'approved'),
       ]);
@@ -290,7 +290,7 @@ function FinancialContent() {
   const handleViewHistory = async (record: any) => {
     setHistoryRecord(record);
     const { data } = await db.from('financial_action_history')
-      .select('*')
+      .select('id, action_type, performed_by_name, previous_status, new_status, notes, created_at')
       .eq('financial_record_id', record.id)
       .order('created_at', { ascending: false });
     setHistoryData(data || []);
