@@ -1,4 +1,4 @@
-project_id = "npqujpfqsnwxowlciyof"
+project_id = "eaaktxdmgewpjyimzvbc"
 
 [functions.contract-signature-public]
 verify_jwt = false

@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     host: "::",
-    port: 8080,
+    port: 8081,
     allowedHosts: true,
     hmr: {
       // Nunca ocultar falhas de compilação/HMR atrás de uma tela branca.
@@ -44,12 +44,14 @@ export default defineConfig(({ mode }) => ({
   },
   preview: {
     host: "::",
-    port: 8080,
+    port: 8081,
     allowedHosts: true,
   },
   plugins: [
     react(),
-    mcpPlugin(),
+    // No Windows o plugin regera supabase/functions/mcp/index.ts importando um caminho local
+    // (npm:C:\...), o que quebra a função publicada. Lá ele fica desligado.
+    process.platform !== "win32" && mcpPlugin(),
     mode === "development" && componentTagger(),
   ].filter(Boolean),
   resolve: {

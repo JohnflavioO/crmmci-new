@@ -22,7 +22,14 @@ ON public.technical_maintenances FOR DELETE TO authenticated
 USING (public.is_support_manager() OR public.is_admin());
 
 -- Realtime authorization: restrict channel subscriptions by topic to the user
-ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+-- Projetos novos já vêm com RLS ligado e a tabela pertence a supabase_realtime_admin,
+-- então o ALTER só roda quando realmente precisa (senão falha com "must be owner").
+DO $$
+BEGIN
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'realtime.messages'::regclass) THEN
+    ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
 
 DROP POLICY IF EXISTS "Users can subscribe to own realtime topics" ON realtime.messages;
 CREATE POLICY "Users can subscribe to own realtime topics"
