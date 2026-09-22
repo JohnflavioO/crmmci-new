@@ -555,7 +555,6 @@ export default function Logistics() {
       }
       setDetailItemStatus(prev => ({ ...prev, [quoteItemId]: newStatus }));
       toast.success('Status do item atualizado');
-      fetchData();
     } catch (e: any) {
       toast.error('Erro: ' + (e.message || ''));
     }

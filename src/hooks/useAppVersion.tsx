@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { clearBrowserCachesAndWorkers, reloadWithCacheBust } from '@/lib/browserRecovery';
 import { useAuth } from '@/hooks/useAuth';
@@ -23,37 +24,31 @@ export interface AppVersionInfo {
 
 export function useAppVersion() {
   const { session } = useAuth();
-  const [remote, setRemote] = useState<AppVersionInfo | null>(null);
   const [local, setLocal] = useState<string | null>(() => {
     try { return localStorage.getItem(LS_KEY); } catch { return null; }
   });
 
-  const fetchVersion = useCallback(async () => {
-    if (!session) return;
-
-    const { data } = await supabase
-      .from('system_settings')
-      .select('value')
-      .eq('key', 'app_version')
-      .maybeSingle();
-    if (data?.value) {
-      const v = data.value as unknown as AppVersionInfo;
-      setRemote(v);
-      // First load: store baseline silently
-      if (!local) {
-        try { localStorage.setItem(LS_KEY, v.version); } catch {}
-        setLocal(v.version);
-      }
-    }
-  }, [local, session]);
+  const query = useQuery({
+    queryKey: ['system-setting', 'app_version'],
+    enabled: !!session,
+    staleTime: 30 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'app_version')
+        .maybeSingle();
+      if (error) throw error;
+      return data?.value as unknown as AppVersionInfo | undefined;
+    },
+  });
+  const remote = query.data ?? null;
 
   useEffect(() => {
-    if (!session) return;
-
-    fetchVersion();
-    const i = setInterval(fetchVersion, 60_000);
-    return () => clearInterval(i);
-  }, [fetchVersion, session]);
+    if (!remote?.version || local) return;
+    try { localStorage.setItem(LS_KEY, remote.version); } catch {}
+    setLocal(remote.version);
+  }, [local, remote]);
 
   const updateNow = useCallback(async () => {
     if (remote?.version) {
@@ -77,5 +72,5 @@ export function useAppVersion() {
 
   const hasUpdate = !!(remote && local && remote.version !== local);
 
-  return { remote, local, hasUpdate, updateNow, refetch: fetchVersion };
+  return { remote, local, hasUpdate, updateNow, refetch: query.refetch };
 }

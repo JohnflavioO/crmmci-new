@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -77,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [forcePasswordChange, setForcePasswordChange] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const accessRefreshInFlight = useRef(false);
 
   const applyAccessData = useCallback((data: AccessData | null | undefined) => {
     const profileData: ProfileData | null = data ? {
@@ -111,14 +112,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshAccess = useCallback(async () => {
-    if (!user) return;
-    const { data, error } = await (supabase as any).rpc('get_current_user_access').maybeSingle();
-    if (error) {
-      console.error('[Auth] Access refresh error:', error);
-      return;
+    if (!user || accessRefreshInFlight.current) return;
+    accessRefreshInFlight.current = true;
+    try {
+      const { data, error } = await (supabase as any).rpc('get_current_user_access').maybeSingle();
+      if (error) {
+        console.error('[Auth] Access refresh error:', error);
+        return;
+      }
+      applyAccessData(data);
+      setProfileLoaded(true);
+    } finally {
+      accessRefreshInFlight.current = false;
     }
-    applyAccessData(data);
-    setProfileLoaded(true);
   }, [applyAccessData, user]);
 
   // Safety timeout: hard cap on splash — never > 3s.
@@ -239,16 +245,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (document.visibilityState === 'visible') refreshAccess();
     };
 
-    window.addEventListener('focus', refreshAccess);
     window.addEventListener('mci:refresh-auth', refreshAccess);
     document.addEventListener('visibilitychange', handleVisibility);
-    const interval = window.setInterval(refreshAccess, 45000);
 
     return () => {
-      window.removeEventListener('focus', refreshAccess);
       window.removeEventListener('mci:refresh-auth', refreshAccess);
       document.removeEventListener('visibilitychange', handleVisibility);
-      window.clearInterval(interval);
     };
   }, [refreshAccess, user]);
 

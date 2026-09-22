@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
 import AppLayout from '@/components/AppLayout';
@@ -20,6 +20,7 @@ import LogisticsImportDialog from '@/components/products/LogisticsImportDialog';
 const formatBR = (n: number) => (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const db = supabase as any;
+const PRODUCT_FIELDS = 'id, name, sku, code, brand, category_principal, description, price, image_url, peso_kg, altura_cm, largura_cm, comprimento_cm, peso_cubado, volume_m3, origem_cep, embalagem_tipo, bloquear_atualizacao_logistica, logistica_atualizada_em, loja_integrada_sync_source';
 
 // ---------- Busca inteligente ----------
 const normalize = (s: any): string =>
@@ -103,6 +104,7 @@ export default function Products() {
   const [diagOpen, setDiagOpen] = useState(false);
   const [diag, setDiag] = useState<any | null>(null);
   const [logisticsImportOpen, setLogisticsImportOpen] = useState(false);
+  const searchEffectMounted = useRef(false);
 
   const normQuery = normalize(search);
   const tokens = tokenize(search);
@@ -117,7 +119,7 @@ export default function Products() {
 
     // Sem busca: paginação normal
     if (!isSearching) {
-      let q = db.from('products').select('*', { count: 'exact' }).order('name');
+      let q = db.from('products').select(PRODUCT_FIELDS, { count: 'exact' }).order('name');
       if (noLogisticFilter) {
         q = q.or('peso_kg.is.null,altura_cm.is.null,largura_cm.is.null,comprimento_cm.is.null,peso_kg.eq.0,altura_cm.eq.0,largura_cm.eq.0,comprimento_cm.eq.0');
       }
@@ -131,7 +133,7 @@ export default function Products() {
     setSearching(true);
     try {
       // Cada token precisa aparecer em algum campo (AND entre tokens, OR entre campos)
-      let q = db.from('products').select('*').limit(500);
+      let q = db.from('products').select(PRODUCT_FIELDS).limit(500);
       for (const t of tokens) {
         const safe = t.replace(/[%,()]/g, '');
         if (!safe) continue;
@@ -169,6 +171,10 @@ export default function Products() {
   };
 
   useEffect(() => {
+    if (!searchEffectMounted.current) {
+      searchEffectMounted.current = true;
+      return;
+    }
     const timer = window.setTimeout(() => {
       if (page !== 0) setPage(0);
       else loadProducts();
@@ -466,7 +472,7 @@ export default function Products() {
       if (res.updated > 0) {
         toast.success('Dados logísticos atualizados da Loja Integrada.');
         // Refresh product in form if it's the currently edited one
-        const { data: fresh } = await db.from('products').select('*').eq('id', productId).maybeSingle();
+        const { data: fresh } = await db.from('products').select(PRODUCT_FIELDS).eq('id', productId).maybeSingle();
         if (fresh && editing?.id === productId) handleEdit(fresh);
         loadProducts();
       } else if (res.not_found > 0) {

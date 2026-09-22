@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -16,24 +17,24 @@ export interface ChangelogEntry {
 
 export function useChangelog() {
   const { session } = useAuth();
-  const [entries, setEntries] = useState<ChangelogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [lastSeen, setLastSeen] = useState<string | null>(() => {
     try { return localStorage.getItem(LS_SEEN_KEY); } catch { return null; }
   });
 
-  const fetchChangelog = useCallback(async () => {
-    if (!session) { setLoading(false); return; }
-    const { data } = await (supabase as any)
-      .from('app_changelog')
-      .select('*')
-      .order('release_date', { ascending: false })
-      .order('created_at', { ascending: false });
-    setEntries(data || []);
-    setLoading(false);
-  }, [session]);
-
-  useEffect(() => { fetchChangelog(); }, [fetchChangelog]);
+  const query = useQuery({
+    queryKey: ['app-changelog'],
+    enabled: !!session,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('app_changelog')
+        .select('id, version, release_date, title, description, environment, created_at')
+        .order('release_date', { ascending: false })
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as ChangelogEntry[];
+    },
+  });
+  const entries = query.data ?? [];
 
   const currentVersion = entries[0]?.version ?? null;
   const latest = entries[0] ?? null;
@@ -45,5 +46,5 @@ export function useChangelog() {
     setLastSeen(currentVersion);
   }, [currentVersion]);
 
-  return { entries, latest, currentVersion, hasUnseen, loading, markSeen, refetch: fetchChangelog };
+  return { entries, latest, currentVersion, hasUnseen, loading: query.isLoading, markSeen, refetch: query.refetch };
 }

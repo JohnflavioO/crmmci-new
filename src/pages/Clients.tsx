@@ -57,6 +57,7 @@ const emptyClient: Omit<Client, 'id'> = {
 };
 
 const db = supabase as any;
+const CLIENT_LIST_FIELDS = 'id, company_name, name, cpf_cnpj, city, state, phone, email, contact_name, address, address_number, complement, neighborhood, cep, contact_phone, contrib_icms, notes, is_whatsapp, is_revenda, client_type, created_by, created_at, last_interaction_at, source';
 
 interface SellerInfo {
   user_id: string;
@@ -102,7 +103,7 @@ export default function Clients() {
   const loadClients = useCallback(async () => {
     if (!user?.id) return;
     try {
-      let query = db.from('clients').select('*');
+      let query = db.from('clients').select(CLIENT_LIST_FIELDS);
       if (!canSeeAll) {
         query = query.eq('created_by', user.id);
       }
