@@ -1417,9 +1417,8 @@ export default function Quotes() {
     if (!(await guardQuoteAction(quote, 'send_to_client'))) return;
     setWhatsappLoading(quote.id);
     try {
-      const { data: clientData } = await db.from('clients').select('*').eq('id', quote.client_id).maybeSingle();
       const phone = quote.clients.phone.replace(/\D/g, '');
-      const clientName = clientData?.company_name || clientData?.name || quote.client_name || 'Cliente';
+      const clientName = quote.clients?.company_name || quote.clients?.name || quote.client_name || 'Cliente';
       const total = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(quote.total_amount) || 0);
       const publicLink = `${window.location.origin}/quote/${quote.public_token}`;
       const sellerName = profile?.full_name || '';
