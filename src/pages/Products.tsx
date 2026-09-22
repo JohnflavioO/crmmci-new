@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
 import AppLayout from '@/components/AppLayout';
@@ -104,6 +104,7 @@ export default function Products() {
   const [diagOpen, setDiagOpen] = useState(false);
   const [diag, setDiag] = useState<any | null>(null);
   const [logisticsImportOpen, setLogisticsImportOpen] = useState(false);
+  const searchEffectMounted = useRef(false);
 
   const normQuery = normalize(search);
   const tokens = tokenize(search);
@@ -170,6 +171,10 @@ export default function Products() {
   };
 
   useEffect(() => {
+    if (!searchEffectMounted.current) {
+      searchEffectMounted.current = true;
+      return;
+    }
     const timer = window.setTimeout(() => {
       if (page !== 0) setPage(0);
       else loadProducts();
