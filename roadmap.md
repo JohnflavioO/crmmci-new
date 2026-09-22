@@ -4,3 +4,5 @@
 - [x] Substituir interface por ZIP completo e verificado
 - [x] Adicionar testes de mapa, cursor e autorização
 - [ ] Validar compilação e fluxo visual
+- [ ] Otimizar os 5 maiores consumos seguros sem alterar comportamento
+- [ ] Validar consultas reduzidas, testes e preview
